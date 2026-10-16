@@ -9,7 +9,7 @@ import {
   PreOperationalAssumptionSchema,
 } from "../core/documentation";
 import { SRReferenceSchema } from "../core/pra-common";
-import { WorkbookParameterReferenceSchema } from "../modeling/references";
+import { UncertainExpressionSchema } from "../core/uncertainty";
 
 export const HfeTimingSchema = z.enum(["PRE_INITIATOR", "AT_INITIATOR", "POST_INITIATOR"]);
 export const HfeImpactLevelSchema = z.enum(["FUNCTION", "SYSTEM", "TRAIN", "COMPONENT"]);
@@ -135,9 +135,7 @@ export const HepQuantificationSchema = z.object({
   methodology: z.string(),
   assessmentType: z.enum(["CONSERVATIVE_ESTIMATE", "DETAILED_ASSESSMENT"]),
   isRiskSignificant: z.boolean(),
-  pointEstimateHep: z.number().optional(),
-  meanHep: z.number().optional(),
-  controlledDataSource: WorkbookParameterReferenceSchema.optional(),
+  hep: UncertainExpressionSchema.optional(),
   cognitionContribution: z.number().optional(),
   executionContribution: z.number().optional(),
   performanceShapingFactors: z.array(PerformanceShapingFactorAssessmentSchema).optional(),
@@ -255,9 +253,18 @@ export const HrDocumentationSchema = z.object({
   implementsSrs: z.array(SRReferenceSchema),
 });
 
+export const HrLinkedWorkbooksSchema = z.object({
+  POS: z.string().optional(),
+  IE: z.string().optional(),
+  SC: z.string().optional(),
+  SY: z.string().optional(),
+  DA: z.string().optional(),
+});
+
 export const HumanReliabilityAnalysisSchema = z.object({
   ...technicalElementSchema(TechnicalElementTypes.HUMAN_RELIABILITY_ANALYSIS).shape,
   praScope: z.string(),
+  linkedWorkbooks: HrLinkedWorkbooksSchema.optional(),
   routineActivities: z.array(RoutineActivityIdentificationSchema),
   preInitiatorScreeningRecords: z.array(PreInitiatorScreeningRecordSchema),
   supportSystemInitiatorOperatorContributions: z.array(SupportSystemInitiatorOperatorContributionSchema).optional(),

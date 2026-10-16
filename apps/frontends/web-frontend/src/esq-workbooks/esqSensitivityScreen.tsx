@@ -11,6 +11,7 @@ import type {
 } from "interfaces-mef-types/esq/event-sequence-quantification";
 import type { EsqModelRunResult } from "interfaces-shared-types/newly-developed-methods/event-tree";
 import { importanceGroupsOf } from "interfaces-mef-types/esq/esq-measure-inputs";
+import { esqItemLabel } from "interfaces-mef-types/esq/esq-run-inputs";
 import { WorkbookSectionHeading } from "../workbooks/workbookSectionHeading";
 import { WorkbookInput, WorkbookTextarea } from "../workbooks/commitOnDeactivateFields";
 import { analysisSaveBlock } from "../newly-developed-methods/shared/useAnalysisScope";
@@ -35,8 +36,10 @@ import {
   sciText,
   useElementWidth,
   useRunner,
+  Pager,
+  pageOf,
+  type EsqWindowContext,
 } from "./esqShared";
-import { Pager, pageOf, type EsqWindowContext } from "./esqModelScreen";
 import { caseOptions } from "./esqDaLinks";
 import {
   CASE_KINDS,
@@ -63,6 +66,7 @@ import {
   type EsqSensitivityWindowKind,
 } from "./esqSensitivity";
 import { getEsqSensitivityResult, runEsqSensitivity } from "./esqWorkbookApi";
+import { runQuantityText } from "./esqSolve";
 
 type SensTab = "register" | "cases" | "results" | "preop" | "checks";
 
@@ -136,8 +140,11 @@ function useCaseRunner(view: EsqSensitivityView) {
     const workbookId = runtime.workbookId;
     const revision = runtime.revision;
     if (workbookId === null || revision === null || request === undefined) return undefined;
-    const response = await runEsqSensitivity(workbookId, caseId, revision, request.logic, request.calculation, request.cutSets);
-    if (response.run.status !== "SUCCEEDED") throw new Error(response.run.failure?.message ?? "The run did not finish.");
+    const response = await runEsqSensitivity(workbookId, caseId, revision, request.logic, request.calculation, request.cutSets, runner.progress);
+    if (response.run.status !== "SUCCEEDED") {
+      await runner.failRun(workbookId, response.run, view.model, caseId);
+      return undefined;
+    }
     const summary = await getEsqSensitivityResult(workbookId, caseId, response.run.id);
     const problem = caseRunProblem(summary, esq, caseId);
     if (problem !== undefined) {
@@ -245,7 +252,7 @@ function CasesPanel({ view, openWindow }: { view: EsqSensitivityView; openWindow
     <div className="esq-run">
       <div className="esq-run__composer" aria-label="Case run controls">
         <div className="esq-run__row">
-          <p className="esq-meta">{view.run === undefined ? "Run the model in Step 05 first. Each case runs with its settings." : `Each case is a PRAXIS run with the settings of the run of record (${view.run.calculation === "EXACT" ? "exact" : "cut sets"}), compared with that run.`}</p>
+          <p className="esq-meta">{view.run === undefined ? "Run the model in Step 05 first. Each case runs with its settings." : `Each case is a PRAXIS run on ${runQuantityText(view.run)}, with the other settings of the run of record, and is compared with that run.${view.run.hcl === undefined ? "" : " The run of record uses dependencies, and dependency sensitivity is not available, so the cases leave the dependency network out."}`}</p>
           <div className="esq-card-actions">
             <button type="button" className="posnav__btn posnav__btn--sm" disabled={runs.disabled || pending.length === 0} onClick={() => runs.run(pending)}>{`Run ${pending.length} pending`}</button>
             <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" disabled={runs.disabled || runnable.length === 0} onClick={() => runs.run(runnable)}>
@@ -453,7 +460,7 @@ function SensScreen({ openWindow }: { openWindow: (ctx: EsqWindowContext) => voi
       <div role="tabpanel" id={`${tabId}-panel`} aria-labelledby={`${tabId}-${tab}`} tabIndex={0} className="esq-step__panel">
         <div className="poscard">
           <div className="poscard__head">
-            <WorkbookSectionHeading workbook="ESQ" title={head.title} level={3} />
+            <WorkbookSectionHeading title={head.title} level={3} />
             <div className="esq-card-actions">
               <EsqProvenanceChip>{head.sr}</EsqProvenanceChip>
               {view !== undefined && tab === "register" && editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={addEntry}>Add entry</button>}
@@ -563,9 +570,9 @@ function targetOptions(esq: EventSequenceQuantification, kind: EsqCaseKind): { v
   const model = esq.model;
   if (model === undefined) return [];
   switch (kind) {
-    case "PARAMETER": return model.parameters.map((parameter) => ({ value: parameter.id, label: `${parameter.name} (${parameter.id})` }));
-    case "CCF_TOTAL": return model.ccfGroups.map((group) => ({ value: group.id, label: `${group.name} (${group.id})` }));
-    case "HEP": return model.humanEvents.map((human) => ({ value: human.id, label: `${human.name} (${human.id})` }));
+    case "PARAMETER": return model.parameters.map((parameter) => ({ value: parameter.id, label: esqItemLabel(parameter.name, parameter.id, "Unnamed parameter") }));
+    case "CCF_TOTAL": return model.ccfGroups.map((group) => ({ value: group.id, label: esqItemLabel(group.name, group.id, "Unnamed common cause group") }));
+    case "HEP": return model.humanEvents.map((human) => ({ value: human.id, label: esqItemLabel(human.name, human.id, "Unnamed human failure event") }));
     case "EVENT": return model.events.map((event) => ({ value: event.id, label: blank(event.name) ? event.code : `${event.code} · ${event.name}` }));
     case "GROUP_FAILED": return importanceGroupsOf(esq).map((group) => ({ value: group.key, label: group.label }));
     case "FLAG": return (esq.logic?.flags ?? []).map((flag) => ({ value: flag.id, label: flag.name }));
@@ -682,7 +689,7 @@ function CaseWindow({ id, onClose }: { id: string; onClose: () => void }): JSX.E
                 save({ ...entry, logic });
               }}>
                 <option value="">As in the run of record</option>
-                <option value="AS_SET">As set in Step 03</option>
+                <option value="AS_SET">As set in Step 04</option>
                 <option value="TRUE">All TRUE</option>
                 <option value="FALSE">All FALSE</option>
               </select>

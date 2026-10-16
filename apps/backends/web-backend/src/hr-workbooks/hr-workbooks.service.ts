@@ -5,6 +5,7 @@ import { HumanReliabilityAnalysisSchema } from "interfaces-mef-types/zod/hr/huma
 import { ProjectsService } from "../projects/projects.service";
 import { ExampleWorkbooksService } from "../example-workbooks/example-workbooks.service";
 import { WorkbookRolesService, type WorkbookRoleName } from "../workbooks/workbook-roles.service";
+import { recordWorkbookStatus } from "../workbooks/workbook-status";
 import { WorkbookSignoff, type WorkbookSignoffDocument } from "../workbooks/workbook-signoff.schema";
 import { HrWorkbook, type HrWorkbookDocument } from "./hr-workbook.schema";
 import { HrDocumentsService } from "./hr-documents.service";
@@ -114,8 +115,13 @@ export class HrWorkbooksService {
     const example = await this.exampleWorkbooksService.getHrBundle(exampleId);
     const parsed = HumanReliabilityAnalysisSchema.safeParse(stripNulls(example.hr.mef));
     if (!parsed.success) throw new ForbiddenException(`Example MEF failed validation: ${parsed.error.message}`);
+    const variant = exampleId ?? "htgr";
+    const exampleLinks = variant === "htgr" || variant === "sfr"
+      ? { POS: `example-pos-${variant}`, IE: `example-ie-${variant}`, SC: `example-sc-${variant}`, SY: `example-sy-${variant}`, DA: `example-da-${variant}` }
+      : undefined;
     const cleaned = {
       ...parsed.data,
+      ...(exampleLinks === undefined || parsed.data.linkedWorkbooks !== undefined ? {} : { linkedWorkbooks: exampleLinks }),
       workflowState: "DRAFT",
       workflowHistory: [{ state: "DRAFT", enteredAt: new Date().toISOString(), actor: acting.username, note: "Loaded from example workbook" }],
     };
@@ -124,7 +130,7 @@ export class HrWorkbooksService {
         createWorkbookRevisionFilter(workbookId, expectedRevision),
         {
           $set: {
-            previousMefJson: JSON.stringify(doc.mef),
+            ...(typeof doc.previousMefJson === "string" && doc.previousMefJson.length > 0 ? {} : { previousMefJson: JSON.stringify(doc.mef) }),
             mef: cleaned,
             revision: expectedRevision + 1,
           },
@@ -135,6 +141,7 @@ export class HrWorkbooksService {
     if (!updatedDoc) throw workbookRevisionConflict(expectedRevision);
     await this.signoffModel.deleteMany({ workbookId }).exec();
     await this.hrDocumentsService.removeAllForWorkbook(workbookId);
+    await recordWorkbookStatus(this.hrWorkbookModel.db, workbookId, (updatedDoc.mef as { workflowState?: string }).workflowState);
     return toResponse(updatedDoc, myRoles);
   }
 
@@ -172,6 +179,7 @@ export class HrWorkbooksService {
       )
       .exec();
     if (!updatedDoc) throw workbookRevisionConflict(expectedRevision);
+    await recordWorkbookStatus(this.hrWorkbookModel.db, workbookId, (updatedDoc.mef as { workflowState?: string }).workflowState);
     return toResponse(updatedDoc, myRoles);
   }
 }

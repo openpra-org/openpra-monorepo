@@ -1,5 +1,7 @@
 use std::collections::HashSet;
 
+use serde::{Deserialize, Serialize};
+
 use crate::core::distribution::{
     CcfFactorModel, CcfTesting, UncertainParameter, UncertainUnit, VectorLaw,
 };
@@ -14,7 +16,7 @@ pub struct CcfGroup {
     element: Element,
     pub members: Vec<String>,
     pub model: CcfModel,
-    pub total: Expr,
+    pub total: Option<Expr>,
 }
 
 fn structure_error(message: String) -> PraxisError {
@@ -26,7 +28,7 @@ impl CcfGroup {
         id: impl Into<String>,
         members: Vec<String>,
         mut model: CcfModel,
-        mut total: Expr,
+        mut total: Option<Expr>,
     ) -> Result<Self> {
         let element = Element::new(id.into())?;
         if members.len() < 2 {
@@ -35,8 +37,11 @@ impl CcfGroup {
                 element.id()
             )));
         }
+        require_total(element.id(), &model, total.is_some())?;
         model.validate(element.id(), members.len())?;
-        total.assign_draw_keys(&format!("ccf:{}/total", element.id()));
+        if let Some(total) = total.as_mut() {
+            total.assign_draw_keys(&format!("ccf:{}/total", element.id()));
+        }
         model.assign_draw_keys(element.id());
         let group = CcfGroup {
             element,
@@ -66,17 +71,42 @@ impl CcfGroup {
 
     pub fn checks(&self) -> Vec<(String, Expr)> {
         let id = self.element.id();
-        let mut checks = vec![(
-            format!("common cause group '{}' total", id),
-            self.total.clone(),
-        )];
+        let mut checks: Vec<(String, Expr)> = self
+            .total
+            .iter()
+            .map(|total| (format!("common cause group '{}' total", id), total.clone()))
+            .collect();
         checks.extend(self.model.checks(id));
         checks
     }
 
     pub fn expand(&self) -> Result<Vec<CcfEvent>> {
         self.model
-            .expand(self.element.id(), &self.members, &self.total)
+            .expand(self.element.id(), &self.members, self.total.as_ref())
+    }
+}
+
+fn total_error(group_id: &str, model: &CcfModel) -> PraxisError {
+    if model.takes_total() {
+        structure_error(format!(
+            "common cause group '{}' uses the {} model and needs a total",
+            group_id,
+            model.model_name()
+        ))
+    } else {
+        structure_error(format!(
+            "common cause group '{}' uses the {} model, which takes no total",
+            group_id,
+            model.model_name()
+        ))
+    }
+}
+
+pub fn require_total(group_id: &str, model: &CcfModel, has_total: bool) -> Result<()> {
+    if model.takes_total() == has_total {
+        Ok(())
+    } else {
+        Err(total_error(group_id, model))
     }
 }
 
@@ -93,6 +123,63 @@ pub enum CcfModel {
         virtual_events: Vec<RaspCcfEvent>,
     },
     PhiFactor(Vec<Expr>),
+    BinomialFailureRate(BinomialFailureRate),
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct BinomialFailureRate {
+    pub independent: Expr,
+    pub non_lethal_shock: Expr,
+    pub component_failure: Expr,
+    pub lethal_shock: Expr,
+}
+
+impl BinomialFailureRate {
+    fn parts(&self) -> [(&'static str, &Expr); 4] {
+        [
+            ("independent failure", &self.independent),
+            ("non-lethal shock", &self.non_lethal_shock),
+            ("component failure fraction", &self.component_failure),
+            ("lethal shock", &self.lethal_shock),
+        ]
+    }
+
+    fn parts_mut(&mut self) -> [(&'static str, &mut Expr); 4] {
+        [
+            ("independent", &mut self.independent),
+            ("nonLethalShock", &mut self.non_lethal_shock),
+            ("componentFailure", &mut self.component_failure),
+            ("lethalShock", &mut self.lethal_shock),
+        ]
+    }
+
+    fn order(&self, n: usize, k: usize) -> Expr {
+        let mut terms = vec![self.non_lethal_shock.clone()];
+        terms.extend(power(&self.component_failure, k));
+        terms.extend(power(
+            &Expr::Sub(vec![Expr::Constant(1.0), self.component_failure.clone()]),
+            n - k,
+        ));
+        let shock = Expr::Mul(terms);
+        if k == 1 {
+            Expr::Add(vec![self.independent.clone(), shock])
+        } else if k == n {
+            Expr::Add(vec![shock, self.lethal_shock.clone()])
+        } else {
+            shock
+        }
+    }
+}
+
+fn power(base: &Expr, exponent: usize) -> Option<Expr> {
+    match exponent {
+        0 => None,
+        1 => Some(base.clone()),
+        _ => Some(Expr::Pow(
+            Box::new(base.clone()),
+            Box::new(Expr::Constant(exponent as f64)),
+        )),
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -163,7 +250,40 @@ impl CcfModel {
             CcfFactorModel::PhiFactor { phis } => {
                 CcfModel::PhiFactor(program.vector_components(phis, &phis_key(group_id))?)
             }
+            CcfFactorModel::BinomialFailureRate {
+                independent,
+                non_lethal_shock,
+                component_failure,
+                lethal_shock,
+            } => {
+                let part = |expression, name: &str, unit| {
+                    UncertaintyProgram::target(
+                        table,
+                        expression,
+                        &format!("ccf:{}/{}", group_id, name),
+                        unit,
+                    )
+                };
+                CcfModel::BinomialFailureRate(BinomialFailureRate {
+                    independent: part(independent, "independent", UncertainUnit::Probability)?,
+                    non_lethal_shock: part(
+                        non_lethal_shock,
+                        "nonLethalShock",
+                        UncertainUnit::Probability,
+                    )?,
+                    component_failure: part(
+                        component_failure,
+                        "componentFailure",
+                        UncertainUnit::Fraction,
+                    )?,
+                    lethal_shock: part(lethal_shock, "lethalShock", UncertainUnit::Probability)?,
+                })
+            }
         })
+    }
+
+    pub fn takes_total(&self) -> bool {
+        !matches!(self, CcfModel::BinomialFailureRate(_))
     }
 
     fn assign_draw_keys(&mut self, group_id: &str) {
@@ -184,12 +304,17 @@ impl CcfModel {
                     factor.assign_draw_keys(&format!("ccf:{}/factor/{}", group_id, index + 1));
                 }
             }
+            CcfModel::BinomialFailureRate(model) => {
+                for (name, part) in model.parts_mut() {
+                    part.assign_draw_keys(&format!("ccf:{}/{}", group_id, name));
+                }
+            }
         }
     }
 
     pub fn validate(&self, group_id: &str, member_count: usize) -> Result<()> {
         match self {
-            CcfModel::BetaFactor(_) => Ok(()),
+            CcfModel::BetaFactor(_) | CcfModel::BinomialFailureRate(_) => Ok(()),
             CcfModel::AlphaFactor { alphas, .. } => {
                 same_size(group_id, "alpha factor", alphas.len(), member_count)
             }
@@ -256,13 +381,45 @@ impl CcfModel {
                     )
                 })
                 .collect(),
+            CcfModel::BinomialFailureRate(model) => model
+                .parts()
+                .into_iter()
+                .map(|(label, part)| {
+                    (
+                        format!("common cause group '{}' {}", group_id, label),
+                        part.clone(),
+                    )
+                })
+                .collect(),
             CcfModel::AlphaFactor { .. } | CcfModel::PhiFactor(_) => Vec::new(),
         }
     }
 
-    pub fn expand(&self, group_id: &str, members: &[String], total: &Expr) -> Result<Vec<CcfEvent>> {
+    pub fn expand(
+        &self,
+        group_id: &str,
+        members: &[String],
+        total: Option<&Expr>,
+    ) -> Result<Vec<CcfEvent>> {
         let n = members.len();
         let mut events = Vec::new();
+        let total = match (self, total) {
+            (CcfModel::BinomialFailureRate(model), None) => {
+                for k in 1..=n {
+                    let value = model.order(n, k);
+                    for (index, combination) in combinations(members, k).into_iter().enumerate() {
+                        events.push(CcfEvent::new(
+                            format!("{}-bfr-{}-{}", group_id, k, index + 1),
+                            combination,
+                            value.clone(),
+                        ));
+                    }
+                }
+                return Ok(events);
+            }
+            (model, Some(total)) if model.takes_total() => total,
+            (model, _) => return Err(total_error(group_id, model)),
+        };
         match self {
             CcfModel::BetaFactor(beta) => {
                 let independent = product(
@@ -344,6 +501,7 @@ impl CcfModel {
                     ));
                 }
             }
+            CcfModel::BinomialFailureRate(_) => {}
             CcfModel::PhiFactor(phis) => {
                 for (level, phi) in phis.iter().enumerate() {
                     let k = level + 1;
@@ -368,6 +526,7 @@ impl CcfModel {
             CcfModel::Mgl(_) => "MGL",
             CcfModel::RaspMgl { .. } => "RASP MGL",
             CcfModel::PhiFactor(_) => "Phi-Factor",
+            CcfModel::BinomialFailureRate(_) => "Binomial Failure Rate",
         }
     }
 
@@ -476,6 +635,180 @@ fn combinations(items: &[String], k: usize) -> Vec<Vec<String>> {
     result
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct Multiplicity {
+    pub failed: usize,
+    pub events: f64,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ImpactCounts {
+    pub group_size: usize,
+    pub counts: Vec<f64>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MappedDown {
+    pub group_size: usize,
+    pub counts: Vec<f64>,
+    pub no_impact: f64,
+}
+
+fn mapping_error(message: String) -> PraxisError {
+    PraxisError::Mef(MefError::Domain {
+        message,
+        value: None,
+        attribute: None,
+    })
+}
+
+fn require_count(name: &str, value: f64) -> Result<()> {
+    if value.is_finite() && value >= 0.0 {
+        return Ok(());
+    }
+    Err(mapping_error(format!(
+        "{} is {}, but an event count is a finite number of at least 0",
+        name, value
+    )))
+}
+
+fn require_counts(counts: &[f64]) -> Result<()> {
+    if counts.is_empty() {
+        return Err(mapping_error(
+            "an impact vector needs a count for each order from 1 to the group size".to_string(),
+        ));
+    }
+    for (index, count) in counts.iter().enumerate() {
+        require_count(&format!("the count of order {}", index + 1), *count)?;
+    }
+    Ok(())
+}
+
+fn finished(counts: Vec<f64>) -> Result<Vec<f64>> {
+    if let Some((index, count)) = counts.iter().enumerate().find(|(_, count)| !count.is_finite()) {
+        return Err(mapping_error(format!(
+            "the mapped count of order {} is {}, which is not a finite number",
+            index + 1,
+            count
+        )));
+    }
+    Ok(counts)
+}
+
+pub fn impact_vector(group_size: usize, multiplicities: &[Multiplicity]) -> Result<ImpactCounts> {
+    if group_size == 0 {
+        return Err(mapping_error("an impact vector needs a group size of at least 1".to_string()));
+    }
+    let mut counts = vec![0.0; group_size];
+    for row in multiplicities {
+        if row.failed == 0 || row.failed > group_size {
+            return Err(mapping_error(format!(
+                "a row fails {} components, outside 1 to the group size {}",
+                row.failed, group_size
+            )));
+        }
+        require_count(&format!("the event count of multiplicity {}", row.failed), row.events)?;
+        counts[row.failed - 1] += row.events;
+    }
+    Ok(ImpactCounts {
+        group_size,
+        counts: finished(counts)?,
+    })
+}
+
+pub fn map_down(counts: &[f64], target_size: usize) -> Result<MappedDown> {
+    require_counts(counts)?;
+    let source = counts.len();
+    if target_size == 0 || target_size >= source {
+        return Err(mapping_error(format!(
+            "mapping down from a group of {} needs a target size from 1 to {}, not {}",
+            source,
+            source - 1,
+            target_size
+        )));
+    }
+    let subsets = binomial(source, target_size);
+    let mut mapped = vec![0.0; target_size];
+    let mut no_impact = 0.0;
+    for (index, count) in counts.iter().enumerate() {
+        let failed = index + 1;
+        no_impact += count * binomial(source - failed, target_size) / subsets;
+        for (order, value) in mapped.iter_mut().enumerate() {
+            let seen = order + 1;
+            *value += count * binomial(failed, seen) * binomial(source - failed, target_size - seen)
+                / subsets;
+        }
+    }
+    if !no_impact.is_finite() {
+        return Err(mapping_error(format!(
+            "the mapped count of events that fail no component is {}, which is not a finite number",
+            no_impact
+        )));
+    }
+    Ok(MappedDown {
+        group_size: target_size,
+        counts: finished(mapped)?,
+        no_impact,
+    })
+}
+
+pub fn map_up(
+    independent: f64,
+    non_lethal: &[f64],
+    lethal: f64,
+    rho: f64,
+    target_size: usize,
+) -> Result<ImpactCounts> {
+    require_counts(non_lethal)?;
+    require_count("the independent event count", independent)?;
+    require_count("the lethal shock count", lethal)?;
+    if !(rho.is_finite() && (0.0..=1.0).contains(&rho)) {
+        return Err(mapping_error(format!(
+            "the mapping up parameter rho is {}, outside 0 to 1",
+            rho
+        )));
+    }
+    let source = non_lethal.len();
+    if target_size <= source {
+        return Err(mapping_error(format!(
+            "mapping up from a group of {} needs a target size above {}, not {}",
+            source, source, target_size
+        )));
+    }
+    let added = target_size - source;
+    let spread = |extra: usize| -> f64 {
+        if extra > added {
+            return 0.0;
+        }
+        binomial(added, extra) * rho.powi(extra as i32) * (1.0 - rho).powi((added - extra) as i32)
+    };
+    let mut mapped = vec![0.0; target_size];
+    for (index, value) in mapped.iter_mut().enumerate() {
+        let order = index + 1;
+        for observed in 2..=order.min(source) {
+            *value += spread(order - observed) * non_lethal[observed - 1];
+        }
+        let mut single = spread(order - 1);
+        if target_size - order >= source {
+            single += binomial(target_size - order, source) / binomial(target_size, source)
+                * binomial(target_size, order)
+                / source as f64
+                * rho.powi(order as i32 - 1)
+                * (1.0 - rho).powi((target_size - order - source + 1) as i32);
+        }
+        *value += single * non_lethal[0];
+    }
+    mapped[0] += independent * target_size as f64 / source as f64;
+    mapped[target_size - 1] += lethal;
+    Ok(ImpactCounts {
+        group_size: target_size,
+        counts: finished(mapped)?,
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use std::collections::HashMap;
@@ -504,7 +837,7 @@ mod tests {
     }
 
     fn group(id: &str, count: usize, model: CcfModel, total: f64) -> CcfGroup {
-        CcfGroup::new(id, names(count), model, Expr::Constant(total)).unwrap()
+        CcfGroup::new(id, names(count), model, Some(Expr::Constant(total))).unwrap()
     }
 
     fn points(group: &CcfGroup) -> Vec<(String, Vec<String>, f64)> {
@@ -531,11 +864,11 @@ mod tests {
 
     #[test]
     fn groups_need_two_members_and_matching_vector_lengths() {
-        assert!(CcfGroup::new("G", names(1), CcfModel::BetaFactor(Expr::Constant(0.1)), Expr::Constant(0.1)).is_err());
-        assert!(CcfGroup::new("G", names(3), alpha("G", CcfTesting::NonStaggered, &[0.7, 0.3]), Expr::Constant(0.1)).is_err());
+        assert!(CcfGroup::new("G", names(1), CcfModel::BetaFactor(Expr::Constant(0.1)), Some(Expr::Constant(0.1))).is_err());
+        assert!(CcfGroup::new("G", names(3), alpha("G", CcfTesting::NonStaggered, &[0.7, 0.3]), Some(Expr::Constant(0.1))).is_err());
         let phis = CcfModel::PhiFactor(fixed_components(&phis_key("G"), vec![0.5, 0.5]).unwrap());
-        assert!(CcfGroup::new("G", names(3), phis, Expr::Constant(0.1)).is_err());
-        assert!(CcfGroup::new("G", names(2), CcfModel::Mgl(numbers(&[0.1, 0.2])), Expr::Constant(0.1)).is_err());
+        assert!(CcfGroup::new("G", names(3), phis, Some(Expr::Constant(0.1))).is_err());
+        assert!(CcfGroup::new("G", names(2), CcfModel::Mgl(numbers(&[0.1, 0.2])), Some(Expr::Constant(0.1))).is_err());
         assert!(fixed_components("k", vec![0.5, 0.3]).is_err());
     }
 
@@ -547,7 +880,7 @@ mod tests {
             (CcfModel::Mgl(numbers(&[1.2])), 0.1),
             (CcfModel::BetaFactor(Expr::Constant(0.1)), 1.2),
         ] {
-            let error = CcfGroup::new("Pumps", names(2), model, Expr::Constant(total)).unwrap_err();
+            let error = CcfGroup::new("Pumps", names(2), model, Some(Expr::Constant(total))).unwrap_err();
             assert!(error.to_string().contains("common cause group 'Pumps'"), "{error}");
         }
     }
@@ -648,7 +981,7 @@ mod tests {
             factors: numbers(&[0.02]),
             virtual_events: vec![RaspCcfEvent { id: "G-AA".into(), member_indices: vec![0, 0] }],
         };
-        assert!(CcfGroup::new("G", names(3), repeated, Expr::Constant(0.1)).is_err());
+        assert!(CcfGroup::new("G", names(3), repeated, Some(Expr::Constant(0.1))).is_err());
     }
 
     fn reference(entity: &str) -> ParameterReference {
@@ -707,7 +1040,7 @@ mod tests {
             panic!("alpha model expected");
         };
         assert!(matches!(&alphas[0], Expr::Component { key, .. } if key == "ccf:Pumps/alphas"));
-        let group = CcfGroup::new("Pumps", names(3), pumps, Expr::Constant(0.1)).unwrap();
+        let group = CcfGroup::new("Pumps", names(3), pumps, Some(Expr::Constant(0.1))).unwrap();
         let expanded = group.expand().unwrap();
         let program = UncertaintyProgram::from_expressions(program.into_parameters(), 1.0);
         let targets: Vec<&Expr> = expanded.iter().map(|event| &event.value).collect();

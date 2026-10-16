@@ -1,0 +1,4 @@
+.es-uncertainty-table { min-width: 0; overflow-x: auto; }
+.es-uncertainty-table th, .es-uncertainty-table td { text-align: left; vertical-align: top; }
+.es-uncertainty-table .postable__name-sub { display: block; }
+.es-uncertainty-add { width: auto; max-width: 100%; }

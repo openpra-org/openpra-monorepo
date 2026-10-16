@@ -104,7 +104,7 @@ function InternalReviewScreen({
 
       <div className="poscard">
         <div className="poscard__head">
-          <WorkbookSectionHeading workbook="SY" title={isApprovalStep ? (isPreparer ? "Comments by reviewers & approvers" : "Your comments") : "All review comments"} cueKey="Review comments" />
+          <WorkbookSectionHeading title={isApprovalStep ? (isPreparer ? "Comments by reviewers & approvers" : "Your comments") : "All review comments"} />
           <div className="posrow" style={{ gap: 6 }}>
             <button type="button" className={`poschip${filter === "all" ? " poschip--primary" : ""}`} onClick={() => setFilter("all")}>All ({displayComments.length})</button>
             <button type="button" className={`poschip${filter === "open" ? " poschip--primary" : ""}`} onClick={() => setFilter("open")}>Open ({displayOpen})</button>
@@ -154,7 +154,7 @@ function InternalReviewScreen({
       {isPreparer && isReviewStep && sy.workflowState !== "INTERNAL_TECHNICAL_REVIEW" && sy.workflowState !== "INTERNAL_APPROVAL" && sy.workflowState !== "FINAL" && (
         <div className="poscard">
           <div className="poscard__head">
-            <WorkbookSectionHeading workbook="SY" title="Submit for Internal Approval" level={3} />
+            <WorkbookSectionHeading title="Submit for Internal Approval" level={3} />
             {allResolved ? <Badge kind="ok">All comments resolved</Badge> : <Badge kind="warn">{openCount} open comment{openCount === 1 ? "" : "s"}</Badge>}
           </div>
           <div className="posrow" style={{ gap: 10, alignItems: "center" }}>
@@ -173,7 +173,7 @@ function InternalReviewScreen({
       {isApprovalStep && (
         <>
           <div className="poscard">
-            <div className="poscard__head"><WorkbookSectionHeading workbook="SY" title="What is being attested" level={3} /></div>
+            <div className="poscard__head"><WorkbookSectionHeading title="What is being attested" level={3} /></div>
             <div className="posapprove__attest-with-sign">
               <div className="posapprove__attest-grid">
                 <div className="posapprove__attest-row"><span className="posapprove__attest-cap">Capability target</span><span className="posapprove__attest-val"><strong>{cc.name}</strong> · {cc.tag}</span></div>

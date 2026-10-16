@@ -21,9 +21,10 @@ const SY_STEPS: SyStep[] = [
   { id: "deps", num: "05", label: "Dependencies", sub: "Support · space · inventory", status: "idle", badges: ["SY-B"] },
   { id: "integrity", num: "06", label: "Model Integrity", sub: "Fidelity · detail · naming", status: "idle", badges: ["SY-A"] },
   { id: "uncert", num: "07", label: "Uncertainty analysis", sub: "DA inputs · assumptions · results", status: "idle", badges: ["SY-A", "SY-B"] },
-  { id: "draft", num: "08", label: "Draft", sub: "Produce SY report", status: "idle", badges: ["SY-C"], terminal: true },
-  { id: "review", num: "09", label: "Review", sub: "Reviewer comments", status: "idle", badges: [], terminal: true },
-  { id: "approval", num: "10", label: "Approval", sub: "Everyone signs", status: "idle", badges: [], terminal: true },
+  { id: "handoff", num: "08", label: "Technical Element Handoff", sub: "Exported sections", status: "idle", badges: [] },
+  { id: "draft", num: "09", label: "Draft", sub: "Produce SY report", status: "idle", badges: ["SY-C"], terminal: true },
+  { id: "review", num: "10", label: "Review", sub: "Reviewer comments", status: "idle", badges: [], terminal: true },
+  { id: "approval", num: "11", label: "Approval", sub: "Everyone signs", status: "idle", badges: [], terminal: true },
 ];
 
 type SyPersona = "preparer" | "reviewer" | "approver";
@@ -176,6 +177,7 @@ const CCF_MODELS: Record<CcfFactorModel["model"], { label: string }> = {
   ALPHA_FACTOR: { label: "Alpha factor" },
   MGL: { label: "Multiple Greek letter" },
   PHI_FACTOR: { label: "Phi factor" },
+  BINOMIAL_FAILURE_RATE: { label: "Binomial failure rate" },
 };
 
 function toExp(n: number): string {

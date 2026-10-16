@@ -15,7 +15,7 @@ import { DraftScreen, PlaceholderScreen } from "./daScreens2";
 import { CCF_WINDOW_KINDS, CcfScreen, CcfWindows } from "./daCcfScreen";
 import { FREQUENCY_WINDOW_KINDS, FrequencyScreen, FrequencyWindows } from "./daFrequencyScreen";
 import { UNCERTAINTY_WINDOW_KINDS, UncertaintyScreen, UncertaintyWindows } from "./daUncertaintyScreen";
-import { HANDOFF_WINDOW_KINDS, HandoffScreen, HandoffWindows } from "./daHandoffScreen";
+import { HandoffScreen } from "./daHandoffScreen";
 import { handoffsComplete } from "./daHandoffs";
 import { FAILURE_WIDE_KINDS, FAILURE_WINDOW_KINDS, FailureWindows, FailuresScreen } from "./daFailuresScreen";
 import { InternalReviewScreen, ReviewerCommentDock } from "./daReview";
@@ -47,7 +47,7 @@ function headersFor(stepId: string): StepHeader {
     case "ccf": return { area: "HLR-DA-D", title: "Common cause" };
     case "ie": return { area: "HLR-DA-D", title: "Initiating events" };
     case "uncert": return { area: "HLR-DA-E", title: "Uncertainty" };
-    case "handoffs": return { area: "HLR-DA-D", title: "Hand-offs" };
+    case "handoff": return { area: "HLR-DA-D", title: "Technical Element Handoff" };
     case "draft": return { area: "Draft", title: "Produce the draft" };
     case "review": return { area: "Review", title: "Internal technical review" };
     case "approval": return { area: "Approval", title: "Approval & sign-off" };
@@ -307,7 +307,6 @@ function WindowBody({ context, onClose, onRetarget }: { context: DaDrawerContext
   if (CCF_WINDOW_KINDS.has(context.kind)) return <CcfWindows context={context} onClose={onClose} onRetarget={onRetarget} />;
   if (FREQUENCY_WINDOW_KINDS.has(context.kind)) return <FrequencyWindows context={context} onClose={onClose} onRetarget={onRetarget} />;
   if (UNCERTAINTY_WINDOW_KINDS.has(context.kind)) return <UncertaintyWindows context={context} onClose={onClose} onRetarget={onRetarget} />;
-  if (HANDOFF_WINDOW_KINDS.has(context.kind)) return <HandoffWindows context={context} onClose={onClose} />;
   return <NeedWindow context={context} onClose={onClose} onRetarget={onRetarget} />;
 }
 
@@ -476,7 +475,7 @@ function DaWorkbench({
       case "ccf": return <CcfScreen openDrawer={setDrawer} />;
       case "ie": return <FrequencyScreen openDrawer={setDrawer} />;
       case "uncert": return <UncertaintyScreen openDrawer={setDrawer} />;
-      case "handoffs": return <HandoffScreen openDrawer={setDrawer} />;
+      case "handoff": return <HandoffScreen />;
       case "draft": return <DraftScreen cc={cc} scores={scores} stage={stage} onSubmitDraft={() => { handleSubmitToApproval(); setStepId("review"); }} canSubmit={isPreparer} />;
       case "review":
       case "approval": return (
@@ -524,7 +523,7 @@ function DaWorkbench({
           <div className="posmain__head">
             <div className="posmain__title-block">
               <div className="posmain__eyebrow">{h.area.length > 0 ? `Step ${step.num} · ${h.area}` : ""}</div>
-              <WorkbookSectionHeading workbook="DA" title={h.title} level={1} className="posmain__title" />
+              <WorkbookSectionHeading title={h.title} level={1} className="posmain__title" />
             </div>
             <div className="posmain__actions">
               {!railOpen && <button type="button" className="posnav__btn posnav__btn--sm da-show-steps" onClick={() => setRailOpen(true)}><DAIcon.Layers /> Show steps</button>}

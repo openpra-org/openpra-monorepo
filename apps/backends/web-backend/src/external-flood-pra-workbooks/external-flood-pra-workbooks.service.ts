@@ -9,6 +9,7 @@ import { healMef } from "../pos-workbooks/mef-heal";
 import { stripNulls } from "../pos-workbooks/mef-normalize";
 import { mergeWorkbookPatch } from "../workbooks/workbook-mef-patch";
 import { WorkbookRolesService, type WorkbookRoleName } from "../workbooks/workbook-roles.service";
+import { recordWorkbookStatus } from "../workbooks/workbook-status";
 import { Workbook, type WorkbookDocument } from "../workbooks/workbook.schema";
 import { WorkbookSignoff, type WorkbookSignoffDocument } from "../workbooks/workbook-signoff.schema";
 import { createBlankExternalFloodPra } from "./blank-external-flood-pra";
@@ -112,9 +113,10 @@ export class ExternalFloodPraWorkbooksService {
     const example = await this.exampleWorkbooksService.getExternalFloodPraBundle(exampleId);
     const parsed = ExternalFloodPRASchema.safeParse(stripNulls(example.externalFloodPra.mef));
     if (!parsed.success) throw new ForbiddenException(`Example MEF failed validation: ${parsed.error.message}`);
-    doc.previousMefJson = JSON.stringify(doc.mef);
+    if (typeof doc.previousMefJson !== "string" || doc.previousMefJson.length === 0) doc.previousMefJson = JSON.stringify(doc.mef);
     doc.mef = { ...synchronizeExternalFloodPraDerivedRegisters(parsed.data), workflowState: "DRAFT", workflowHistory: [{ state: "DRAFT", enteredAt: new Date().toISOString(), actor: acting.username, note: "Loaded from example workbook" }] };
     await doc.save();
+    await recordWorkbookStatus(this.baseWorkbookModel.db, workbookId, (doc.mef as { workflowState?: string }).workflowState);
     await this.signoffModel.deleteMany({ workbookId }).exec();
     return toResponse(doc, myRoles);
   }
@@ -135,6 +137,7 @@ export class ExternalFloodPraWorkbooksService {
     doc.mef = parsed.data;
     doc.previousMefJson = null;
     await doc.save();
+    await recordWorkbookStatus(this.baseWorkbookModel.db, workbookId, (doc.mef as { workflowState?: string }).workflowState);
     return toResponse(doc, myRoles);
   }
 }

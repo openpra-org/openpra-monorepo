@@ -1,0 +1,21 @@
+.esq-solve-stack { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.esq-run-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; justify-self: end; gap: 8px; }
+@media (max-width: 900px) { .esq-run-actions { justify-self: start; justify-content: flex-start; } }
+.postable.esq-results { font-size: 15px; }
+.postable.esq-results th { font-size: 15px; font-weight: 600; letter-spacing: normal; text-transform: none; color: var(--color-text-muted); }
+.postable.esq-results td { font-size: 15px; font-weight: 400; font-variant-numeric: tabular-nums; }
+.postable.esq-results .posmono,
+.postable.esq-results .posmuted,
+.postable.esq-results .postable__name,
+.postable.esq-results .postable__name-sub { font-family: inherit; font-size: 15px; font-weight: 400; letter-spacing: normal; }
+.esq-composer .syft-analysis__run-fields { width: 100%; }
+.esq-composer .syft-analysis__run-field { justify-self: start; width: auto; max-width: 100%; }
+.esq-composer .syft-analysis__run-field select,
+.esq-composer .syft-analysis__advanced select { justify-self: start; width: auto; max-width: 100%; }
+.esq-composer .syft-analysis__advanced { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px 18px; }
+.esq-tree-results { display: grid; gap: 10px; min-width: 0; }
+.esq-tree-results__members > td { padding: 4px 0 12px 16px; }
+.esq-dependency { display: grid; gap: 12px; min-width: 0; }
+.esq-dependency__evidence { display: grid; gap: 10px; min-width: 0; }
+.esq-dependency__tools { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.esq-dependency__results { display: grid; gap: 10px; min-width: 0; }

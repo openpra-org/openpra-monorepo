@@ -1,17 +1,23 @@
+import type { UncertainExpression } from "interfaces-mef-types/core/uncertainty";
 import type { DataAnalysis } from "interfaces-mef-types/da/data-analysis";
+import { parameterLaw } from "interfaces-mef-types/esq/esq-measure-inputs";
+import { esqParameterRecord } from "interfaces-mef-types/esq/esq-run-inputs";
 import type { HepQuantification, HumanReliabilityAnalysis } from "interfaces-mef-types/hr/human-reliability-analysis";
+import type { WorkbookParameterReference } from "interfaces-mef-types/modeling/references";
 import { fetchJson } from "../api/client";
-import { listWorkbooks } from "../workbooks/workbookApi";
+import type { ParameterOption } from "../newly-developed-methods/shared/uncertainEditor";
+import { expressionText } from "../newly-developed-methods/shared/uncertainText";
 
 const EXAMPLE_PREFIX = "example-da-";
+
+const HEP_MODELS: readonly string[] = ["HUMAN_ERROR", "NON_RECOVERY"];
 
 interface HrDaHepOption {
   workbookId: string;
   workbookName: string;
   parameterId: string;
   parameterName: string;
-  value: number;
-  valueType: "MEAN" | "POINT_ESTIMATE";
+  law: UncertainExpression;
 }
 
 interface HrDaSource {
@@ -20,53 +26,47 @@ interface HrDaSource {
   mef: Pick<DataAnalysis, "name" | "parameters">;
 }
 
-function daHepKey(workbookId: string, parameterId: string): string {
-  return JSON.stringify([workbookId, parameterId]);
-}
-
 function daHepOptions(sources: readonly HrDaSource[]): HrDaHepOption[] {
   return sources.flatMap((source) => source.mef.parameters.flatMap((parameter): HrDaHepOption[] => {
-    const value = parameter.value;
-    const valueType = parameter.valueType;
-    if (parameter.parameterType !== "HUMAN_ERROR_PROBABILITY" && parameter.quantificationModel !== "NON_RECOVERY") return [];
-    if (value === undefined || valueType === undefined || !Number.isFinite(value) || value < 0 || value > 1) return [];
+    const model = parameter.quantificationModel;
+    if (parameter.parameterType !== "HUMAN_ERROR_PROBABILITY" && (model === undefined || !HEP_MODELS.includes(model))) return [];
     if (parameter.valueMode === "LINKED" && parameter.valueLink?.element === "HRA") return [];
+    const law = parameterLaw(esqParameterRecord(parameter));
+    if (law === undefined) return [];
     return [{
       workbookId: source.id,
       workbookName: source.name.length > 0 ? source.name : source.mef.name,
       parameterId: parameter.uuid,
       parameterName: parameter.name,
-      value,
-      valueType,
+      law,
     }];
   })).sort((left, right) => [left.workbookName, left.parameterId].join(":").localeCompare([right.workbookName, right.parameterId].join(":"), undefined, { numeric: true }));
 }
 
-function heldHep(quantification: HepQuantification): number | undefined {
-  return quantification.meanHep ?? quantification.pointEstimateHep;
-}
-
-function hepDiffers(quantification: HepQuantification, value: number): boolean {
-  const held = heldHep(quantification);
-  return held === undefined || Math.abs(held - value) > 1e-9 * Math.max(Math.abs(held), Math.abs(value));
+function hepReference(quantification: HepQuantification): WorkbookParameterReference | undefined {
+  return quantification.hep?.node === "PARAMETER" ? quantification.hep.reference : undefined;
 }
 
 function linkedDaHep(quantification: HepQuantification, options: readonly HrDaHepOption[]): HrDaHepOption | undefined {
-  const source = quantification.controlledDataSource;
-  if (source === undefined) return undefined;
-  return options.find((option) => option.workbookId === source.workbookId && option.parameterId === source.entityId);
+  const reference = hepReference(quantification);
+  if (reference === undefined) return undefined;
+  return options.find((option) => option.workbookId === reference.workbookId && option.parameterId === reference.entityId);
 }
 
-function withImportedHep(hr: HumanReliabilityAnalysis, quantificationId: string, option: HrDaHepOption | undefined): HumanReliabilityAnalysis {
-  return {
-    ...hr,
-    hepQuantifications: hr.hepQuantifications.map((quantification) => {
-      if (quantification.uuid !== quantificationId) return quantification;
-      if (option === undefined) return { ...quantification, controlledDataSource: undefined };
-      const value = option.valueType === "MEAN" ? { meanHep: option.value } : { pointEstimateHep: option.value, meanHep: undefined };
-      return { ...quantification, ...value, controlledDataSource: { referenceType: "WORKBOOK_PARAMETER" as const, workbookId: option.workbookId, entityId: option.parameterId } };
-    }),
-  };
+function hepParameterOptions(options: readonly HrDaHepOption[]): ParameterOption[] {
+  return options.map((option) => ({
+    reference: { referenceType: "WORKBOOK_PARAMETER", workbookId: option.workbookId, entityId: option.parameterId },
+    label: `${option.workbookName} · ${option.parameterId} · ${expressionText(option.law)}`,
+    unit: "PROBABILITY",
+  }));
+}
+
+function quantificationHepText(quantification: HepQuantification | undefined, options: readonly HrDaHepOption[] = []): string {
+  const hep = quantification?.hep;
+  if (hep === undefined) return "—";
+  const linked = quantification === undefined ? undefined : linkedDaHep(quantification, options);
+  if (linked !== undefined) return `DA · ${linked.parameterId} · ${expressionText(linked.law)}`;
+  return expressionText(hep, (key) => `DA ${key}`);
 }
 
 function nextRecoveryHepId(hr: HumanReliabilityAnalysis): string {
@@ -96,46 +96,31 @@ function withRecoveryHep(hr: HumanReliabilityAnalysis, recoveryId: string): Huma
   };
 }
 
-async function loadDaSource(id: string, name: string): Promise<HrDaSource[]> {
+async function loadDaSource(id: string): Promise<HrDaSource[]> {
   try {
     if (id.startsWith(EXAMPLE_PREFIX)) {
       const bundle = await fetchJson<{ da: { mef: DataAnalysis } }>(`/api/example-workbooks/da-bundle?example=${encodeURIComponent(id.slice(EXAMPLE_PREFIX.length))}`);
-      return [{ id, name, mef: bundle.da.mef }];
+      return [{ id, name: "", mef: bundle.da.mef }];
     }
     const workbook = await fetchJson<{ mef: DataAnalysis }>(`/api/da-workbooks/${encodeURIComponent(id)}`);
-    return [{ id, name, mef: workbook.mef }];
+    return [{ id, name: "", mef: workbook.mef }];
   } catch {
     return [];
   }
 }
 
-async function loadHrDaHeps(projectId: string | null, hr: HumanReliabilityAnalysis, exampleVariant?: string): Promise<HrDaHepOption[]> {
-  let listed: { id: string; name: string }[] = [];
-  if (projectId !== null) {
-    try {
-      listed = (await listWorkbooks(projectId, "DA")).workbooks.map((workbook) => ({ id: workbook.id, name: workbook.name }));
-    } catch {
-      listed = [];
-    }
-  }
-  const known = new Set(listed.map((entry) => entry.id));
-  const referenced = hr.hepQuantifications.flatMap((quantification) => quantification.controlledDataSource?.workbookId ?? []);
-  const wanted = exampleVariant === undefined ? referenced : [...referenced, `${EXAMPLE_PREFIX}${exampleVariant}`];
-  const examples = [...new Set(wanted)]
-    .filter((id) => id.startsWith(EXAMPLE_PREFIX) && !known.has(id))
-    .map((id) => ({ id, name: "" }));
-  const sources = await Promise.all([...listed, ...examples].map((entry) => loadDaSource(entry.id, entry.name)));
-  return daHepOptions(sources.flat());
+async function loadHrDaHeps(daWorkbookId: string | undefined): Promise<HrDaHepOption[]> {
+  if (daWorkbookId === undefined) return [];
+  return daHepOptions(await loadDaSource(daWorkbookId));
 }
 
 export {
-  daHepKey,
   daHepOptions,
-  heldHep,
-  hepDiffers,
+  hepParameterOptions,
+  hepReference,
   linkedDaHep,
   loadHrDaHeps,
-  withImportedHep,
+  quantificationHepText,
   withRecoveryHep,
   type HrDaHepOption,
   type HrDaSource,

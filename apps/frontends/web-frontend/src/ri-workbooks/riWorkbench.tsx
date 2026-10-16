@@ -10,7 +10,8 @@ import {
   type RiStep,
 } from "./riViewData";
 import { ccScore, commentsView, filterConformance, groupBySection, appTypeFromMef, stepsFromMef, type CommentView } from "./riSelectors";
-import { ApplicationScreen, CategoriesScreen, ContributorsScreen, FcScreen, HandoffsScreen, InputsScreen, IntegratedRiskScreen, UncertaintyStepScreen, type RiDrawerContext } from "./riScreens";
+import { ApplicationScreen, CategoriesScreen, ContributorsScreen, FcScreen, InputsScreen, IntegratedRiskScreen, UncertaintyStepScreen, type RiDrawerContext } from "./riScreens";
+import { RiHandoffScreen } from "./riHandoff";
 import { DraftScreen, DrawerContent, PlaceholderScreen } from "./riScreens2";
 import { InternalReviewScreen, ReviewerCommentDock } from "./riReview";
 import { useRiWorkbook, type RiWorkbookData } from "./riWorkbookContext";
@@ -24,22 +25,21 @@ import "./css/riScreens.css";
 interface StepHeader {
   area: string;
   title: string;
-  sub?: string;
 }
 
 function headersFor(stepId: string): StepHeader {
   switch (stepId) {
-    case "application": return { area: "HLR-RI-A", title: "Application", sub: "The decision, the criteria set, the measures and the scope." };
-    case "inputs": return { area: "HLR-RI-B", title: "Inputs", sub: "The families, sequences and consequences imported from ES, ESQ and RC." };
-    case "categories": return { area: "HLR-RI-B", title: "Event Categories", sub: "Each family's AOO, DBE or BDBE category from the Step 01 criteria." };
-    case "fc": return { area: "HLR-RI-B", title: "Frequency-Consequence", sub: "Each licensing basis event against the F-C target, with its risk significance and margins." };
-    case "integrate": return { area: "HLR-RI-B", title: "Integrated Risk", sub: "The plant's total risk against each cumulative target, where it comes from, and how often each dose is exceeded." };
-    case "aggregate": return { area: "HLR-RI-B", title: "Contributors and SSCs", sub: "What drives each total, grouped by SSC, with ESQ's importance measures." };
-    case "uncertainty": return { area: "HLR-RI-C", title: "Uncertainty", sub: "The key uncertainties and screened items of every element, the grouping review, the propagated totals and the sensitivity studies." };
-    case "feedback": return { area: "HLR-RI-D", title: "Hand-offs", sub: "What RI sends back to ESQ, MS, RC and the elements behind them, and what each has recorded." };
-    case "draft": return { area: "Draft", title: "Produce the draft", sub: "Build the RI report, then send it to review." };
-    case "review": return { area: "Review", title: "Internal technical review", sub: "Reviewers comment, the preparer replies, all resolve before approval." };
-    case "approval": return { area: "Approval", title: "Approval & sign-off", sub: "Everyone signs, the approver last." };
+    case "application": return { area: "HLR-RI-A", title: "Application" };
+    case "inputs": return { area: "HLR-RI-B", title: "Inputs" };
+    case "categories": return { area: "HLR-RI-B", title: "Event Categories" };
+    case "fc": return { area: "HLR-RI-B", title: "Frequency-Consequence" };
+    case "integrate": return { area: "HLR-RI-B", title: "Integrated Risk" };
+    case "aggregate": return { area: "HLR-RI-B", title: "Contributors and SSCs" };
+    case "uncertainty": return { area: "HLR-RI-C", title: "Uncertainty" };
+    case "handoff": return { area: "HLR-RI-D", title: "Technical Element Handoff" };
+    case "draft": return { area: "Draft", title: "Produce the draft" };
+    case "review": return { area: "Review", title: "Internal technical review" };
+    case "approval": return { area: "Approval", title: "Approval & sign-off" };
     default: return { area: "", title: "" };
   }
 }
@@ -181,7 +181,6 @@ function StepRail({ stepId, setStepId, persona, visibleSteps, mobileOpen, onClos
 }
 
 const DRAWER_LABELS: Record<RiDrawerContext["kind"], string> = {
-  family: "Event sequence family",
   measure: "Consequence measure",
   inputFamily: "Event sequence family",
   inputSequence: "Event sequence",
@@ -196,23 +195,7 @@ const DRAWER_LABELS: Record<RiDrawerContext["kind"], string> = {
   screenedItem: "Screened item",
   uncertaintyAnalysis: "Uncertainty characterization",
   sensitivityStudy: "Sensitivity study",
-  handoff: "Hand-off item",
-  calc: "Calculation approach",
-  metric: "Risk metric",
-  aggregation: "Aggregation review",
-  hazardgroup: "Hazard group",
-  grouping: "Grouping adequacy",
-  contributor: "Risk-significant contributor",
-  contribbasis: "Contributor roll-up",
-  musource: "Model-uncertainty source",
-  screened: "Screened item",
-  propagation: "Uncertainty propagation",
-  sensitivity: "Sensitivity study",
-  dispatch: "Feedback dispatch",
-  method: "Integration method",
 };
-
-const FORM_MODAL_KINDS: RiDrawerContext["kind"][] = ["measure", "inputFamily", "inputSequence", "inputConsequence", "inputContributor", "inputImportance", "inputGap", "cliffEdge", "aggregationNote", "sscAssignment", "uncertaintySource", "screenedItem", "uncertaintyAnalysis", "sensitivityStudy", "handoff"];
 
 function RiDrawer({ context, onClose, onRetarget }: { context: RiDrawerContext; onClose: () => void; onRetarget: (ctx: RiDrawerContext) => void }): JSX.Element {
   const dialog = useRef<HTMLDivElement>(null);
@@ -237,7 +220,7 @@ function RiDrawer({ context, onClose, onRetarget }: { context: RiDrawerContext; 
     <div className="modal__backdrop" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <div
         ref={dialog}
-        className={`modal ri-details-modal${FORM_MODAL_KINDS.includes(context.kind) ? " ri-form-modal" : ""}`}
+        className="modal ri-details-modal ri-form-modal"
         role="dialog"
         aria-modal="true"
         aria-label={DRAWER_LABELS[context.kind]}
@@ -445,7 +428,7 @@ function RiWorkbench({
       case "integrate": return <IntegratedRiskScreen openDrawer={setDrawer} />;
       case "aggregate": return <ContributorsScreen openDrawer={setDrawer} />;
       case "uncertainty": return <UncertaintyStepScreen openDrawer={setDrawer} />;
-      case "feedback": return <HandoffsScreen openDrawer={setDrawer} />;
+      case "handoff": return <RiHandoffScreen />;
       case "draft": return <DraftScreen cc={cc} scores={scores} onSubmitDraft={() => { handleSubmitToApproval(); setStepId("review"); }} canSubmit={isPreparer} />;
       case "review":
       case "approval": return (
@@ -493,7 +476,7 @@ function RiWorkbench({
           <div className="posmain__head">
             <div className="posmain__title-block">
               <div className="posmain__eyebrow">{h.area.length > 0 ? `Step ${step.num} · ${h.area}` : ""}</div>
-              <WorkbookSectionHeading workbook="RI" title={h.title} description={h.sub} level={1} className="posmain__title" />
+              <WorkbookSectionHeading title={h.title} level={1} className="posmain__title" />
             </div>
             <div className="posmain__actions">
               {!railOpen && <button type="button" className="posnav__btn posnav__btn--sm ri-show-steps" onClick={() => setRailOpen(true)}><RIIcon.Layers /> Show steps</button>}

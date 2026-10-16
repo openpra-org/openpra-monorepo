@@ -241,6 +241,11 @@ fn hcl_uncertainty_samples_bn_parameters_inside_praxis() {
             sample_count: 500,
             seed: 2026,
             sampler: praxis::hcl::HclSampler::MonteCarlo,
+            cpt_sampler: None,
+            correlation: Default::default(),
+            clip_probabilities: false,
+            cpt_clip_epsilon: 0.0,
+            zero_probability_contexts: Default::default(),
             basic_events: vec![],
             cpt_rows: vec![praxis::hcl::HclCptRowUncertainty {
                 node: "B".to_string(),

@@ -67,9 +67,4 @@ function legacyDistributionExpression(unit: UncertainUnit, distribution: Paramet
   return law === undefined ? undefined : { node: "VALUE", value: legacyValue(unit, law) };
 }
 
-function legacyUpperPercentile(point: number, errorFactor: number): number {
-  const sigma = Math.log(errorFactor) / LEGACY_Z95;
-  return point * Math.exp(LEGACY_Z95 * sigma - (sigma * sigma) / 2);
-}
-
-export { legacyDistributionExpression, legacyExpression, legacyLaw, legacyUpperPercentile, legacyValue };
+export { legacyDistributionExpression, legacyExpression, legacyLaw, legacyValue };

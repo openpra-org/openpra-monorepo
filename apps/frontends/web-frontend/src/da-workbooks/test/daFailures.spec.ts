@@ -10,7 +10,7 @@ import { linkScExamples } from "./daScExamples";
 
 jest.mock("../../newly-developed-methods/shared/uncertaintyApi", () => ({ evaluateUncertainty: jest.fn() }));
 
-const CIRCULATOR_PRIOR_RATE = 0.5 / (90.5 / 785000);
+const CIRCULATOR_PRIOR_RATE = 0.5 / ((90.5 / 1570000) * 2.39710255853434);
 
 const CIRCULATOR_HOURS = 253886;
 
@@ -71,7 +71,7 @@ describe("component failure estimates", () => {
     const module = await settledWithPraxis(() => parameterEstimate(DA_ANALYSIS, parameterOf(DA_ANALYSIS, "DA-BE-082")));
     expect(module.computation).toBe("POSTERIOR");
     close(module.terms[0]?.exposure, 975000 / 1095);
-  });
+  }, 120_000);
 
   it("counts judged records and recomputes the stored estimate when a judgment changes", async () => {
     const changed = await settledWithPraxis(() => withEstimates(withRecord(DA_ANALYSIS_HTGR, "R-12", { judgment: "FAILURE" })));

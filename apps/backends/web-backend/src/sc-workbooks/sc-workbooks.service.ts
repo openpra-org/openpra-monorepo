@@ -5,6 +5,7 @@ import { SuccessCriteriaDevelopmentSchema } from "interfaces-mef-types/zod/sc/su
 import { ProjectsService } from "../projects/projects.service";
 import { ExampleWorkbooksService } from "../example-workbooks/example-workbooks.service";
 import { WorkbookRolesService, type WorkbookRoleName } from "../workbooks/workbook-roles.service";
+import { recordWorkbookStatus } from "../workbooks/workbook-status";
 import { WorkbookSignoff, type WorkbookSignoffDocument } from "../workbooks/workbook-signoff.schema";
 import { ScWorkbook, type ScWorkbookDocument } from "./sc-workbook.schema";
 import { ScDocumentsService } from "./sc-documents.service";
@@ -91,14 +92,20 @@ export class ScWorkbooksService {
     const example = await this.exampleWorkbooksService.getScBundle(exampleId);
     const parsed = SuccessCriteriaDevelopmentSchema.safeParse(stripNulls(example.sc.mef));
     if (!parsed.success) throw new ForbiddenException(`Example MEF failed validation: ${parsed.error.message}`);
+    const variant = exampleId ?? "htgr";
+    const exampleLinks = variant === "htgr" || variant === "sfr"
+      ? { POS: `example-pos-${variant}`, IE: `example-ie-${variant}`, ES: `example-es-${variant}` }
+      : undefined;
     const cleaned = {
       ...parsed.data,
+      ...(exampleLinks === undefined || parsed.data.linkedWorkbooks !== undefined ? {} : { linkedWorkbooks: exampleLinks }),
       workflowState: "DRAFT",
       workflowHistory: [{ state: "DRAFT", enteredAt: new Date().toISOString(), actor: acting.username, note: "Loaded from example workbook" }],
     };
-    doc.previousMefJson = JSON.stringify(doc.mef);
+    if (typeof doc.previousMefJson !== "string" || doc.previousMefJson.length === 0) doc.previousMefJson = JSON.stringify(doc.mef);
     doc.mef = cleaned;
     await doc.save();
+    await recordWorkbookStatus(this.scWorkbookModel.db, workbookId, (doc.mef as { workflowState?: string }).workflowState);
     await this.signoffModel.deleteMany({ workbookId }).exec();
     await this.scDocumentsService.removeAllForWorkbook(workbookId);
     return toResponse(doc, myRoles);
@@ -126,6 +133,7 @@ export class ScWorkbooksService {
     doc.mef = parsed.data;
     doc.previousMefJson = null;
     await doc.save();
+    await recordWorkbookStatus(this.scWorkbookModel.db, workbookId, (doc.mef as { workflowState?: string }).workflowState);
     return toResponse(doc, myRoles);
   }
 }

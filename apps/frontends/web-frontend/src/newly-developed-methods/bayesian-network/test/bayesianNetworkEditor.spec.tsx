@@ -1153,7 +1153,7 @@ describe("BayesianNetworkEditor", () => {
       />,
     );
 
-    const result = screen.getByLabelText("HCL event-tree result");
+    const result = screen.getByLabelText("Dependency event tree result");
     expect(result).toHaveClass("hcleditor__batch-result");
     expect(result).toHaveTextContent("Sequence results");
     expect(result).toHaveTextContent("2.50E-04/yr");
@@ -1245,7 +1245,8 @@ describe("BayesianNetworkEditor", () => {
     await user.click(screen.getByRole("button", { name: "Enable uncertainty" }));
 
     expect(screen.getByRole("spinbutton", { name: "Samples" })).toHaveValue(1000);
-    expect(screen.getByRole("spinbutton", { name: "Seed" })).toHaveValue(42);
+    expect(screen.getByRole("spinbutton", { name: "Seed value" })).toHaveValue(42);
+    expect(screen.getByRole("combobox", { name: "Seed source" })).toHaveValue("FIXED");
     expect(screen.getByRole("combobox", { name: "Sampling method" })).toHaveValue("LHS");
     expect(savedConfiguration().solverSettings.uncertainty).toEqual({ sampleCount: 1000, seed: 42, sampler: "LHS", basicEvents: [], cptRows: [], cptGenerators: [] });
     await user.selectOptions(screen.getByRole("combobox", { name: "Sampling method" }), "MC");
@@ -1484,12 +1485,12 @@ describe("BayesianNetworkEditor", () => {
     await user.click(screen.getByRole("radio", { name: "Manual" }));
     await user.click(screen.getByRole("button", { name: "Create HCL configuration" }));
 
-    const commonResult = screen.getByLabelText("HCL fault-tree result");
+    const commonResult = screen.getByLabelText("Dependency fault tree result");
     expect(commonResult).toHaveTextContent("Top event probability");
     expect(commonResult).toHaveTextContent("2.50E-01");
     expect(commonResult.querySelectorAll(".hcleditor__result-metric")).toHaveLength(1);
     await user.click(screen.getByRole("radio", { name: "Batch" }));
-    const scenarioResult = screen.getByLabelText("HCL scenario batch result");
+    const scenarioResult = screen.getByLabelText("Dependency scenario batch result");
     expect(scenarioResult).toHaveTextContent("No variation across scenarios");
     expect(scenarioResult.querySelectorAll(".hcleditor__batch-table .hcleditor__result-metric"))
       .toHaveLength(2);
@@ -1575,7 +1576,7 @@ describe("BayesianNetworkEditor", () => {
     await user.click(screen.getByRole("radio", { name: "Batch" }));
     await user.click(screen.getByRole("button", { name: "Create HCL configuration" }));
 
-    const result = screen.getByLabelText("HCL scenario batch result");
+    const result = screen.getByLabelText("Dependency scenario batch result");
     expect(within(result).getByLabelText("Hazard convolution summary")).toHaveTextContent("99.44%");
     expect(result).toHaveTextContent("Convolved probability");
     expect(result).toHaveTextContent("1.89E-01/yr");
@@ -1597,7 +1598,7 @@ describe("BayesianNetworkEditor", () => {
     await user.click(screen.getByRole("radio", { name: "Probability" }));
     await user.click(screen.getByRole("radio", { name: "Batch" }));
     await user.click(screen.getByRole("button", { name: "Create HCL configuration" }));
-    expect(screen.getByLabelText("HCL scenario batch result")).toHaveTextContent("Skipped: zero hazard weight");
+    expect(screen.getByLabelText("Dependency scenario batch result")).toHaveTextContent("Skipped: zero hazard weight");
   });
 
   it("keeps mutation controls unavailable in read-only mode", () => {

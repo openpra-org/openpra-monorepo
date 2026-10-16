@@ -1,6 +1,6 @@
 import { JSX, useMemo, useState } from "react";
 import { POSIcon } from "./posIcons";
-import { PosSectionHeading } from "./posHelp";
+import { PosSectionHeading } from "./posSectionHeading";
 import { Badge } from "./posShared";
 import {
   internalApproverView,
@@ -115,9 +115,6 @@ function InternalReviewScreen({
             title={isApprovalStep
               ? (isPreparer ? "Comments by reviewers & approvers" : "Your comments")
               : "All review comments"}
-            description={isApprovalStep
-              ? "Review the comment record that supports the approval decision, including each comment's resolution status and responsible role."
-              : "Review all technical comments from every assigned role, newest first, and track each one to resolution before approval."}
           />
           <div className="posrow" style={{ gap: 6 }}>
             <button type="button" className={`poschip${filter === "all" ? " poschip--primary" : ""}`} onClick={() => setFilter("all")}>All ({displayComments.length})</button>
@@ -157,7 +154,6 @@ function InternalReviewScreen({
           <div className="poscard__head">
             <PosSectionHeading
               title="Submit for Internal Approval"
-              description={<>Advance the reviewed workbook to {approver?.name ?? "the assigned approver"} only after the reviewer has marked every technical comment resolved.</>}
             />
             {allResolved
               ? <Badge kind="ok">All comments resolved</Badge>
@@ -199,7 +195,6 @@ function InternalReviewScreen({
             <div className="poscard__head">
               <PosSectionHeading
                 title="What is being attested"
-                description="Confirm the capability target, supporting-requirement status, resolved comment record, and controlled configuration snapshot covered by the approval signature."
               />
             </div>
             <div className="posapprove__attest-with-sign">
@@ -242,7 +237,6 @@ function InternalReviewScreen({
               <div className="poscard__head">
                 <PosSectionHeading
                   title="After approval — external workflows"
-                  description="Release the approved, locked workbook to independent peer review or audit. External participants may inspect and comment, but cannot alter the approved analysis."
                 />
                 <Badge kind="draft">View + comment only</Badge>
               </div>
@@ -368,6 +362,7 @@ const STEP_SECTION: Record<string, string[]> = {
   grouping: ["Screening & grouping"],
   frequency: ["Frequencies & duration"],
   decayheat: ["Frequencies & duration"],
+  handoff: ["Documentation (HLR-POS-D)"],
 };
 
 interface ReviewerDockProps {

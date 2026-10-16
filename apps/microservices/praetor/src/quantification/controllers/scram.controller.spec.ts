@@ -8,14 +8,13 @@ describe('ScramController', () => {
     let controller: ScramController;
     const mockProducerService = {
         createAndQueueQuant: vi.fn(),
-        createAndQueueSequenceBatch: vi.fn(),
-        createAndQueueAdaptiveSequenceBatch: vi.fn(),
     };
     const mockStorageService = {
-        getJobStatus: vi.fn(),
-        getAggregatedJobOutput: vi.fn(),
+        getInputData: vi.fn(),
+        getOutput: vi.fn(),
     };
     beforeEach(async () => {
+        vi.clearAllMocks();
         const module: TestingModule = await Test.createTestingModule({
             controllers: [ScramController],
             providers: [
@@ -41,67 +40,37 @@ describe('ScramController', () => {
             const result = await controller.createAndQueueQuant({} as NodeQuantRequest);
             expect(result).toEqual({ jobId });
         });
-        it('should queue sequence batch job', async () => {
-            const sequenceJobIds = ['job-1-seq1', 'job-1-seq2'];
-            mockProducerService.createAndQueueSequenceBatch.mockResolvedValue(sequenceJobIds);
-            const result = await controller.createAndQueueQuant({} as NodeQuantRequest, {
-                distributedSequences: 'yes',
-            });
-            expect(result).toEqual({ parentJobId: 'job-1', sequenceJobIds });
-        });
         it('should throw InternalServerErrorException on error', async () => {
             mockProducerService.createAndQueueQuant.mockRejectedValue(new Error());
             await expect(controller.createAndQueueQuant({} as NodeQuantRequest)).rejects.toThrow(InternalServerErrorException);
         });
     });
-    describe('createAndQueueAdaptiveQuant', () => {
-        it('should queue adaptive quant job', async () => {
-            const jobId = 'job-id';
-            mockProducerService.createAndQueueQuant.mockResolvedValue(jobId);
-            const result = await controller.createAndQueueAdaptiveQuant({} as NodeQuantRequest);
-            expect(result).toEqual({ jobId });
+    describe('getInputData', () => {
+        it('should return the stored request', async () => {
+            const request = { _id: 'job-id' };
+            mockStorageService.getInputData.mockResolvedValue(JSON.stringify(request));
+            expect(await controller.getInputData('job-id')).toEqual(request);
+            expect(mockStorageService.getInputData).toHaveBeenCalledWith('job-id');
         });
-        it('should queue adaptive sequence batch job', async () => {
-            const sequenceJobIds = ['job-1-seq1', 'job-1-seq2'];
-            mockProducerService.createAndQueueAdaptiveSequenceBatch.mockResolvedValue(sequenceJobIds);
-            const result = await controller.createAndQueueAdaptiveQuant({} as NodeQuantRequest, {
-                distributedSequences: 'yes',
-            });
-            expect(result).toEqual({ parentJobId: 'job-1', sequenceJobIds });
+        it('should throw NotFoundException when the input is missing', async () => {
+            mockStorageService.getInputData.mockRejectedValue(new Error());
+            await expect(controller.getInputData('job-id')).rejects.toThrow(NotFoundException);
         });
-        it('should throw InternalServerErrorException if no sequences extracted', async () => {
-            mockProducerService.createAndQueueAdaptiveSequenceBatch.mockResolvedValue([]);
-            await expect(controller.createAndQueueAdaptiveQuant({} as NodeQuantRequest, {
-                distributedSequences: 'yes',
-            })).rejects.toThrow(InternalServerErrorException);
-        });
-        it('should throw InternalServerErrorException on error', async () => {
-            mockProducerService.createAndQueueQuant.mockRejectedValue(new Error());
-            await expect(controller.createAndQueueAdaptiveQuant({} as NodeQuantRequest)).rejects.toThrow(InternalServerErrorException);
+        it('should throw NotFoundException when the stored input is not JSON', async () => {
+            mockStorageService.getInputData.mockResolvedValue('not json');
+            await expect(controller.getInputData('job-id')).rejects.toThrow(NotFoundException);
         });
     });
-    describe('getJobStatus', () => {
-        it('should return job status', async () => {
-            const status = { aggregatedOutputJobId: 'job-id' };
-            mockStorageService.getJobStatus.mockResolvedValue(status);
-            const result = await controller.getJobStatus('job-id');
-            expect(result).toEqual(status);
+    describe('getOutput', () => {
+        it('should return the stored output', async () => {
+            const output = { results: { initiatingEvents: [], sumOfProducts: [] } };
+            mockStorageService.getOutput.mockResolvedValue(output);
+            expect(await controller.getOutput('job-id')).toEqual(output);
+            expect(mockStorageService.getOutput).toHaveBeenCalledWith('job-id');
         });
         it('should throw NotFoundException on error', async () => {
-            mockStorageService.getJobStatus.mockRejectedValue(new Error());
-            await expect(controller.getJobStatus('job-id')).rejects.toThrow(NotFoundException);
-        });
-    });
-    describe('getAggregatedOutput', () => {
-        it('should return job output', async () => {
-            const output = { jobId: 'job-id', output: {} };
-            mockStorageService.getAggregatedJobOutput.mockResolvedValue(output);
-            const result = await controller.getAggregatedOutput('job-id');
-            expect(result).toEqual(output);
-        });
-        it('should throw NotFoundException on error', async () => {
-            mockStorageService.getAggregatedJobOutput.mockRejectedValue(new Error());
-            await expect(controller.getAggregatedOutput('job-id')).rejects.toThrow(NotFoundException);
+            mockStorageService.getOutput.mockRejectedValue(new Error());
+            await expect(controller.getOutput('job-id')).rejects.toThrow(NotFoundException);
         });
     });
 });

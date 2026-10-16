@@ -105,20 +105,6 @@
 .espath__end--block { background: rgb(179 38 30 / 0.14); color: var(--color-error); }
 
 /* â”€â”€â”€ Dependency cards â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
-.esdep {
-  display: grid; grid-template-columns: 1fr auto; gap: 14px; align-items: start;
-  padding: 14px 16px; border: 1px solid var(--color-border); border-radius: 11px; background: var(--color-surface);
-  cursor: pointer; transition: border-color 0.12s; width: 100%; text-align: left; font: inherit;
-}
-.esdep:hover { border-color: var(--color-primary); }
-.esdep__flow { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 13.5px; font-weight: 700; color: var(--color-text); }
-.esdep__flow-arrow { color: var(--color-text-subtle); display: inline-flex; }
-.esdep__flow-arrow svg { width: 14px; height: 14px; }
-.esdep__from { color: var(--color-text); }
-.esdep__to { color: var(--color-text-muted); }
-.esdep__desc { font-size: 12.5px; color: var(--color-text-muted); line-height: 1.5; margin-top: 5px; }
-.esdep__tags { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; }
-.esdep__right { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; flex-shrink: 0; }
 
 /* â”€â”€â”€ Timing rail â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .estiming { display: flex; flex-direction: column; gap: 0; }
@@ -155,14 +141,6 @@
 }
 
 /* warn note (reuse of IE iewarn-note vibe) */
-.eswarn {
-  display: flex; gap: 9px; align-items: flex-start;
-  margin-top: 10px; padding: 10px 12px;
-  background: rgba(196, 122, 24, 0.08); border-left: 3px solid var(--color-warning);
-  border-radius: 4px; font-size: 12.5px; color: var(--color-text); line-height: 1.5;
-}
-.eswarn__icon { color: var(--color-warning); flex-shrink: 0; display: inline-flex; }
-.eswarn__icon svg { width: 15px; height: 15px; }
 
 /* key-safety-function cards */
 .essf-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
@@ -242,85 +220,14 @@
 /* â”€â”€â”€ Event-sequence diagram â€” pivotal-event flowchart â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 /* â”€â”€â”€ Accident-progression timeline (Step 4) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
-.estl { position: relative; height: 188px; margin: 18px 6px 4px; }
-.estl__axis { position: absolute; left: 0; right: 0; top: 96px; height: 2px; background: var(--color-border-strong); border-radius: 2px; }
-.estl__band {
-  position: absolute; top: 60px; bottom: 52px; right: 0;
-  background: linear-gradient(90deg, rgb(179 38 30 / 0.05), rgb(179 38 30 / 0.16));
-  border-left: 1.5px dashed var(--color-error); border-radius: 0 6px 6px 0;
-}
-.estl__band-label {
-  position: absolute; top: 4px; right: 8px; font-size: 10.5px; font-weight: 700;
-  color: var(--color-error); text-transform: uppercase; letter-spacing: 0.04em; white-space: nowrap;
-}
-.estl__flag-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; vertical-align: middle; margin-right: 5px; }
-.estl__flag-dot--init  { background: var(--color-text); }
-.estl__flag-dot--auto  { background: var(--c-complete); }
-.estl__flag-dot--cue   { background: var(--color-warning); }
-.estl__flag-dot--op    { background: var(--color-primary); }
-.estl__flag-dot--limit { background: var(--color-error); }
-.estl__ticks { position: absolute; left: 0; right: 0; top: 104px; }
-.estl__tick {
-  position: absolute; transform: translateX(-50%); font-family: var(--font-data), ui-monospace, monospace;
-  font-size: 10px; color: var(--color-text-subtle); white-space: nowrap;
-}
-.estl__legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: 11.5px; color: var(--color-text-subtle); margin-top: 6px; justify-content: center; }
-.estl__legend-item { display: inline-flex; align-items: center; gap: 6px; }
 
 /* dots-only timeline: milestones collapse to clickable dots, details on demand.
    Vertical geometry (rail height, axis, lanes, stems) is computed per render
    with pixel-measured collision handling, so no label overlaps a bar or
    another label; the top strip stays reserved for the damage-band label. */
-.estl--dots { height: 126px; }
-.estl--dots .estl__band-label { top: -16px; left: 0; right: auto; transform: translateX(-50%); }
-.estl__stem { position: absolute; width: 1px; background: var(--color-border-strong); z-index: 1; }
-.estl__stemlab {
-  position: absolute;
-  font-family: var(--font-data), ui-monospace, monospace; font-size: 9.5px;
-  color: var(--color-text-subtle); white-space: nowrap;
-}
-.estl__dotbtn {
-  position: absolute; transform: translate(-50%, -50%);
-  width: 13px; height: 13px; border-radius: 50%;
-  border: 2px solid var(--color-surface); padding: 0; cursor: pointer; z-index: 2;
-}
-.estl__dotbtn:hover { box-shadow: 0 0 0 3px rgba(80, 120, 220, 0.14); }
-.estl__dotbtn--sel { box-shadow: 0 0 0 3px rgba(80, 120, 220, 0.3); }
-.estl__dotbtn--init  { background: var(--color-text); }
-.estl__dotbtn--auto  { background: var(--c-complete); }
-.estl__dotbtn--cue   { background: var(--color-warning); }
-.estl__dotbtn--op    { background: var(--color-primary); }
-.estl__dotbtn--limit { background: var(--color-error); }
-.estl__detail {
-  border: 1px solid var(--color-border); border-radius: 10px; padding: 10px 14px; margin-top: 4px;
-  background: var(--color-surface-low); display: flex; flex-direction: column; gap: 7px;
-}
-.estl__detail-head { display: flex; align-items: center; gap: 8px; font-size: 12.5px; }
-.estl__detail-row { display: flex; align-items: baseline; gap: 8px; font-size: 12.5px; flex-wrap: wrap; }
 
 /* â”€â”€â”€ Operator-action windows (Step 4) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
-.esact { border: 1px solid var(--color-border); border-radius: 11px; padding: 13px 15px; margin-bottom: 10px; background: var(--color-surface); }
-.esact__head { display: flex; align-items: center; gap: 8px; }
-.esact__name { font-weight: 700; font-size: 13.5px; color: var(--color-text); }
-.esact__cue { font-size: 12px; color: var(--color-text-subtle); margin: 4px 0 10px; }
-.esact__bar-track { position: relative; height: 26px; background: var(--color-surface-low); border-radius: 7px; overflow: hidden; }
-.esact__bar { position: absolute; top: 0; bottom: 0; background: var(--color-primary-soft); border: 1px solid var(--color-primary-focus); border-radius: 6px; display: flex; align-items: center; }
-.esact__bar-req { position: absolute; top: 0; bottom: 0; left: 0; background: var(--color-primary); opacity: 0.55; border-radius: 6px 0 0 6px; }
-.esact__bar-cap { position: relative; z-index: 1; font-size: 10.5px; font-weight: 700; color: var(--color-primary); padding: 0 8px; white-space: nowrap; }
 
-.esact__feas { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 10px; }
-.esact__check {
-  display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 700;
-  font-family: inherit; line-height: 1.4;
-  padding: 2px 8px; border-radius: 999px;
-  background: rgb(18 197 185 / 0.12); color: var(--c-complete); border: 1px solid rgb(18 197 185 / 0.28);
-}
-button.esact__check { cursor: pointer; }
-.esact--click {
-  display: block; width: 100%; font: inherit; text-align: left; cursor: pointer;
-  transition: border-color 0.12s, box-shadow 0.12s;
-}
-.esact--click:hover { border-color: var(--color-primary); box-shadow: 0 4px 14px rgb(143 78 199 / 0.1); }
 .esend-tile {
   display: inline-flex; align-items: center; gap: 8px;
   padding: 6px 12px; border: 1px solid var(--color-border); border-radius: 9px;
@@ -391,6 +298,7 @@ button.esact__check { cursor: pointer; }
 .esqlight__dot--s { background: var(--c-complete); }
 .esqlight__dot--f { background: var(--color-error); }
 .esqlight__dot--b { background: var(--color-text-subtle); }
+.esqlight__dot--n { background: var(--color-text-muted); }
 .esqdom__bar { flex: 0 0 110px; height: 5px; border-radius: 3px; background: var(--color-surface-low); overflow: hidden; }
 .esqdom__fill { display: block; height: 100%; border-radius: 3px; }
 .esqdom__fill--block { background: var(--color-error); }
@@ -398,9 +306,6 @@ button.esact__check { cursor: pointer; }
 .esqdom__fill--ok    { background: var(--c-complete); }
 .esqdom__freq { font-size: 11px; white-space: nowrap; min-width: 74px; text-align: right; }
 @media (max-width: 700px) { .esqdom__bar { display: none; } .esqdom__ietxt { display: none; } .esqdom__endtxt { display: none; } }
-.esact__check svg { width: 11px; height: 11px; }
-.esact__check--warn { background: rgba(196, 122, 24, 0.14); color: var(--c-review-inreview); border-color: rgba(196, 122, 24, 0.32); }
-.esact__check--block { background: rgb(179 38 30 / 0.14); color: var(--color-error); border-color: rgb(179 38 30 / 0.3); }
 
 
 /* â”€â”€â”€ App additions (blank-state + legacy compatibility) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */

@@ -11,10 +11,12 @@ import type {
   DaSourceUse,
   DaStateNeed,
 } from "interfaces-mef-types/da/data-analysis";
-import { canonicalJson, expressionReferences, type EvidenceTerm, type Law, type UncertainExpression } from "interfaces-mef-types/core/uncertainty";
+import { canonicalJson, expressionReferences, type DiscreteOutcome, type EvidenceTerm, type Law, type UncertainExpression } from "interfaces-mef-types/core/uncertainty";
 import { uncertaintyVersion, type UncertaintyState } from "../newly-developed-methods/shared/useUncertainty";
-import { constrainedLaw, lawSummary, operationLaw, pointState, sourceUseLaw } from "./daLaws";
-import { hasSpread } from "./daFailures";
+import { constrainedLaw, lawSummary, operationLaw, pointState, sourceUseLaw, weightedUseLaw } from "./daLaws";
+import { hasSpread, pooledLaw, posteriorOf } from "./daFailures";
+import { weightedUses } from "./daSourcing";
+import { conflictCheck, countTerm, countedRecords, homogeneityCheck, recordCount, recordTrendCheck, typedCount, type DaCounted } from "./daEvidenceChecks";
 import type { DaFindingSeverity, DaNeedFinding } from "./daSelectors";
 
 const RANK: Record<DaFindingSeverity, number> = { error: 0, warning: 1, note: 2 };
@@ -25,12 +27,13 @@ const SHUTDOWN_MODES: ReadonlySet<string> = new Set(["SHUTDOWN", "REFUELING", "M
 
 const GAP = 5;
 
-type DaFrequencyComputation = "PRIOR" | "POSTERIOR";
+type DaFrequencyComputation = "PRIOR" | "POSTERIOR" | "POPULATION" | "EMPIRICAL_BAYES";
 
 interface DaFrequencyEvidence {
   evidence: DaEvidence;
   label: string;
   failures?: number;
+  outcomes?: DiscreteOutcome[];
   exposure?: number;
   term?: EvidenceTerm;
   problem?: string;
@@ -46,6 +49,7 @@ interface DaPartShare {
 interface DaFrequencyPartEstimate {
   part: DaFrequencyPart;
   use?: DaSourceUse;
+  uses: DaSourceUse[];
   published?: Law;
   form: DaPriorForm;
   prior?: Law;
@@ -174,14 +178,22 @@ function resolveEvidence(da: DataAnalysis, parameter: DataAnalysisParameter, par
   return (part.evidence ?? []).map((evidence) => {
     const resolved: DaFrequencyEvidence = { evidence, label: evidenceLabel(da, evidence) };
     const entry = entryOf(da, evidence.sourceId, evidence.entryId);
-    if (evidence.failuresFrom === "TYPED") resolved.failures = evidence.failures;
-    else if (evidence.failuresFrom === "ENTRY") {
+    let counted: DaCounted | undefined;
+    if (evidence.failuresFrom === "TYPED") counted = evidence.failures === undefined ? undefined : { failures: evidence.failures };
+    else if (evidence.failuresFrom === "UNCERTAIN") {
+      counted = typedCount(evidence.failureOutcomes);
+      if (counted === undefined) return { ...resolved, problem: "Give each possible count with a weight above zero." };
+    } else if (evidence.failuresFrom === "ENTRY") {
       if (entry === undefined) return { ...resolved, problem: "Pick the library estimate the event count comes from." };
-      resolved.failures = entry.failures;
+      counted = entry.failures === undefined ? undefined : { failures: entry.failures };
     } else {
       const set = (da.recordSets ?? []).find((candidate) => candidate.id === evidence.recordSetId);
       if (set === undefined) return { ...resolved, problem: "Pick the record set the events are counted from." };
-      resolved.failures = set.records.filter((record) => record.judgment === "FAILURE" && record.parameterId === parameter.uuid).length;
+      counted = recordCount(countedRecords(set, parameter.uuid));
+    }
+    if (counted !== undefined) {
+      resolved.failures = counted.failures;
+      resolved.outcomes = counted.outcomes;
     }
     if (evidence.exposureFrom === "ENTRY") {
       if (entry === undefined) return { ...resolved, problem: "Pick the library estimate the exposure comes from." };
@@ -191,19 +203,12 @@ function resolveEvidence(da: DataAnalysis, parameter: DataAnalysisParameter, par
       if (evidence.unit !== undefined && evidence.unit !== "YEARS") return { ...resolved, problem: "Initiating events are counted over years." };
       resolved.exposure = evidence.exposure;
     } else return { ...resolved, problem: "Count the exposure in years, typed or from a library estimate." };
-    if (resolved.failures === undefined) return { ...resolved, problem: "Enter the number of events." };
+    if (counted === undefined) return { ...resolved, problem: "Enter the number of events." };
     if (resolved.exposure === undefined) return { ...resolved, problem: "Enter the years the events happened in." };
     if (!(resolved.exposure > 0)) return { ...resolved, problem: "The exposure must be more than zero." };
-    if (resolved.failures < 0) return { ...resolved, problem: "The event count cannot be negative." };
-    return { ...resolved, term: { likelihood: "POISSON", failures: resolved.failures, exposure: resolved.exposure } };
+    if (counted.failures < 0) return { ...resolved, problem: "The event count cannot be negative." };
+    return { ...resolved, term: countTerm("POISSON", counted, resolved.exposure) };
   });
-}
-
-function posteriorOf(prior: Law | null, terms: readonly EvidenceTerm[]): Law | string {
-  if (prior === null) return { family: "POSTERIOR", prior: null, evidence: [...terms] };
-  if (prior.family === "POSTERIOR") return { family: "POSTERIOR", prior: prior.prior, evidence: [...prior.evidence, ...terms] };
-  if (prior.family === "POPULATION") return "A population law cannot be updated again. Use it as published or pick a source with its own law.";
-  return { family: "POSTERIOR", prior, evidence: [...terms] };
 }
 
 function frequencyValue(law: Law): UncertainExpression {
@@ -223,15 +228,16 @@ function priorOf(form: DaPriorForm, published: Law | undefined): { prior?: Law |
 
 function estimatePart(da: DataAnalysis, parameter: DataAnalysisParameter, part: DaFrequencyPart, modules: number, siteWide: boolean): DaFrequencyPartEstimate {
   const use = part.useId === undefined ? undefined : (parameter.sourceUses ?? []).find((candidate) => candidate.id === part.useId);
+  const weighted = weightedUses(parameter.sourceUses ?? [], part.useId, part.priorParts);
   const form = part.priorForm ?? "AS_PUBLISHED";
   const evidence = resolveEvidence(da, parameter, part);
   const terms = evidence.flatMap((item) => (item.evidence.included && item.term !== undefined ? [item.term] : []));
   const share = shareOf(da, part.per, part.stateIds ?? []);
-  const base: DaFrequencyPartEstimate = { part, use, form, evidence, terms, method: part.method, share, pending: false };
+  const base: DaFrequencyPartEstimate = { part, use, uses: weighted.map((item) => item.use), form, evidence, terms, method: part.method, share, pending: false };
   if (part.useId !== undefined && use === undefined) return { ...base, problem: "The chosen source is no longer considered. Check it in Step 04 Applicability." };
   let published: Law | undefined;
   if (use !== undefined) {
-    const state = sourceUseLaw(da, use);
+    const state = weightedUseLaw(da, weighted);
     if (state.status === "pending") return { ...base, pending: true };
     if (state.status === "failed") return { ...base, problem: `PRAXIS could not read the source: ${state.error}` };
     if (state.status === "missing") return { ...base, problem: `${state.problem} Check it in Step 04 Applicability.` };
@@ -240,6 +246,11 @@ function estimatePart(da: DataAnalysis, parameter: DataAnalysisParameter, part: 
   }
   const withPublished: DaFrequencyPartEstimate = { ...base, published };
   if (part.method === undefined) return { ...withPublished, problem: "Choose how this part is estimated." };
+  if (part.method === "POPULATION" || part.method === "EMPIRICAL_BAYES") {
+    const pooled = pooledLaw(part.method, part, evidence, terms, false);
+    if ("problem" in pooled) return { ...withPublished, problem: pooled.problem };
+    return toPlant({ ...withPublished, posterior: pooled.law, computation: part.method }, pooled.law, share, modules, siteWide);
+  }
   const chosen = priorOf(form, published);
   const withPrior: DaFrequencyPartEstimate = { ...withPublished, prior: chosen.prior ?? undefined };
   if (chosen.pending) return { ...withPrior, pending: true };
@@ -258,7 +269,11 @@ function estimatePart(da: DataAnalysis, parameter: DataAnalysisParameter, part: 
     posterior = updated;
     computation = "POSTERIOR";
   }
-  const withPosterior: DaFrequencyPartEstimate = { ...withPrior, posterior, computation };
+  return toPlant({ ...withPrior, posterior, computation }, posterior, share, modules, siteWide);
+}
+
+function toPlant(withPosterior: DaFrequencyPartEstimate, posterior: Law, share: DaPartShare, modules: number, siteWide: boolean): DaFrequencyPartEstimate {
+  const part = withPosterior.part;
   if (share.share === undefined) return { ...withPosterior, problem: part.per === "CALENDAR_YEAR" ? "No share of the year." : `No ${part.per === "CRITICAL_YEAR" ? "power" : "shutdown"} state with a duration covers this part. Check its states and the POS import in Step 02.` };
   const factor = share.share * (siteWide ? 1 : modules);
   let law = posterior;
@@ -374,6 +389,7 @@ function parameterFindings(da: DataAnalysis, parameter: DataAnalysisParameter, c
   const item = parameter.uuid;
   const target = { kind: "daFrequency" as const, id: parameter.uuid };
   const ccTwo = da.capabilityCategory !== "CC-I";
+  const operating = da.plantStage === "OPERATIONAL";
   const modules = modulesOf(da);
   if (parameter.valueMode === "LINKED") {
     const need = initiatorFor(da, parameter);
@@ -402,7 +418,13 @@ function parameterFindings(da: DataAnalysis, parameter: DataAnalysisParameter, c
     if ((basis?.category === "II" || basis?.category === "III") && !widened && part.form !== "JEFFREYS" && blank(part.part.reason)) findings.push({ severity: "warning", check: "Uncertainty not widened", item, detail: `${what}: category ${basis.category} keeps the industry mean but widens it with a constrained noninformative prior, since the design differs from the plants behind the data.`, target });
     const used = part.evidence.filter((evidence) => evidence.evidence.included && evidence.term !== undefined);
     if (part.part.method === "PRIOR" && used.length > 0) findings.push({ severity: ccTwo ? "error" : "warning", check: "Events not used", item, detail: `${what}: events are listed but the source is used as it is. Update it, even with zero events (DA-D1).`, target });
+    if (part.part.method === "BAYES" && part.prior !== undefined && part.form !== "JEFFREYS" && part.terms.length > 0) conflictCheck(check, part.prior, part.terms, item, target, !blank(part.part.reason), operating);
+    if (part.part.method === "BAYES") homogeneityCheck(check, part.terms, item, target);
     for (const evidence of part.evidence) {
+      if (evidence.evidence.included && evidence.evidence.failuresFrom === "RECORDS") {
+        const set = (da.recordSets ?? []).find((candidate) => candidate.id === evidence.evidence.recordSetId);
+        recordTrendCheck(check, set, parameter.uuid, `${what} · ${evidence.label}`, evidence.evidence.yearsFrom ?? set?.yearsFrom, evidence.evidence.yearsTo ?? set?.yearsTo, item, target);
+      }
       if (evidence.problem !== undefined) findings.push({ severity: "error", check: "Evidence problem", item, detail: `${what} · ${evidence.label}: ${evidence.problem}`, target });
       if (!evidence.evidence.included && blank(evidence.evidence.exclusionReason)) findings.push({ severity: "error", check: "No exclusion reason", item, detail: `${what} · ${evidence.label}: say why it is left out.`, target });
       if (blank(evidence.evidence.reason)) findings.push({ severity: "warning", check: "No evidence reason", item, detail: `${what} · ${evidence.label}: say why these counts apply.`, target });

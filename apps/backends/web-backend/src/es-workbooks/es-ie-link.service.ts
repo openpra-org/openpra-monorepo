@@ -12,6 +12,7 @@ import {
   readWorkbookRevision,
   workbookRevisionConflict,
 } from "../workbooks/workbook-revision";
+import { esDocumentLink, withEsLink, type EsLinkedMef } from "./es-links";
 
 const EXAMPLE_SENTINEL = "example";
 
@@ -28,25 +29,24 @@ export interface AvailableIeWorkbook {
   updatedAt: string;
 }
 
-export interface ImportedIeInitiator {
+export interface ImportedIeGroup {
   id: string;
   name: string;
-  category: string;
 }
 
 export interface EsIeLinkStatus {
   linkedIeWorkbookId: string | null;
   linkedName: string | null;
-  initiators: ImportedIeInitiator[];
+  groups: ImportedIeGroup[];
 }
 
 interface IeMefShape {
   workflowState?: string;
   initiators?: { uuid: string; name: string; category: string }[];
-  initiatingEventGroups?: { uuid: string }[];
+  initiatingEventGroups?: { uuid: string; name: string }[];
 }
 
-interface EsScopeShape {
+interface EsScopeShape extends EsLinkedMef {
   scopeDefinition?: {
     plantOperatingStateIds?: string[];
     initiatingEventIds?: string[];
@@ -93,16 +93,17 @@ export class EsIeLinkService {
     return out;
   }
 
-  private collectImported(mef: IeMefShape): ImportedIeInitiator[] {
-    return (mef.initiators ?? []).map((i) => ({ id: i.uuid, name: i.name, category: i.category }));
+  private collectImported(mef: IeMefShape): ImportedIeGroup[] {
+    return (mef.initiatingEventGroups ?? []).map((group) => ({ id: group.uuid, name: group.name }));
   }
 
   async status(workbookId: string, acting: ActingUser): Promise<EsIeLinkStatus> {
     const es = await this.requireEs(workbookId, acting);
-    if (typeof es.linkedIeWorkbookId !== "string" || es.linkedIeWorkbookId.length === 0) {
-      return { linkedIeWorkbookId: null, linkedName: null, initiators: [] };
+    const linkedId = esDocumentLink(es, "IE");
+    if (linkedId === null) {
+      return { linkedIeWorkbookId: null, linkedName: null, groups: [] };
     }
-    if (es.linkedIeWorkbookId === EXAMPLE_SENTINEL) {
+    if (linkedId === EXAMPLE_SENTINEL) {
       const variant = es.exampleVariant === "htgr" || es.exampleVariant === "sfr" || es.exampleVariant === "hcl"
         ? es.exampleVariant
         : "sfr";
@@ -112,12 +113,12 @@ export class EsIeLinkService {
         : variant === "sfr"
           ? "Generic SFR IE Workbook"
           : "HCL dissertation case study — Initiating Events";
-      return { linkedIeWorkbookId: EXAMPLE_SENTINEL, linkedName, initiators: this.collectImported(bundle.ie.mef as IeMefShape) };
+      return { linkedIeWorkbookId: EXAMPLE_SENTINEL, linkedName, groups: this.collectImported(bundle.ie.mef as IeMefShape) };
     }
-    const ie = await this.ieWorkbookModel.findOne({ workbookId: es.linkedIeWorkbookId }).exec();
-    if (!ie) return { linkedIeWorkbookId: es.linkedIeWorkbookId, linkedName: null, initiators: [] };
-    const reg = isValidObjectId(es.linkedIeWorkbookId) ? await this.workbookModel.findById(es.linkedIeWorkbookId).exec() : null;
-    return { linkedIeWorkbookId: es.linkedIeWorkbookId, linkedName: reg?.name ?? null, initiators: this.collectImported(ie.mef as IeMefShape) };
+    const ie = await this.ieWorkbookModel.findOne({ workbookId: linkedId }).exec();
+    if (!ie) return { linkedIeWorkbookId: linkedId, linkedName: null, groups: [] };
+    const reg = isValidObjectId(linkedId) ? await this.workbookModel.findById(linkedId).exec() : null;
+    return { linkedIeWorkbookId: linkedId, linkedName: reg?.name ?? null, groups: this.collectImported(ie.mef as IeMefShape) };
   }
 
   async link(workbookId: string, ieWorkbookId: string, acting: ActingUser): Promise<EsIeLinkStatus> {
@@ -128,13 +129,14 @@ export class EsIeLinkService {
     const ie = await this.ieWorkbookModel.findOne({ workbookId: ieWorkbookId }).exec();
     if (!ie) throw new NotFoundException("IE workbook not found");
     if (ie.projectId !== es.projectId) throw new BadRequestException("IE workbook is in a different project");
-    const initiators = this.collectImported(ie.mef as IeMefShape);
+    const groups = this.collectImported(ie.mef as IeMefShape);
     const currentMef = es.mef as EsScopeShape;
     const nextMef = {
       ...currentMef,
+      linkedWorkbooks: withEsLink(currentMef.linkedWorkbooks, "IE", ieWorkbookId),
       scopeDefinition: {
         ...currentMef.scopeDefinition,
-        initiatingEventIds: initiators.map((i) => i.id),
+        initiatingEventIds: groups.map((group) => group.id),
       },
     };
     const updated = await this.esWorkbookModel
@@ -143,7 +145,7 @@ export class EsIeLinkService {
         {
           $set: {
             mef: nextMef,
-            linkedIeWorkbookId: ieWorkbookId,
+            linkedIeWorkbookId: null,
             revision: expectedRevision + 1,
           },
         },
@@ -162,6 +164,7 @@ export class EsIeLinkService {
     const currentMef = es.mef as EsScopeShape;
     const nextMef = {
       ...currentMef,
+      linkedWorkbooks: withEsLink(currentMef.linkedWorkbooks, "IE", null),
       scopeDefinition: {
         ...currentMef.scopeDefinition,
         initiatingEventIds: [],
@@ -181,6 +184,6 @@ export class EsIeLinkService {
       )
       .exec();
     if (!updated) throw workbookRevisionConflict(expectedRevision);
-    return { linkedIeWorkbookId: null, linkedName: null, initiators: [] };
+    return { linkedIeWorkbookId: null, linkedName: null, groups: [] };
   }
 }

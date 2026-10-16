@@ -69,48 +69,8 @@
   height: 14px;
 }
 
-.pcard__progress {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.pcard__progress-head {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.pcard__progress-label {
-  font-size: 12px;
-  color: var(--color-text-muted);
-  font-weight: 600;
-}
-
-.pcard__progress-pct {
-  font-family: var(--font-display), Georgia, serif;
-  font-size: 15px;
-  font-weight: 700;
-  color: var(--color-text);
-  font-variant-numeric: tabular-nums;
-}
-
-.pcard__progress-bar {
-  height: 6px;
-  background: var(--color-surface-low);
-  border-radius: 999px;
-  overflow: hidden;
-}
-
-.pcard__progress-fill {
-  height: 100%;
-  background: linear-gradient(90deg, var(--color-primary) 0%, var(--op-violet-400) 100%);
-  border-radius: 999px;
-  transition: width 0.4s ease;
-}
-
 .pcard__foot {
+  margin-top: auto;
   display: flex;
   align-items: center;
   justify-content: space-between;

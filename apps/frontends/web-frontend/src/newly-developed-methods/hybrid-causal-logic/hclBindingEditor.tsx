@@ -1,5 +1,6 @@
 import { HclUncertaintyReview } from "./hclUncertaintyReview";
-import { HclUncertaintySeedSchema, HclUncertaintySettingsSchema, WorkbookHclUncertaintyConfigurationSchema } from "interfaces-mef-types/zod/modeling";
+import { HclUncertaintySettingsSchema, WorkbookHclUncertaintyConfigurationSchema } from "interfaces-mef-types/zod/modeling";
+import { HclSamplingControls } from "./hclSamplingControls";
 import { HclResults } from "./hclResults";
 import { DEFAULT_ANNUALIZATION_CONVENTION } from "interfaces-mef-types/modeling";
 import { HclHazardSweepControls } from "./hclHazardSweepControls";
@@ -149,6 +150,7 @@ function HclBindingEditor({
   evidenceEditor = null,
   calculationType = "PROBABILITY",
   workflow = "MANUAL",
+  analysisHost,
   onEditEvidence,
   onChange,
   onRunFaultTree,
@@ -527,6 +529,139 @@ function HclBindingEditor({
     </>
   );
 
+  const configurationGroups = configuration === undefined ? null : (
+    <>
+              <details className="hcleditor__configuration-group">
+                <summary>Fault trees</summary>
+                <div role="tabpanel" aria-label="HCL fault trees">
+                  {editable && (
+                    <div className="hcleditor__tree-picker">
+                      <label>
+                        <span>Fault tree</span>
+                        <select aria-label="Fault tree to include" value={faultTreeKey} onChange={(event) => setFaultTreeKey(event.target.value)}>
+                          {faultTreeOptions.length === 0 && <option value="">No Systems Analysis fault tree available</option>}
+                          {faultTreeOptions.map((option) => <option key={`${option.workbookId}:${option.modelId}`} value={`${option.workbookId}:${option.modelId}`}>{option.modelCode}</option>)}
+                        </select>
+                      </label>
+                      <button type="button" className="posnav__btn posnav__btn--sm" onClick={includeSelectedFaultTree}>Include</button>
+                    </div>
+                  )}
+                  <HclFaultTreeDirectory
+                    ariaLabel="Included HCL fault trees"
+                    heading="Included"
+                    items={configuration.faultTrees.map((reference) => {
+                      const tree = faultTreeOptions.find((option) =>
+                        option.workbookId === reference.workbookId && option.modelId === reference.modelId,
+                      );
+                      const code = tree?.modelCode ?? "Unresolved fault tree";
+                      return {
+                        id: `${reference.workbookId}:${reference.modelId}`,
+                        code,
+                        title: tree === undefined ? code : `${code} · ${tree.modelName}`,
+                      };
+                    })}
+                    emptyText="No fault trees included."
+                  />
+                </div>
+              </details>
+
+              <details className="hcleditor__configuration-group">
+                <summary>Bindings</summary>
+                <div role="tabpanel" aria-label="HCL binding manager">
+                  {editable && (
+                    <div className="bneditor__binding-form hcleditor__binding-form">
+                      <label>
+                        <span>Fault tree</span>
+                        <select aria-label="Fault tree for binding" value={faultTreeKey} onChange={(event) => setFaultTreeKey(event.target.value)}>
+                          {faultTreeOptions.length === 0 && <option value="">No Systems Analysis fault tree available</option>}
+                          {faultTreeOptions.map((option) => <option key={`${option.workbookId}:${option.modelId}`} value={`${option.workbookId}:${option.modelId}`}>{option.modelCode}</option>)}
+                        </select>
+                      </label>
+                      <label>
+                        <span>Basic event</span>
+                        <select aria-label="Basic event for binding" value={basicEventId} onChange={(event) => setBasicEventId(event.target.value)}>
+                          {(selectedTree?.basicEvents ?? []).map((event) => <option key={event.id} value={event.id}>{event.code}</option>)}
+                        </select>
+                      </label>
+                      <label>
+                        <span>BN node</span>
+                        <select aria-label="BN node for binding" value={nodeId} disabled={model.nodes.length === 0} onChange={(event) => { setNodeId(event.target.value); setTrueStateIds([]); }}>
+                          {model.nodes.map((node) => <option key={node.id} value={node.id}>{node.code}</option>)}
+                        </select>
+                      </label>
+                      <fieldset>
+                        <legend>True states</legend>
+                        {selectedNode?.states.map((state) => (
+                          <label key={state.id} className="bneditor__check">
+                            <input type="checkbox" checked={trueStateIds.includes(state.id)} onChange={(event) => setTrueStateIds((current) => event.target.checked ? [...current, state.id] : current.filter((id) => id !== state.id))} />
+                            {state.code}
+                          </label>
+                        ))}
+                      </fieldset>
+                      <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary hcleditor__add-binding" onClick={addBinding}>Add binding</button>
+                    </div>
+                  )}
+                  <div className="hcleditor__binding-directory">
+                    <div className="hcleditor__binding-list-head">
+                      <strong>Bindings</strong>
+                      <span>{configuration.bindings.length} {configuration.bindings.length === 1 ? "mapping" : "mappings"}</span>
+                    </div>
+                    <div className="bneditor__binding-list hcleditor__binding-list">
+                      {configuration.bindings.map((binding) => {
+                        const tree = faultTreeOptions.find((option) => option.workbookId === binding.faultTreeBasicEvent.workbookId && option.basicEvents.some((event) => event.id === binding.faultTreeBasicEvent.entityId));
+                        const basicEvent = tree?.basicEvents.find((event) => event.id === binding.faultTreeBasicEvent.entityId);
+                        const node = model.nodes.find((candidate) => candidate.id === binding.bayesianNetworkNode.entityId);
+                        const states = node?.states.filter((state) => binding.trueStateIds.includes(state.id)) ?? [];
+                        const invalid = basicEvent === undefined || node === undefined || states.length !== binding.trueStateIds.length || states.length === 0 || states.length === node.states.length;
+                        return (
+                          <div key={binding.id} className={`bneditor__binding${invalid ? " is-invalid" : ""}`}>
+                            <span className="hcleditor__binding-endpoint">
+                              <small>FT / basic event</small>
+                              <strong>{tree?.modelCode ?? "Missing FT"} / {basicEvent?.code ?? "Missing basic event"}</strong>
+                            </span>
+                            <span className="hcleditor__binding-arrow" aria-hidden="true">→</span>
+                            <span className="hcleditor__binding-endpoint">
+                              <small>BN condition</small>
+                              <strong>{node?.code ?? "Missing BN node"} = {states.map((state) => state.code).join(" | ") || "No valid state"}</strong>
+                            </span>
+                            {editable && <button type="button" className="hcleditor__binding-delete" aria-label={`Delete binding ${basicEvent?.code ?? binding.id}`} onClick={() => replaceConfiguration({ ...configuration, bindings: configuration.bindings.filter((candidate) => candidate.id !== binding.id) })}>Delete</button>}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              </details>
+    </>
+  );
+
+  const uncertaintyGroup = configuration === undefined ? null : (
+    <details
+      key={`uncertainty:${calculationType}:${workflow}`}
+      className="hcleditor__configuration-group"
+      open
+    >
+      <summary>Uncertainty <span>{savedUncertainty === undefined ? "Off" : uncertainty === undefined ? "Needs review" : "On"}</span></summary>
+      <div className="hcleditor__uncertainty" role="tabpanel" aria-label="HCL uncertainty settings">
+        {savedUncertainty === undefined ? (
+          <div className="hcleditor__uncertainty-empty">
+            <span>Propagate uncertain basic-event probabilities and BN parameters through PRAXIS.</span>
+            {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={enableUncertainty}>Enable uncertainty</button>}
+          </div>
+        ) : uncertainty === undefined ? (
+          <HclUncertaintyReview key={configuration.modelId} value={savedUncertainty} disabled={!editable || running} onChange={replaceUncertainty} />
+        ) : (
+          <>
+            <HclSamplingControls settings={uncertainty} editable={editable} onChange={replaceUncertainty} onError={setError} onDisable={() => replaceUncertainty(undefined)} />
+            <HclBasicEventControls choices={basicEventUncertaintyOptions} settings={uncertainty} editable={editable} onChange={replaceUncertainty} onError={setError} />
+            <HclCptRowControls model={model} reference={configuration.bayesianNetwork} settings={uncertainty} editable={editable} onChange={replaceUncertainty} onError={setError} />
+            <HclSeismicGeneratorControls model={model} reference={configuration.bayesianNetwork} settings={uncertainty} disabled={!editable} onChange={replaceUncertainty} onError={setError} />
+          </>
+        )}
+      </div>
+    </details>
+  );
+
   return (
     <section className="hcleditor" aria-label="HCL bindings">
       {configuration === undefined ? (
@@ -642,108 +777,7 @@ function HclBindingEditor({
 
               {workflow === "MANUAL" && calculationType !== "UNCERTAINTY" && (
                 <>
-              <details className="hcleditor__configuration-group">
-                <summary>Fault trees <span>{String(configuration.faultTrees.length)}</span></summary>
-                <div role="tabpanel" aria-label="HCL fault trees">
-                  {editable && (
-                    <div className="hcleditor__tree-picker">
-                      <label>
-                        <span>Fault tree</span>
-                        <select aria-label="Fault tree to include" value={faultTreeKey} onChange={(event) => setFaultTreeKey(event.target.value)}>
-                          {faultTreeOptions.length === 0 && <option value="">No Systems Analysis fault tree available</option>}
-                          {faultTreeOptions.map((option) => <option key={`${option.workbookId}:${option.modelId}`} value={`${option.workbookId}:${option.modelId}`}>{option.modelCode}</option>)}
-                        </select>
-                      </label>
-                      <button type="button" className="posnav__btn posnav__btn--sm" onClick={includeSelectedFaultTree}>Include</button>
-                    </div>
-                  )}
-                  <HclFaultTreeDirectory
-                    ariaLabel="Included HCL fault trees"
-                    heading="Included"
-                    items={configuration.faultTrees.map((reference) => {
-                      const tree = faultTreeOptions.find((option) =>
-                        option.workbookId === reference.workbookId && option.modelId === reference.modelId,
-                      );
-                      const code = tree?.modelCode ?? reference.modelId;
-                      return {
-                        id: `${reference.workbookId}:${reference.modelId}`,
-                        code,
-                        title: tree === undefined ? code : `${code} · ${tree.modelName}`,
-                      };
-                    })}
-                    emptyText="No fault trees included."
-                  />
-                </div>
-              </details>
-
-              <details className="hcleditor__configuration-group">
-                <summary>Bindings <span>{String(configuration.bindings.length)}</span></summary>
-                <div role="tabpanel" aria-label="HCL binding manager">
-                  {editable && (
-                    <div className="bneditor__binding-form hcleditor__binding-form">
-                      <label>
-                        <span>Fault tree</span>
-                        <select aria-label="Fault tree for binding" value={faultTreeKey} onChange={(event) => setFaultTreeKey(event.target.value)}>
-                          {faultTreeOptions.length === 0 && <option value="">No Systems Analysis fault tree available</option>}
-                          {faultTreeOptions.map((option) => <option key={`${option.workbookId}:${option.modelId}`} value={`${option.workbookId}:${option.modelId}`}>{option.modelCode}</option>)}
-                        </select>
-                      </label>
-                      <label>
-                        <span>Basic event</span>
-                        <select aria-label="Basic event for binding" value={basicEventId} onChange={(event) => setBasicEventId(event.target.value)}>
-                          {(selectedTree?.basicEvents ?? []).map((event) => <option key={event.id} value={event.id}>{event.code}</option>)}
-                        </select>
-                      </label>
-                      <label>
-                        <span>BN node</span>
-                        <select aria-label="BN node for binding" value={nodeId} onChange={(event) => { setNodeId(event.target.value); setTrueStateIds([]); }}>
-                          {model.nodes.map((node) => <option key={node.id} value={node.id}>{node.code}</option>)}
-                        </select>
-                      </label>
-                      <fieldset>
-                        <legend>True states</legend>
-                        {selectedNode?.states.map((state) => (
-                          <label key={state.id} className="bneditor__check">
-                            <input type="checkbox" checked={trueStateIds.includes(state.id)} onChange={(event) => setTrueStateIds((current) => event.target.checked ? [...current, state.id] : current.filter((id) => id !== state.id))} />
-                            {state.code}
-                          </label>
-                        ))}
-                      </fieldset>
-                      <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary hcleditor__add-binding" onClick={addBinding}>Add binding</button>
-                    </div>
-                  )}
-                  <div className="hcleditor__binding-directory">
-                    <div className="hcleditor__binding-list-head">
-                      <strong>Bindings</strong>
-                      <span>{configuration.bindings.length} {configuration.bindings.length === 1 ? "mapping" : "mappings"}</span>
-                    </div>
-                    <div className="bneditor__binding-list hcleditor__binding-list">
-                      {configuration.bindings.map((binding) => {
-                        const tree = faultTreeOptions.find((option) => option.workbookId === binding.faultTreeBasicEvent.workbookId && option.basicEvents.some((event) => event.id === binding.faultTreeBasicEvent.entityId));
-                        const basicEvent = tree?.basicEvents.find((event) => event.id === binding.faultTreeBasicEvent.entityId);
-                        const node = model.nodes.find((candidate) => candidate.id === binding.bayesianNetworkNode.entityId);
-                        const states = node?.states.filter((state) => binding.trueStateIds.includes(state.id)) ?? [];
-                        const invalid = basicEvent === undefined || node === undefined || states.length !== binding.trueStateIds.length || states.length === 0 || states.length === node.states.length;
-                        return (
-                          <div key={binding.id} className={`bneditor__binding${invalid ? " is-invalid" : ""}`}>
-                            <span className="hcleditor__binding-endpoint">
-                              <small>FT / basic event</small>
-                              <strong>{tree?.modelCode ?? "Missing FT"} / {basicEvent?.code ?? "Missing basic event"}</strong>
-                            </span>
-                            <span className="hcleditor__binding-arrow" aria-hidden="true">→</span>
-                            <span className="hcleditor__binding-endpoint">
-                              <small>BN condition</small>
-                              <strong>{node?.code ?? "Missing BN node"} = {states.map((state) => state.code).join(" | ") || "No valid state"}</strong>
-                            </span>
-                            {editable && <button type="button" className="hcleditor__binding-delete" aria-label={`Delete binding ${basicEvent?.code ?? binding.id}`} onClick={() => replaceConfiguration({ ...configuration, bindings: configuration.bindings.filter((candidate) => candidate.id !== binding.id) })}>Delete</button>}
-                          </div>
-                        );
-                      })}
-                      {configuration.bindings.length === 0 && <p className="bneditor__empty">No fault-tree events are bound yet.</p>}
-                    </div>
-                  </div>
-                </div>
-              </details>
+              {configurationGroups}
                 </>
               )}
 
@@ -782,82 +816,7 @@ function HclBindingEditor({
               </details>
               )}
 
-              {calculationType === "UNCERTAINTY" && (
-              <details
-                key={`uncertainty:${calculationType}:${workflow}`}
-                className="hcleditor__configuration-group"
-                open
-              >
-                <summary>Uncertainty <span>{savedUncertainty === undefined ? "Off" : uncertainty === undefined ? "Needs review" : "On"}</span></summary>
-                <div className="hcleditor__uncertainty" role="tabpanel" aria-label="HCL uncertainty settings">
-                  {savedUncertainty === undefined ? (
-                    <div className="hcleditor__uncertainty-empty">
-                      <span>Propagate uncertain basic-event probabilities and BN parameters through PRAXIS.</span>
-                      {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={enableUncertainty}>Enable uncertainty</button>}
-                    </div>
-                  ) : uncertainty === undefined ? (
-                    <HclUncertaintyReview key={configuration.modelId} value={savedUncertainty} disabled={!editable || running} onChange={replaceUncertainty} />
-                  ) : (
-                    <>
-                      <section className="hcleditor__uncertainty-section hcleditor__uncertainty-section--sampling">
-                        <div className="hcleditor__uncertainty-section-head">
-                          <div><strong>Sampling</strong><span>PRAXIS draws every uncertain input with the selected method.</span></div>
-                        </div>
-                        <div className="hcleditor__uncertainty-controls">
-                          <label>
-                            <span>Sampling method</span>
-                            <select aria-label="Sampling method" value={uncertainty.sampler} disabled={!editable} onChange={(event) => replaceUncertainty({ ...uncertainty, sampler: event.target.value === "MC" ? "MC" : "LHS" })}>
-                              <option value="MC">Monte Carlo (MC)</option>
-                              <option value="LHS">Latin hypercube (LHS)</option>
-                            </select>
-                          </label>
-                          <label>
-                            <span>Samples</span>
-                            <input
-                              key={`samples:${String(uncertainty.sampleCount)}`}
-                              type="number"
-                              min="10"
-                              max="10000"
-                              step="10"
-                              defaultValue={uncertainty.sampleCount}
-                              disabled={!editable}
-                              onBlur={(event) => {
-                                const value = Number(event.target.value);
-                                if (Number.isInteger(value) && value >= 10 && value <= 10_000) replaceUncertainty({ ...uncertainty, sampleCount: value });
-                                else setError("Uncertainty samples must be a whole number from 10 to 10,000.");
-                              }}
-                            />
-                          </label>
-                          <label>
-                            <span>Seed</span>
-                            <input
-                              key={`seed:${String(uncertainty.seed)}`}
-                              type="number"
-                              min="0"
-                              max={Number.MAX_SAFE_INTEGER}
-                              step="1"
-                              defaultValue={uncertainty.seed}
-                              disabled={!editable}
-                              onBlur={(event) => {
-                                const value = event.target.valueAsNumber;
-                                const parsed = HclUncertaintySeedSchema.safeParse(value);
-                                if (parsed.success) replaceUncertainty({ ...uncertainty, seed: parsed.data });
-                                else setError(`Uncertainty seed must be a whole number from 0 to ${String(Number.MAX_SAFE_INTEGER)}.`);
-                              }}
-                            />
-                          </label>
-                          {editable && <button type="button" className="posnav__btn posnav__btn--sm hcleditor__uncertainty-disable" onClick={() => replaceUncertainty(undefined)}>Disable</button>}
-                        </div>
-                      </section>
-
-                      <HclBasicEventControls choices={basicEventUncertaintyOptions} settings={uncertainty} editable={editable} onChange={replaceUncertainty} onError={setError} />
-                      <HclCptRowControls model={model} reference={configuration.bayesianNetwork} settings={uncertainty} editable={editable} onChange={replaceUncertainty} onError={setError} />
-                      <HclSeismicGeneratorControls model={model} reference={configuration.bayesianNetwork} settings={uncertainty} disabled={!editable} onChange={replaceUncertainty} onError={setError} />
-                    </>
-                  )}
-                </div>
-              </details>
-              )}
+              {calculationType === "UNCERTAINTY" && uncertaintyGroup}
               </div>
             </div>
           )}
@@ -883,7 +842,7 @@ function HclBindingEditor({
           )}
 
           {runError !== null && <p className="bneditor__error" role="alert">{runError}</p>}
-          <HclResults runResult={runResult} batchRunResult={batchRunResult} workflow={workflow} calculationType={calculationType} eventTreeOptions={eventTreeOptions} faultTreeOptions={faultTreeOptions} />
+          <HclResults runResult={runResult} batchRunResult={batchRunResult} workflow={workflow} calculationType={calculationType} eventTreeOptions={eventTreeOptions} faultTreeOptions={faultTreeOptions} analysisHost={analysisHost} />
         </>
       )}
       {error !== null && <p className="bneditor__error" role="alert">{error}</p>}
@@ -893,5 +852,5 @@ function HclBindingEditor({
   );
 }
 
-export { HclBindingEditor };
+export { HclBindingEditor, createEvidenceBatchSamples, downloadText };
 export type { HclEventTreeOption, HclFaultTreeOption };

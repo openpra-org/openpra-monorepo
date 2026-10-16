@@ -3,12 +3,14 @@ import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import type { EventSequenceQuantification } from "interfaces-mef-types/esq/event-sequence-quantification";
 import { esqImportanceRunId, esqUncertaintyRunId } from "interfaces-mef-types/esq/esq-measure-inputs";
 import { esqSensitivityRunId } from "interfaces-mef-types/esq/esq-sensitivity-inputs";
+import type { EsqUncertaintyRunResult } from "interfaces-shared-types/newly-developed-methods/event-tree";
 import type { AnalysisRunMetadata } from "interfaces-shared-types/newly-developed-methods/shared";
 import { EsqWorkbookProvider, type EsqWorkbookRuntime } from "../esqWorkbookContext";
 import { ResultsScreen } from "../esqResultsScreen";
 import { UncertScreen, UncertWindows } from "../esqUncertaintyScreen";
 import { SensScreen, SensWindows } from "../esqSensitivityScreen";
-import type { EsqWindowContext } from "../esqModelScreen";
+import type { EsqWindowContext } from "../esqShared";
+import type { EsqUpstream } from "../esqLinks";
 import { evaluateUncertainty } from "../../newly-developed-methods/shared/uncertaintyApi";
 import { praxisUncertainty, settledWithPraxis } from "../../newly-developed-methods/shared/test/praxisUncertainty";
 import { HandoffScreen } from "../esqHandoffScreen";
@@ -19,6 +21,7 @@ import {
   getEsqModelRunResult,
   getEsqSensitivityResult,
   getEsqUncertaintyResult,
+  listEsqUncertaintyRuns,
   runEsqImportance,
   runEsqSensitivity,
   runEsqUncertainty,
@@ -34,6 +37,7 @@ jest.mock("../esqWorkbookApi", () => ({
   getEsqImportanceResult: jest.fn(),
   runEsqUncertainty: jest.fn(),
   getEsqUncertaintyResult: jest.fn(),
+  listEsqUncertaintyRuns: jest.fn(),
   runEsqSensitivity: jest.fn(),
   getEsqSensitivityResult: jest.fn(),
   getEsqModelRunResult: jest.fn(),
@@ -76,9 +80,9 @@ function runOf(id: string, modelId: string): { schemaVersion: "1.0.0"; run: Anal
   };
 }
 
-function Harness({ initial, step, onChange }: { initial: EventSequenceQuantification; step: Step; onChange: (esq: EventSequenceQuantification) => void }): JSX.Element {
+function Harness({ initial, step, onChange, linked }: { initial: EventSequenceQuantification; step: Step; onChange: (esq: EventSequenceQuantification) => void; linked?: EsqUpstream }): JSX.Element {
   const [esq, setEsq] = useState(initial);
-  const [upstream] = useState(() => measureUpstream());
+  const [upstream] = useState(() => linked ?? measureUpstream());
   const mutateEsq = useCallback((mutator: (current: EventSequenceQuantification) => EventSequenceQuantification): void => setEsq((current) => {
     const next = mutator(current);
     onChange(next);
@@ -89,7 +93,7 @@ function Harness({ initial, step, onChange }: { initial: EventSequenceQuantifica
       {step === "results" ? <ResultsScreen openWindow={jest.fn()} />
         : step === "uncert" ? <UncertScreen openWindow={jest.fn()} />
         : step === "sens" ? <SensScreen openWindow={jest.fn()} />
-        : <HandoffScreen openWindow={jest.fn()} />}
+        : <HandoffScreen />}
     </EsqWorkbookProvider>
   );
 }
@@ -107,12 +111,30 @@ async function praxis(): Promise<void> {
   await act(async () => { await settledWithPraxis(() => undefined); });
 }
 
-describe("ESQ Steps 07 to 10 screens", () => {
+function everyTreeResult(esq: EventSequenceQuantification): EsqUncertaintyRunResult {
+  const result = uncertaintyResult(esq);
+  const total = result.total;
+  if (total === null) throw new Error("no total");
+  const series = { ...total, histogram: null, quantiles: [] };
+  return {
+    ...result,
+    trees: [...result.trees, { treeId: "ET-B", runId: result.runId, status: "SUCCEEDED", initiatorFrequency: 0.5, failure: null }],
+    sequences: [{ ...series, treeId: "ET-A", sequenceIds: ["A-2"], paths: 1, familyId: "F-REL", releaseCategoryId: "RC-1", endState: "RADIONUCLIDE_RELEASE" }],
+    groups: [
+      { ...series, treeId: null, kind: "FAMILY", key: "F-REL" },
+      { ...series, treeId: null, kind: "RELEASE_TOTAL", key: "" },
+    ],
+  };
+}
+
+describe("ESQ Steps 06 to 09 screens", () => {
   beforeEach(() => {
     jest.mocked(runEsqImportance).mockReset();
     jest.mocked(getEsqImportanceResult).mockReset();
     jest.mocked(runEsqUncertainty).mockReset();
     jest.mocked(getEsqUncertaintyResult).mockReset();
+    jest.mocked(listEsqUncertaintyRuns).mockReset();
+    jest.mocked(listEsqUncertaintyRuns).mockResolvedValue([]);
     jest.mocked(runEsqSensitivity).mockReset();
     jest.mocked(getEsqSensitivityResult).mockReset();
     jest.mocked(getEsqModelRunResult).mockReset();
@@ -125,11 +147,9 @@ describe("ESQ Steps 07 to 10 screens", () => {
     const result = importanceResult(esq);
     jest.mocked(runEsqImportance).mockResolvedValue(runOf(result.runId, esqImportanceRunId()));
     jest.mocked(getEsqImportanceResult).mockResolvedValue(result);
-    jest.mocked(getEsqModelRunResult).mockResolvedValue(modelSummary(esq, RELEASE));
     const onChange = jest.fn();
     render(<Harness initial={esq} step="results" onChange={onChange} />);
     await settle();
-    expect(within(screen.getByRole("table", { name: "Cut sets" })).getByText("COOL-PMP-FS")).toBeTruthy();
     fireEvent.click(screen.getByRole("tab", { name: /Importance/ }));
     fireEvent.click(screen.getByRole("button", { name: "Rank" }));
     await settle();
@@ -143,31 +163,35 @@ describe("ESQ Steps 07 to 10 screens", () => {
     expect(within(pump).getByText("300.4")).toBeTruthy();
   });
 
-  it("samples with shared draws and stores the family statistics", async () => {
+  it("samples every event tree with shared draws and stores the family statistics as values of record", async () => {
     const esq = withImportance(measureEsq(), importanceRecordOf(importanceResult(measureEsq()), measureEsq(), thresholdsOf(measureEsq(), undefined)));
-    jest.mocked(runEsqUncertainty).mockResolvedValue(runOf("u-1", esqUncertaintyRunId()));
-    jest.mocked(getEsqUncertaintyResult).mockImplementation(async () => uncertaintyResult(esq));
+    const result = everyTreeResult(esq);
+    jest.mocked(runEsqUncertainty).mockResolvedValue(runOf(result.runId, esqUncertaintyRunId()));
+    jest.mocked(getEsqUncertaintyResult).mockResolvedValue(result);
     const onChange = jest.fn();
     render(<Harness initial={esq} step="uncert" onChange={onChange} />);
-    fireEvent.click(screen.getByRole("tab", { name: "Runs" }));
-    fireEvent.click(screen.getByRole("button", { name: "Sample" }));
     await settle();
-    expect(jest.mocked(runEsqUncertainty).mock.calls[0]?.[3]).toEqual({ trials: 10000, seed: 1, method: "LATIN_HYPERCUBE", correlation: "SHARED" });
-    expect(lastOf(onChange).uncertaintyWork?.run).toMatchObject({ trials: 1000, families: [expect.objectContaining({ familyId: "F-REL", mean: 1.3e-5, p95: 4.5e-5 })] });
+    jest.mocked(listEsqUncertaintyRuns).mockResolvedValue([{ id: result.runId, requestedAt: NOW, revision: 5, status: "SUCCEEDED" }]);
+    fireEvent.click(screen.getByRole("button", { name: "Run uncertainty batch" }));
     await settle();
-    const keys = screen.getByRole("table", { name: "Sampled keys" });
-    expect(keys).toHaveTextContent("Pump fails to start (P-1)");
-    expect(keys).toHaveTextContent("Lognormal (mean 2.00E-3, EF 5) cut to [−∞, 1] · probability");
-    expect(screen.getByText("1 input drew in this run. 1 input stayed at their point values.")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("tab", { name: /Families/ }));
-    const families = screen.getByRole("table", { name: "Family distributions" });
-    expect(within(families).getAllByText("1.3E-5").length).toBeGreaterThan(0);
-    fireEvent.click(within(families).getByRole("button", { name: "Show the details of F-REL" }));
-    expect(families).toHaveTextContent("Standard error of the mean");
-    expect(families).toHaveTextContent("6.32E-7");
+    await settle();
+    expect(jest.mocked(runEsqUncertainty).mock.calls[0]?.[3]).toMatchObject({ trials: 10000, seed: 1, method: "LATIN_HYPERCUBE", correlation: "SHARED" });
+    expect(jest.mocked(runEsqUncertainty).mock.calls[0]?.[5]).toBeUndefined();
+    expect(onChange).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("tab", { name: "Results" }));
+    await settle();
+    const sequences = screen.getByRole("table", { name: "Sequences" });
+    expect(within(sequences).getByRole("button", { name: "Distribution of A-2" }).closest("tr")).toHaveTextContent("1.3E-5");
+    fireEvent.click(screen.getByRole("button", { name: "Use as values of record" }));
+    expect(lastOf(onChange).uncertaintyWork?.run).toMatchObject({ trials: 1000, correlation: "SHARED", families: [expect.objectContaining({ familyId: "F-REL", mean: 1.3e-5, p95: 4.5e-5 })] });
+    expect(screen.getByRole("button", { name: "Values of record" })).toBeDisabled();
+    fireEvent.change(screen.getByLabelText("Group by"), { target: { value: "FAMILY" } });
+    const families = screen.getByRole("table", { name: "Family results" });
+    expect(within(families).getByRole("button", { name: "Distribution of F-REL · Release" }).closest("tr")).toHaveTextContent("1.3E-5");
+    expect(within(families).getByRole("button", { name: "Distribution of the release total" })).toBeInTheDocument();
   });
 
-  it("lists the sampled inputs with their PRAXIS points and laws", async () => {
+  it("lists the sampled inputs with their PRAXIS points, laws and sharing, and plots one", async () => {
     const esq = withImportance(measureEsq(), importanceRecordOf(importanceResult(measureEsq()), measureEsq(), thresholdsOf(measureEsq(), undefined)));
     render(<Harness initial={esq} step="uncert" onChange={jest.fn()} />);
     await praxis();
@@ -176,30 +200,49 @@ describe("ESQ Steps 07 to 10 screens", () => {
     if (pump === null) throw new Error("no row");
     expect(pump).toHaveTextContent("2E-3");
     expect(pump).toHaveTextContent("Lognormal (mean 2.00E-3, EF 5)");
+    expect(pump).toHaveTextContent("Not shared");
     const fan = within(table).getByRole("button", { name: "SUP-FAN-FR · Fan fails to run" }).closest("tr");
     if (fan === null) throw new Error("no row");
     expect(fan).toHaveTextContent("None, fixed at the point");
-    fireEvent.click(within(pump).getByRole("button", { name: "Show the details of Pump fails to start (P-1)" }));
+    fireEvent.click(within(pump).getByRole("button", { name: "Plot Pump fails to start (P-1)" }));
     await praxis();
-    expect(table).toHaveTextContent("Two shared copies raise the mean");
-    expect(table).toHaveTextContent("2.6×");
+    expect(within(pump).getByRole("button", { name: "Hide the plot of Pump fails to start (P-1)" })).toHaveAttribute("aria-expanded", "true");
+    expect(within(table).getByRole("img", { name: "Probability density of Pump fails to start (P-1), probability, on a logarithmic axis" })).toBeInTheDocument();
+    const summary = within(table).getByLabelText("Summary values for Pump fails to start (P-1)");
+    expect(summary).toHaveTextContent("5th percentile");
+    expect(summary).toHaveTextContent("95th percentile");
+    expect(summary).not.toHaveTextContent("Not given");
+    expect(table).toHaveTextContent("DA estimate");
   });
 
-  it("asks for a DA law on a component input and offers a typed error factor on the others", async () => {
+  it("shows a value changed in DA without importing again", async () => {
+    const linked = measureUpstream();
+    const pump = linked.da?.parameters.find((parameter) => parameter.uuid === "P-1");
+    if (pump === undefined) throw new Error("no pump parameter");
+    pump.estimate = { node: "VALUE", value: { unit: "PROBABILITY", law: { family: "TRUNCATED", law: { family: "LOGNORMAL", mean: 4e-3, errorFactor: 5, level: 0.95 }, lower: null, upper: 1 } } };
+    render(<Harness initial={measureEsq()} step="uncert" onChange={jest.fn()} linked={linked} />);
+    await praxis();
+    const row = within(screen.getByRole("table", { name: "Sampled inputs" })).getByRole("button", { name: "Pump fails to start (P-1)" }).closest("tr");
+    expect(row).toHaveTextContent("Lognormal (mean 4.00E-3, EF 5)");
+    expect(row).toHaveTextContent("4E-3");
+  });
+
+  it("sends each input to the place that holds its law and asks for no error factor", async () => {
     const esq = measureEsq();
     const { unmount } = render(<WindowHarness initial={esq} context={{ kind: "esqUncertInput", id: "PARAMETER:P-1" }} />);
     await praxis();
-    expect(screen.getByText("Give the estimate a law in DA and import again in Step 02.")).toBeInTheDocument();
+    expect(screen.getByText("Give the estimate a law in DA. Each run reads it from DA.")).toBeInTheDocument();
     expect(screen.queryByLabelText("Error factor")).not.toBeInTheDocument();
     unmount();
     render(<WindowHarness initial={esq} context={{ kind: "esqUncertInput", id: "HFE:HFE-1" }} />);
-    expect(screen.getByLabelText("Error factor")).toBeEnabled();
+    expect(screen.getByText("Give the HEP a law in HR and import again in Step 02.")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Error factor")).not.toBeInTheDocument();
   });
 
   it("shows the expression a case changes instead of a point", () => {
     const esq = withCase(measureEsq(), "SC-1", { id: "SC-1", name: "Pump at its upper bound", kind: "PARAMETER", target: "P-1", value: 1e-2, basis: "DA upper bound." });
     render(<WindowHarness initial={esq} context={{ kind: "esqSensCase", id: "SC-1" }} />);
-    expect(screen.getByText("Lognormal (mean 2.00E-3, EF 5) cut to [−∞, 1]")).toBeInTheDocument();
+    expect(screen.getByText("Lognormal (mean 2.00E-3, EF 5) at most 1")).toBeInTheDocument();
     expect(screen.getByText("probability")).toBeInTheDocument();
     expect(screen.getByText("A new value replaces the distribution with a point. A factor scales the whole value and keeps its distribution.")).toBeInTheDocument();
   });
@@ -235,14 +278,13 @@ describe("ESQ Steps 07 to 10 screens", () => {
     expect(runs).toEqual([5e-5, 3e-5]);
   });
 
-  it("publishes the package from the ranking and the run of record", async () => {
+  it("publishes the package by itself from the ranking and the run of record", async () => {
     const base = measureEsq();
     const esq = withImportance(base, importanceRecordOf(importanceResult(base), base, thresholdsOf(base, undefined)));
     jest.mocked(getEsqImportanceResult).mockResolvedValue(importanceResult(esq));
     jest.mocked(getEsqModelRunResult).mockResolvedValue(modelSummary(esq, RELEASE));
     const onChange = jest.fn();
     render(<Harness initial={esq} step="handoff" onChange={onChange} />);
-    fireEvent.click(screen.getByRole("button", { name: "Publish" }));
     await settle();
     const published = lastOf(onChange);
     expect(published.handoffWork?.published).toMatchObject({ revision: 5, families: 2 });

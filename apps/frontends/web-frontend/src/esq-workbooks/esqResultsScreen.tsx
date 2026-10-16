@@ -8,7 +8,6 @@ import { expressionText } from "../newly-developed-methods/shared/uncertainText"
 import { parameterLabelOf } from "./esqModel";
 import { useEsqWorkbook } from "./esqWorkbookContext";
 import {
-  CutOffField,
   DetailRow,
   DetailToggle,
   EsqProvenanceChip,
@@ -20,17 +19,15 @@ import {
   ModalHead,
   RunState,
   dateText,
-  decade,
-  exponentOf,
   failedTrees,
   rowClass,
   sciText,
-  treeLabel,
   useElementWidth,
   useRunner,
+  Pager,
+  pageOf,
+  type EsqWindowContext,
 } from "./esqShared";
-import { Pager, pageOf, type EsqWindowContext } from "./esqModelScreen";
-import { comparisonProblem } from "./esqPost";
 import {
   CONSISTENCY_LABELS,
   CONSISTENCY_SRS,
@@ -39,8 +36,7 @@ import {
   IMPORTANCE_KIND_LABELS,
   SCREENED_TOTAL_PERCENT,
   contributorRows,
-  cutSetListRequest,
-  cutSetRows,
+  daChangedNote,
   fourDigits,
   importanceProblem,
   importanceRecordOf,
@@ -54,20 +50,19 @@ import {
   withComparison,
   withConfirmation,
   withConsistency,
-  withCutSetList,
-  withCutSetReview,
   withImportance,
   withReconciliation,
   withScreenedBound,
   withThresholds,
   type EsqContributorKind,
-  type EsqCutSetRow,
   type EsqResultsView,
   type EsqResultsWindowKind,
 } from "./esqResults";
-import { getEsqImportanceResult, getEsqModelRunResult, runEsqImportance, runEsqModel } from "./esqWorkbookApi";
+import { getEsqImportanceResult, getEsqModelRunResult, getEsqRunSourceRevision, runEsqImportance } from "./esqWorkbookApi";
+import { esqModelRunId } from "interfaces-mef-types/esq/esq-solve-inputs";
+import { esqItemLabel } from "interfaces-mef-types/esq/esq-run-inputs";
 
-type ResultsTab = "cutsets" | "consistency" | "contributors" | "importance" | "screened" | "checks";
+type ResultsTab = "consistency" | "contributors" | "importance" | "screened" | "checks";
 
 interface Loaded<T> {
   value?: T;
@@ -75,7 +70,6 @@ interface Loaded<T> {
 }
 
 const TAB_HEADS: Record<ResultsTab, { title: string; sr: string }> = {
-  cutsets: { title: "Cut set review", sr: "ESQ-D1 · ESQ-D5" },
   consistency: { title: "Consistency", sr: "ESQ-D2 · ESQ-D3 · ESQ-D4" },
   contributors: { title: "Contributors", sr: "ESQ-F1(e) · ESQ-F2" },
   importance: { title: "Importance", sr: "ESQ-D6 · ESQ-D7" },
@@ -84,7 +78,6 @@ const TAB_HEADS: Record<ResultsTab, { title: string; sr: string }> = {
 };
 
 const RESULTS_WINDOW_KINDS: ReadonlySet<string> = new Set<EsqResultsWindowKind>([
-  "esqResultsCutSet",
   "esqResultsConsistency",
   "esqResultsComparison",
   "esqResultsTarget",
@@ -94,7 +87,6 @@ const RESULTS_WINDOW_KINDS: ReadonlySet<string> = new Set<EsqResultsWindowKind>(
 ]);
 
 const RESULTS_WINDOW_LABELS: Record<EsqResultsWindowKind, string> = {
-  esqResultsCutSet: "Cut set review",
   esqResultsConsistency: "Consistency check",
   esqResultsComparison: "Similar plants",
   esqResultsTarget: "Importance note",
@@ -175,6 +167,14 @@ function useImportanceRun(workbookId: string | null, runId: string | undefined):
   return useLoaded(workbookId === null || runId === undefined ? undefined : `${workbookId}|${runId}`, load);
 }
 
+function useDaRunRevision(workbookId: string | null, runId: string | undefined, daId: string | undefined): Loaded<number | null> {
+  const load = useCallback((key: string) => {
+    const [id = "", run = "", da = ""] = key.split("|");
+    return getEsqRunSourceRevision(id, esqModelRunId(), run, da);
+  }, []);
+  return useLoaded(workbookId === null || runId === undefined || daId === undefined ? undefined : `${workbookId}|${runId}|${daId}`, load);
+}
+
 function FamilyPicker({ id, view, value, onChange, withTotal }: { id: string; view: EsqResultsView; value: string; onChange: (value: string) => void; withTotal: boolean }): JSX.Element {
   return (
     <label className="esq-run__field" htmlFor={id}>
@@ -184,135 +184,6 @@ function FamilyPicker({ id, view, value, onChange, withTotal }: { id: string; vi
         {view.families.map((family) => <option key={family.id} value={family.id}>{familyLabel(view, family.id)}</option>)}
       </select>
     </label>
-  );
-}
-
-function CutSetsPanel({ view, openWindow }: { view: EsqResultsView; openWindow: (ctx: EsqWindowContext) => void }): JSX.Element {
-  const { esq, editable, runtime, mutateEsq } = useEsqWorkbook();
-  const fieldId = useId();
-  const [exponent, setExponent] = useState(() => exponentOf(view.run));
-  const valued = view.families.filter((family) => (view.values.get(family.id) ?? 0) > 0);
-  const [familyId, setFamilyId] = useState(() => (valued.find((family) => family.release) ?? valued[0])?.id ?? "");
-  const [openKey, setOpenKey] = useState("");
-  const [page, setPage] = useState(0);
-  const [wrapRef, wrapWidth] = useElementWidth(0);
-  const runner = useRunner();
-  const blocked = analysisSaveBlock(runtime);
-  const loaded = useModelRun(runtime.workbookId, view.cutSetRunId);
-  const run = view.run;
-  if (run === undefined) return <p className="posmuted">No run of record yet. Run the model in Step 05 and use the run.</p>;
-  const summary = loaded.value;
-  const codes = new Map(view.model.events.map((event) => [event.id, event.code]));
-  const codeOf = (id: string): string => summary?.eventCodes[id] ?? codes.get(id) ?? id;
-  const rows: EsqCutSetRow[] = summary === undefined ? [] : cutSetRows(summary, familyId, view.values.get(familyId) ?? 0, view.work, view.thresholds, codeOf);
-  const { current, shown } = pageOf(rows, page);
-  const list = view.work.cutSetList;
-  const exact = run.calculation === "EXACT";
-
-  function listCutSets(): void {
-    const workbookId = runtime.workbookId;
-    const revision = runtime.revision;
-    if (workbookId === null || revision === null || run === undefined) return;
-    const cutOff = decade(exponent);
-    runner.start(async () => {
-      const response = await runEsqModel(workbookId, revision, runLogicOf(run), "CUT_SETS", cutSetListRequest(run, cutOff));
-      if (response.run.status !== "SUCCEEDED") throw new Error(response.run.failure?.message ?? "The run did not finish.");
-      const result = await getEsqModelRunResult(workbookId, response.run.id);
-      const problem = comparisonProblem(result, esq);
-      if (problem !== undefined) {
-        runner.fail(problem, failedTrees(result));
-        return;
-      }
-      mutateEsq((draft) => withCutSetList(draft, result, cutOff));
-    });
-  }
-
-  function review(row: EsqCutSetRow): void {
-    if (row.review === undefined) {
-      if (!editable) return;
-      mutateEsq((draft) => withCutSetReview(draft, row, {}));
-    }
-    openWindow({ kind: "esqResultsCutSet", id: row.key });
-  }
-
-  return (
-    <div className="esq-run">
-      {exact && (
-        <div className="esq-run__composer" aria-label="Cut set list controls">
-          <div className="esq-run__row">
-            <div className="esq-run__pickers"><CutOffField id={`${fieldId}-cutoff`} value={exponent} onChange={setExponent} /></div>
-            <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" disabled={runner.running || !editable || blocked !== null} onClick={listCutSets}>
-              {runner.running ? "Listing…" : "List cut sets"}
-            </button>
-          </div>
-          <p className="esq-meta">The run of record is exact. PRAXIS lists the minimal cut sets of each family with the same logic and the upper bound, keeping the largest 100.</p>
-        </div>
-      )}
-      <RunState runner={runner} model={view.model} blocked={blocked} />
-      <p className="esq-meta">
-        {!exact ? "Cut sets of the run of record." : list === undefined ? "No cut sets listed yet." : `Listed ${dateText(list.at)} at a cutoff of ${sciText(list.cutOff)} per year.${view.cutSetListStale ? " The inputs changed since, so list again." : ""}`}
-        {` A cut set is significant when it gives ${view.thresholds.individualPercent}% of its family or more, or falls within the first ${view.thresholds.aggregatePercent}%.`}
-      </p>
-      {loaded.error !== undefined && <p className="esq-run__error" role="alert">{loaded.error}</p>}
-      {view.cutSetRunId !== undefined && (
-        <div className="esq-run__composer">
-          <div className="esq-run__row">
-            <div className="esq-run__pickers">
-              <label className="esq-run__field" htmlFor={`${fieldId}-family`}>
-                <span>Family</span>
-                <select id={`${fieldId}-family`} value={familyId} onChange={(event) => { setFamilyId(event.target.value); setPage(0); setOpenKey(""); }}>
-                  {valued.map((family) => <option key={family.id} value={family.id}>{familyLabel(view, family.id)}</option>)}
-                </select>
-              </label>
-            </div>
-            <Pager total={rows.length} page={current} onPage={setPage} />
-          </div>
-        </div>
-      )}
-      {view.cutSetRunId !== undefined && summary === undefined && loaded.error === undefined && <p className="posmuted">Loading the cut sets…</p>}
-      {summary !== undefined && rows.length === 0 && <p className="posmuted">This family has no cut set above the cutoff.</p>}
-      {rows.length > 0 && (
-        <div className="esq-table-wrap" ref={wrapRef}>
-          <table className="postable esq-rowtable" aria-label="Cut sets">
-            <thead><tr><th className="esq-rowtable__pick">Details</th><th>Cut set</th><th>Frequency (/yr)</th><th>Share</th><th>Review</th></tr></thead>
-            <tbody>
-              {shown.map((row) => {
-                const open = row.key === openKey;
-                const verdict = row.review?.verdict;
-                return (
-                  <Fragment key={row.key}>
-                    <tr className={rowClass(false, open)} onClick={() => { if (!open) setOpenKey(row.key); }}>
-                      <td className="esq-rowtable__pick"><DetailToggle open={open} label={row.codes.join(" · ")} onToggle={() => setOpenKey(open ? "" : row.key)} /></td>
-                      <td className="esq-rowtable__wrap">
-                        {row.codes.join(" · ")}
-                        {row.significant && <span className="esq-rowtable__tag">Significant</span>}
-                      </td>
-                      <td className="esq-rowtable__num">{sciText(row.annualFrequency)}</td>
-                      <td className="esq-rowtable__num">{shareText(row.share)}</td>
-                      <td className="esq-rowtable__text">
-                        <button type="button" className="esq-rowtable__name" disabled={row.review === undefined && !editable} onClick={(event) => { event.stopPropagation(); review(row); }}>
-                          {verdict === "CORRECT" ? "Correct" : verdict === "ISSUE" ? "Issue" : row.review === undefined ? "Review" : "Open"}
-                        </button>
-                      </td>
-                    </tr>
-                    {open && (
-                      <DetailRow span={5} width={wrapWidth - 18}>
-                        <FieldList items={[
-                          { label: "Event tree", value: treeLabel(view.model, row.treeId) },
-                          { label: "Cumulative share", value: shareText(row.cumulative) },
-                          { label: "Significant", value: yesNo(row.significant) },
-                          { label: "Note", value: textValue(row.review?.note) },
-                        ]} />
-                      </DetailRow>
-                    )}
-                  </Fragment>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      )}
-    </div>
   );
 }
 
@@ -452,8 +323,11 @@ function ImportancePanel({ view, openWindow }: { view: EsqResultsView; openWindo
     const revision = runtime.revision;
     if (workbookId === null || revision === null || run === undefined) return;
     runner.start(async () => {
-      const response = await runEsqImportance(workbookId, revision, runLogicOf(run));
-      if (response.run.status !== "SUCCEEDED") throw new Error(response.run.failure?.message ?? "The run did not finish.");
+      const response = await runEsqImportance(workbookId, revision, runLogicOf(run), runner.progress);
+      if (response.run.status !== "SUCCEEDED") {
+        await runner.failRun(workbookId, response.run, view.model);
+        return;
+      }
       const ranked = await getEsqImportanceResult(workbookId, response.run.id);
       const problem = importanceProblem(ranked, esq);
       if (problem !== undefined) {
@@ -473,7 +347,7 @@ function ImportancePanel({ view, openWindow }: { view: EsqResultsView; openWindo
     <div className="esq-run">
       <div className="esq-run__composer" aria-label="Importance controls">
         <div className="esq-run__row">
-          <p className="esq-meta">PRAXIS sets each event and each group to failure and to success on the exact diagrams of the run of record, with its logic.</p>
+          <p className="esq-meta">{`PRAXIS sets each event and each group to failure and to success on the exact diagrams of the run of record, with its logic.${run.hcl === undefined ? "" : " The run of record uses dependencies, and dependency importance is not available, so the ranking leaves the dependency network out."}`}</p>
           <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" disabled={runner.running || !editable || blocked !== null} onClick={rank}>
             {runner.running ? "Ranking…" : "Rank"}
           </button>
@@ -611,13 +485,14 @@ function ScreenedPanel({ view, openWindow }: { view: EsqResultsView; openWindow:
 }
 
 function ResultsScreen({ openWindow }: { openWindow: (ctx: EsqWindowContext) => void }): JSX.Element {
-  const { esq, upstream } = useEsqWorkbook();
+  const { esq, upstream, runtime } = useEsqWorkbook();
   const view = useMemo(() => resultsViewOf(esq, upstream.ri, upstream.ie), [esq, upstream.ri, upstream.ie]);
-  const [tab, setTab] = useState<ResultsTab>("cutsets");
+  const daUsed = useDaRunRevision(runtime.workbookId, view?.run?.runId, esq.linkedWorkbooks?.DA);
+  const daNote = daChangedNote(daUsed.value, upstream.daRevision);
+  const [tab, setTab] = useState<ResultsTab>("consistency");
   const tabId = useId();
   const count = (n: number): string => (view === undefined ? "" : ` (${n})`);
   const tabs: { id: ResultsTab; label: string }[] = [
-    { id: "cutsets", label: `Cut sets${count(view?.work.cutSetReviews?.filter((entry) => entry.verdict !== undefined).length ?? 0)}` },
     { id: "consistency", label: "Consistency" },
     { id: "contributors", label: "Contributors" },
     { id: "importance", label: `Importance${count(view?.importance?.significant.length ?? 0)}` },
@@ -631,7 +506,7 @@ function ResultsScreen({ openWindow }: { openWindow: (ctx: EsqWindowContext) => 
       <div role="tabpanel" id={`${tabId}-panel`} aria-labelledby={`${tabId}-${tab}`} tabIndex={0} className="esq-step__panel">
         <div className="poscard">
           <div className="poscard__head">
-            <WorkbookSectionHeading workbook="ESQ" title={head.title} level={3} />
+            <WorkbookSectionHeading title={head.title} level={3} />
             <div className="esq-card-actions">
               <EsqProvenanceChip>{head.sr}</EsqProvenanceChip>
               {view !== undefined && tab === "importance" && (
@@ -642,10 +517,9 @@ function ResultsScreen({ openWindow }: { openWindow: (ctx: EsqWindowContext) => 
               )}
             </div>
           </div>
+          {daNote !== undefined && <p className="esq-meta" role="status">{daNote}</p>}
           {view === undefined ? (
             <p className="posmuted">Nothing is imported yet. Import the model in Step 02.</p>
-          ) : tab === "cutsets" ? (
-            <CutSetsPanel view={view} openWindow={openWindow} />
           ) : tab === "consistency" ? (
             <ConsistencyPanel view={view} openWindow={openWindow} />
           ) : tab === "contributors" ? (
@@ -677,51 +551,6 @@ function numberFrom(text: string): number | null | undefined {
   if (trimmed.length === 0) return undefined;
   const value = Number(trimmed);
   return Number.isFinite(value) && value >= 0 ? value : null;
-}
-
-function CutSetWindow({ id, onClose }: { id: string; onClose: () => void }): JSX.Element | null {
-  const { esq, editable, mutateEsq } = useEsqWorkbook();
-  const fieldId = useId();
-  const review = reviewOf(esq).cutSetReviews?.find((entry) => entry.key === id);
-  if (review === undefined) return null;
-  const codes = new Map((esq.model?.events ?? []).map((event) => [event.id, event.code]));
-  const row: EsqCutSetRow = { key: review.key, familyId: review.familyId, treeId: review.treeId, eventIds: review.eventIds, codes: review.eventIds.map((eventId) => codes.get(eventId) ?? eventId), annualFrequency: review.annualFrequency, share: 0, cumulative: 0, significant: review.significant };
-  const dis = !editable;
-
-  function save(change: { verdict?: "CORRECT" | "ISSUE"; note?: string }): void {
-    if (!editable) return;
-    mutateEsq((draft) => withCutSetReview(draft, row, change));
-  }
-
-  return (
-    <>
-      <ModalHead cap={`Cut set review · ${review.significant ? "significant · ESQ-D1" : "non-significant · ESQ-D5"}`} title={row.codes.join(" · ")} onClose={onClose} />
-      <div className="modal__body esq-form">
-        <FormRow label="Family"><span className="esq-form__unit">{review.familyId}</span></FormRow>
-        <FormRow label="Event tree"><span className="esq-form__unit">{esq.model === undefined ? review.treeId : treeLabel(esq.model, review.treeId)}</span></FormRow>
-        <FormRow label="Frequency"><span className="esq-form__unit">{`${sciText(review.annualFrequency)} per year`}</span></FormRow>
-        <FormRow label="Logic" htmlFor={`${fieldId}-verdict`}>
-          <select id={`${fieldId}-verdict`} className="posfield__select" value={review.verdict ?? ""} disabled={dis} onChange={(event) => {
-            const value = event.target.value;
-            save(value === "CORRECT" || value === "ISSUE" ? { verdict: value } : { verdict: undefined });
-          }}>
-            <option value="">Not reviewed</option>
-            <option value="CORRECT">{review.significant ? "Correct" : "Correct and physically meaningful"}</option>
-            <option value="ISSUE">Wrong, needs a fix</option>
-          </select>
-        </FormRow>
-        <AreaRow label="Note" value={review.note} disabled={dis} onChange={(note) => save({ note })} />
-      </div>
-      <FormFoot onClose={onClose}>
-        {editable && (
-          <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => {
-            mutateEsq((draft) => ({ ...draft, review: { ...reviewOf(draft), cutSetReviews: (reviewOf(draft).cutSetReviews ?? []).filter((entry) => entry.key !== id) } }));
-            onClose();
-          }}>Remove review</button>
-        )}
-      </FormFoot>
-    </>
-  );
 }
 
 function ConsistencyWindow({ topic, onClose }: { topic: EsqConsistencyTopic; onClose: () => void }): JSX.Element {
@@ -906,7 +735,7 @@ function ScreenedWindow({ id, onClose }: { id: string; onClose: () => void }): J
 
   return (
     <>
-      <ModalHead cap={`Screened initiator · ${row.origin === "IE" ? "IE" : "Step 01"} · ESQ-D8`} title={`${row.name} (${row.groupId})`} onClose={onClose} />
+      <ModalHead cap={`Screened initiator · ${row.origin === "IE" ? "IE" : "Step 01"} · ESQ-D8`} title={esqItemLabel(row.name, row.groupId, "Unnamed initiator group")} onClose={onClose} />
       <div className="modal__body esq-form">
         <FormRow label="Screening basis"><span className="esq-form__unit">{textValue(row.ieBasis)}</span></FormRow>
         <FormRow label="Frequency (/yr)" htmlFor={`${fieldId}-frequency`}>
@@ -959,7 +788,6 @@ function SilentWindow({ id, onClose }: { id: string; onClose: () => void }): JSX
 
 function ResultsWindows({ context, onClose }: { context: EsqWindowContext; onClose: () => void }): JSX.Element | null {
   switch (context.kind) {
-    case "esqResultsCutSet": return <CutSetWindow key={context.id} id={context.id} onClose={onClose} />;
     case "esqResultsConsistency": {
       const topic = CONSISTENCY_TOPICS.find((entry) => entry === context.id);
       return topic === undefined ? null : <ConsistencyWindow key={topic} topic={topic} onClose={onClose} />;

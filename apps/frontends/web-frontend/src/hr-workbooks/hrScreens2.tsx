@@ -1,11 +1,11 @@
 import { stringifyJson } from "interfaces-shared-types/json";
-import { WorkbookCueLabel, WorkbookSectionHeading } from "../workbooks/workbookSectionHeading";
+import { WorkbookSectionHeading } from "../workbooks/workbookSectionHeading";
+import { idAndName, readableId, recordLabel } from "../workbooks/workbookHandoff";
 import { WorkbookInput, WorkbookTextarea } from "../workbooks/commitOnDeactivateFields";
-import { JSX, useState } from "react";
+import { JSX } from "react";
 import { HRIcon } from "./hrIcons";
-import { Badge, HRProvenanceChip, hepText, type BadgeKind } from "./hrShared";
+import { Badge, HRProvenanceChip, hepText } from "./hrShared";
 import {
-  CAPABILITY_CATEGORIES,
   ACTIVITY_SOURCES,
   HFE_TIMING,
   IMPACT_LEVELS,
@@ -13,7 +13,6 @@ import {
   REVIEW_SCOPES,
   CONFIRM_METHODS,
   DEPENDENCE_LEVELS,
-  PSF_IMPACT,
   FEASIBILITY_KEYS,
   HR_TOC,
   type CapabilityCategory,
@@ -22,9 +21,9 @@ import { type CcScore } from "./hrSelectors";
 import { useHrWorkbook } from "./hrWorkbookContext";
 import { generateHrReport } from "./hrDocx";
 import { HrHepValueFields } from "./hrHepValueFields";
-import { withRecoveryHep } from "./hrDaLinks";
-import { NamedIcon, type HrDrawerContext } from "./hrScreens";
-import { type HumanReliabilityAnalysis, type HepQuantification, type DependenceLevel } from "interfaces-mef-types/hr/human-reliability-analysis";
+import { quantificationHepText, withRecoveryHep } from "./hrDaLinks";
+import { type HrDrawerContext } from "./hrScreens";
+import { type HepQuantification, type DependenceLevel } from "interfaces-mef-types/hr/human-reliability-analysis";
 import { ImportanceLevel } from "interfaces-mef-types/core/shared-patterns";
 
 
@@ -50,7 +49,7 @@ function RespIdentifyScreen({ openDrawer }: { openDrawer: (ctx: HrDrawerContext)
     <>
       <div className="poscard">
         <div className="poscard__head">
-          <WorkbookSectionHeading workbook="HR" title="Response identification reviews" level={3} />
+          <WorkbookSectionHeading title="Response identification reviews" level={3} />
           <div className="posrow" style={{ gap: 8, alignItems: "center" }}>
             <span className="possubtle">{hr.responseIdentificationReviews.length} reviews · HR-E1, E3, E4</span>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addReview}><HRIcon.Plus /> Add review</button>}
@@ -82,7 +81,7 @@ function RespIdentifyScreen({ openDrawer }: { openDrawer: (ctx: HrDrawerContext)
 
       <div className="poscard">
         <div className="poscard__head">
-          <WorkbookSectionHeading workbook="HR" title="Confirmation ladder" level={3} />
+          <WorkbookSectionHeading title="Confirmation ladder" level={3} />
           <div className="posrow" style={{ gap: 8, alignItems: "center" }}>
             <HRProvenanceChip>HR-E5 · HR-E7</HRProvenanceChip>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addConfirmation}><HRIcon.Plus /> Add confirmation</button>}
@@ -128,7 +127,7 @@ function RespDefineScreen({ openDrawer }: { openDrawer: (ctx: HrDrawerContext) =
     <>
       <div className="poscard">
         <div className="poscard__head">
-          <WorkbookSectionHeading workbook="HR" title="Response human failure events" level={3} />
+          <WorkbookSectionHeading title="Response human failure events" level={3} />
           <div className="posrow" style={{ gap: 8, alignItems: "center" }}>
             <span className="possubtle">{respHfes.length} defined · HR-F1, F4</span>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addPostHfe}><HRIcon.Plus /> Add event</button>}
@@ -145,7 +144,7 @@ function RespDefineScreen({ openDrawer }: { openDrawer: (ctx: HrDrawerContext) =
               <div key={h.uuid} className={`hrhfe__card${aggr ? " hrhfe__card--aggr" : ""}`} onClick={() => openDrawer({ kind: "posthfe", id: h.uuid })}>
                 <div className="hrhfe__head">
                   <span className={`hrhfe__timing hrhfe__timing--${t?.tone ?? "teal"}`}>{t?.label ?? h.hfeTiming}</span>
-                  <span className="hrhfe__id posmono">{h.uuid}</span>
+                  {readableId(h.uuid) !== undefined && <span className="hrhfe__id posmono">{h.uuid}</span>}
                   <span className={`hrhfe__resp hrhfe__resp--${aggr ? "aggr" : "do"}`}>{rd !== undefined ? RESPONSE_TYPES[rd.responseType] : "—"}</span>
                 </div>
                 <div className="hrhfe__name">{h.name}</div>
@@ -163,7 +162,7 @@ function RespDefineScreen({ openDrawer }: { openDrawer: (ctx: HrDrawerContext) =
 
       <div className="poscard">
         <div className="poscard__head">
-          <WorkbookSectionHeading workbook="HR" title="Grouping across operating states" level={3} />
+          <WorkbookSectionHeading title="Grouping across operating states" level={3} />
           <HRProvenanceChip>HR-F3</HRProvenanceChip>
         </div>
         <p className="poscard__sub">Group the same response across states only where the conditions are comparable. Click a group to edit it.</p>
@@ -212,7 +211,7 @@ function TimeTriplet({ q }: { q: HepQuantification }): JSX.Element {
 }
 
 function RespQuantScreen({ openDrawer }: { openDrawer: (ctx: HrDrawerContext) => void }): JSX.Element {
-  const { hr, editable, mutateHr } = useHrWorkbook();
+  const { hr, editable, mutateHr, daHeps } = useHrWorkbook();
   const postHfeIds = new Set(hr.humanFailureEvents.filter((h) => h.hfeTiming === "POST_INITIATOR").map((h) => h.uuid));
   const atHfes = hr.humanFailureEvents.filter((h) => h.hfeTiming === "AT_INITIATOR");
   const aggrIds = new Set(hr.humanFailureEvents.filter((h) => h.responseDetail?.responseType === "AGGRAVATING_ACTION").map((h) => h.uuid));
@@ -229,7 +228,7 @@ function RespQuantScreen({ openDrawer }: { openDrawer: (ctx: HrDrawerContext) =>
     if (target === undefined) return;
     const uuid = crypto.randomUUID();
     mutateHr((draft) => ({ ...draft, hepQuantifications: [...draft.hepQuantifications, {
-      uuid, hfeId: target.uuid, methodology: "", assessmentType: "DETAILED_ASSESSMENT" as const, isRiskSignificant: false, meanHep: 1.0e-3, cognitionContribution: 5.0e-4, executionContribution: 5.0e-4, performanceShapingFactors: [], indicationsTreatment: "EVALUATED_PER_SEQUENCE" as const, uncertaintyCharacterization: { riskSignificant: false, method: "", probabilisticRepresentationProvided: false }, implementsSrs: [{ sr: "HR-G1", hlr: "G" as const }],
+      uuid, hfeId: target.uuid, methodology: "", assessmentType: "DETAILED_ASSESSMENT" as const, isRiskSignificant: false, hep: { node: "VALUE" as const, value: { unit: "PROBABILITY" as const, law: { family: "POINT" as const, value: 1.0e-3 } } }, cognitionContribution: 5.0e-4, executionContribution: 5.0e-4, performanceShapingFactors: [], indicationsTreatment: "EVALUATED_PER_SEQUENCE" as const, uncertaintyCharacterization: { riskSignificant: false, method: "", probabilisticRepresentationProvided: false }, implementsSrs: [{ sr: "HR-G1", hlr: "G" as const }],
     }] }));
     openDrawer({ kind: "respquant", id: uuid });
   }
@@ -262,10 +261,10 @@ function RespQuantScreen({ openDrawer }: { openDrawer: (ctx: HrDrawerContext) =>
       {atHfes.length > 0 && (
         <div className="poscard">
           <div className="poscard__head">
-            <WorkbookSectionHeading workbook="HR" title="At-initiator analysis" level={3} />
-            <HRProvenanceChip>HR-F1 · supplied to IE</HRProvenanceChip>
+            <WorkbookSectionHeading title="At-initiator analysis" level={3} />
+            <HRProvenanceChip>HR-F1</HRProvenanceChip>
           </div>
-          <p className="poscard__sub">An operator error that itself causes the initiator is analyzed and quantified here, then supplied to the Initiating Events fault trees. Click a card to edit its quantification.</p>
+          <p className="poscard__sub">An operator error that itself causes the initiator is analyzed and quantified here. Click a card to edit its quantification.</p>
           <div className="hrhfe">
             {atHfes.map((h) => {
               const qid = quantIdFor(h.uuid);
@@ -273,11 +272,10 @@ function RespQuantScreen({ openDrawer }: { openDrawer: (ctx: HrDrawerContext) =>
                 <div key={h.uuid} className="hrhfe__card hrhfe__card--aggr" onClick={() => { if (qid !== undefined) openDrawer({ kind: "respquant", id: qid }); }} style={{ cursor: "pointer" }}>
                   <div className="hrhfe__head">
                     <span className="hrhfe__timing hrhfe__timing--primary">At-initiator</span>
-                    <span className="hrhfe__id posmono">{h.uuid}</span>
+                    {readableId(h.uuid) !== undefined && <span className="hrhfe__id posmono">{h.uuid}</span>}
                   </div>
                   <div className="hrhfe__name">{h.name}</div>
                   <div className="hrhfe__modes"><span className="hrhfe__mode">Approach. {h.description}</span></div>
-                  <span className="poschip poschip--method">Supplied to IE</span>
                 </div>
               );
             })}
@@ -287,7 +285,7 @@ function RespQuantScreen({ openDrawer }: { openDrawer: (ctx: HrDrawerContext) =>
 
       <div className="poscard">
         <div className="poscard__head">
-          <WorkbookSectionHeading workbook="HR" title="Quantification" level={3} />
+          <WorkbookSectionHeading title="Quantification" level={3} />
           <div className="posrow" style={{ gap: 8, alignItems: "center" }}>
             <HRProvenanceChip>HR-G1 · HR-G3</HRProvenanceChip>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addQuant}><HRIcon.Plus /> Add quantification</button>}
@@ -296,7 +294,6 @@ function RespQuantScreen({ openDrawer }: { openDrawer: (ctx: HrDrawerContext) =>
         <p className="poscard__sub">Each estimate addresses the failure in cognition and the failure to execute, with the timing and performance factors. Click a card to edit it.</p>
         <div className="hrgq">
           {postQuants.map((q) => {
-            const value = q.meanHep ?? q.pointEstimateHep;
             const cog = q.cognitionContribution ?? 0;
             const exe = q.executionContribution ?? 0;
             const sum = cog + exe > 0 ? cog + exe : 1;
@@ -308,8 +305,7 @@ function RespQuantScreen({ openDrawer }: { openDrawer: (ctx: HrDrawerContext) =>
                     <div className="hrgq__method">{q.methodology}</div>
                   </div>
                   <div className="hrgq__hep">
-                    <span className="hrgq__hep-v posmono">{hepText(value)}</span>
-                    <span className="hrgq__hep-kind">{q.meanHep !== undefined ? "mean HEP" : "point HEP"}</span>
+                    <span className="hrgq__hep-v posmono">{quantificationHepText(q, daHeps)}</span>
                   </div>
                 </div>
                 <div className="hrgq__split">
@@ -331,7 +327,7 @@ function RespQuantScreen({ openDrawer }: { openDrawer: (ctx: HrDrawerContext) =>
 
       <div className="poscard">
         <div className="poscard__head">
-          <WorkbookSectionHeading workbook="HR" title="Error forcing contexts" level={3} />
+          <WorkbookSectionHeading title="Error forcing contexts" level={3} />
           <div className="posrow" style={{ gap: 8, alignItems: "center" }}>
             <HRProvenanceChip>ATHEANA · qualitative search</HRProvenanceChip>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addEfc}><HRIcon.Plus /> Add context</button>}
@@ -344,7 +340,7 @@ function RespQuantScreen({ openDrawer }: { openDrawer: (ctx: HrDrawerContext) =>
               <div className="hrdep__head">
                 <div>
                   <div className="hrdep__title">{hfeName(e.hfeId)}</div>
-                  <div className="hrdep__level">{e.uuid} · unsafe action</div>
+                  <div className="hrdep__level">{readableId(e.uuid) === undefined ? "Unsafe action" : `${e.uuid} · unsafe action`}</div>
                 </div>
               </div>
               <div className="hrdep__note">{e.unsafeAction}</div>
@@ -365,7 +361,7 @@ function RespQuantScreen({ openDrawer }: { openDrawer: (ctx: HrDrawerContext) =>
 
       <div className="poscard hrfloor">
         <div className="poscard__head">
-          <WorkbookSectionHeading workbook="HR" title="Joint probability floor" level={3} />
+          <WorkbookSectionHeading title="Joint probability floor" level={3} />
           <HRProvenanceChip>HR-G11</HRProvenanceChip>
         </div>
         <p className="poscard__sub">A minimum joint value prevents an unrealistically low product of single human error probabilities. Click to edit it.</p>
@@ -380,7 +376,7 @@ function RespQuantScreen({ openDrawer }: { openDrawer: (ctx: HrDrawerContext) =>
 
       <div className="poscard">
         <div className="poscard__head">
-          <WorkbookSectionHeading workbook="HR" title="Within-sequence dependence" level={3} />
+          <WorkbookSectionHeading title="Within-sequence dependence" level={3} />
           <div className="posrow" style={{ gap: 8, alignItems: "center" }}>
             <HRProvenanceChip>HR-G12 · HR-G13</HRProvenanceChip>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addWithinDep}><HRIcon.Plus /> Add dependence</button>}
@@ -409,7 +405,7 @@ function RespQuantScreen({ openDrawer }: { openDrawer: (ctx: HrDrawerContext) =>
 
       <div className="poscard">
         <div className="poscard__head">
-          <WorkbookSectionHeading workbook="HR" title="Relative reasonableness" level={3} />
+          <WorkbookSectionHeading title="Relative reasonableness" level={3} />
           <div className="posrow" style={{ gap: 8, alignItems: "center" }}>
             <HRProvenanceChip>HR-G9 · HR-G10</HRProvenanceChip>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addConsistency}><HRIcon.Plus /> Add review</button>}
@@ -446,7 +442,7 @@ function RecoveryScreen({ openDrawer }: { openDrawer: (ctx: HrDrawerContext) => 
   return (
     <div className="poscard">
       <div className="poscard__head">
-        <WorkbookSectionHeading workbook="HR" title="Recovery actions" level={3} />
+        <WorkbookSectionHeading title="Recovery actions" level={3} />
         <div className="posrow" style={{ gap: 8, alignItems: "center" }}>
           <span className="possubtle">{(hr.recoveryActions ?? []).length} actions · HR-H1, H2</span>
           {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addRecovery}><HRIcon.Plus /> Add recovery</button>}
@@ -525,7 +521,7 @@ function UncertScreen({ openDrawer }: { openDrawer: (ctx: HrDrawerContext) => vo
     <>
       <div className="poscard">
         <div className="poscard__head">
-          <WorkbookSectionHeading workbook="HR" title="Sources of model uncertainty" level={3} />
+          <WorkbookSectionHeading title="Sources of model uncertainty" level={3} />
           <div className="posrow" style={{ gap: 8, alignItems: "center" }}>
             <HRProvenanceChip>HR-G15</HRProvenanceChip>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addUncertSource}><HRIcon.Plus /> Add source</button>}
@@ -547,7 +543,7 @@ function UncertScreen({ openDrawer }: { openDrawer: (ctx: HrDrawerContext) => vo
 
       <div className="poscard">
         <div className="poscard__head">
-          <WorkbookSectionHeading workbook="HR" title="Related assumptions" level={3} />
+          <WorkbookSectionHeading title="Related assumptions" level={3} />
           <div className="posrow" style={{ gap: 8, alignItems: "center" }}>
             <HRProvenanceChip>HR-G15</HRProvenanceChip>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addRelatedAssumption}><HRIcon.Plus /> Add assumption</button>}
@@ -569,7 +565,7 @@ function UncertScreen({ openDrawer }: { openDrawer: (ctx: HrDrawerContext) => vo
 
       <div className="poscard">
         <div className="poscard__head">
-          <WorkbookSectionHeading workbook="HR" title="Reasonable alternatives" level={3} />
+          <WorkbookSectionHeading title="Reasonable alternatives" level={3} />
           <div className="posrow" style={{ gap: 8, alignItems: "center" }}>
             <HRProvenanceChip>HR-G15</HRProvenanceChip>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addReasonableAlt}><HRIcon.Plus /> Add alternative</button>}
@@ -591,7 +587,7 @@ function UncertScreen({ openDrawer }: { openDrawer: (ctx: HrDrawerContext) => vo
 
       <div className="poscard">
         <div className="poscard__head">
-          <WorkbookSectionHeading workbook="HR" title="Pre-operational assumptions" level={3} />
+          <WorkbookSectionHeading title="Pre-operational assumptions" level={3} />
           <div className="posrow" style={{ gap: 8, alignItems: "center" }}>
             <HRProvenanceChip>HR-A10</HRProvenanceChip>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addPreOpAssumption}><HRIcon.Plus /> Add assumption</button>}
@@ -614,7 +610,7 @@ function UncertScreen({ openDrawer }: { openDrawer: (ctx: HrDrawerContext) => vo
 
       <div className="poscard">
         <div className="poscard__head">
-          <WorkbookSectionHeading workbook="HR" title="Sensitivity studies" level={3} />
+          <WorkbookSectionHeading title="Sensitivity studies" level={3} />
           <div className="posrow" style={{ gap: 8, alignItems: "center" }}>
             <HRProvenanceChip>HR-G15</HRProvenanceChip>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addSensitivity}><HRIcon.Plus /> Add study</button>}
@@ -670,7 +666,7 @@ function DraftScreen({ cc, scores, stage, onSubmitDraft, canSubmit }: {
       </div>
       <div className="posgen__side">
         <div className="posgen__readout">
-          <WorkbookSectionHeading workbook="HR" title="Conformance check" level={3} className="posgen__readout-h" />
+          <WorkbookSectionHeading title="Conformance check" level={3} className="posgen__readout-h" />
           <div className="posgen__bar"><span className="posgen__bar-label">Capability category</span><span style={{ fontWeight: 700 }}>{cc.name} · {cc.tag}</span></div>
           <div className="posgen__bar"><span className="posgen__bar-label">Plant stage</span><span style={{ fontWeight: 700 }}>{stage === "pre_operational" ? "Pre-operational" : "Operational"}</span></div>
           <div className="posgen__bar"><span className="posgen__bar-label">Items satisfied</span><span className="posmono">{scores.met} / {scores.applicable}</span></div>
@@ -678,10 +674,10 @@ function DraftScreen({ cc, scores, stage, onSubmitDraft, canSubmit }: {
           {scores.blocked > 0 && <div className="posgen__bar"><span className="posgen__bar-label" style={{ color: "#b73b3b" }}>Blocked</span><span className="posmono">{scores.blocked}</span></div>}
         </div>
         <div className="posgen__readout">
-          <WorkbookSectionHeading workbook="HR" title="Hand-off to internal review" level={3} className="posgen__readout-h" />
+          <WorkbookSectionHeading title="Draft submission" level={3} className="posgen__readout-h" />
           <p style={{ margin: "0 0 12px", fontSize: 12.5, color: "var(--color-text-muted)", lineHeight: 1.5 }}>
             {ready
-              ? <>All items pass at <strong>{cc.name}</strong>. The draft locks Steps 1 to 9 and moves to <strong>Internal Technical Review</strong>.</>
+              ? <>All items pass at <strong>{cc.name}</strong>. The draft locks Steps 1 to 10 and moves to <strong>Internal Technical Review</strong>.</>
               : <>{scores.warn} item{scores.warn === 1 ? "" : "s"} need attention. A working draft is fine, but approval waits.</>}
           </p>
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
@@ -695,16 +691,6 @@ function DraftScreen({ cc, scores, stage, onSubmitDraft, canSubmit }: {
           </div>
         </div>
       </div>
-    </div>
-  );
-}
-
-function fieldGrid(rows: [string, string][]): JSX.Element {
-  return (
-    <div className="posfield-grid">
-      {rows.map(([k, v], i) => (
-        <div key={i} className="posfield"><label className="posfield__label">{k}</label><div className="posmono">{v}</div></div>
-      ))}
     </div>
   );
 }
@@ -730,7 +716,7 @@ function DrawerContent({ context, onClose }: { context: HrDrawerContext; onClose
     return (
       <>
         <div className="posdrawer__head" style={{ borderBottom: "none", paddingBottom: 4 }}>
-          <div><WorkbookCueLabel workbook="HR" title={<>Routine activity · HR-A1, A3</>} cueKey="Routine activity" className="posdrawer__cap" /></div>
+          <div><div className="posdrawer__cap">Routine activity · HR-A1, A3</div></div>
           <button type="button" className="posdrawer__close" onClick={onClose}><HRIcon.Close /></button>
         </div>
         <div className="posdrawer__body" style={{ paddingTop: 4 }}>
@@ -812,7 +798,7 @@ function DrawerContent({ context, onClose }: { context: HrDrawerContext; onClose
     return (
       <>
         <div className="posdrawer__head" style={{ borderBottom: "none", paddingBottom: 4 }}>
-          <div><WorkbookCueLabel workbook="HR" title={<>Operator contribution to a support-system initiator · HR-A7</>} cueKey="Operator contribution to a support-system initiator" className="posdrawer__cap" /></div>
+          <div><div className="posdrawer__cap">Operator contribution to a support-system initiator · HR-A7</div></div>
           <button type="button" className="posdrawer__close" onClick={onClose}><HRIcon.Close /></button>
         </div>
         <div className="posdrawer__body" style={{ paddingTop: 4 }}>
@@ -869,7 +855,7 @@ function DrawerContent({ context, onClose }: { context: HrDrawerContext; onClose
     return (
       <>
         <div className="posdrawer__head" style={{ borderBottom: "none", paddingBottom: 4 }}>
-          <div><WorkbookCueLabel workbook="HR" title={<>Pre-initiator screening · HR-B1 · HR-B3</>} cueKey="Pre-initiator screening" className="posdrawer__cap" /></div>
+          <div><div className="posdrawer__cap">Pre-initiator screening · HR-B1 · HR-B3</div></div>
           <button type="button" className="posdrawer__close" onClick={onClose}><HRIcon.Close /></button>
         </div>
         <div className="posdrawer__body" style={{ paddingTop: 4 }}>
@@ -877,7 +863,7 @@ function DrawerContent({ context, onClose }: { context: HrDrawerContext; onClose
             <div className="posfield posfield-grid--span2"><label className="posfield__label">Activity</label>
               {editable
                 ? <select className="posfield__select" value={s.activityId} onChange={(e) => patch({ activityId: e.target.value })}>
-                    {hr.routineActivities.map((a) => <option key={a.uuid} value={a.uuid}>{`${a.uuid} · ${a.name}`}</option>)}
+                    {hr.routineActivities.map((a) => <option key={a.uuid} value={a.uuid}>{idAndName(a.uuid, a.name)}</option>)}
                   </select>
                 : <div>{hr.routineActivities.find((a) => a.uuid === s.activityId)?.name ?? s.activityId}</div>}
             </div>
@@ -933,12 +919,12 @@ function DrawerContent({ context, onClose }: { context: HrDrawerContext; onClose
     const parseCsv = (v: string): string[] => v.split(",").map((x) => x.trim()).filter((x) => x.length > 0);
     const num = (v: string): number | undefined => { const n = Number(v); return v.length === 0 || Number.isNaN(n) ? undefined : n; };
     const posName = (id: string): string => { const p = links?.posStates.find((x) => x.id === id); return p !== undefined ? `${id} · ${p.name}` : id; };
-    const sysLabel = (id: string): string => { const d = links?.syDefs.find((x) => x.id === id); return d !== undefined ? `${id} · ${d.name}` : id; };
+    const sysLabel = (id: string): string => { const d = links?.sySystems.find((x) => x.id === id); return d !== undefined ? `${id} · ${d.name}` : id; };
     const srcName = detail?.sourceActivityId !== undefined ? hr.routineActivities.find((a) => a.uuid === detail.sourceActivityId)?.name ?? "" : "";
     return (
       <>
         <div className="posdrawer__head" style={{ borderBottom: "none", paddingBottom: 4 }}>
-          <div><WorkbookCueLabel workbook="HR" title={<>Pre-initiator event · {h.uuid}</>} cueKey="Pre-initiator event" className="posdrawer__cap" /></div>
+          <div><div className="posdrawer__cap">Pre-initiator event · {recordLabel(h.uuid, h.name)}</div></div>
           <button type="button" className="posdrawer__close" onClick={onClose}><HRIcon.Close /></button>
         </div>
         <div className="posdrawer__body" style={{ paddingTop: 4 }}>
@@ -960,7 +946,7 @@ function DrawerContent({ context, onClose }: { context: HrDrawerContext; onClose
               {editable
                 ? <select className="posfield__select" value={detail?.sourceActivityId ?? ""} onChange={(e) => patchDetail({ sourceActivityId: e.target.value })}>
                     <option value="">Not linked</option>
-                    {hr.routineActivities.map((a) => <option key={a.uuid} value={a.uuid}>{`${a.uuid} · ${a.name}`}</option>)}
+                    {hr.routineActivities.map((a) => <option key={a.uuid} value={a.uuid}>{idAndName(a.uuid, a.name)}</option>)}
                   </select>
                 : <div>{detail?.sourceActivityId !== undefined && detail.sourceActivityId.length > 0 ? `${detail.sourceActivityId} · ${srcName}` : "—"}</div>}
             </div>
@@ -1021,7 +1007,7 @@ function DrawerContent({ context, onClose }: { context: HrDrawerContext; onClose
     return (
       <>
         <div className="posdrawer__head" style={{ borderBottom: "none", paddingBottom: 4 }}>
-          <div><WorkbookCueLabel workbook="HR" title={<>Response identification review · HR-E1</>} cueKey="Response identification review" className="posdrawer__cap" /></div>
+          <div><div className="posdrawer__cap">Response identification review · HR-E1</div></div>
           <button type="button" className="posdrawer__close" onClick={onClose}><HRIcon.Close /></button>
         </div>
         <div className="posdrawer__body" style={{ paddingTop: 4 }}>
@@ -1078,7 +1064,7 @@ function DrawerContent({ context, onClose }: { context: HrDrawerContext; onClose
     return (
       <>
         <div className="posdrawer__head" style={{ borderBottom: "none", paddingBottom: 4 }}>
-          <div><WorkbookCueLabel workbook="HR" title={<>Confirmation · HR-E5 · HR-E7</>} cueKey="Confirmation" className="posdrawer__cap" /></div>
+          <div><div className="posdrawer__cap">Confirmation · HR-E5 · HR-E7</div></div>
           <button type="button" className="posdrawer__close" onClick={onClose}><HRIcon.Close /></button>
         </div>
         <div className="posdrawer__body" style={{ paddingTop: 4 }}>
@@ -1148,6 +1134,7 @@ function DrawerContent({ context, onClose }: { context: HrDrawerContext; onClose
     const csv = (xs: string[]): string => xs.join(", ");
     const parseCsv = (v: string): string[] => v.split(",").map((x) => x.trim()).filter((x) => x.length > 0);
     const num = (v: string): number | undefined => { const n = Number(v); return v.length === 0 || Number.isNaN(n) ? undefined : n; };
+    const criterionLabel = (id: string): string => { const c = links?.scOperatorCriteria.find((x) => x.id === id); return c !== undefined ? `${id} · ${c.description} · ${c.timeAvailable}` : id; };
     const cts = rd?.cueTimingBySequence ?? [];
     const setCt = (i: number, fields: Partial<(typeof cts)[number]>): void => patchDetail({ cueTimingBySequence: cts.map((x, j) => (j === i ? { ...x, ...fields } : x)) });
     const addCt = (): void => patchDetail({ cueTimingBySequence: [...cts, { eventSequenceId: "", plantOperatingStateId: "", cueTimeMinutes: undefined, timeWindowMinutes: undefined, basis: "" }] });
@@ -1155,7 +1142,7 @@ function DrawerContent({ context, onClose }: { context: HrDrawerContext; onClose
     return (
       <>
         <div className="posdrawer__head" style={{ borderBottom: "none", paddingBottom: 4 }}>
-          <div><WorkbookCueLabel workbook="HR" title={<>Response event · {t?.label ?? h.hfeTiming}</>} cueKey="Response event" className="posdrawer__cap" /></div>
+          <div><div className="posdrawer__cap">Response event · {t?.label ?? h.hfeTiming}</div></div>
           <button type="button" className="posdrawer__close" onClick={onClose}><HRIcon.Close /></button>
         </div>
         <div className="posdrawer__body" style={{ paddingTop: 4 }}>
@@ -1204,7 +1191,7 @@ function DrawerContent({ context, onClose }: { context: HrDrawerContext; onClose
               {editable ? <WorkbookInput className="posfield__input posmono" value={csv(h.applicableEventSequences ?? [])} onChange={(e) => patch({ applicableEventSequences: parseCsv(e.target.value) })} /> : <div className="posmono">{csv(h.applicableEventSequences ?? []) || "—"}</div>}
             </div>
             <div className="posfield"><label className="posfield__label">Success criteria (comma separated ids)</label>
-              {editable ? <WorkbookInput className="posfield__input posmono" value={csv(rd?.successCriteriaIds ?? [])} onChange={(e) => patchDetail({ successCriteriaIds: parseCsv(e.target.value) })} /> : <div className="posmono">{csv(rd?.successCriteriaIds ?? []) || "—"}</div>}
+              {editable ? <WorkbookInput className="posfield__input posmono" value={csv(rd?.successCriteriaIds ?? [])} onChange={(e) => patchDetail({ successCriteriaIds: parseCsv(e.target.value) })} /> : <div className="posmono">{(rd?.successCriteriaIds ?? []).map(criterionLabel).join(", ") || "—"}</div>}
             </div>
             <div className="posfield posfield-grid--span2"><label className="posfield__label">Procedure references (comma separated)</label>
               {editable ? <WorkbookInput className="posfield__input" value={csv(rd?.procedureReferences ?? [])} onChange={(e) => patchDetail({ procedureReferences: parseCsv(e.target.value) })} /> : <div>{csv(rd?.procedureReferences ?? []) || "—"}</div>}
@@ -1226,7 +1213,7 @@ function DrawerContent({ context, onClose }: { context: HrDrawerContext; onClose
             </div>
           </div>
           <div style={{ marginTop: 14 }}>
-            <WorkbookCueLabel workbook="HR" title="Cue timing per operating state (HR-F4)" className="essec" />
+            <div className="essec">Cue timing per operating state (HR-F4)</div>
             {cts.map((ct, i) => (
               <div key={i} className="posfield-grid" style={{ marginTop: 8 }}>
                 <div className="posfield"><label className="posfield__label">Event sequence</label>
@@ -1286,7 +1273,7 @@ function DrawerContent({ context, onClose }: { context: HrDrawerContext; onClose
     return (
       <>
         <div className="posdrawer__head" style={{ borderBottom: "none", paddingBottom: 4 }}>
-          <div><WorkbookCueLabel workbook="HR" title={<>Quantification · {hName}</>} cueKey="Quantification" className="posdrawer__cap" /></div>
+          <div><div className="posdrawer__cap">Quantification · {hName}</div></div>
           <button type="button" className="posdrawer__close" onClick={onClose}><HRIcon.Close /></button>
         </div>
         <div className="posdrawer__body" style={{ paddingTop: 4 }}>
@@ -1353,7 +1340,7 @@ function DrawerContent({ context, onClose }: { context: HrDrawerContext; onClose
     return (
       <>
         <div className="posdrawer__head" style={{ borderBottom: "none", paddingBottom: 4 }}>
-          <div><WorkbookCueLabel workbook="HR" title={<>Recovery credit · HR-D5 · HR-D6</>} cueKey="Recovery credit" className="posdrawer__cap" /></div>
+          <div><div className="posdrawer__cap">Recovery credit · HR-D5 · HR-D6</div></div>
           <button type="button" className="posdrawer__close" onClick={onClose}><HRIcon.Close /></button>
         </div>
         <div className="posdrawer__body" style={{ paddingTop: 4 }}>
@@ -1361,7 +1348,7 @@ function DrawerContent({ context, onClose }: { context: HrDrawerContext; onClose
             <div className="posfield posfield-grid--span2"><label className="posfield__label">Pre-initiator event</label>
               {editable
                 ? <select className="posfield__select" value={r.hfeId} onChange={(e) => patch({ hfeId: e.target.value })}>
-                    {preHfes.map((h) => <option key={h.uuid} value={h.uuid}>{`${h.uuid} · ${h.name}`}</option>)}
+                    {preHfes.map((h) => <option key={h.uuid} value={h.uuid}>{idAndName(h.uuid, h.name)}</option>)}
                   </select>
                 : <div>{hr.humanFailureEvents.find((h) => h.uuid === r.hfeId)?.name ?? r.hfeId}</div>}
             </div>
@@ -1415,7 +1402,7 @@ function DrawerContent({ context, onClose }: { context: HrDrawerContext; onClose
     return (
       <>
         <div className="posdrawer__head" style={{ borderBottom: "none", paddingBottom: 4 }}>
-          <div><WorkbookCueLabel workbook="HR" title={<>Dependence · HR-D7 · HR-G12</>} cueKey="Dependence" className="posdrawer__cap" /></div>
+          <div><div className="posdrawer__cap">Dependence · HR-D7 · HR-G12</div></div>
           <button type="button" className="posdrawer__close" onClick={onClose}><HRIcon.Close /></button>
         </div>
         <div className="posdrawer__body" style={{ paddingTop: 4 }}>
@@ -1501,7 +1488,7 @@ function DrawerContent({ context, onClose }: { context: HrDrawerContext; onClose
     return (
       <>
         <div className="posdrawer__head" style={{ borderBottom: "none", paddingBottom: 4 }}>
-          <div><WorkbookCueLabel workbook="HR" title={<>Response quantification · {hName}</>} cueKey="Response quantification" className="posdrawer__cap" /></div>
+          <div><div className="posdrawer__cap">Response quantification · {hName}</div></div>
           <button type="button" className="posdrawer__close" onClick={onClose}><HRIcon.Close /></button>
         </div>
         <div className="posdrawer__body" style={{ paddingTop: 4 }}>
@@ -1571,7 +1558,7 @@ function DrawerContent({ context, onClose }: { context: HrDrawerContext; onClose
             </div>
           </div>
           <div style={{ marginTop: 14 }}>
-            <WorkbookCueLabel workbook="HR" title="Performance shaping factors (HR-G4)" className="essec" />
+            <div className="essec">Performance shaping factors (HR-G4)</div>
             {psfs.map((p, i) => (
               <div key={i} className="posfield-grid" style={{ marginTop: 8 }}>
                 <div className="posfield"><label className="posfield__label">Factor</label>
@@ -1627,7 +1614,7 @@ function DrawerContent({ context, onClose }: { context: HrDrawerContext; onClose
     return (
       <>
         <div className="posdrawer__head" style={{ borderBottom: "none", paddingBottom: 4 }}>
-          <div><WorkbookCueLabel workbook="HR" title={<>Joint probability floor · HR-G11</>} cueKey="Joint probability floor" className="posdrawer__cap" /></div>
+          <div><div className="posdrawer__cap">Joint probability floor · HR-G11</div></div>
           <button type="button" className="posdrawer__close" onClick={onClose}><HRIcon.Close /></button>
         </div>
         <div className="posdrawer__body" style={{ paddingTop: 4 }}>
@@ -1661,7 +1648,7 @@ function DrawerContent({ context, onClose }: { context: HrDrawerContext; onClose
     return (
       <>
         <div className="posdrawer__head" style={{ borderBottom: "none", paddingBottom: 4 }}>
-          <div><WorkbookCueLabel workbook="HR" title={<>Relative reasonableness review · HR-G9 · HR-G10</>} cueKey="Relative reasonableness review" className="posdrawer__cap" /></div>
+          <div><div className="posdrawer__cap">Relative reasonableness review · HR-G9 · HR-G10</div></div>
           <button type="button" className="posdrawer__close" onClick={onClose}><HRIcon.Close /></button>
         </div>
         <div className="posdrawer__body" style={{ paddingTop: 4 }}>
@@ -1716,7 +1703,7 @@ function DrawerContent({ context, onClose }: { context: HrDrawerContext; onClose
     return (
       <>
         <div className="posdrawer__head" style={{ borderBottom: "none", paddingBottom: 4 }}>
-          <div><WorkbookCueLabel workbook="HR" title={<>Error forcing context · ATHEANA</>} cueKey="Error forcing context" className="posdrawer__cap" /></div>
+          <div><div className="posdrawer__cap">Error forcing context · ATHEANA</div></div>
           <button type="button" className="posdrawer__close" onClick={onClose}><HRIcon.Close /></button>
         </div>
         <div className="posdrawer__body" style={{ paddingTop: 4 }}>
@@ -1724,7 +1711,7 @@ function DrawerContent({ context, onClose }: { context: HrDrawerContext; onClose
             <div className="posfield posfield-grid--span2"><label className="posfield__label">Human failure event</label>
               {editable
                 ? <select className="posfield__select" value={e.hfeId} onChange={(ev) => patch({ hfeId: ev.target.value })}>
-                    {hr.humanFailureEvents.map((h) => <option key={h.uuid} value={h.uuid}>{`${h.uuid} · ${h.name}`}</option>)}
+                    {hr.humanFailureEvents.map((h) => <option key={h.uuid} value={h.uuid}>{idAndName(h.uuid, h.name)}</option>)}
                   </select>
                 : <div>{hr.humanFailureEvents.find((h) => h.uuid === e.hfeId)?.name ?? e.hfeId}</div>}
             </div>
@@ -1784,7 +1771,7 @@ function DrawerContent({ context, onClose }: { context: HrDrawerContext; onClose
     return (
       <>
         <div className="posdrawer__head" style={{ borderBottom: "none", paddingBottom: 4 }}>
-          <div><WorkbookCueLabel workbook="HR" title={<>Recovery action · HR-H1 · HR-H2</>} cueKey="Recovery action" className="posdrawer__cap" /></div>
+          <div><div className="posdrawer__cap">Recovery action · HR-H1 · HR-H2</div></div>
           <button type="button" className="posdrawer__close" onClick={onClose}><HRIcon.Close /></button>
         </div>
         <div className="posdrawer__body" style={{ paddingTop: 4 }}>
@@ -1807,7 +1794,7 @@ function DrawerContent({ context, onClose }: { context: HrDrawerContext; onClose
             <div className="posfield"><label className="posfield__label">Recovered event</label>
               {editable
                 ? <select className="posfield__select" value={r.hfeId} onChange={(e) => patch({ hfeId: e.target.value })}>
-                    {postHfes.map((h) => <option key={h.uuid} value={h.uuid}>{`${h.uuid} · ${h.name}`}</option>)}
+                    {postHfes.map((h) => <option key={h.uuid} value={h.uuid}>{idAndName(h.uuid, h.name)}</option>)}
                   </select>
                 : <div>{hr.humanFailureEvents.find((h) => h.uuid === r.hfeId)?.name ?? r.hfeId}</div>}
             </div>
@@ -1874,7 +1861,7 @@ function DrawerContent({ context, onClose }: { context: HrDrawerContext; onClose
     return (
       <>
         <div className="posdrawer__head" style={{ borderBottom: "none", paddingBottom: 4 }}>
-          <div><WorkbookCueLabel workbook="HR" title={<>Model uncertainty source · HR-G15</>} cueKey="Model uncertainty source" className="posdrawer__cap" /></div>
+          <div><div className="posdrawer__cap">Model uncertainty source · HR-G15</div></div>
           <button type="button" className="posdrawer__close" onClick={onClose}><HRIcon.Close /></button>
         </div>
         <div className="posdrawer__body" style={{ paddingTop: 4 }}>
@@ -1917,7 +1904,7 @@ function DrawerContent({ context, onClose }: { context: HrDrawerContext; onClose
     return (
       <>
         <div className="posdrawer__head" style={{ borderBottom: "none", paddingBottom: 4 }}>
-          <div><WorkbookCueLabel workbook="HR" title={<>Related assumption · HR-G15</>} cueKey="Related assumption" className="posdrawer__cap" /></div>
+          <div><div className="posdrawer__cap">Related assumption · HR-G15</div></div>
           <button type="button" className="posdrawer__close" onClick={onClose}><HRIcon.Close /></button>
         </div>
         <div className="posdrawer__body" style={{ paddingTop: 4 }}>
@@ -1960,7 +1947,7 @@ function DrawerContent({ context, onClose }: { context: HrDrawerContext; onClose
     return (
       <>
         <div className="posdrawer__head" style={{ borderBottom: "none", paddingBottom: 4 }}>
-          <div><WorkbookCueLabel workbook="HR" title={<>Reasonable alternative · HR-G15</>} cueKey="Reasonable alternative" className="posdrawer__cap" /></div>
+          <div><div className="posdrawer__cap">Reasonable alternative · HR-G15</div></div>
           <button type="button" className="posdrawer__close" onClick={onClose}><HRIcon.Close /></button>
         </div>
         <div className="posdrawer__body" style={{ paddingTop: 4 }}>
@@ -2002,7 +1989,7 @@ function DrawerContent({ context, onClose }: { context: HrDrawerContext; onClose
     return (
       <>
         <div className="posdrawer__head" style={{ borderBottom: "none", paddingBottom: 4 }}>
-          <div><WorkbookCueLabel workbook="HR" title={<>Pre-operational assumption · HR-A10</>} cueKey="Pre-operational assumption" className="posdrawer__cap" /></div>
+          <div><div className="posdrawer__cap">Pre-operational assumption · HR-A10</div></div>
           <button type="button" className="posdrawer__close" onClick={onClose}><HRIcon.Close /></button>
         </div>
         <div className="posdrawer__body" style={{ paddingTop: 4 }}>
@@ -2071,7 +2058,7 @@ function DrawerContent({ context, onClose }: { context: HrDrawerContext; onClose
     return (
       <>
         <div className="posdrawer__head" style={{ borderBottom: "none", paddingBottom: 4 }}>
-          <div><WorkbookCueLabel workbook="HR" title={<>Sensitivity study · HR-G15</>} cueKey="Sensitivity study" className="posdrawer__cap" /></div>
+          <div><div className="posdrawer__cap">Sensitivity study · HR-G15</div></div>
           <button type="button" className="posdrawer__close" onClick={onClose}><HRIcon.Close /></button>
         </div>
         <div className="posdrawer__body" style={{ paddingTop: 4 }}>

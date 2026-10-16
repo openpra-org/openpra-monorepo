@@ -1,12 +1,16 @@
 import {
   canonicalJson,
+  ccfFactorVector,
   expressionReferences,
   type CcfFactorModel,
   type CcfTesting,
   type UncertainExpression,
+  type UncertainVector,
+  type VectorLaw,
 } from "interfaces-mef-types/core/uncertainty";
 import { carriesUncertainExpression } from "interfaces-mef-types/sy/systems-analysis";
-import { CcfFactorModelSchema, FixedVectorLawSchema } from "interfaces-mef-types/zod/core/uncertainty";
+import { CcfFactorModelSchema, FixedVectorLawSchema, VectorLawSchema } from "interfaces-mef-types/zod/core/uncertainty";
+import type { DaCcfImportRecord, DaCcfVector } from "interfaces-mef-types/da/data-analysis";
 import {
   arrayField,
   field,
@@ -35,6 +39,8 @@ interface OldFactors {
 interface DaCcfFacts {
   old?: OldFactors;
   factors?: CcfFactorModel;
+  workbookId?: string;
+  vectorLaw?: VectorLaw;
 }
 
 interface SyCcfFacts {
@@ -207,33 +213,71 @@ function evidenceCounts(estimate: JsonRecord, size: number): number[] | undefine
   return counts;
 }
 
-function computedFactors(sources: Json[] | undefined, estimate: JsonRecord): CcfFactorModel | undefined {
-  const method = field(estimate, "method");
-  const size = numberField(estimate, "groupSize");
-  if ((method !== "PRIOR" && method !== "BAYES") || size === undefined || !Number.isInteger(size) || size < 2) return undefined;
-  const gamma = templateGamma(sources, estimate, size);
-  if (gamma === undefined) return undefined;
-  const counts = method === "BAYES" ? evidenceCounts(estimate, size) : Array.from({ length: size }, () => 0);
-  if (counts === undefined) return undefined;
-  const concentrations = gamma.map((value, index) => value + (counts[index] ?? 0));
-  return { model: "ALPHA_FACTOR", testing: testingOf(field(estimate, "testing")), alphas: { node: "VALUE", law: { family: "DIRICHLET", concentrations } } };
+interface ComputedFactors {
+  factors: CcfFactorModel;
+  imported: DaCcfImportRecord;
+  vector?: DaCcfVector;
 }
 
-function convertCcfEstimation(estimate: JsonRecord, sources: Json[] | undefined, scope: ConversionScope): JsonRecord {
+function computedFactors(sources: Json[] | undefined, estimate: JsonRecord, workbookId: string): ComputedFactors | undefined {
+  const method = field(estimate, "method");
+  const size = numberField(estimate, "groupSize");
+  const sourceId = textField(estimate, "priorSourceId");
+  const template = textField(estimate, "priorTemplate");
+  if ((method !== "PRIOR" && method !== "BAYES") || size === undefined || !Number.isInteger(size) || size < 2 || sourceId === undefined || template === undefined) return undefined;
+  const gamma = templateGamma(sources, estimate, size);
+  if (gamma === undefined) return undefined;
+  const testing = testingOf(field(estimate, "testing"));
+  const rowIds = templateEntryIds(template, size);
+  if (method === "BAYES") {
+    const counts = evidenceCounts(estimate, size);
+    if (counts === undefined) return undefined;
+    const concentrations = gamma.map((value, index) => value + (counts[index] ?? 0));
+    const estimateId = textField(estimate, "uuid");
+    const factors: CcfFactorModel = { model: "ALPHA_FACTOR", testing, alphas: { node: "VALUE", law: { family: "DIRICHLET", concentrations } } };
+    if (estimateId === undefined) return { factors, imported: { kind: "ALPHA_DIRICHLET", rowIds, groupSize: size } };
+    const updatedId = `ccfv/${estimateId}/updated/C${size}`;
+    return {
+      factors,
+      imported: { kind: "ALPHA_DIRICHLET", rowIds, groupSize: size, vectorId: updatedId },
+      vector: { id: updatedId, sourceId, kind: "ALPHA_DIRICHLET", template, groupSize: size, rowIds, vector: { family: "DIRICHLET", concentrations }, estimateId },
+    };
+  }
+  const vectorId = `ccfv/${sourceId}/${template}/ALPHA_DIRICHLET/C${size}`;
+  return {
+    factors: { model: "ALPHA_FACTOR", testing, alphas: { node: "PARAMETER", reference: { referenceType: "WORKBOOK_PARAMETER", workbookId, entityId: vectorId } } },
+    imported: { kind: "ALPHA_DIRICHLET", rowIds, groupSize: size, vectorId },
+    vector: { id: vectorId, sourceId, kind: "ALPHA_DIRICHLET", template, groupSize: size, rowIds, vector: { family: "DIRICHLET", concentrations: gamma } },
+  };
+}
+
+function convertCcfEstimation(estimate: JsonRecord, sources: Json[] | undefined, workbookId: string, vectors: Map<string, DaCcfVector>, scope: ConversionScope): JsonRecord {
   if (!DA_ESTIMATE_OLD_FIELDS.some((key) => present(estimate, key))) return estimate;
   const id = textField(estimate, "uuid") ?? "?";
   const what = `DA common cause estimate ${id}`;
   if (present(estimate, "uncertainty")) scope.report(`${what} holds an uncertainty distribution that names no factor, so it cannot be converted.`);
-  const computed = computedFactors(sources, estimate);
+  const computed = computedFactors(sources, estimate, workbookId);
+  const kept = without(estimate, [...DA_ESTIMATE_OLD_FIELDS, "factors", "imported"]);
+  if (computed !== undefined) {
+    if (computed.vector !== undefined) vectors.set(computed.vector.id, computed.vector);
+    return { ...kept, factors: jsonOf(computed.factors), imported: jsonOf(computed.imported) };
+  }
   const old = oldDaFactors(estimate);
-  const factors = computed ?? (old === undefined ? undefined : factorModel(old, testingOf(field(estimate, "testing")), scope, what));
-  const kept = without(estimate, [...DA_ESTIMATE_OLD_FIELDS, "factors"]);
+  const factors = old === undefined ? undefined : factorModel(old, testingOf(field(estimate, "testing")), scope, what);
   return factors === undefined ? kept : { ...kept, factors: jsonOf(factors) };
 }
 
-function convertCcfEstimations(mef: JsonRecord, scope: ConversionScope): JsonRecord {
+function convertCcfEstimations(mef: JsonRecord, workbookId: string, scope: ConversionScope): JsonRecord {
   const sources = arrayField(mef, "sources");
-  return withArray(mef, "ccfParameterEstimations", (estimate) => convertCcfEstimation(estimate, sources, scope));
+  const vectors = new Map<string, DaCcfVector>();
+  const converted = withArray(mef, "ccfParameterEstimations", (estimate) => convertCcfEstimation(estimate, sources, workbookId, vectors, scope));
+  if (vectors.size === 0) return converted;
+  const published = new Map<string, Json>((arrayField(converted, "ccfVectors") ?? []).flatMap((stored) => {
+    const id = isRecord(stored) ? textField(stored, "id") : undefined;
+    return id === undefined ? [] : [[id, stored] as const];
+  }));
+  vectors.forEach((vector, id) => published.set(id, jsonOf(vector)));
+  return { ...converted, ccfVectors: [...published.entries()].sort(([left], [right]) => left.localeCompare(right)).map(([, vector]) => vector) };
 }
 
 function oldDaFactorsById(original: JsonRecord): Map<string, OldFactors | undefined> {
@@ -251,8 +295,23 @@ function daCcfFactsWithOriginal(facts: ReadonlyMap<string, DaCcfFacts>, original
   }));
 }
 
-function daCcfFacts(original: JsonRecord, converted: JsonRecord): Map<string, DaCcfFacts> {
+function storedVectorLaws(mef: JsonRecord): Map<string, VectorLaw> {
+  return new Map((arrayField(mef, "ccfVectors") ?? []).flatMap((vector) => {
+    if (!isRecord(vector)) return [];
+    const id = textField(vector, "id");
+    const law = VectorLawSchema.safeParse(field(vector, "vector"));
+    return id === undefined || !law.success ? [] : [[id, law.data] as const];
+  }));
+}
+
+function linkedVectorLaw(factors: CcfFactorModel | undefined, laws: ReadonlyMap<string, VectorLaw>): VectorLaw | undefined {
+  const vector = factors === undefined ? undefined : ccfFactorVector(factors);
+  return vector?.node === "PARAMETER" ? laws.get(vector.reference.entityId) : undefined;
+}
+
+function daCcfFacts(original: JsonRecord, converted: JsonRecord, workbookId?: string): Map<string, DaCcfFacts> {
   const oldById = oldDaFactorsById(original);
+  const laws = storedVectorLaws(converted);
   const facts = new Map<string, DaCcfFacts>();
   for (const estimate of arrayField(converted, "ccfParameterEstimations") ?? []) {
     if (!isRecord(estimate)) continue;
@@ -260,7 +319,13 @@ function daCcfFacts(original: JsonRecord, converted: JsonRecord): Map<string, Da
     if (id === undefined) continue;
     const old = oldById.get(id);
     const factors = storedFactors(field(estimate, "factors"));
-    facts.set(id, { ...(old === undefined ? {} : { old }), ...(factors === undefined ? {} : { factors }) });
+    const vectorLaw = linkedVectorLaw(factors, laws);
+    facts.set(id, {
+      ...(old === undefined ? {} : { old }),
+      ...(factors === undefined ? {} : { factors }),
+      ...(workbookId === undefined ? {} : { workbookId }),
+      ...(vectorLaw === undefined ? {} : { vectorLaw }),
+    });
   }
   return facts;
 }
@@ -366,12 +431,35 @@ function memberWorkbooks(group: JsonRecord, events: ReadonlyMap<string, JsonReco
   });
 }
 
+function withVectorValue(factors: CcfFactorModel, vector: UncertainVector): CcfFactorModel {
+  switch (factors.model) {
+    case "ALPHA_FACTOR":
+      return { ...factors, alphas: vector };
+    case "PHI_FACTOR":
+      return { ...factors, phis: vector };
+    case "BETA_FACTOR":
+    case "MGL":
+    case "BINOMIAL_FAILURE_RATE":
+      return factors;
+  }
+}
+
+function linkedCopy(group: JsonRecord, facts: DaCcfFacts | undefined): JsonRecord {
+  const linked = facts?.factors;
+  const law = facts?.vectorLaw;
+  const vector = linked === undefined ? undefined : ccfFactorVector(linked);
+  if (linked === undefined || law === undefined || vector?.node !== "PARAMETER" || vector.reference.workbookId !== facts?.workbookId) return group;
+  const copied = storedFactors(field(group, "factors"));
+  if (copied === undefined || canonicalJson(copied) !== canonicalJson(withVectorValue(linked, { node: "VALUE", law }))) return group;
+  return { ...group, factors: jsonOf(linked) };
+}
+
 function convertSyGroup(group: JsonRecord, events: ReadonlyMap<string, JsonRecord>, linkedDa: string | undefined, daCcf: DaCcfLookup, scope: ConversionScope): JsonRecord {
-  if (!SY_GROUP_OLD_FIELDS.some((key) => present(group, key))) return group;
+  const daWorkbookIds = [...new Set([...(linkedDa === undefined ? [] : [linkedDa]), ...memberWorkbooks(group, events)])];
+  if (!SY_GROUP_OLD_FIELDS.some((key) => present(group, key))) return linkedCopy(group, linkedDaFacts(group, daWorkbookIds, daCcf));
   const what = `SY common cause group ${textField(group, "uuid") ?? "?"}`;
   const old = oldSyFactors(group, scope, what);
   if (old === undefined) return group;
-  const daWorkbookIds = [...new Set([...(linkedDa === undefined ? [] : [linkedDa]), ...memberWorkbooks(group, events)])];
   const facts = linkedDaFacts(group, daWorkbookIds, daCcf);
   const factors = facts?.factors !== undefined && sameFactors(facts.old, old.old) ? facts.factors : factorModel(old.old, "NON_STAGGERED", scope, what);
   if (factors === undefined) return group;
@@ -438,6 +526,71 @@ function convertEsqCcfRecord(record: JsonRecord, groups: ReadonlyMap<string, SyC
   return replaced(record, [...ESQ_RECORD_OLD_FIELDS, "factors"], total === undefined ? {} : { total: jsonOf(pointExpression("PROBABILITY", total)) });
 }
 
+const EXAMPLE_DA_PREFIX = "example-da-";
+
+type DaHeldLookup = ReadonlyMap<string, ReadonlySet<string>>;
+
+type DaProjectLookup = ReadonlyMap<string, readonly string[]>;
+
+interface DaLinkContext {
+  ownId?: string;
+  linkedDaId?: string;
+  projectId: string;
+  held: DaHeldLookup;
+  projects: DaProjectLookup;
+}
+
+function idsOf(mef: JsonRecord, key: string, idKey: string): string[] {
+  return (arrayField(mef, key) ?? []).flatMap((item) => {
+    const id = isRecord(item) ? rawText(item, idKey) : undefined;
+    return id === undefined ? [] : [id];
+  });
+}
+
+function daHeldIds(mef: JsonRecord): Set<string> {
+  return new Set([...idsOf(mef, "parameters", "uuid"), ...idsOf(mef, "ccfVectors", "id"), ...idsOf(mef, "ccfFactors", "id")]);
+}
+
+function daTarget(entityId: string, context: DaLinkContext): string | undefined {
+  const holds = (workbookId: string): boolean => context.held.get(workbookId)?.has(entityId) === true;
+  if (context.ownId !== undefined) return holds(context.ownId) ? context.ownId : undefined;
+  const linked = context.linkedDaId;
+  if (linked !== undefined) return context.held.has(linked) && holds(linked) ? linked : undefined;
+  const holders = (context.projects.get(context.projectId) ?? []).filter(holds);
+  return holders.length === 1 ? holders[0] : undefined;
+}
+
+function relinkedReference(record: JsonRecord, context: DaLinkContext): JsonRecord | undefined {
+  if (field(record, "referenceType") !== "WORKBOOK_PARAMETER") return undefined;
+  const workbookId = rawText(record, "workbookId");
+  const entityId = rawText(record, "entityId");
+  if (workbookId === undefined || entityId === undefined || !workbookId.startsWith(EXAMPLE_DA_PREFIX)) return undefined;
+  const target = daTarget(entityId, context);
+  return target === undefined || target === workbookId ? undefined : { ...record, workbookId: target };
+}
+
+function relinkedJson(value: Json, context: DaLinkContext): Json {
+  if (Array.isArray(value)) {
+    const next = value.map((item) => relinkedJson(item, context));
+    return next.some((item, index) => item !== value[index]) ? next : value;
+  }
+  if (!isRecord(value)) return value;
+  const reference = relinkedReference(value, context);
+  if (reference !== undefined) return reference;
+  let changed = false;
+  const entries = Object.entries(value).map(([key, item]) => {
+    const next = relinkedJson(item, context);
+    if (next !== item) changed = true;
+    return [key, next] as const;
+  });
+  return changed ? Object.fromEntries(entries) : value;
+}
+
+function relinkExampleDaReferences(mef: JsonRecord, context: DaLinkContext): JsonRecord {
+  const next = relinkedJson(mef, context);
+  return isRecord(next) ? next : mef;
+}
+
 export {
   convertCcfEstimations,
   convertDaCcfNeed,
@@ -445,7 +598,9 @@ export {
   convertSyGroups,
   daCcfFacts,
   daCcfFactsWithOriginal,
+  daHeldIds,
+  relinkExampleDaReferences,
   syCcfFacts,
   syCcfFactsWithOriginal,
 };
-export type { DaCcfFacts, DaCcfLookup, SyCcfFacts, SyCcfLookup };
+export type { DaCcfFacts, DaCcfLookup, DaHeldLookup, DaLinkContext, DaProjectLookup, SyCcfFacts, SyCcfLookup };

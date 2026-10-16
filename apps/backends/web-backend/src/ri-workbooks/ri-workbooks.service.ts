@@ -5,6 +5,7 @@ import { RiskIntegrationSchema } from "interfaces-mef-types/zod/ri/risk-integrat
 import { ProjectsService } from "../projects/projects.service";
 import { ExampleWorkbooksService } from "../example-workbooks/example-workbooks.service";
 import { WorkbookRolesService, type WorkbookRoleName } from "../workbooks/workbook-roles.service";
+import { recordWorkbookStatus } from "../workbooks/workbook-status";
 import { WorkbookSignoff, type WorkbookSignoffDocument } from "../workbooks/workbook-signoff.schema";
 import { RiWorkbook, type RiWorkbookDocument } from "./ri-workbook.schema";
 import { RiDocumentsService } from "./ri-documents.service";
@@ -95,9 +96,10 @@ export class RiWorkbooksService {
       workflowState: "DRAFT",
       workflowHistory: [{ state: "DRAFT", enteredAt: new Date().toISOString(), actor: acting.username, note: "Loaded from example workbook" }],
     };
-    doc.previousMefJson = JSON.stringify(doc.mef);
+    if (typeof doc.previousMefJson !== "string" || doc.previousMefJson.length === 0) doc.previousMefJson = JSON.stringify(doc.mef);
     doc.mef = cleaned;
     await doc.save();
+    await recordWorkbookStatus(this.riWorkbookModel.db, workbookId, (doc.mef as { workflowState?: string }).workflowState);
     await this.signoffModel.deleteMany({ workbookId }).exec();
     await this.riDocumentsService.removeAllForWorkbook(workbookId);
     return toResponse(doc, myRoles);
@@ -125,6 +127,7 @@ export class RiWorkbooksService {
     doc.mef = parsed.data;
     doc.previousMefJson = null;
     await doc.save();
+    await recordWorkbookStatus(this.riWorkbookModel.db, workbookId, (doc.mef as { workflowState?: string }).workflowState);
     return toResponse(doc, myRoles);
   }
 }

@@ -38,6 +38,8 @@ interface MockContext {
   shortOf: (id: string) => string;
   links: SyLinkedInputs;
   controlledParameters: SyControlledParameterOption[];
+  controlledCcfVectors: [];
+  controlledCcfFactors: [];
   runtime: { workbookId: string; projectId: string; revision: number; saveStatus: "saved" };
 }
 
@@ -162,6 +164,8 @@ function setContext(editable = true, sy: StepAnalysis = makeAnalysis()): void {
     shortOf: (id) => SHORT.get(id) ?? id,
     links: LINKS,
     controlledParameters: [],
+    controlledCcfVectors: [],
+    controlledCcfFactors: [],
     runtime: { workbookId: "sy-1", projectId: "project-1", revision: 3, saveStatus: "saved" },
   };
   jest.mocked(evaluateUncertainty).mockImplementation(praxisUncertainty);

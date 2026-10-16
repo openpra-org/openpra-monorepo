@@ -5,10 +5,13 @@ import { BaseModelUncertaintyDocumentation, PreOperationalAssumption, PlantRepre
 import { TechnicalElement, TechnicalElementTypes } from "../technical-element";
 import { HlrId, PlantStage, SRReference } from "../core/pra-common";
 import type {
+  BayesianNetworkNodeReference,
   EventTreeCanvasLayout,
   EventTreeInitiatingEventFrequency,
   FaultTreeTopEventReference,
+  WorkbookBayesianNetwork,
   WorkbookEntityId,
+  WorkbookHclConfiguration,
 } from "../modeling";
 
 export type PlantOperatingStateReference = string;
@@ -24,6 +27,39 @@ export type EventSequenceFamilyReference = string;
 export type SequenceDesignatorId = string;
 
 export type SystemStatus = "SUCCESS" | "FAILURE" | "BYPASSED";
+
+export type EventTreeBranchState = `BRANCH_${number}`;
+
+export type EventTreeOutcome = SystemStatus | EventTreeBranchState;
+
+const EVENT_TREE_BRANCH_PREFIX = "BRANCH_";
+
+export function isEventTreeBranchState(value: string): value is EventTreeBranchState {
+  if (!value.startsWith(EVENT_TREE_BRANCH_PREFIX)) return false;
+  const position = Number(value.slice(EVENT_TREE_BRANCH_PREFIX.length));
+  return Number.isInteger(position) && position >= 1;
+}
+
+export function isEventTreeOutcome(value: string): value is EventTreeOutcome {
+  return value === "SUCCESS" || value === "FAILURE" || value === "BYPASSED" || isEventTreeBranchState(value);
+}
+
+export function eventTreeBranchState(position: number): EventTreeBranchState {
+  const state = `${EVENT_TREE_BRANCH_PREFIX}${String(position)}`;
+  return isEventTreeBranchState(state) ? state : "BRANCH_1";
+}
+
+export function eventTreeOutcomeRank(outcome: EventTreeOutcome): number {
+  if (outcome === "SUCCESS" || outcome === "BYPASSED") return 0;
+  if (outcome === "FAILURE") return 1;
+  return Number(outcome.slice(EVENT_TREE_BRANCH_PREFIX.length)) - 1;
+}
+
+export function eventTreeOutcomes(count: number): EventTreeOutcome[] {
+  if (count <= 1) return ["BYPASSED"];
+  if (count === 2) return ["SUCCESS", "FAILURE"];
+  return Array.from({ length: count }, (_, index) => eventTreeBranchState(index + 1));
+}
 
 export enum DependencyType {
   FUNCTIONAL = "FUNCTIONAL",
@@ -50,7 +86,7 @@ export interface TimeWindow {
   deterministicAnalysisReferences?: string[];
 }
 
-export type SequenceTimingCategory = "INITIATOR" | "AUTOMATIC" | "OPERATOR_CUE" | "OPERATOR_ACTION" | "DAMAGE_LIMIT";
+export type SequenceTimingCategory = "INITIATOR" | "AUTOMATIC" | "OPERATOR_CUE" | "OPERATOR_ACTION" | "DAMAGE_LIMIT" | "MISSION_TIME";
 
 export interface SequenceTiming extends Unique {
   event: string;
@@ -61,9 +97,30 @@ export interface SequenceTiming extends Unique {
   basis?: string;
   deterministicAnalysisReferences?: string[];
   uncertaintyRange?: [number, number];
+  importedFrom?: EsTimingSource[];
 }
 
 export type FeasibilityState = "OK" | "MARGINAL" | "NOT_MET";
+
+export type EsTimingSource = "HRA" | "SC";
+
+export type EsUncertaintyArea = "PLANT_RESPONSE" | "DEPENDENCIES" | "END_STATES";
+
+export interface EsUncertaintySource {
+  source: string;
+  impact: string;
+  applicableElements?: string[];
+  id?: string;
+  area?: EsUncertaintyArea;
+  sequenceIds?: EventSequenceReference[];
+  familyIds?: string[];
+  key?: boolean;
+  noCaseReason?: string;
+}
+
+export interface EsModelUncertaintyDocumentation extends BaseModelUncertaintyDocumentation {
+  uncertaintySources: EsUncertaintySource[];
+}
 
 export interface OperatorActionWindow extends Unique {
   humanActionId: HumanActionReference;
@@ -78,7 +135,16 @@ export interface OperatorActionWindow extends Unique {
   applicableInitiatingEvents?: InitiatingEventReference[];
   applicablePlantOperatingStates?: PlantOperatingStateReference[];
   note?: string;
+  importedFrom?: EsTimingSource[];
   implementsSrs: SRReference[];
+}
+
+export type DependencyModeling = "SPLIT" | "BRANCH_REMOVED" | "SHARED_EVENT" | "JOINT_PROBABILITY" | "NOT_MODELED";
+
+export interface DependencySource {
+  element: "SY" | "HRA";
+  workbookId: string;
+  recordId: string;
 }
 
 export interface Dependency extends Unique {
@@ -87,6 +153,10 @@ export interface Dependency extends Unique {
   dependencyType: DependencyType;
   description: string;
   basis?: string;
+  assumption?: string;
+  modeling?: DependencyModeling;
+  modelingDetail?: string;
+  source?: DependencySource;
   applicablePlantOperatingStates?: PlantOperatingStateReference[];
   applicableInitiatingEvents?: InitiatingEventReference[];
   timePhased?: boolean;
@@ -143,7 +213,7 @@ export interface EventSequence extends Unique, Named {
   plantOperatingStateId: PlantOperatingStateReference;
   eventTreeId?: string;
   eventTreeSequenceId?: string;
-  functionalEventStates?: Record<string, SystemStatus>;
+  functionalEventStates?: Record<string, EventTreeOutcome>;
   progression?: string;
   systemResponses?: Record<SystemReference, SystemStatus>;
   operatorActions?: HumanActionReference[];
@@ -155,6 +225,7 @@ export interface EventSequence extends Unique, Named {
   endState: EndState;
   affectedReactorSourceCombinations?: string[];
   sequenceFamilyId?: EventSequenceFamilyReference;
+  endStateId?: string;
   releaseCategoryId?: ReleaseCategoryReference;
   successCriteriaIds?: SuccessCriteriaId[];
   meanFrequency?: Frequency | FrequencyWithDistribution;
@@ -189,12 +260,37 @@ export interface EventSequenceFamily extends Unique, Named {
   memberSequenceIds: EventSequenceReference[];
   similarityBasis?: string;
   endState: EndState;
+  endStateId?: string;
   meanFrequency?: Frequency | FrequencyWithDistribution;
   familySpecificAssumptions?: PreOperationalAssumption[];
   implementsSrs: SRReference[];
 }
 
+export type EsEndStateKind = "SAFE_STABLE" | "RELEASE" | "INTERMEDIATE";
+
+export type EsBarrierCondition = "INTACT" | "DEGRADED" | "FAILED" | "BYPASSED";
+
+export interface EsEndStateBarrier {
+  barrier: string;
+  condition: EsBarrierCondition;
+}
+
+export interface EsEndStateDefinition {
+  id: string;
+  code: string;
+  name: string;
+  kind: EsEndStateKind;
+  definition?: string;
+  releaseCategoryId?: ReleaseCategoryReference;
+  scEndStateId?: string;
+  reactorsAndSources?: string[];
+  barriers?: EsEndStateBarrier[];
+  releasePath?: string;
+  timing?: string;
+}
+
 export interface ReleaseCategoryMapping extends Unique {
+  name?: string;
   eventSequenceIds: EventSequenceReference[];
   releaseCategoryId: ReleaseCategoryReference;
   sourceTermId?: SourceTermReference;
@@ -224,6 +320,7 @@ export interface PhenomenologicalDependencyModel extends Unique, Named {
   environmentalConditions?: string[];
   systemSpecificImpacts?: Record<SystemReference, string>;
   deterministicAnalysisReferences?: string[];
+  importedFrom?: EsTimingSource[];
   implementsSrs: SRReference[];
 }
 
@@ -262,6 +359,11 @@ export interface DependencyModels {
   systemInterfaces?: SystemInterfaceDependency[];
 }
 
+export interface FunctionalEventNetworkNode {
+  bayesianNetworkNode: BayesianNetworkNodeReference;
+  trueStateIds: string[];
+}
+
 export interface FunctionalEvent extends Unique, Named {
   label?: string;
   order?: number;
@@ -269,12 +371,13 @@ export interface FunctionalEvent extends Unique, Named {
   systemReference?: SystemReference;
   humanActionReference?: HumanActionReference;
   faultTreeTopEvent?: FaultTreeTopEventReference;
+  networkNode?: FunctionalEventNetworkNode;
   /** @deprecated Retained only until the ES event-tree migration TODO resolves legacy links. */
   faultTreeId?: string;
 }
 
 export interface EventTreePath {
-  state: SystemStatus;
+  state: EventTreeOutcome;
   target: string;
   targetType: "BRANCH" | "SEQUENCE" | "END_STATE";
   description?: string;
@@ -292,7 +395,8 @@ export interface EventTreeSequence extends Unique, Named {
   endState?: EndState;
   instructions?: string[];
   eventSequenceId?: EventSequenceReference;
-  functionalEventStates?: Record<string, SystemStatus>;
+  endStateId?: string;
+  functionalEventStates?: Record<string, EventTreeOutcome>;
 }
 
 export interface EventTreeTransfer {
@@ -354,6 +458,9 @@ export interface DynamicRun extends Unique {
 export interface RepairCreditRecord extends Unique {
   eventSequenceId: EventSequenceReference;
   repairCredited: boolean;
+  equipment?: string;
+  timeMinutes?: number;
+  access?: string;
   conservativeRepairBasis?: string;
   riskSignificantReviewPerformed?: boolean;
   justification: string;
@@ -406,9 +513,18 @@ export interface ExampleDocumentRef {
   url?: string;
 }
 
+export interface EsLinkedWorkbooks {
+  POS?: string;
+  IE?: string;
+  SC?: string;
+  SY?: string;
+  HRA?: string;
+}
+
 export interface EventSequenceAnalysis
   extends TechnicalElement<TechnicalElementTypes.EVENT_SEQUENCE_ANALYSIS> {
   praScope: string;
+  linkedWorkbooks?: EsLinkedWorkbooks;
 
   scopeDefinition: {
     plantOperatingStateIds: PlantOperatingStateReference[];
@@ -432,6 +548,7 @@ export interface EventSequenceAnalysis
 
   dependencyModels?: DependencyModels;
   releaseCategoryMappings?: ReleaseCategoryMapping[];
+  endStateDefinitions?: EsEndStateDefinition[];
 
   screeningRecords: EventSequenceScreeningRecord[];
   repairCreditRecords?: RepairCreditRecord[];
@@ -441,7 +558,7 @@ export interface EventSequenceAnalysis
   plantDamageStatesUsed?: boolean;
   plantDamageStateDefinitions?: string[];
 
-  modelUncertainty: BaseModelUncertaintyDocumentation;
+  modelUncertainty: EsModelUncertaintyDocumentation;
   preOperationalAssumptions?: PreOperationalAssumption[];
   sensitivityStudies?: SensitivityStudy[];
   plantResponseAnalysisReferences?: string[];
@@ -450,6 +567,8 @@ export interface EventSequenceAnalysis
 
   configurationControlRecordId?: string;
   newlyDevelopedMethodIds?: string[];
+  dependencyBayesianNetworks?: WorkbookBayesianNetwork[];
+  dependencyHclConfigurations?: WorkbookHclConfiguration[];
 }
 
 export const ES_SR_CATALOG: Record<string, { hlr: HlrId; stages: PlantStage[] }> = {

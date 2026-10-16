@@ -9,6 +9,7 @@ interface PosWorkbookData {
   cc: PRAConfigurationControl;
   nms: NewlyDevelopedMethod[];
   daOutages?: PosDaOutageOption[];
+  projectId?: string;
 }
 
 const PosWorkbookContext = createContext<PosWorkbookData | null>(null);

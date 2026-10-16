@@ -179,18 +179,20 @@ describe("Seismic PRA Step 13 risk integration", () => {
     },
   );
 
-  it("keeps explanations behind question marks and details beside entry names", async () => {
+  it("keeps details beside entry names without section help", async () => {
     const mef = renderRiskIntegration();
     const decision = mef.riskIntegrationBaseline.decisions[0]!;
 
     expect(screen.queryByRole("note")).not.toBeInTheDocument();
-    await userEvent.click(screen.getByRole("button", {
+    const heading = screen.getByRole("heading", {
+      name: "Risk-informed actions",
+    }).closest(".ssection__heading");
+    expect(heading).not.toBeNull();
+    expect(within(heading as HTMLElement).queryAllByRole("button"))
+      .toHaveLength(0);
+    expect(screen.queryByRole("button", {
       name: "About Risk-informed actions",
-    }));
-    expect(screen.getByRole("note")).toHaveTextContent(
-      "Each record turns a calculated seismic insight into one owned action",
-    );
-    expect(screen.getByRole("note")).toHaveTextContent("For example");
+    })).not.toBeInTheDocument();
 
     expect(screen.queryByText(decision.action, { exact: false }))
       .not.toBeInTheDocument();

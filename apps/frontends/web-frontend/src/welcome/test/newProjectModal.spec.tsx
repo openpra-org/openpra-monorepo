@@ -9,16 +9,14 @@ function projectResponse(name: string, overrides: Record<string, unknown> = {}):
     JSON.stringify({
       id: "abc",
       name,
-      mode: "internal-events",
-      modeLabel: "Internal Events",
+      mode: "full-scope",
+      modeLabel: "Full Scope",
       ownerUsername: "ada",
       ownerFullName: "Ada Lovelace",
       ownerInitials: "AL",
       myRole: "owner",
       sharedTeams: [],
       sharedUsers: [],
-      status: { POS: "not-started" },
-      progress: 0,
       pinned: false,
       state: "active",
       pageLayout: "modern",
@@ -26,6 +24,13 @@ function projectResponse(name: string, overrides: Record<string, unknown> = {}):
       updatedAt: new Date().toISOString(),
       ...overrides,
     }),
+    { status: 201, headers: { "Content-Type": "application/json" } },
+  );
+}
+
+function workbooksResponse(): Response {
+  return new Response(
+    JSON.stringify({ workbooks: [], failed: [], unlinked: [] }),
     { status: 201, headers: { "Content-Type": "application/json" } },
   );
 }
@@ -48,13 +53,15 @@ describe("NewProjectModal", () => {
     return { onClose, onCreated, onError };
   }
 
-  it("renders the heading and all four risk modes", () => {
+  it("renders the heading and asks for a required workbook name instead of a risk mode", async () => {
     renderModal();
     expect(screen.getByRole("heading", { name: /create a new project/i })).toBeInTheDocument();
-    expect(screen.getByText("Internal Events")).toBeInTheDocument();
-    expect(screen.getByText("Internal Hazards")).toBeInTheDocument();
-    expect(screen.getByText("External Hazards")).toBeInTheDocument();
-    expect(screen.getByText("Full Scope")).toBeInTheDocument();
+    expect(screen.queryByRole("radiogroup", { name: "Risk mode" })).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Workbook name")).toHaveAttribute("aria-required", "true");
+    await userEvent.type(screen.getByLabelText("Project name"), "Real Project Name");
+    await userEvent.click(screen.getByRole("button", { name: "Create project" }));
+    expect(await screen.findByText("Workbook name is required")).toBeInTheDocument();
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it("rejects submission when the name is shorter than 3 characters", async () => {
@@ -65,11 +72,12 @@ describe("NewProjectModal", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it("posts to /api/projects with name, mode and the chosen layout when submitting a valid form", async () => {
-    fetchMock.mockResolvedValueOnce(projectResponse("Real Project Name"));
+  it("posts the name and chosen layout to /api/projects, then creates the named workbook in every element", async () => {
+    fetchMock.mockResolvedValueOnce(projectResponse("Real Project Name")).mockResolvedValueOnce(workbooksResponse());
 
     const { onCreated } = renderModal();
     await userEvent.type(screen.getByLabelText(/project name/i), "Real Project Name");
+    await userEvent.type(screen.getByLabelText("Workbook name"), "Plant baseline");
     await userEvent.click(screen.getByRole("button", { name: /create project/i }));
 
     await waitFor(() => {
@@ -79,8 +87,11 @@ describe("NewProjectModal", () => {
       );
     });
     const body = JSON.parse(fetchMock.mock.calls[0][1].body as string);
-    expect(body).toEqual({ name: "Real Project Name", mode: "internal-events", pageLayout: "modern" });
+    expect(body).toEqual({ name: "Real Project Name", pageLayout: "modern" });
     await waitFor(() => { expect(onCreated).toHaveBeenCalledTimes(1); });
+    expect(fetchMock).toHaveBeenCalledWith("/api/projects/abc/workbooks/common", expect.objectContaining({ method: "POST" }));
+    expect(JSON.parse(fetchMock.mock.calls[1][1].body as string)).toEqual({ name: "Plant baseline" });
+    expect(onCreated).toHaveBeenCalledWith(expect.objectContaining({ id: "abc", mode: "full-scope" }), { workbookName: "Plant baseline", failed: [], unlinked: [] });
   });
 
   it("invokes onError when the API rejects creation", async () => {
@@ -92,9 +103,11 @@ describe("NewProjectModal", () => {
     );
     const { onError, onCreated } = renderModal();
     await userEvent.type(screen.getByLabelText(/project name/i), "Real Project Name");
+    await userEvent.type(screen.getByLabelText("Workbook name"), "Plant baseline");
     await userEvent.click(screen.getByRole("button", { name: /create project/i }));
     await waitFor(() => { expect(onError).toHaveBeenCalledWith("Server exploded"); });
     expect(onCreated).not.toHaveBeenCalled();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
   it("closes when Escape is pressed", async () => {

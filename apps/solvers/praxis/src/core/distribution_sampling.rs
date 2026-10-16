@@ -1,7 +1,8 @@
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::sync::{Arc, Mutex};
 
-use rand::{Rng, SeedableRng};
+use rand::rngs::OsRng;
+use rand::{Rng, RngCore, SeedableRng};
 use rand_chacha::ChaCha8Rng;
 use rand_distr::{Distribution, Gamma};
 use serde::{Deserialize, Serialize};
@@ -32,6 +33,19 @@ pub struct SamplingPlan {
     pub method: SamplingMethod,
     pub trials: usize,
     pub seed: u64,
+}
+
+pub struct DrawPlan<'a> {
+    pub trials: usize,
+    pub seed: u64,
+    pub method: &'a dyn Fn(&str, bool) -> SamplingMethod,
+    pub stream: &'a dyn Fn(&str) -> String,
+}
+
+pub const LARGEST_EXACT_SEED: u64 = (1 << 53) - 1;
+
+pub fn fresh_seed() -> u64 {
+    OsRng.next_u64() & LARGEST_EXACT_SEED
 }
 
 pub fn stream_seed(seed: u64, key: &str) -> u64 {
@@ -107,8 +121,9 @@ pub fn draw_vector(key: &str, law: &VectorLaw, plan: &SamplingPlan) -> Result<Ve
         VectorLaw::Fixed { values } => {
             return Ok(values.iter().map(|value| vec![*value; plan.trials]).collect());
         }
-        VectorLaw::Dirichlet { concentrations } => concentrations,
+        VectorLaw::Dirichlet { concentrations } | VectorLaw::WeightedDirichlet { concentrations, .. } => concentrations,
     };
+    let shifts = law.log_weights();
     let mut logs = vec![vec![f64::NEG_INFINITY; concentrations.len()]; plan.trials];
     match plan.method {
         SamplingMethod::MonteCarlo => {
@@ -141,7 +156,10 @@ pub fn draw_vector(key: &str, law: &VectorLaw, plan: &SamplingPlan) -> Result<Ve
     }
     let rows = logs
         .iter()
-        .map(|row| normalized_logs(row))
+        .map(|row| {
+            let shifted: Vec<f64> = row.iter().zip(&shifts).map(|(log, shift)| log + shift).collect();
+            normalized_logs(&shifted)
+        })
         .collect::<Result<Vec<Vec<f64>>>>()?;
     Ok((0..concentrations.len())
         .map(|component| rows.iter().map(|row| row[component]).collect())
@@ -521,6 +539,20 @@ impl UncertaintyProgram {
     }
 
     pub fn sample(&self, targets: &[&Expr], plan: &SamplingPlan) -> Result<Vec<Vec<f64>>> {
+        let method = |_: &str, _: bool| plan.method;
+        let stream = |key: &str| key.to_string();
+        self.sample_drawn(
+            targets,
+            &DrawPlan {
+                trials: plan.trials,
+                seed: plan.seed,
+                method: &method,
+                stream: &stream,
+            },
+        )
+    }
+
+    pub fn sample_drawn(&self, targets: &[&Expr], plan: &DrawPlan) -> Result<Vec<Vec<f64>>> {
         if plan.trials == 0 {
             return Err(PraxisError::Settings(
                 "sampling needs at least one trial".to_string(),
@@ -537,10 +569,20 @@ impl UncertaintyProgram {
         let mut columns = Vec::with_capacity(collected.laws.len());
         for (key, law) in &collected.laws {
             let prepared = self.prepared_law(key, law)?;
-            columns.push((key.clone(), draw_law(key, &prepared, plan)?));
+            let sampling = SamplingPlan {
+                method: (plan.method)(key, false),
+                trials: plan.trials,
+                seed: plan.seed,
+            };
+            columns.push((key.clone(), draw_law(&(plan.stream)(key), &prepared, &sampling)?));
         }
         for (key, law) in &collected.vectors {
-            for (index, column) in draw_vector(key, law, plan)?.into_iter().enumerate() {
+            let sampling = SamplingPlan {
+                method: (plan.method)(key, true),
+                trials: plan.trials,
+                seed: plan.seed,
+            };
+            for (index, column) in draw_vector(&(plan.stream)(key), law, &sampling)?.into_iter().enumerate() {
                 columns.push((component_key(key, index), column));
             }
         }
@@ -570,5 +612,35 @@ impl UncertaintyProgram {
             }
         }
         Ok(results)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{draw_vector, SamplingMethod, SamplingPlan};
+    use crate::core::distribution::VectorLaw;
+
+    #[test]
+    fn a_weighted_dirichlet_reweights_its_gamma_draws() {
+        let concentrations = vec![4.0, 2.0, 1.0];
+        let weights = vec![1.0, 0.5, 1.0 / 3.0];
+        let weighted = VectorLaw::WeightedDirichlet {
+            concentrations: concentrations.clone(),
+            weights: weights.clone(),
+        };
+        for (actual, expected) in weighted.mean().iter().zip([0.75, 0.1875, 0.0625]) {
+            assert!((actual - expected).abs() <= 1e-12, "{actual} against {expected}");
+        }
+        let plan = SamplingPlan {
+            method: SamplingMethod::MonteCarlo,
+            trials: 1,
+            seed: 7,
+        };
+        let plain = draw_vector("v", &VectorLaw::Dirichlet { concentrations }, &plan).unwrap();
+        let drawn = draw_vector("v", &weighted, &plan).unwrap();
+        let total: f64 = plain.iter().zip(&weights).map(|(column, weight)| column[0] * weight).sum();
+        for ((column, weight), draw) in plain.iter().zip(&weights).zip(&drawn) {
+            assert!((draw[0] - column[0] * weight / total).abs() <= 1e-12);
+        }
     }
 }

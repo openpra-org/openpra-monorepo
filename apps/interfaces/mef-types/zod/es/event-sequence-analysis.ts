@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { BarrierImpactState, DependencyType } from "../../es/event-sequence-analysis";
+import { BarrierImpactState, DependencyType, isEventTreeBranchState, type EventTreeBranchState } from "../../es/event-sequence-analysis";
 import { EndState } from "../../core/events";
 import type { EventSequenceAnalysis } from "../../es/event-sequence-analysis";
 import { TechnicalElementTypes } from "../../technical-element";
@@ -17,7 +17,9 @@ import {
   PreOperationalAssumptionSchema,
 } from "../core/documentation";
 import { SRReferenceSchema } from "../core/pra-common";
+import { WorkbookBayesianNetworkSchema, WorkbookHclConfigurationSchema } from "../modeling/workbook-models";
 import {
+  BayesianNetworkNodeReferenceSchema,
   EventTreeCanvasLayoutSchema,
   EventTreeInitiatingEventFrequencySchema,
   FaultTreeTopEventReferenceSchema,
@@ -28,6 +30,7 @@ export const EndStateSchema = z.enum(EndState);
 export const DependencyTypeSchema = z.enum(DependencyType);
 export const EsBarrierImpactStateSchema = z.enum(BarrierImpactState);
 export const EsSystemStatusSchema = z.enum(["SUCCESS", "FAILURE", "BYPASSED"]);
+export const EsEventTreeOutcomeSchema = z.union([EsSystemStatusSchema, z.custom<EventTreeBranchState>((value) => typeof value === "string" && isEventTreeBranchState(value))]);
 
 const FrequencyValueSchema = z.union([FrequencySchema, FrequencyWithDistributionSchema]);
 
@@ -39,7 +42,23 @@ export const TimeWindowSchema = z.object({
   deterministicAnalysisReferences: z.array(z.string()).optional(),
 });
 
-export const SequenceTimingCategorySchema = z.enum(["INITIATOR", "AUTOMATIC", "OPERATOR_CUE", "OPERATOR_ACTION", "DAMAGE_LIMIT"]);
+export const SequenceTimingCategorySchema = z.enum(["INITIATOR", "AUTOMATIC", "OPERATOR_CUE", "OPERATOR_ACTION", "DAMAGE_LIMIT", "MISSION_TIME"]);
+
+export const EsTimingSourceSchema = z.enum(["HRA", "SC"]);
+
+export const EsUncertaintyAreaSchema = z.enum(["PLANT_RESPONSE", "DEPENDENCIES", "END_STATES"]);
+
+export const EsUncertaintySourceSchema = z.object({
+  source: z.string(),
+  impact: z.string(),
+  applicableElements: z.array(z.string()).optional(),
+  id: z.string().optional(),
+  area: EsUncertaintyAreaSchema.optional(),
+  sequenceIds: z.array(z.string()).optional(),
+  familyIds: z.array(z.string()).optional(),
+  key: z.boolean().optional(),
+  noCaseReason: z.string().optional(),
+});
 
 export const SequenceTimingSchema = z.object({
   uuid: z.string(),
@@ -51,6 +70,7 @@ export const SequenceTimingSchema = z.object({
   basis: z.string().optional(),
   deterministicAnalysisReferences: z.array(z.string()).optional(),
   uncertaintyRange: z.tuple([z.number(), z.number()]).optional(),
+  importedFrom: z.array(EsTimingSourceSchema).optional(),
 });
 
 export const FeasibilityStateSchema = z.enum(["OK", "MARGINAL", "NOT_MET"]);
@@ -69,6 +89,7 @@ export const OperatorActionWindowSchema = z.object({
   applicableInitiatingEvents: z.array(z.string()).optional(),
   applicablePlantOperatingStates: z.array(z.string()).optional(),
   note: z.string().optional(),
+  importedFrom: z.array(EsTimingSourceSchema).optional(),
   implementsSrs: z.array(SRReferenceSchema),
 });
 
@@ -79,6 +100,10 @@ export const DependencySchema = z.object({
   dependencyType: DependencyTypeSchema,
   description: z.string(),
   basis: z.string().optional(),
+  assumption: z.string().optional(),
+  modeling: z.enum(["SPLIT", "BRANCH_REMOVED", "SHARED_EVENT", "JOINT_PROBABILITY", "NOT_MODELED"]).optional(),
+  modelingDetail: z.string().optional(),
+  source: z.object({ element: z.enum(["SY", "HRA"]), workbookId: z.string(), recordId: z.string() }).optional(),
   applicablePlantOperatingStates: z.array(z.string()).optional(),
   applicableInitiatingEvents: z.array(z.string()).optional(),
   timePhased: z.boolean().optional(),
@@ -143,7 +168,7 @@ export const EventSequenceSchema = z.object({
   plantOperatingStateId: z.string(),
   eventTreeId: z.string().optional(),
   eventTreeSequenceId: z.string().optional(),
-  functionalEventStates: z.record(z.string(), EsSystemStatusSchema).optional(),
+  functionalEventStates: z.record(z.string(), EsEventTreeOutcomeSchema).optional(),
   progression: z.string().optional(),
   systemResponses: z.record(z.string(), EsSystemStatusSchema).optional(),
   operatorActions: z.array(z.string()).optional(),
@@ -155,6 +180,7 @@ export const EventSequenceSchema = z.object({
   endState: EndStateSchema,
   affectedReactorSourceCombinations: z.array(z.string()).optional(),
   sequenceFamilyId: z.string().optional(),
+  endStateId: z.string().optional(),
   releaseCategoryId: z.string().optional(),
   successCriteriaIds: z.array(SuccessCriteriaIdSchema).optional(),
   meanFrequency: FrequencyValueSchema.optional(),
@@ -194,13 +220,29 @@ export const EventSequenceFamilySchema = z.object({
   memberSequenceIds: z.array(z.string()),
   similarityBasis: z.string().optional(),
   endState: EndStateSchema,
+  endStateId: z.string().optional(),
   meanFrequency: FrequencyValueSchema.optional(),
   familySpecificAssumptions: z.array(PreOperationalAssumptionSchema).optional(),
   implementsSrs: z.array(SRReferenceSchema),
 });
 
+export const EsEndStateDefinitionSchema = z.object({
+  id: z.string(),
+  code: z.string(),
+  name: z.string(),
+  kind: z.enum(["SAFE_STABLE", "RELEASE", "INTERMEDIATE"]),
+  definition: z.string().optional(),
+  releaseCategoryId: z.string().optional(),
+  scEndStateId: z.string().optional(),
+  reactorsAndSources: z.array(z.string()).optional(),
+  barriers: z.array(z.object({ barrier: z.string(), condition: z.enum(["INTACT", "DEGRADED", "FAILED", "BYPASSED"]) })).optional(),
+  releasePath: z.string().optional(),
+  timing: z.string().optional(),
+});
+
 export const ReleaseCategoryMappingSchema = z.object({
   uuid: z.string(),
+  name: z.string().optional(),
   eventSequenceIds: z.array(z.string()),
   releaseCategoryId: z.string(),
   sourceTermId: z.string().optional(),
@@ -234,6 +276,7 @@ export const PhenomenologicalDependencyModelSchema = z.object({
   environmentalConditions: z.array(z.string()).optional(),
   systemSpecificImpacts: z.record(z.string(), z.string()).optional(),
   deterministicAnalysisReferences: z.array(z.string()).optional(),
+  importedFrom: z.array(EsTimingSourceSchema).optional(),
   implementsSrs: z.array(SRReferenceSchema),
 });
 
@@ -278,6 +321,13 @@ export const DependencyModelsSchema = z.object({
   systemInterfaces: z.array(SystemInterfaceDependencySchema).optional(),
 });
 
+export const FunctionalEventNetworkNodeSchema = z
+  .object({
+    bayesianNetworkNode: BayesianNetworkNodeReferenceSchema,
+    trueStateIds: z.array(z.string().min(1)).min(1, "Pick at least one failing state"),
+  })
+  .strict();
+
 export const FunctionalEventSchema = z
   .object({
     uuid: z.string(),
@@ -288,6 +338,7 @@ export const FunctionalEventSchema = z
     systemReference: z.string().optional(),
     humanActionReference: z.string().optional(),
     faultTreeTopEvent: FaultTreeTopEventReferenceSchema.optional(),
+    networkNode: FunctionalEventNetworkNodeSchema.optional(),
     faultTreeId: z.string().optional(),
   })
   .strict()
@@ -299,10 +350,17 @@ export const FunctionalEventSchema = z
         path: ["faultTreeId"],
       });
     }
+    if (functionalEvent.networkNode !== undefined && (functionalEvent.faultTreeTopEvent !== undefined || functionalEvent.faultTreeId !== undefined)) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "A functional event links to a fault tree or a network node, not both",
+        path: ["networkNode"],
+      });
+    }
   });
 
 export const EventTreePathSchema = z.object({
-  state: EsSystemStatusSchema,
+  state: EsEventTreeOutcomeSchema,
   target: z.string(),
   targetType: z.enum(["BRANCH", "SEQUENCE", "END_STATE"]),
   description: z.string().optional(),
@@ -326,7 +384,8 @@ export const EventTreeSequenceSchema = z.object({
   endState: EndStateSchema.optional(),
   instructions: z.array(z.string()).optional(),
   eventSequenceId: z.string().optional(),
-  functionalEventStates: z.record(z.string(), EsSystemStatusSchema).optional(),
+  endStateId: z.string().optional(),
+  functionalEventStates: z.record(z.string(), EsEventTreeOutcomeSchema).optional(),
 });
 
 export const EventTreeTransferSchema = z.object({
@@ -370,6 +429,9 @@ export const RepairCreditRecordSchema = z.object({
   uuid: z.string(),
   eventSequenceId: z.string(),
   repairCredited: z.boolean(),
+  equipment: z.string().optional(),
+  timeMinutes: z.number().optional(),
+  access: z.string().optional(),
   conservativeRepairBasis: z.string().optional(),
   riskSignificantReviewPerformed: z.boolean().optional(),
   justification: z.string(),
@@ -403,9 +465,18 @@ export const EventSequenceDocumentationSchema = z.object({
   implementsSrs: z.array(SRReferenceSchema),
 });
 
+export const EsLinkedWorkbooksSchema = z.object({
+  POS: z.string().optional(),
+  IE: z.string().optional(),
+  SC: z.string().optional(),
+  SY: z.string().optional(),
+  HRA: z.string().optional(),
+});
+
 export const EventSequenceAnalysisSchema = z.object({
   ...technicalElementSchema(TechnicalElementTypes.EVENT_SEQUENCE_ANALYSIS).shape,
   praScope: z.string(),
+  linkedWorkbooks: EsLinkedWorkbooksSchema.optional(),
   scopeDefinition: z.object({
     plantOperatingStateIds: z.array(z.string()),
     initiatingEventIds: z.array(z.string()),
@@ -463,6 +534,7 @@ export const EventSequenceAnalysisSchema = z.object({
   operatorActionWindows: z.array(OperatorActionWindowSchema).optional(),
   dependencyModels: DependencyModelsSchema.optional(),
   releaseCategoryMappings: z.array(ReleaseCategoryMappingSchema).optional(),
+  endStateDefinitions: z.array(EsEndStateDefinitionSchema).optional(),
   screeningRecords: z.array(EventSequenceScreeningRecordSchema),
   repairCreditRecords: z.array(RepairCreditRecordSchema).optional(),
   plantResponseAnalysisApproach: z
@@ -471,13 +543,15 @@ export const EventSequenceAnalysisSchema = z.object({
   plantResponseAnalysisAccuracy: PlantRepresentationAccuracySchema,
   plantDamageStatesUsed: z.boolean().optional(),
   plantDamageStateDefinitions: z.array(z.string()).optional(),
-  modelUncertainty: BaseModelUncertaintyDocumentationSchema,
+  modelUncertainty: BaseModelUncertaintyDocumentationSchema.extend({ uncertaintySources: z.array(EsUncertaintySourceSchema) }),
   preOperationalAssumptions: z.array(PreOperationalAssumptionSchema).optional(),
   sensitivityStudies: z.array(SensitivityStudySchema).optional(),
   plantResponseAnalysisReferences: z.array(z.string()).optional(),
   documentation: EventSequenceDocumentationSchema,
   configurationControlRecordId: z.string().optional(),
   newlyDevelopedMethodIds: z.array(z.string()).optional(),
+  dependencyBayesianNetworks: z.array(WorkbookBayesianNetworkSchema).optional(),
+  dependencyHclConfigurations: z.array(WorkbookHclConfigurationSchema).optional(),
 });
 
 type Expect<T extends true> = T;

@@ -128,6 +128,8 @@ jest.mock("../syWorkbookContext", () => ({
     mutateSy: mockMutateSy,
     shortOf: (id: string) => id,
     controlledParameters: mockParameters,
+    controlledCcfVectors: [],
+    controlledCcfFactors: [],
     controlledLegacyParameters: mockLegacyParameters,
     controlledHumanFailures: [],
     controlledFailureModes: mockFailureModes,

@@ -2,7 +2,7 @@ import { Logger, type Provider } from "@nestjs/common";
 import { Test } from "@nestjs/testing";
 import { getModelToken } from "@nestjs/mongoose";
 import { execute } from "praxis-node";
-import { expressionReferences, type UncertainExpression, type UncertainParameter } from "interfaces-mef-types/core/uncertainty";
+import { ccfFactorExpressions, expressionReferences, type UncertainExpression, type UncertainParameter } from "interfaces-mef-types/core/uncertainty";
 import { FrequencyUnit } from "interfaces-mef-types/core/events";
 import type { DataAnalysis } from "interfaces-mef-types/da/data-analysis";
 import type { EsqModel, EventSequenceQuantification } from "interfaces-mef-types/esq/event-sequence-quantification";
@@ -12,6 +12,9 @@ import { EventSequenceQuantificationSchema } from "interfaces-mef-types/zod/esq/
 import { SystemsAnalysisSchema } from "interfaces-mef-types/zod/sy/systems-analysis";
 import { UncertaintyResponseSchema, type UncertaintyRequest, type UncertaintyResponse } from "interfaces-shared-types/newly-developed-methods/shared";
 import { DaWorkbook } from "../../da-workbooks/da-workbook.schema";
+import { DaDocumentsService } from "../../da-workbooks/da-documents.service";
+import { DaWorkbooksService } from "../../da-workbooks/da-workbooks.service";
+import { DataAnalysisSchema } from "interfaces-mef-types/zod/da/data-analysis";
 import { EsqDocumentsService } from "../../esq-workbooks/esq-documents.service";
 import { EsqWorkbook } from "../../esq-workbooks/esq-workbook.schema";
 import { EsqWorkbooksService } from "../../esq-workbooks/esq-workbooks.service";
@@ -85,25 +88,17 @@ function exampleStrings(mef: object): string[] {
   return [...new Set(JSON.stringify(mef).split("\"").filter((part) => part.startsWith("example-da-") || part.startsWith("example-sy-")))];
 }
 
+const DEM_PAIR = "ccfv/SRC-06/CCF-DEM/ALPHA_DIRICHLET/C2";
+
 function syExpressions(analysis: SystemsAnalysis): UncertainExpression[] {
   return [
     ...analysis.systemBasicEvents.flatMap((event) => (event.expression === undefined ? [] : [event.expression])),
-    ...analysis.commonCauseFailureGroups.map((group) => group.total),
+    ...analysis.commonCauseFailureGroups.flatMap((group) => [...(group.total === undefined ? [] : [group.total]), ...ccfFactorExpressions(group.factors)]),
   ];
 }
 
 function syExample(): SystemsAnalysis {
-  const example = structuredClone(SY_ANALYSIS_HTGR);
-  const [first, ...rest] = example.commonCauseFailureGroups;
-  if (first === undefined || first.factors.model !== "ALPHA_FACTOR" || first.dataAnalysisCCFParameterRef === undefined) {
-    throw new Error("The SY example has no alpha-factor group to link.");
-  }
-  const alphas: UncertainExpression = daLink(first.dataAnalysisCCFParameterRef);
-  if (alphas.node !== "PARAMETER") throw new Error("Expected a parameter link.");
-  return {
-    ...example,
-    commonCauseFailureGroups: [{ ...first, factors: { ...first.factors, alphas } }, ...rest],
-  };
+  return structuredClone(SY_ANALYSIS_HTGR);
 }
 
 function exampleDocument(slug: string, kind: string, mef: object): object {
@@ -184,11 +179,12 @@ function esqExample(): EventSequenceQuantification {
       name: "RPS trip divisions",
       systemIds: ["SYS-RPS"],
       memberIds: [division.uuid],
-      factors: { model: "ALPHA_FACTOR", testing: "STAGGERED", alphas: { node: "PARAMETER", reference: { referenceType: "WORKBOOK_PARAMETER", workbookId: EXAMPLE_DA, entityId: "DA-CCF-04" } } },
+      factors: { model: "ALPHA_FACTOR", testing: "STAGGERED", alphas: { node: "PARAMETER", reference: { referenceType: "WORKBOOK_PARAMETER", workbookId: EXAMPLE_DA, entityId: DEM_PAIR } } },
       total: daLink("DA-BE-201"),
       estimateRef: "DA-CCF-04",
     }],
     parameters: [{ id: circulator.uuid, name: circulator.name, parameterType: circulator.parameterType, quantificationModel: "MISSION_PROBABILITY", estimate: circulator.estimate }],
+    vectors: [{ reference: { referenceType: "WORKBOOK_PARAMETER", workbookId: EXAMPLE_DA, entityId: DEM_PAIR }, vector: { family: "DIRICHLET", concentrations: [880.1, 12.01] } }],
     humanEvents: [],
   };
   return {
@@ -225,6 +221,23 @@ async function loadEsq(): Promise<EventSequenceQuantification> {
   await moduleRef.get(EsqWorkbooksService).loadExample("esq-1", { username: "ada" }, "htgr");
   if (saved.mef === undefined) throw new Error("The ESQ example was not saved.");
   return EventSequenceQuantificationSchema.parse(saved.mef);
+}
+
+async function loadDa(example: DataAnalysis, exampleId: string): Promise<DataAnalysis> {
+  const saved: Saved = {};
+  const document = { workbookId: PROJECT_DA, projectId: PROJECT_ID, ownerUsername: "ada", revision: 1, mef: { workflowState: "DRAFT" }, previousMefJson: null, updatedAt: NOW };
+  const moduleRef = await Test.createTestingModule({
+    providers: [
+      DaWorkbooksService,
+      ...sharedProviders(exampleDocument(`da-${exampleId}`, "DA", structuredClone(example)), []),
+      { provide: getModelToken(DaWorkbook.name), useValue: { ...savingModel(saved, document), ...listOf([]) } },
+      { provide: getModelToken(SyWorkbook.name), useValue: listOf([]) },
+      { provide: DaDocumentsService, useValue: { removeAllForWorkbook: async () => undefined } },
+    ],
+  }).compile();
+  await moduleRef.get(DaWorkbooksService).loadExample(PROJECT_DA, { username: "ada" }, exampleId);
+  if (saved.mef === undefined) throw new Error("The DA example was not saved.");
+  return DataAnalysisSchema.parse(saved.mef);
 }
 
 function evaluate(request: UncertaintyRequest): UncertaintyResponse {
@@ -272,7 +285,7 @@ describe("example DA links in a project", () => {
     expect(workbookIds(syExpressions(sy))).toEqual([PROJECT_DA]);
     expect(first?.factors.model === "ALPHA_FACTOR" ? first.factors.alphas : undefined).toEqual({
       node: "PARAMETER",
-      reference: { referenceType: "WORKBOOK_PARAMETER", workbookId: PROJECT_DA, entityId: first?.dataAnalysisCCFParameterRef },
+      reference: { referenceType: "WORKBOOK_PARAMETER", workbookId: PROJECT_DA, entityId: DEM_PAIR },
     });
     expect(sy.linkedWorkbooks?.DA).toBe(PROJECT_DA);
     expect(workbookIds(syMissionTimeExpressions(sy)).filter((id) => id.startsWith("example-"))).toEqual([]);
@@ -309,6 +322,7 @@ describe("example DA links in a project", () => {
       ...esq.uncertaintyPropagation.parameterUncertainties.flatMap((entry) => (entry.estimate === undefined ? [] : [entry.estimate])),
     ])).toEqual([PROJECT_DA]);
     expect(ccf?.factors?.model === "ALPHA_FACTOR" && ccf.factors.alphas.node === "PARAMETER" ? ccf.factors.alphas.reference.workbookId : undefined).toBe(PROJECT_DA);
+    expect(model?.vectors?.map((vector) => vector.reference.workbookId)).toEqual([PROJECT_DA]);
     expect((esq.modelUncertaintySourceAssessments ?? []).flatMap((entry) => entry.dataAnalysisSourceRef?.workbookId ?? [])).toEqual(Array(6).fill(PROJECT_DA));
     expect((esq.sensitivityStudies ?? []).flatMap((entry) => entry.dataAnalysisCaseRef?.workbookId ?? [])).toEqual(Array(6).fill(PROJECT_DA));
     expect(model?.functions.flatMap((record) => record.esLinks.map((entry) => entry.top.workbookId))).toEqual([PROJECT_SY]);
@@ -316,6 +330,33 @@ describe("example DA links in a project", () => {
     expect(esq.hclConfigurations.flatMap((configuration) => configuration.faultTrees.map((faultTree) => faultTree.workbookId))).toEqual([PROJECT_SY]);
     expect(exampleStrings(esq)).toEqual([]);
     expect(warn).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["HTGR", DA_ANALYSIS_HTGR, "htgr", "example-da-htgr"],
+    ["SFR", DA_ANALYSIS, "sfr", "example-da-sfr"],
+  ] as const)("points the loaded %s DA example's own vector, beta and parameter links at its project workbook", async (_name, example, exampleId, placeholder) => {
+    const da = await loadDa(example, exampleId);
+    const estimates = da.ccfParameterEstimations ?? [];
+    const references = estimates.flatMap((estimate) => {
+      const factors = estimate.factors;
+      if (factors === undefined) return [];
+      const vector = factors.model === "ALPHA_FACTOR" ? factors.alphas : factors.model === "PHI_FACTOR" ? factors.phis : undefined;
+      return [...(vector?.node === "PARAMETER" ? [vector.reference] : []), ...ccfFactorExpressions(factors).flatMap(expressionReferences)];
+    });
+    const vectorIds = new Set((da.ccfVectors ?? []).map((vector) => vector.id));
+    const factorIds = new Set((da.ccfFactors ?? []).map((factor) => factor.id));
+    const vectorLinked = estimates.filter((estimate) => estimate.factors?.model === "ALPHA_FACTOR" && estimate.factors.alphas.node === "PARAMETER");
+
+    expect(references.length).toBeGreaterThan(5);
+    expect(references.some((reference) => vectorIds.has(reference.entityId))).toBe(true);
+    expect(references.some((reference) => factorIds.has(reference.entityId))).toBe(exampleId === "sfr");
+    expect([...new Set(references.map((reference) => reference.workbookId))]).toEqual([PROJECT_DA]);
+    expect(vectorLinked.length).toBeGreaterThan(0);
+    expect(JSON.stringify(example.ccfParameterEstimations).includes(placeholder)).toBe(true);
+    expect(JSON.stringify(da.ccfParameterEstimations).includes(placeholder)).toBe(false);
+    expect(da.ccfVectors).toEqual(example.ccfVectors);
+    expect(da.ccfFactors).toEqual(example.ccfFactors);
   });
 
   it("evaluates every relinked SY event in PRAXIS to the point of its project DA parameter", async () => {

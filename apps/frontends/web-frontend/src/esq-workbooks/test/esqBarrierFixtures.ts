@@ -5,7 +5,7 @@ import { BarrierStatus, SourceLocation, type PlantOperatingStatesAnalysis, type 
 import type { RadionuclideBarrierCriterion, SuccessCriteriaDevelopment } from "interfaces-mef-types/sc/success-criteria-development";
 import { ScreeningStatus } from "interfaces-mef-types/core/shared-patterns";
 import { type EsqUpstream } from "../esqLinks";
-import { withModelImported } from "../esqModel";
+import { liveEsqOf, withModelImported } from "../esqModel";
 import { withBarrierEntry, withCell, withMechanism } from "../esqBarriers";
 import { linkedEsq, modelUpstream } from "./esqModelFixtures";
 
@@ -77,7 +77,7 @@ function barrierUpstream(): EsqUpstream {
     ],
     hepQuantifications: [
       ...hr.hepQuantifications,
-      { uuid: "Q-2", hfeId: "HR-POST-1", methodology: "SPAR-H", assessmentType: "DETAILED_ASSESSMENT", isRiskSignificant: true, meanHep: 1.5e-2, timeAvailableMinutes: 120, timeRequiredMinutes: 30, cueArrivalTimeMinutes: 15, implementsSrs: [] },
+      { uuid: "Q-2", hfeId: "HR-POST-1", methodology: "SPAR-H", assessmentType: "DETAILED_ASSESSMENT", isRiskSignificant: true, hep: { node: "VALUE" as const, value: { unit: "PROBABILITY" as const, law: { family: "POINT" as const, value: 1.5e-2 } } }, timeAvailableMinutes: 120, timeRequiredMinutes: 30, cueArrivalTimeMinutes: 15, implementsSrs: [] },
     ],
     recoveryActions: [{
       uuid: "REC-1",
@@ -101,9 +101,13 @@ function barrierUpstream(): EsqUpstream {
   return upstream;
 }
 
-function barrierEsq(): EventSequenceQuantification {
+function barrierStored(): EventSequenceQuantification {
   const esq = linkedEsq();
   return withModelImported({ ...esq, linkedWorkbooks: { ...esq.linkedWorkbooks, SC: "sc-1" } }, barrierUpstream(), NOW);
+}
+
+function barrierEsq(): EventSequenceQuantification {
+  return liveEsqOf(barrierStored(), barrierUpstream().da);
 }
 
 function windowCell(id: string): EsqCell {
@@ -138,4 +142,4 @@ function modeledEsq(): EventSequenceQuantification {
   return withCell(esq, "BC-1", windowCell("BC-1"));
 }
 
-export { NOW, barrierEsq, barrierUpstream, modeledEsq, windowCell };
+export { NOW, barrierEsq, barrierStored, barrierUpstream, modeledEsq, windowCell };

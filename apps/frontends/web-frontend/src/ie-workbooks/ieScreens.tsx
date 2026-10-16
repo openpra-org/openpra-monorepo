@@ -37,6 +37,7 @@ import { FrequencyLawField } from "../newly-developed-methods/ie-frequency-quant
 import { expressionText } from "../newly-developed-methods/shared/uncertainText";
 import { generateIeReport, computeIeReportToc } from "./ieDocx";
 import { AutoTextarea } from "./ieDrawer";
+import { IeInterfaces, type IePosLinkActions } from "./ieInterfaces";
 import {
   daOptionKey,
   daParameterLabel,
@@ -153,12 +154,6 @@ function sourceBaseName(name: string): string {
   return open === -1 ? trimmed : trimmed.slice(0, open).trim();
 }
 
-function formatSourceLocation(location: string): string {
-  if (location === "IN_CORE") return "In-core";
-  if (location === "EX_CORE") return "Ex-core";
-  return location;
-}
-
 function buildEnrichedSources(rawSources: { id: string; name: string; location: string; barriers: string[] }[], initiators: InitiatorDefinition[]): EnrichedSource[] {
   const seen = new Set<string>();
   const out: EnrichedSource[] = [];
@@ -181,24 +176,11 @@ function buildEnrichedSources(rawSources: { id: string; name: string; location: 
 interface ScopeScreenProps extends ScreenProps {
   stage: Stage;
   setStage: (s: Stage) => void;
-  onOpenLink: () => void;
+  posLinks?: IePosLinkActions;
 }
 
-interface IfaceLane {
-  code: string;
-  element: string;
-  role: string;
-  direction: "in" | "out";
-  columns: string[];
-  empty: string;
-  rows: { id: string; name: string; values: string[] }[];
-}
-
-function ScopeScreen({ ccId, setCcId, stage, setStage, onOpenLink }: ScopeScreenProps): JSX.Element {
-  const { ie, posLink, editable, mutateIe, daFrequencies } = useIeWorkbook();
-  const daTable = useDaFrequencyTable(daFrequencies ?? NO_DA_OPTIONS);
-  const groupEntries = useMemo(() => ie.initiatingEventGroups.flatMap((g) => (g.frequency === undefined ? [] : [{ key: g.uuid, expression: g.frequency.expression }])), [ie.initiatingEventGroups]);
-  const groupPoints = useFrequencyPoints(groupEntries, daTable);
+function ScopeScreen({ ccId, setCcId, stage, setStage, posLinks }: ScopeScreenProps): JSX.Element {
+  const { ie, posLink, editable, mutateIe } = useIeWorkbook();
   const linked = posLink.linkedPosWorkbookId !== null;
   const cc = CAPABILITY_CATEGORIES.find((c) => c.id === ccId) ?? CAPABILITY_CATEGORIES[0];
 
@@ -211,140 +193,23 @@ function ScopeScreen({ ccId, setCcId, stage, setStage, onOpenLink }: ScopeScreen
       return { ...draft, metadata: { ...draft.metadata, plantIdentity: { ...pi, numberOfModules: n } } };
     });
   };
-  const [selectedTe, setSelectedTe] = useState<string | null>(null);
 
   const multiUnitText = siteConfig === "single" ? "Not applicable" : "In scope";
-  const totalStateHours = posLink.states.reduce((acc, s) => acc + s.meanDurationHours, 0);
-
-  const ifaceLanes = useMemo<IfaceLane[]>(() => {
-    const fmtDur = (h: number): string => (h >= 8760 ? `${(h / 8760).toFixed(1)} yr` : `${Math.round(h)} h`);
-    const qBasis = new Map(ie.quantifications.map((q) => [q.initiatorOrGroupId, q.basis]));
-    const groups = ie.initiatingEventGroups;
-    const seenSource = new Set<string>();
-    const uniqueSources = posLink.sources.filter((s) => {
-      const key = sourceBaseName(s.name).toLowerCase();
-      if (seenSource.has(key)) return false;
-      seenSource.add(key);
-      return true;
-    });
-    return [
-      {
-        code: "POS", element: "Plant Operating States", role: "Operating states", direction: "in",
-        columns: ["State", "Mode", "Entry frequency", "Duration", "Time fraction", "Initiators applicable"], empty: "No linked POS workbook.",
-        rows: posLink.states.map((s) => ({
-          id: s.id,
-          name: s.name,
-          values: [
-            s.operatingMode,
-            s.meanEntryFrequency === 0 && s.operatingMode === "POWER" ? "Base state" : frequencyText(s.meanEntryFrequency),
-            fmtDur(s.meanDurationHours),
-            totalStateHours > 0 ? `${((s.meanDurationHours / totalStateHours) * 100).toFixed(1)} %` : "—",
-            String(ie.initiators.filter((i) => i.applicableStates.includes(s.id)).length),
-          ],
-        })),
-      },
-      {
-        code: "MS", element: "Mechanistic Source Term", role: "Sources & barriers", direction: "in",
-        columns: ["Source", "Location", "Barriers"], empty: "No linked sources.",
-        rows: uniqueSources.map((s) => ({ id: s.id, name: sourceBaseName(s.name), values: [formatSourceLocation(s.location), s.barriers.join(" · ")] })),
-      },
-      {
-        code: "ES", element: "Event Sequence Analysis", role: "Initiating events", direction: "out",
-        columns: ["Group", "Members", "Bounding", "States"], empty: "No initiating-event groups yet.",
-        rows: groups.map((g) => ({ id: g.uuid, name: g.name, values: [String(g.memberInitiatorIds.length), g.boundingInitiatorId, String(g.applicableStates.length)] })),
-      },
-      {
-        code: "ESQ", element: "Event Sequence Quantification", role: "Frequencies", direction: "out",
-        columns: ["Group", "Mean frequency", "Risk"], empty: "No quantifications yet.",
-        rows: groups.map((g) => ({ id: g.uuid, name: g.name, values: [g.frequency === undefined ? "—" : `${pointText(groupPoints.get(g.uuid))} ${basisText(g.frequency.basis)}`, g.riskImportance ?? "—"] })),
-      },
-      {
-        code: "HR", element: "Human Reliability", role: "Support fault trees", direction: "out",
-        columns: ["Group", "Members", "Bounding"], empty: "No fault-tree groups.",
-        rows: groups.filter((g) => qBasis.get(g.uuid) === "FAULT_TREE").map((g) => ({ id: g.uuid, name: g.name, values: [String(g.memberInitiatorIds.length), g.boundingInitiatorId] })),
-      },
-      {
-        code: "SC", element: "Success Criteria", role: "Challenges", direction: "out",
-        columns: ["Group", "Challenged safety functions"], empty: "No groups yet.",
-        rows: groups.map((g) => ({ id: g.uuid, name: g.name, values: [g.challengedSafetyFunctions.join(" · ")] })),
-      },
-    ];
-  }, [ie, posLink, totalStateHours, groupPoints]);
-  const selectedIfaceLane = ifaceLanes.find((l) => l.code === selectedTe);
 
   return (
     <>
-      {/* ── Interfaces ── */}
       <div className="poscard">
         <div className="poscard__head">
-          <WorkbookSectionHeading workbook="IE" title="Interfaces" level={3} />
+          <WorkbookSectionHeading title="Interfaces" level={3} />
         </div>
-        <p className="poscard__sub">What flows into the initiating-event analysis, and what it feeds. Select an element to see the data exchanged.</p>
-        <div className="poshandoff__grid">
-          {ifaceLanes.map((lane) => (
-            <button
-              key={lane.code}
-              type="button"
-              className={`poshandoff__tile${selectedTe === lane.code ? " poshandoff__tile--active" : ""}`}
-              onClick={() => setSelectedTe(selectedTe === lane.code ? null : lane.code)}
-            >
-              <span className="poshandoff__tile-code">{lane.code}</span>
-              <span className="poshandoff__tile-name">{lane.element}</span>
-              <span className="poshandoff__tile-role">{lane.direction === "in" ? "Provides · " : "Consumes · "}{lane.role}</span>
-            </button>
-          ))}
-        </div>
-        {selectedIfaceLane !== undefined && (
-          <div style={{ marginTop: 16 }}>
-            <div className="possubtle" style={{ fontWeight: 700, color: "var(--color-text)", marginBottom: 8 }}>
-              {selectedIfaceLane.direction === "in"
-                ? `Initiating Events receives ${selectedIfaceLane.role.toLowerCase()} from ${selectedIfaceLane.element}`
-                : `${selectedIfaceLane.element} receives ${selectedIfaceLane.role.toLowerCase()} from Initiating Events`}
-            </div>
-            {selectedIfaceLane.code === "POS" && totalStateHours > 0 && (
-              <>
-                <div className="ietimebar" role="img" aria-label="Time fraction by operating state" style={{ marginBottom: 10 }}>
-                  {posLink.states.map((s) => {
-                    const pct = (s.meanDurationHours / totalStateHours) * 100;
-                    const atP = s.operatingMode === "POWER";
-                    return (
-                      <div key={s.id} className={`ietimebar__seg${atP ? " ietimebar__seg--power" : ""}`} style={{ width: `${pct}%` }} title={`${s.id} · ${pct.toFixed(1)}%`}>
-                        {pct > 7 && <span className="ietimebar__seg-label">{pct.toFixed(1)}%</span>}
-                      </div>
-                    );
-                  })}
-                </div>
-                <div className="ietimebar__legend" style={{ marginBottom: 14 }}>
-                  <span><span className="ietimebar__key ietimebar__key--power" /> At-power</span>
-                  <span><span className="ietimebar__key" /> Low-power &amp; shutdown</span>
-                </div>
-              </>
-            )}
-            {selectedIfaceLane.rows.length === 0 ? (
-              <p className="posmuted" style={{ margin: 0 }}>{selectedIfaceLane.empty}</p>
-            ) : (
-              <table className="postable postable--mid">
-                <thead>
-                  <tr>{selectedIfaceLane.columns.map((c) => <th key={c}>{c}</th>)}</tr>
-                </thead>
-                <tbody>
-                  {selectedIfaceLane.rows.map((r) => (
-                    <tr key={r.id}>
-                      <td><div className="postable__name">{r.name}</div></td>
-                      {r.values.map((v, idx) => <td key={selectedIfaceLane.columns[idx + 1] ?? `c${idx}`} className="mono">{v}</td>)}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </div>
-        )}
+        <p className="poscard__sub">Link the workbooks this analysis imports from.</p>
+        <IeInterfaces posLinks={posLinks} />
       </div>
 
       {/* ── Scope card ── */}
       <div className="poscard">
         <div className="poscard__head">
-          <WorkbookSectionHeading workbook="IE" title="Scope of this Initiating Event Analysis" level={3} />
+          <WorkbookSectionHeading title="Scope of this Initiating Event Analysis" level={3} />
           {linked ? <Badge kind="ok">Synced from POS</Badge> : <Badge kind="warn">Not linked to POS</Badge>}
         </div>
         <p className="poscard__sub">
@@ -379,25 +244,12 @@ function ScopeScreen({ ccId, setCcId, stage, setStage, onOpenLink }: ScopeScreen
 
         </div>
 
-        {!linked && (
-          <div style={{ marginTop: 16, paddingTop: 14, borderTop: "1px solid var(--color-border)", display: "flex", alignItems: "center", gap: 12 }}>
-            <p className="possubtle" style={{ margin: 0, fontSize: 12.5 }}>Link a POS workbook to inherit plant identity, operating states, and radioactive sources.</p>
-            <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={onOpenLink}>
-              <IEIcon.Link /> Link POS workbook
-            </button>
-          </div>
-        )}
       </div>
 
       {/* ── Sources of radioactive material ── */}
       <div className="poscard">
         <div className="poscard__head">
-          <WorkbookSectionHeading workbook="IE" title="Sources of radioactive material" level={3} />
-          {!linked && (
-            <button type="button" className="posnav__btn posnav__btn--sm" onClick={onOpenLink}>
-              <IEIcon.Download /> Import sources from POS
-            </button>
-          )}
+          <WorkbookSectionHeading title="Sources of radioactive material" level={3} />
         </div>
         <p className="poscard__sub">For every radioactive source, IE identifies the mechanisms by which an initiating event could mobilise it past its barriers.</p>
         {posLink.sources.length === 0 ? (
@@ -433,7 +285,7 @@ function ScopeScreen({ ccId, setCcId, stage, setStage, onOpenLink }: ScopeScreen
       {/* ── Capability category ── */}
       <div className="poscard">
         <div className="poscard__head">
-          <WorkbookSectionHeading workbook="IE" title="Capability category" level={3} />
+          <WorkbookSectionHeading title="Capability category" level={3} />
           <Badge kind="progress">{cc.tag}</Badge>
         </div>
         <p className="poscard__sub">Sets how rigorous the search, grouping, and quantification must be.</p>
@@ -456,7 +308,7 @@ function ScopeScreen({ ccId, setCcId, stage, setStage, onOpenLink }: ScopeScreen
 
       {/* ── Plant stage ── */}
       <div className="poscard">
-        <div className="poscard__head"><WorkbookSectionHeading workbook="IE" title="Plant stage" level={3} /></div>
+        <div className="poscard__head"><WorkbookSectionHeading title="Plant stage" level={3} /></div>
         <div className="posrow posrow--wrap" style={{ gap: 12 }}>
           {([
             ["pre_operational", "Pre-operational", "Frequencies from generic, design-based, and similar-plant sources (IE-C2). No plant-specific operating history yet."],
@@ -574,7 +426,7 @@ function MethodsScreen(): JSX.Element {
   return (
     <>
       <div className="poscard">
-        <div className="poscard__head"><WorkbookSectionHeading workbook="IE" title="Systematic search methods" level={3} /></div>
+        <div className="poscard__head"><WorkbookSectionHeading title="Systematic search methods" level={3} /></div>
         {methods.length === 0 ? <p className="posmuted" style={{ margin: 0 }}>No methods recorded yet.</p> : (
           <div className="iemethod-grid">
             {methods.map((m) => {
@@ -691,7 +543,7 @@ function IdentifyScreen(): JSX.Element {
     <>
       <div className="poscard">
         <div className="poscard__head">
-          <WorkbookSectionHeading workbook="IE" title="Challenge spectrum (IE-A5)" level={3} />
+          <WorkbookSectionHeading title="Challenge spectrum (IE-A5)" level={3} />
           <span className="possubtle">Click a category to filter</span>
         </div>
         <p className="poscard__sub">Every challenge category must be considered (IE-A5).</p>
@@ -733,7 +585,7 @@ function IdentifyScreen(): JSX.Element {
 
       <div className="poscard">
         <div className="poscard__head">
-          <WorkbookSectionHeading workbook="IE" title={<>{cat !== undefined ? cat.label : "All initiators"}<span className="possubtle" style={{ fontWeight: 400 }}> · {shown.length}</span></>} cueKey="Initiator catalogue" />
+          <WorkbookSectionHeading title={<>{cat !== undefined ? cat.label : "All initiators"}<span className="possubtle" style={{ fontWeight: 400 }}> · {shown.length}</span></>} />
           <div className="ieident__head-actions">
             {activeCat !== null && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => setActiveCat(null)}>Clear filter</button>}
             {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addInitiator}>+ Add initiator</button>}
@@ -799,7 +651,7 @@ function CompletenessScreen(): JSX.Element {
     <>
       <div className="poscard">
         <div className="poscard__head">
-          <WorkbookSectionHeading workbook="IE" title="Completeness checks" level={3} />
+          <WorkbookSectionHeading title="Completeness checks" level={3} />
         </div>
         <p className="poscard__sub">Audits that the forward search was exhaustive, each check mapped to an SR.</p>
         <div className="iecheck-list">
@@ -827,7 +679,7 @@ function CompletenessScreen(): JSX.Element {
       </div>
 
       <div className="poscard">
-        <div className="poscard__head"><WorkbookSectionHeading workbook="IE" title="Coverage matrix: category × state" level={3} /><span className="possubtle">A dot marks an initiator in that category and state</span></div>
+        <div className="poscard__head"><WorkbookSectionHeading title="Coverage matrix: category × state" level={3} /><span className="possubtle">A dot marks an initiator in that category and state</span></div>
         <div className="iecov">
           <table className="iecov__table">
             <thead>
@@ -881,7 +733,7 @@ function HazardsScreen(): JSX.Element {
     <>
       <div className="poscard">
         <div className="poscard__head">
-          <WorkbookSectionHeading workbook="IE" title="Hazard analyses" level={3} />
+          <WorkbookSectionHeading title="Hazard analyses" level={3} />
           <div className="ieident__head-actions">
             <span className="possubtle">IE-A5(e/f) · IE-A6</span>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addHazard}>+ Add hazard</button>}
@@ -951,7 +803,7 @@ function GroupingScreen(): JSX.Element {
     <>
       <div className="poscard">
         <div className="poscard__head">
-          <WorkbookSectionHeading workbook="IE" title="Initiating-event groups" level={3} />
+          <WorkbookSectionHeading title="Initiating-event groups" level={3} />
           {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addGroup}>+ Add group</button>}
         </div>
         {groups.length === 0 ? <p className="posmuted" style={{ margin: 0 }}>No groups defined yet.{editable ? " Use Add group to create one." : ""}</p> : (
@@ -1038,7 +890,7 @@ function ScreeningScreen(): JSX.Element {
   return (
     <>
       <div className="poscard">
-        <div className="poscard__head"><WorkbookSectionHeading workbook="IE" title="The screening gate" level={3} /></div>
+        <div className="poscard__head"><WorkbookSectionHeading title="The screening gate" level={3} /></div>
         <div className="iegate">
           <div className="iegate__stage"><div className="iegate__stage-num">1</div><div className="iegate__stage-body"><div className="iegate__stage-title">Barrier-integrity precondition (IE-C9a)</div><div className="iegate__stage-sub">Does the event avoid any failure or bypass of a radionuclide transport barrier?</div></div></div>
           <div className="iegate__arrow"><IEIcon.ArrowR /></div>
@@ -1050,7 +902,7 @@ function ScreeningScreen(): JSX.Element {
 
       <div className="poscard">
         <div className="poscard__head">
-          <WorkbookSectionHeading workbook="IE" title="Screening decisions" level={3} />
+          <WorkbookSectionHeading title="Screening decisions" level={3} />
           {editable && availableTargets.length > 0 && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addRecord}>+ Add record</button>}
         </div>
         {records.length === 0 ? (
@@ -1271,7 +1123,7 @@ function FrequencyScreen(): JSX.Element {
     <>
       {records.length > 0 && (
         <div className="poscard">
-          <div className="poscard__head"><WorkbookSectionHeading workbook="IE" title="Annual frequencies" level={3} /></div>
+          <div className="poscard__head"><WorkbookSectionHeading title="Annual frequencies" level={3} /></div>
           <div className="iefreq">
             <div className="iefreq__axis">
               {ticks.map((t) => <span key={t} className="iefreq__tick" style={{ left: `${freqToPct(parseFloat(t))}%` }}>{frequencyText(parseFloat(t))}</span>)}
@@ -1310,7 +1162,7 @@ function FrequencyScreen(): JSX.Element {
 
       <div className="poscard">
         <div className="poscard__head">
-          <WorkbookSectionHeading workbook="IE" title="Quantifications" level={3} />
+          <WorkbookSectionHeading title="Quantifications" level={3} />
           {editable && availableTargets.length > 0 && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addQuant}>+ Add quantification</button>}
         </div>
         {records.length === 0 ? (
@@ -1359,7 +1211,7 @@ function FrequencyScreen(): JSX.Element {
                               {group !== undefined && (
                                 <div className="posfield">
                                   <label className="posfield__label">Value from</label>
-                                  {daOptions.length === 0 && daSource === undefined ? <span className="posmuted">Typed in IE. Add a DA workbook to the project to import its estimate.</span> : (
+                                  {daOptions.length === 0 && daSource === undefined ? <span className="posmuted">Typed in IE. Link a DA workbook in Step 01 to import its estimate.</span> : (
                                     <select className="posfield__input" aria-label="Value from" value={daKey} onChange={(e) => chooseValueFrom(id, e.target.value)}>
                                       <option value="">Typed in IE</option>
                                       {daSource !== undefined && daLinked === undefined && <option value={daKey}>Linked DA parameter unavailable</option>}
@@ -1508,7 +1360,7 @@ function DraftScreen({ cc, scores, stage, onSubmitDraft, canSubmit }: {
       </div>
       <div className="posgen__side">
         <div className="posgen__readout">
-          <WorkbookSectionHeading workbook="IE" title="Conformance check" level={3} className="posgen__readout-h" />
+          <WorkbookSectionHeading title="Conformance check" level={3} className="posgen__readout-h" />
           <div className="posgen__bar"><span className="posgen__bar-label">Capability category</span><span style={{ fontWeight: 700 }}>{cc.name} · {cc.tag}</span></div>
           <div className="posgen__bar"><span className="posgen__bar-label">Plant stage</span><span style={{ fontWeight: 700 }}>{stage === "pre_operational" ? "Pre-operational" : "Operational"}</span></div>
           <div className="posgen__bar"><span className="posgen__bar-label">Items satisfied</span><span className="posmono">{scores.met} / {scores.applicable}</span></div>
@@ -1516,7 +1368,7 @@ function DraftScreen({ cc, scores, stage, onSubmitDraft, canSubmit }: {
           {scores.blocked > 0 && <div className="posgen__bar"><span className="posgen__bar-label" style={{ color: "#b73b3b" }}>Blocked</span><span className="posmono">{scores.blocked}</span></div>}
         </div>
         <div className="posgen__readout">
-          <WorkbookSectionHeading workbook="IE" title="Hand-off to internal review" level={3} className="posgen__readout-h" />
+          <WorkbookSectionHeading title="Draft submission" level={3} className="posgen__readout-h" />
           <p style={{ margin: "0 0 12px", fontSize: 12.5, color: "var(--color-text-muted)", lineHeight: 1.5 }}>
             {ready
               ? <>All items pass at <strong>{cc.name}</strong>. Producing the draft locks Steps 1–9 and advances the workbook to <strong>Internal Technical Review</strong>.</>

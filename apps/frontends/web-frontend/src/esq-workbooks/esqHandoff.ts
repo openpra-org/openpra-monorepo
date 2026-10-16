@@ -1,8 +1,6 @@
 import {
   RiskSignificantContributorType,
   type ConsistencyReviewRecord,
-  type CutsetLogicReviewRecord,
-  type EsqCell,
   type EsqFamilyValueSource,
   type EsqHandoffResponse,
   type EsqHandoffWork,
@@ -16,7 +14,6 @@ import {
   type ImportanceMeasureEntry,
   type ImportanceReviewRecord,
   type ModelUncertaintySourceAssessment,
-  type NonSignificantSampleReview,
   type RiskIntegrationFeedback,
   type RiskSignificantContributor,
   type RuleLogicReviewRecord,
@@ -28,10 +25,10 @@ import type { PreOperationalAssumption } from "interfaces-mef-types/core/documen
 import type { RiskIntegration } from "interfaces-mef-types/ri/risk-integration";
 import { holdsEstimate } from "interfaces-mef-types/da/data-analysis";
 import type { UncertainExpression } from "interfaces-mef-types/core/uncertainty";
-import { hash32 } from "interfaces-mef-types/esq/esq-run-inputs";
+import { esqItemLabel, hash32 } from "interfaces-mef-types/esq/esq-run-inputs";
 import { resolvedCombinations, resolvedRecoveries } from "interfaces-mef-types/esq/esq-post-inputs";
 import { solveInputsKey, solveWorkOf } from "interfaces-mef-types/esq/esq-solve-inputs";
-import { hasUncertainty, sampledInputsOf, uncertaintyInputsKey } from "interfaces-mef-types/esq/esq-measure-inputs";
+import { hasUncertainty, uncertaintyInputsKey } from "interfaces-mef-types/esq/esq-measure-inputs";
 import type { EsqImportanceRunResult, EsqImportanceTarget, EsqModelRunResult } from "interfaces-shared-types/newly-developed-methods/event-tree";
 import type { EsqUpstream } from "./esqLinks";
 import type { EsqDaCaseOption } from "./esqDaLinks";
@@ -40,7 +37,6 @@ import { convergenceOf, familyValueOf, type EsqSolveWindowKind } from "./esqSolv
 import {
   CONSISTENCY_LABELS,
   contributorRows,
-  cutSetRunIdOf,
   measureRows,
   releaseFamilyIds,
   resultsViewOf,
@@ -72,7 +68,6 @@ interface EsqHandoffFamilyRow {
   sokc: boolean;
   convergedAt?: number;
   register: number;
-  cells: EsqCell[];
 }
 
 interface EsqFeedbackItem {
@@ -109,7 +104,6 @@ interface EsqHandoffView {
   publishedStale: boolean;
   inputs: string;
   feedback: EsqFeedbackItem[];
-  created: EsqCreatedValue[];
   findings: EsqHandoffFinding[];
 }
 
@@ -156,6 +150,7 @@ function handoffInputsKey(esq: EventSequenceQuantification): string {
     esq.review ?? null,
     esq.uncertaintyWork ?? null,
     esq.sensitivityWork ?? null,
+    handoffWorkOf(esq).responses ?? null,
   ]);
   return `${hash32(text, 2166136261).toString(16).padStart(8, "0")}${hash32(text, 374761393).toString(16).padStart(8, "0")}`;
 }
@@ -476,26 +471,9 @@ function propagationOf(esq: EventSequenceQuantification, independentMean: number
   return propagation;
 }
 
-function reviewRecordsOf(esq: EventSequenceQuantification): Pick<EventSequenceQuantification, "cutsetLogicReviews" | "nonSignificantSampleReviews" | "consistencyReviews" | "ruleLogicReviews" | "similarPlantComparisons"> {
+function reviewRecordsOf(esq: EventSequenceQuantification): Pick<EventSequenceQuantification, "consistencyReviews" | "ruleLogicReviews" | "similarPlantComparisons"> {
   const review = reviewOf(esq);
-  const codes = new Map((esq.model?.events ?? []).map((event) => [event.id, event.code]));
-  const sample = (familyId: string, eventIds: readonly string[], frequency: number): string => `${familyId} · ${eventIds.map((id) => codes.get(id) ?? id).join(" · ")} · ${figures(frequency)} per year`;
-  const reviewed = (review.cutSetReviews ?? []).filter((entry) => entry.verdict !== undefined);
-  const cutsetLogicReviews: CutsetLogicReviewRecord[] = reviewed.filter((entry) => entry.significant).map((entry, index) => ({
-    uuid: `CLR-${index + 1}`,
-    sampleDescription: sample(entry.familyId, entry.eventIds, entry.annualFrequency),
-    logicCorrect: entry.verdict === "CORRECT",
-    findings: entry.note,
-    implementsSrs: [{ sr: "ESQ-D1", hlr: "D" }],
-  }));
-  const nonSignificantSampleReviews: NonSignificantSampleReview[] = reviewed.filter((entry) => !entry.significant).map((entry, index) => ({
-    uuid: `NSR-${index + 1}`,
-    sampleDescription: sample(entry.familyId, entry.eventIds, entry.annualFrequency),
-    physicallyMeaningful: entry.verdict === "CORRECT",
-    findings: entry.note,
-    implementsSrs: [{ sr: "ESQ-D5", hlr: "D" }],
-  }));
-  const topic = (key: "SYSTEMS" | "SUCCESS_CRITERIA" | "PROCEDURES" | "RULES") => review.consistency?.find((entry) => entry.topic === key);
+  const topic =(key: "SYSTEMS" | "SUCCESS_CRITERIA" | "PROCEDURES" | "RULES") => review.consistency?.find((entry) => entry.topic === key);
   const notes = (keys: ("SYSTEMS" | "SUCCESS_CRITERIA" | "PROCEDURES")[]): string => keys.flatMap((key) => {
     const entry = topic(key);
     return entry === undefined || blank(entry.note) ? [] : [`${CONSISTENCY_LABELS[key]}: ${entry.note.trim()}`];
@@ -525,7 +503,7 @@ function reviewRecordsOf(esq: EventSequenceQuantification): Pick<EventSequenceQu
     keyDifferences: comparison.plants.map((plant) => plant.note),
     implementsSrs: [{ sr: "ESQ-D4", hlr: "D" }],
   }];
-  return { cutsetLogicReviews, nonSignificantSampleReviews, consistencyReviews, ruleLogicReviews, similarPlantComparisons };
+  return { consistencyReviews, ruleLogicReviews, similarPlantComparisons };
 }
 
 function feedbackItems(esq: EventSequenceQuantification, ri: RiskIntegration | undefined): EsqFeedbackItem[] {
@@ -620,7 +598,7 @@ function publishEsq(esq: EventSequenceQuantification, input: EsqPublishInput): E
   const sensitivity = sensitivityViewOf(esq, input.upstream);
   const register = sensitivity?.register ?? [];
   const names = new Map(families.map((family) => [family.id, family.name]));
-  const familyName = (id: string): string => (blank(names.get(id)) ? id : `${names.get(id) ?? ""} (${id})`);
+  const familyName = (id: string): string => esqItemLabel(names.get(id), id, "Unnamed family");
   const independent = uncertaintyWorkOf(esq).independent;
   const familyQuantifications = familyQuantificationsOf(esq, input, register);
   const notes = reviewOf(esq).reconciliations ?? [];
@@ -680,26 +658,37 @@ function createdValues(esq: EventSequenceQuantification): EsqCreatedValue[] {
   const model = esq.model;
   if (model === undefined) return [];
   const out: EsqCreatedValue[] = [];
-  const legacyKeys = new Set(sampledInputsOf(esq).flatMap((input) => (input.contract ? [] : [input.key])));
-  for (const spread of uncertaintyWorkOf(esq).spreads ?? []) {
-    if (!legacyKeys.has(spread.key)) continue;
-    out.push({ key: `spread:${spread.key}`, item: spread.key, value: spread.errorFactor, where: "Step 08 error factor", source: spread.source });
-  }
   for (const choice of esq.modelDecisions?.initiatorChoices ?? []) {
     if (choice.source !== "TYPED" || choice.expression === undefined) continue;
     out.push({ key: `initiator:${choice.groupId}`, item: choice.groupId, expression: choice.expression, where: "Step 02 initiator frequency", source: choice.basis ?? "" });
   }
+  for (const link of esq.modelDecisions?.functionLinks ?? []) {
+    const targets = [
+      { key: `split:${link.functionId}`, target: link.target },
+      ...(link.rules ?? []).map((rule) => ({ key: `split:${link.functionId}:${rule.id}`, target: rule.target })),
+    ];
+    for (const entry of targets) {
+      const target = entry.target;
+      if (target?.kind !== "SPLIT_FRACTION" || target.cellId !== undefined || target.parameterId !== undefined || target.expression === undefined) continue;
+      out.push({ key: entry.key, item: link.functionId, expression: target.expression, where: "Step 02 split fraction", source: target.basis ?? "" });
+    }
+  }
+  for (const binding of esq.modelDecisions?.valueBindings ?? []) {
+    if (binding.heldBy !== "TYPED" || binding.expression === undefined) continue;
+    const event = model.events.find((candidate) => candidate.id === binding.eventId);
+    out.push({ key: `event:${binding.eventId}`, item: event?.code ?? binding.eventId, expression: binding.expression, where: "Step 02 basic event value", source: binding.reason });
+  }
   for (const cell of esq.barrierWork?.cells ?? []) {
     if (cell.ofRecord !== "TYPED" || cell.typed === undefined) continue;
-    out.push({ key: `cell:${cell.id}`, item: `Cell ${cell.id}`, expression: cell.typed.expression, where: "Step 04 split fraction", source: cell.typed.basis });
+    out.push({ key: `cell:${cell.id}`, item: `Cell ${cell.id}`, expression: cell.typed.expression, where: "Step 03 split fraction", source: cell.typed.basis });
   }
   for (const combination of resolvedCombinations(esq)) {
     if (combination.source !== "TYPED" || combination.joint === undefined) continue;
-    out.push({ key: `joint:${combination.combination.id}`, item: combination.combination.id, value: combination.joint, where: "Step 06 joint HEP", source: combination.combination.typed?.source ?? "" });
+    out.push({ key: `joint:${combination.combination.id}`, item: combination.combination.id, value: combination.joint, where: "Step 04 joint HEP", source: combination.combination.typed?.source ?? "" });
   }
   for (const recovery of resolvedRecoveries(esq)) {
-    if (recovery.source !== "TYPED" || recovery.value === undefined) continue;
-    out.push({ key: `recovery:${recovery.id}`, item: `NR-${recovery.id}`, value: recovery.value, where: "Step 06 non-recovery HEP", source: recovery.rule?.typed?.source ?? "" });
+    if (recovery.source !== "TYPED" || recovery.expression === undefined) continue;
+    out.push({ key: `recovery:${recovery.id}`, item: `NR-${recovery.id}`, expression: recovery.expression, where: recovery.repair ? "Step 04 non-repair probability" : "Step 04 non-recovery HEP", source: recovery.rule?.typed?.source ?? "" });
   }
   return out;
 }
@@ -713,7 +702,6 @@ function handoffViewOf(esq: EventSequenceQuantification, upstream: EsqUpstream):
   const uncertainty = currentUncertainty(esq);
   const stepPercent = esq.quantificationPlan?.convergenceStepPercent?.value ?? 5;
   const sensitivity = sensitivityViewOf(esq, upstream);
-  const cells = esq.barrierWork?.cells ?? [];
   const families = modelView.families.map((family): EsqHandoffFamilyRow => {
     const solve = solveWorkOf(esq).families.find((entry) => entry.familyId === family.id);
     const value = familyValueOf(solve);
@@ -722,7 +710,6 @@ function handoffViewOf(esq: EventSequenceQuantification, upstream: EsqUpstream):
       family,
       sokc: stats !== undefined,
       register: (sensitivity?.register ?? []).filter((entry) => (entry.decision?.familyIds ?? []).includes(family.id)).length,
-      cells: cells.filter((cell) => cell.familyId === family.id),
     };
     if (value !== undefined) row.value = value;
     if (solve?.ofRecord !== undefined) row.source = solve.ofRecord;
@@ -751,7 +738,6 @@ function handoffViewOf(esq: EventSequenceQuantification, upstream: EsqUpstream):
     publishedStale: work.published !== undefined && work.published.inputs !== inputs,
     inputs,
     feedback: feedbackItems(esq, upstream.ri),
-    created: createdValues(esq),
   };
   const full = run === undefined ? partial : { ...partial, run };
   const findings: EsqHandoffFinding[] = [];
@@ -762,16 +748,15 @@ function handoffViewOf(esq: EventSequenceQuantification, upstream: EsqUpstream):
   }
   if (run === undefined) findings.push({ severity: "error", check: "No run of record", item: "Run of record", detail: "Run the model in Step 05 and use the run." });
   else if (full.runStale) findings.push({ severity: "error", check: "Value of record older than its inputs", item: "Run of record", detail: "The model, logic or values changed after the run of record. Run the model again in Step 05.", target: { kind: "esqSolveRun", id: "run" } });
-  if (!full.importanceCurrent) findings.push({ severity: "warning", check: "Importance not current", item: "Importance", detail: "RI and DA receive no current importance. Rank again in Step 07." });
-  if (!full.uncertaintyCurrent) findings.push({ severity: esq.capabilityCategory === "CC-I" ? "warning" : "error", check: "No current propagated mean", item: "Uncertainty", detail: "The families go out without a current sampled mean and percentiles. Sample again in Step 08." });
-  if (!full.published) findings.push({ severity: "error", check: "Not published", item: "Hand-off", detail: "Publish the family package so RI, MS, DA, HR and IE read it." });
+  if (!full.importanceCurrent) findings.push({ severity: "warning", check: "Importance not current", item: "Importance", detail: "RI and DA receive no current importance. Rank again in Step 06." });
+  if (!full.uncertaintyCurrent) findings.push({ severity: esq.capabilityCategory === "CC-I" ? "warning" : "error", check: "No current propagated mean", item: "Uncertainty", detail: "The families go out without a current sampled mean and percentiles. Sample again in Step 07." });
+  if (!full.published) findings.push({ severity: "error", check: "Not published", item: "Hand-off", detail: "Publish the family package so RI and DA read it." });
   else if (full.publishedStale) findings.push({ severity: "error", check: "Published package older than the workbook", item: "Hand-off", detail: "Results, reviews or cases changed after the last publication. Publish again." });
   for (const item of full.feedback) {
     const response = item.response;
     if (response === undefined || blank(response.response)) findings.push({ severity: "warning", check: "RI feedback with no response", item: item.label, detail: `${item.significance === undefined ? "" : `RI rates it ${item.significance.toLowerCase()}. `}Record the response and where it goes.`, target: { kind: "esqHandoffResponse", id: item.id } });
     else if (item.significance === ImportanceLevel.HIGH && item.kind === "CONTRIBUTOR" && response.sentTo === undefined) findings.push({ severity: "note", check: "Significant item not routed", item: item.label, detail: "Send it to the element that owns it.", target: { kind: "esqHandoffResponse", id: item.id } });
   }
-  if (cutSetRunIdOf(esq) === undefined && run !== undefined) findings.push({ severity: "note", check: "No cut sets behind the review", item: "Cut sets", detail: "Step 07 has no cut set list, so the published reviews hold no cut set." });
   return { ...full, findings: findings.sort((a, b) => FINDING_RANK[a.severity] - FINDING_RANK[b.severity]) };
 }
 

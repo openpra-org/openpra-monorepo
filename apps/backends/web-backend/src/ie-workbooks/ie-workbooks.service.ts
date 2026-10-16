@@ -5,9 +5,11 @@ import { InitiatingEventsAnalysisSchema } from "interfaces-mef-types/zod/ie/init
 import { ProjectsService } from "../projects/projects.service";
 import { ExampleWorkbooksService } from "../example-workbooks/example-workbooks.service";
 import { WorkbookRolesService, type WorkbookRoleName } from "../workbooks/workbook-roles.service";
+import { recordWorkbookStatus } from "../workbooks/workbook-status";
 import { WorkbookSignoff, type WorkbookSignoffDocument } from "../workbooks/workbook-signoff.schema";
 import { IeWorkbook, type IeWorkbookDocument } from "./ie-workbook.schema";
 import { IeDocumentsService } from "./ie-documents.service";
+import { iePosLink } from "./ie-links";
 import { createBlankIe } from "./blank-ie";
 import { stripNulls } from "../pos-workbooks/mef-normalize";
 import { healMef } from "../pos-workbooks/mef-heal";
@@ -37,7 +39,7 @@ function toResponse(doc: IeWorkbookDocument, myRoles: WorkbookRoleName[]): IeWor
     mef: doc.mef,
     myRoles,
     hasPreviousMef: typeof doc.previousMefJson === "string" && doc.previousMefJson.length > 0,
-    linkedPosWorkbookId: typeof doc.linkedPosWorkbookId === "string" ? doc.linkedPosWorkbookId : null,
+    linkedPosWorkbookId: iePosLink(doc),
     updatedAt: doc.updatedAt.toISOString(),
   };
 }
@@ -93,16 +95,23 @@ export class IeWorkbooksService {
     const example = await this.exampleWorkbooksService.getIeBundle(exampleId);
     const parsed = InitiatingEventsAnalysisSchema.safeParse(stripNulls(example.ie.mef));
     if (!parsed.success) throw new ForbiddenException(`Example MEF failed validation: ${parsed.error.message}`);
+    const exampleDa = parsed.data.initiatingEventGroups.find((group) => group.controlledDataSource?.workbookId.startsWith("example-da-") === true)?.controlledDataSource?.workbookId;
     const cleaned = {
       ...parsed.data,
+      linkedWorkbooks: {
+        ...parsed.data.linkedWorkbooks,
+        ...(exampleDa === undefined || parsed.data.linkedWorkbooks?.DA !== undefined ? {} : { DA: exampleDa }),
+        ...(exampleId === "hcl" ? {} : { POS: "example" }),
+      },
       workflowState: "DRAFT",
       workflowHistory: [{ state: "DRAFT", enteredAt: new Date().toISOString(), actor: acting.username, note: "Loaded from example workbook" }],
     };
-    doc.previousMefJson = JSON.stringify(doc.mef);
+    if (typeof doc.previousMefJson !== "string" || doc.previousMefJson.length === 0) doc.previousMefJson = JSON.stringify(doc.mef);
     doc.mef = cleaned;
-    doc.linkedPosWorkbookId = exampleId === "hcl" ? null : "example";
+    doc.linkedPosWorkbookId = null;
     doc.exampleVariant = exampleId === "sfr" || exampleId === "htgr" || exampleId === "hcl" ? exampleId : "htgr";
     await doc.save();
+    await recordWorkbookStatus(this.ieWorkbookModel.db, workbookId, (doc.mef as { workflowState?: string }).workflowState);
     await this.signoffModel.deleteMany({ workbookId }).exec();
     await this.ieDocumentsService.removeAllForWorkbook(workbookId);
     return toResponse(doc, myRoles);
@@ -131,6 +140,7 @@ export class IeWorkbooksService {
     doc.previousMefJson = null;
     doc.linkedPosWorkbookId = null;
     await doc.save();
+    await recordWorkbookStatus(this.ieWorkbookModel.db, workbookId, (doc.mef as { workflowState?: string }).workflowState);
     return toResponse(doc, myRoles);
   }
 }

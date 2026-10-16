@@ -17,6 +17,7 @@ import { CommonCauseScreen } from "./SyCommonCause";
 import { DependenciesScreen } from "./SyDependencies";
 import { DependencyMatrix } from "./SyDependencyMatrix";
 import { ScopeScreen } from "./SyScope";
+import { SyHandoffScreen } from "./SyHandoff";
 import { ModelsScreen } from "./SySystemModels";
 import { DraftScreen, DrawerContent, PlaceholderScreen } from "./syScreens2";
 import { PlantUncertainty, UncertaintyScreen } from "./SyUncertaintyReview";
@@ -31,6 +32,7 @@ import { useAuth } from "../auth/AuthContext";
 import { WorkbookDemoSignCard } from "../workbooks/workbookDemoSignCard";
 import { DockDependsChip } from "../workbooks/workbookInterfaces";
 import { WorkbookSaveIndicator } from "../workbooks/workbookSaveIndicator";
+import { TEXT_VIEW, useWorkbookView, useWorkbookViewSlot } from "../workbooks/workbookViewMemory";
 import { type RevisionedSaveStatus } from "../workbooks/useRevisionedMefPatch";
 import { SyBayesianNetworkWorkspace } from "./syBayesianNetworkWorkspace";
 import "../workbooks/css/workbookWorkspace.css";
@@ -52,9 +54,10 @@ function headersFor(stepId: string): StepHeader {
     case "deps": return { eyebrow: "Step 05 · SY-B", title: "Dependencies" };
     case "integrity": return { eyebrow: "Step 06 · SY-A", title: "Model Integrity" };
     case "uncert": return { eyebrow: "Step 07 · SY-A · SY-B", title: "Uncertainty analysis" };
-    case "draft": return { eyebrow: "Step 08 · Draft", title: "Produce the draft" };
-    case "review": return { eyebrow: "Step 09 · Review", title: "Internal technical review" };
-    case "approval": return { eyebrow: "Step 10 · Approval", title: "Approval & sign-off" };
+    case "handoff": return { eyebrow: "Step 08", title: "Technical Element Handoff" };
+    case "draft": return { eyebrow: "Step 09 · Draft", title: "Produce the draft" };
+    case "review": return { eyebrow: "Step 10 · Review", title: "Internal technical review" };
+    case "approval": return { eyebrow: "Step 11 · Approval", title: "Approval & sign-off" };
     default: return { eyebrow: "", title: "" };
   }
 }
@@ -396,11 +399,15 @@ function SyWorkbench({
     onStageChange?.(s);
   }
 
-  const [stepId, setStepIdState] = useState<string>(() =>
-    visibleSteps.some((candidate) => candidate.id === requestedStepId)
-      ? requestedStepId!
-      : visibleSteps[0]?.id ?? "scope");
-  const [sysId, setSysId] = useState<string>(data.sy.systemDefinitions[0]?.uuid ?? "SYS-DRACS");
+  const stepSlot = useWorkbookViewSlot<string>("step", TEXT_VIEW);
+  const [stepId, setStepIdState] = useState<string>(() => {
+    const savedStep = stepSlot.read();
+    return visibleSteps.find((candidate) => candidate.id === requestedStepId)?.id
+      ?? visibleSteps.find((candidate) => candidate.id === savedStep)?.id
+      ?? visibleSteps[0]?.id
+      ?? "scope";
+  });
+  const [sysId, setSysId] = useWorkbookView<string>("system", data.sy.systemDefinitions[0]?.uuid ?? "SYS-DRACS", TEXT_VIEW);
   const [dockOpen, setDockOpen] = useState(false);
   const [railOpen, setRailOpen] = useState(true);
   const [railMobileOpen, setRailMobileOpen] = useState(false);
@@ -414,6 +421,10 @@ function SyWorkbench({
       setStepIdState(visibleSteps[0]?.id ?? "scope");
     }
   }, [persona, stepId, visibleSteps]);
+
+  useEffect(() => {
+    stepSlot.write(stepId);
+  }, [stepId, stepSlot]);
 
   function setStepId(id: string): void {
     setStepIdState(id);
@@ -507,6 +518,7 @@ function SyWorkbench({
           <PlantUncertainty openDrawer={setDrawer} />
         </>
       );
+      case "handoff": return <SyHandoffScreen />;
       case "draft": return <DraftScreen cc={cc} scores={scores} stage={stage} onSubmitDraft={() => { handleSubmitToApproval(); setStepId("review"); }} canSubmit={isPreparer} />;
       case "review":
       case "approval": return (
@@ -563,7 +575,7 @@ function SyWorkbench({
           <div className="posmain__head">
             <div className="posmain__title-block">
               <div className="posmain__eyebrow">{h.eyebrow}</div>
-              <WorkbookSectionHeading workbook="SY" title={h.title} level={1} className="posmain__title" />
+              <WorkbookSectionHeading title={h.title} level={1} className="posmain__title" />
             </div>
             <div className="posmain__actions">
               {!railOpen && <button type="button" className="posnav__btn posnav__btn--sm sy-show-steps" onClick={() => setRailOpen(true)}><SYIcon.Layers /> Show steps</button>}

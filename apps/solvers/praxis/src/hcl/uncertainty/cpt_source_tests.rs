@@ -47,6 +47,7 @@ fn exact_moments(row: &UncertainVector) -> Vec<(f64, f64)> {
                 .collect()
         }
         VectorLaw::Fixed { .. } => means.iter().map(|mean| (*mean, 0.0)).collect(),
+        VectorLaw::WeightedDirichlet { .. } => panic!("fixture rows hold no weighted law"),
     }
 }
 
@@ -197,14 +198,14 @@ fn sampled_cpts_and_ft_vectors_match_the_source_bdd_with_evidence_and_chunking()
         for scenario in case["outputs"].as_array().unwrap() {
             let expected = whole
                 .quantify(&bdd, root, bindings.clone(), evidence_for(&network, scenario), &names)
-                .unwrap();
+                .unwrap().values;
             assert_same_population(&expected, &floats(&scenario["samples"]), &scenario["evidence"].to_string());
             for chunk_size in [1, 31, 256, 512] {
                 let prepared =
                     PreparedHclUncertainty::with_chunk_size(&network, &settings, &[], chunk_size).unwrap();
                 let values = prepared
                     .quantify(&bdd, root, bindings.clone(), evidence_for(&network, scenario), &names)
-                    .unwrap();
+                    .unwrap().values;
                 for (left, right) in values.iter().zip(&expected) {
                     assert!((left - right).abs() <= 4.0 * f64::EPSILON, "{left} against {right}");
                 }

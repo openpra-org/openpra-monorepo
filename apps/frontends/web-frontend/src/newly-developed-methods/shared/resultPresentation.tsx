@@ -1,5 +1,6 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { type ReactNode } from "react";
 import type { ValidationIssue } from "interfaces-shared-types/newly-developed-methods/shared";
+import { COUNT_VIEW, useWorkbookView } from "../../workbooks/workbookViewMemory";
 import { downloadResultCsv, type ResultCsvRecord } from "./resultCsv";
 import "./css/resultPresentation.css";
 
@@ -15,6 +16,11 @@ export function ResultNumber({ value, unit = "" }: { value: number; unit?: strin
       {unit}
     </output>
   );
+}
+
+export function enumText(value: string): string {
+  const spaced = value.split("_").join(" ").toLowerCase();
+  return `${spaced.charAt(0).toUpperCase()}${spaced.slice(1)}`;
 }
 
 export function ResultCsvButton({
@@ -46,13 +52,15 @@ export function ResultWarnings({ issues }: { issues: readonly ValidationIssue[] 
       <ul>
         {issues.map((issue, index) => (
           <li key={`${issue.code}:${index}`}>
-            <strong>{issue.severity}</strong> {issue.message} <small>{issue.code}</small>
+            <strong>{enumText(issue.severity)}</strong> {issue.message} <small>{issue.code}</small>
           </li>
         ))}
       </ul>
     </div>
   );
 }
+
+const PAGE_SIZE = 10;
 
 /** Only the visible slice is rendered. CSV buttons receive the complete result separately. */
 export function PagedResults<T>({
@@ -66,46 +74,23 @@ export function PagedResults<T>({
   resetKey: string;
   children: (page: readonly T[]) => ReactNode;
 }) {
-  const [page, setPage] = useState(0);
-  const [size, setSize] = useState(25);
-  useEffect(() => {
-    setPage(0);
-  }, [resetKey]);
-  const pages = Math.max(1, Math.ceil(items.length / size));
+  const [page, setPage] = useWorkbookView<number>(`page:${label}:${resetKey}`, 0, COUNT_VIEW, false);
+  const pages = Math.max(1, Math.ceil(items.length / PAGE_SIZE));
   const current = Math.min(page, pages - 1);
-  const start = current * size;
+  const start = current * PAGE_SIZE;
   return (
     <div className="analysis-results__pages">
       {items.length === 0 ?
         <p>No result rows.</p>
-      : children(items.slice(start, start + size))}
-      {items.length > 25 && (
+      : children(items.slice(start, start + PAGE_SIZE))}
+      {items.length > PAGE_SIZE && (
         <nav
           className="analysis-results__pagination"
           aria-label={`${label} pagination`}
         >
           <span aria-live="polite">
-            {start + 1}–{Math.min(start + size, items.length)} of {items.length}
+            {start + 1} to {Math.min(start + PAGE_SIZE, items.length)} of {items.length}
           </span>
-          <label>
-            Rows per page{" "}
-            <select
-              value={size}
-              onChange={(event) => {
-                setSize(Number(event.target.value));
-                setPage(0);
-              }}
-            >
-              {[25, 50, 100].map((count) => (
-                <option
-                  key={count}
-                  value={count}
-                >
-                  {count}
-                </option>
-              ))}
-            </select>
-          </label>
           <button
             type="button"
             className="posnav__btn posnav__btn--sm"

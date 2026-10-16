@@ -1,11 +1,12 @@
-import { spawn, type ChildProcess } from "node:child_process";
+import { spawn, type Serializable } from "node:child_process";
 import { join } from "node:path";
-import { nativeExecutionTimeout, nativeWorkerHeapLimit } from "praxis-node/protocol";
+import { nativeWorkerHeapLimit } from "praxis-node/protocol";
 
 type PraxisOperation = "validate" | "execute";
 interface PraxisWorkerTask {
   operation: PraxisOperation;
   requestJson: string;
+  preflight?: boolean;
 }
 interface PraxisWorkerResult {
   resultJson: string;
@@ -14,8 +15,7 @@ interface PraxisWorkerResult {
 interface PraxisWorkerRunnerOptions {
   addonPath?: string;
   workerPath?: string;
-  timeoutMs?: number;
-  maxConcurrent?: number;
+  timeoutMs: number;
   heapLimitMb?: number;
   signal?: AbortSignal;
 }
@@ -29,81 +29,68 @@ class PraxisWorkerError extends Error {
   }
 }
 
-// Shared by validation and execution. No unbounded queue of model snapshots.
-const activeWorkers = new Set<ChildProcess>();
-function concurrencyLimit(): number {
-  const value = Number(process.env["PRAETOR_NATIVE_MAX_CONCURRENT"] ?? 2);
-  if (!Number.isSafeInteger(value) || value < 1)
-    throw new Error("PRAETOR_NATIVE_MAX_CONCURRENT must be a positive integer");
-  return value;
+function heapArguments(heapLimitMb: number | undefined): string[] {
+  const limit = heapLimitMb ?? nativeWorkerHeapLimit();
+  return limit === undefined ? [] : [`--max-old-space-size=${limit}`];
 }
 
-function runPraxisWithWorker(
-  task: PraxisWorkerTask,
-  options: PraxisWorkerRunnerOptions = {},
-): Promise<PraxisWorkerResult> {
-  if (options.signal?.aborted)
-    return Promise.reject(new PraxisWorkerError("PRAXIS_CANCELLED", "PRAXIS execution was cancelled"));
-  const timeoutMs = options.timeoutMs ?? nativeExecutionTimeout();
-  const limit = options.maxConcurrent ?? concurrencyLimit();
-  const heapLimitMb = nativeWorkerHeapLimit(options.heapLimitMb === undefined ? undefined : String(options.heapLimitMb));
-  if (
-    !Number.isSafeInteger(timeoutMs) ||
-    timeoutMs < 1 ||
-    timeoutMs > 2_147_000_000 ||
-    !Number.isSafeInteger(limit) ||
-    limit < 1
-  ) {
-    return Promise.reject(new Error("Invalid PRAXIS execution limits"));
+function runPraxisProcess(task: PraxisWorkerTask, options: PraxisWorkerRunnerOptions): Promise<PraxisWorkerResult> {
+  if (options.signal?.aborted) return Promise.reject(new PraxisWorkerError("PRAXIS_CANCELLED", "PRAXIS execution was cancelled"));
+  if (!Number.isSafeInteger(options.timeoutMs) || options.timeoutMs < 1 || options.timeoutMs > 2_147_000_000) {
+    return Promise.reject(new PraxisWorkerError("PRAXIS_INVALID_LIMITS", "PRAXIS execution needs a positive timeout"));
   }
-  if (activeWorkers.size >= limit)
-    return Promise.reject(new PraxisWorkerError("PRAXIS_BUSY", "PRAXIS is busy; retry when an active run finishes"));
   return new Promise((resolve, reject) => {
-    const args = heapLimitMb === undefined ? [] : [`--max-old-space-size=${heapLimitMb}`];
-    args.push(options.workerPath ?? join(__dirname, "praxis.worker.js"));
-    const child = spawn(process.execPath, args, {
+    const child = spawn(process.execPath, [...heapArguments(options.heapLimitMb), options.workerPath ?? join(__dirname, "praxis.worker.js")], {
       shell: false,
       windowsHide: true,
-      stdio: ["ignore", "ignore", "ignore", "ipc"],
+      stdio: ["ignore", "ignore", "pipe", "ipc"],
     });
-    activeWorkers.add(child);
+    const errorOutput: string[] = [];
+    child.stderr?.on("data", (chunk: Buffer) => {
+      if (errorOutput.join("").length < 8192) errorOutput.push(chunk.toString("utf8"));
+    });
     let outcome: PraxisWorkerResult | Error | undefined;
     const stop = (result: PraxisWorkerResult | Error): void => {
       if (outcome !== undefined) return;
       outcome = result;
-      // SIGKILL terminates native code too. Keep the slot until close confirms exit.
       try {
         child.kill("SIGKILL");
-      } catch {
-        /* close/error handles an already-exited process */
+      } catch (error) {
+        if (!(error instanceof Error)) throw error;
       }
     };
     const cancel = (): void => stop(new PraxisWorkerError("PRAXIS_CANCELLED", "PRAXIS execution was cancelled"));
     const timer = setTimeout(
-      () => stop(new PraxisWorkerError("PRAXIS_TIMEOUT", `PRAXIS execution exceeded ${timeoutMs} ms`)),
-      timeoutMs,
+      () => stop(new PraxisWorkerError("PRAXIS_TIMEOUT", `PRAXIS execution exceeded ${options.timeoutMs} ms`)),
+      options.timeoutMs,
     );
     options.signal?.addEventListener("abort", cancel, { once: true });
-    child.once("message", (message: unknown) => {
-      if (message === null || typeof message !== "object" || Array.isArray(message)) {
-        stop(new Error("PRAXIS worker returned an invalid result message"));
+    child.once("message", (message: Serializable) => {
+      if (typeof message !== "object" || message === null || Array.isArray(message)) {
+        stop(new PraxisWorkerError("PRAXIS_WORKER_FAILURE", "PRAXIS worker returned an invalid result message"));
         return;
       }
-      const value = message as Record<string, unknown>;
+      const value = message as Record<string, string | undefined>;
       if (typeof value["resultJson"] === "string" && value["error"] === undefined) {
-        stop({ resultJson: value["resultJson"], workerProcessId: child.pid! });
+        stop({ resultJson: value["resultJson"], workerProcessId: child.pid ?? 0 });
       } else if (typeof value["error"] === "string" && value["resultJson"] === undefined) {
-        stop(new Error(value["error"]));
-      } else stop(new Error("PRAXIS worker returned an invalid result message"));
+        stop(new PraxisWorkerError("PRAXIS_WORKER_FAILURE", value["error"]));
+      } else {
+        stop(new PraxisWorkerError("PRAXIS_WORKER_FAILURE", "PRAXIS worker returned an invalid result message"));
+      }
     });
-    child.on("error", (error: Error) => stop(error));
+    child.on("error", (error: Error) => stop(new PraxisWorkerError("PRAXIS_WORKER_FAILURE", error.message)));
     child.once("close", (code, signal) => {
       clearTimeout(timer);
       options.signal?.removeEventListener("abort", cancel);
-      activeWorkers.delete(child);
       child.removeAllListeners();
-      if (outcome === undefined)
-        outcome = new Error(`PRAXIS worker exited before returning a result (${signal ?? code})`);
+      if (outcome === undefined) {
+        const detail = errorOutput.join("").trim();
+        outcome = new PraxisWorkerError(
+          "PRAXIS_PROCESS_EXITED",
+          `The PRAXIS process stopped before returning a result (${signal ?? `exit code ${String(code)}`})${detail.length === 0 ? "" : `: ${detail.slice(0, 2000)}`}`,
+        );
+      }
       if (outcome instanceof Error) reject(outcome);
       else resolve(outcome);
     });
@@ -111,14 +98,14 @@ function runPraxisWithWorker(
     if (outcome === undefined) {
       try {
         child.send({ ...task, addonPath: options.addonPath ?? require.resolve("praxis-node") }, (error) => {
-          if (error) stop(error);
+          if (error) stop(new PraxisWorkerError("PRAXIS_WORKER_FAILURE", error.message));
         });
       } catch (error) {
-        stop(error instanceof Error ? error : new Error(String(error)));
+        stop(new PraxisWorkerError("PRAXIS_WORKER_FAILURE", error instanceof Error ? error.message : String(error)));
       }
     }
   });
 }
 
-export { runPraxisWithWorker, PraxisWorkerError };
+export { runPraxisProcess, PraxisWorkerError };
 export type { PraxisOperation, PraxisWorkerTask, PraxisWorkerResult, PraxisWorkerRunnerOptions };

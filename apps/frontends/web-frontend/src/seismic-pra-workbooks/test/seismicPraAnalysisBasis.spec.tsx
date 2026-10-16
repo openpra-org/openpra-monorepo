@@ -36,17 +36,16 @@ function renderAnalysisBasis(inputs: SeismicPraLinkedInputs | null = linkedInput
 }
 
 describe("Seismic PRA Step 01 analysis basis", () => {
-  it("keeps section descriptions behind information controls", async () => {
+  it("shows section titles without help controls", () => {
     renderAnalysisBasis();
 
     expect(screen.queryByRole("note")).not.toBeInTheDocument();
-
-    await userEvent.click(screen.getByRole("button", { name: "About PRA scope and application" }));
-
-    expect(screen.getByRole("note")).toHaveTextContent(
-      "Use this section to record why the analysis is being performed",
-    );
-    expect(screen.getByRole("note")).toHaveTextContent("For example");
+    for (const title of ["PRA scope and application", "Ground-motion definition"]) {
+      const heading = screen.getByRole("heading", { name: title }).closest(".ssection__heading");
+      expect(heading).not.toBeNull();
+      expect(within(heading as HTMLElement).queryAllByRole("button")).toHaveLength(0);
+      expect(screen.queryByRole("button", { name: `About ${title}` })).not.toBeInTheDocument();
+    }
   });
 
   it("shows the complete MVP analysis scope in one flat editor", async () => {
@@ -101,34 +100,28 @@ describe("Seismic PRA Step 01 analysis basis", () => {
     expect(screen.getByText("Interfaces")).toBeInTheDocument();
   });
 
-  it("explains the purpose and source of ground-motion definitions", async () => {
+  it("shows ground-motion subsection titles without help controls", () => {
     renderAnalysisBasis();
 
     expect(screen.queryByRole("note")).not.toBeInTheDocument();
-
-    await userEvent.click(screen.getByRole("button", { name: "About ground-motion parameters" }));
-    expect(screen.getByRole("note")).toHaveTextContent(
-      "Defines the direction, frequency, damping, unit, and calculation range",
-    );
-    expect(screen.getByRole("note")).toHaveTextContent("For example");
-    await userEvent.click(screen.getByRole("button", { name: "About seismic control points" }));
-    const notes = screen.getAllByRole("note");
-    const controlPointNote = notes[notes.length - 1];
-    expect(controlPointNote).toHaveTextContent(
-      "Identifies the physical locations where ground motion is defined",
-    );
-    expect(controlPointNote).toHaveTextContent("For example");
+    for (const [title, helpName] of [
+      ["Ground-motion parameters", "About ground-motion parameters"],
+      ["Seismic control points", "About seismic control points"],
+    ] as const) {
+      const heading = screen.getByRole("heading", { name: title }).closest(".smotionbasis__heading-title");
+      expect(heading).not.toBeNull();
+      expect(within(heading as HTMLElement).queryAllByRole("button")).toHaveLength(0);
+      expect(screen.queryByRole("button", { name: helpName })).not.toBeInTheDocument();
+    }
   });
 
-  it("explains interfaces in beginner-friendly language", async () => {
+  it("shows the Interfaces title without a help control", () => {
     renderAnalysisBasis();
 
     expect(screen.queryByRole("note")).not.toBeInTheDocument();
-
-    await userEvent.click(screen.getByRole("button", { name: "About Interfaces" }));
-    expect(screen.getByRole("note")).toHaveTextContent(
-      "controlled information this analysis receives or supplies",
-    );
-    expect(screen.getByRole("note")).toHaveTextContent("For example");
+    const heading = screen.getByRole("heading", { name: "Interfaces" }).closest(".ssection__heading");
+    expect(heading).not.toBeNull();
+    expect(within(heading as HTMLElement).queryAllByRole("button")).toHaveLength(0);
+    expect(screen.queryByRole("button", { name: "About Interfaces" })).not.toBeInTheDocument();
   });
 });

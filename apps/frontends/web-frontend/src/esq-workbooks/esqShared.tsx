@@ -1,9 +1,62 @@
-import { JSX, ReactNode, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent, type RefObject } from "react";
-import type { EsqModel, EsqSolveRun } from "interfaces-mef-types/esq/event-sequence-quantification";
+import { JSX, ReactNode, useId, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent, type RefObject } from "react";
+import type { EsqModel, EsqSolveRun, EventSequenceQuantification } from "interfaces-mef-types/esq/event-sequence-quantification";
+import { eventInputKey, sampledInputsOf } from "interfaces-mef-types/esq/esq-measure-inputs";
+import { esqTreeRunId } from "interfaces-mef-types/esq/esq-run-inputs";
+import type { SystemLogicModel, SystemsAnalysis } from "interfaces-mef-types/sy/systems-analysis";
+import type { WorkbookHclConfiguration } from "interfaces-mef-types/modeling";
+import type { AnalysisRunMetadata } from "interfaces-shared-types/newly-developed-methods";
+import { cancelAnalysisRun, runProgressText, type RunProgressListener } from "../newly-developed-methods/shared/analysisRunWait";
+import { FaultTreeEditor, type FaultTreeSelection } from "../newly-developed-methods/fault-tree";
+import { expressionText } from "../newly-developed-methods/shared/uncertainText";
+import { toFaultTreeEditorCatalogue, toFaultTreeEditorModel } from "../sy-workbooks/SySystemModels";
+import { DialogHead, DialogShell } from "../es-workbooks/EsScope";
+import { missionTimeSourcesOf, parameterTableOf } from "./esqModel";
+import { getEsqRunDetails } from "./esqWorkbookApi";
+import { useEsqWorkbook } from "./esqWorkbookContext";
 import type { UncertainExpression, UncertainParameter, UncertainUnit } from "interfaces-mef-types/core/uncertainty";
 import type { UncertaintyExpressionSummary } from "interfaces-shared-types/newly-developed-methods/shared";
 import { parametersFor, useExpressionSummaries, type UncertaintyState } from "../newly-developed-methods/shared/useUncertainty";
+import { WorkbookInput, WorkbookTextarea } from "../workbooks/commitOnDeactivateFields";
+import { PAGE, Pager as EsPager, paged } from "../es-workbooks/EsTiming";
+import type { EsqSolveWindowKind } from "./esqSolve";
+import type { EsqResultsWindowKind } from "./esqResults";
+import type { EsqUncertaintyWindowKind } from "./esqUncertainty";
+import type { EsqSensitivityWindowKind } from "./esqSensitivity";
+import type { EsqHandoffWindowKind } from "./esqHandoff";
 import { ESQIcon } from "./esqIcons";
+import "./css/esqDialog.css";
+
+interface EsqWindowContext {
+  kind:
+    | EsqSolveWindowKind
+    | EsqResultsWindowKind
+    | EsqUncertaintyWindowKind
+    | EsqSensitivityWindowKind
+    | EsqHandoffWindowKind;
+  id: string;
+}
+
+const LIST_PAGE = 50;
+
+function Pager({ total, page, onPage }: { total: number; page: number; onPage: (page: number) => void }): JSX.Element {
+  const pages = Math.max(1, Math.ceil(total / LIST_PAGE));
+  const current = Math.min(page, pages - 1);
+  const first = current * LIST_PAGE + 1;
+  const last = Math.min(total, (current + 1) * LIST_PAGE);
+  return (
+    <span className="esq-pager">
+      <span className="esq-count">{total === 0 ? "None" : `${first} to ${last} of ${total}`}</span>
+      {pages > 1 && <button type="button" className="posnav__btn posnav__btn--sm" disabled={current === 0} onClick={() => onPage(current - 1)}>Previous</button>}
+      {pages > 1 && <button type="button" className="posnav__btn posnav__btn--sm" disabled={current >= pages - 1} onClick={() => onPage(current + 1)}>Next</button>}
+    </span>
+  );
+}
+
+function pageOf<T>(rows: readonly T[], page: number): { current: number; shown: T[] } {
+  const pages = Math.max(1, Math.ceil(rows.length / LIST_PAGE));
+  const current = Math.min(page, pages - 1);
+  return { current, shown: rows.slice(current * LIST_PAGE, (current + 1) * LIST_PAGE) };
+}
 
 type BadgeKind = "ok" | "warn" | "block" | "progress" | "draft";
 
@@ -171,12 +224,40 @@ interface FailedTree {
   failure: string | null;
 }
 
+interface NetworkOption {
+  key: string;
+  workbookId: string;
+  configuration: WorkbookHclConfiguration;
+}
+
+function linkedWorkbookId(id: string | undefined): string | undefined {
+  return id === undefined || id.length === 0 || id.startsWith("example") ? undefined : id;
+}
+
+function trimmedText(text: string | null | undefined): string | undefined {
+  return typeof text === "string" && text.trim().length > 0 ? text.trim() : undefined;
+}
+
+function networkLabel(option: NetworkOption): string {
+  const code = trimmedText(option.configuration.code);
+  const name = trimmedText(option.configuration.name);
+  return code !== undefined && name !== undefined && code !== name ? `${code} · ${name}` : code ?? name ?? option.configuration.modelId;
+}
+
+function networkOptionsOf(esq: EventSequenceQuantification, sy: SystemsAnalysis | undefined): NetworkOption[] {
+  const syId = linkedWorkbookId(esq.linkedWorkbooks?.SY);
+  return syId === undefined ? [] : (sy?.dependencyHclConfigurations ?? []).map((configuration) => ({ key: `${syId}:${configuration.modelId}`, workbookId: syId, configuration }));
+}
+
 interface Runner {
   running: boolean;
+  live: AnalysisRunMetadata | null;
   error: string | null;
   failed: FailedTree[];
+  progress: RunProgressListener;
   start: (task: () => Promise<void>) => void;
   fail: (message: string, trees: FailedTree[]) => void;
+  failRun: (workbookId: string, run: AnalysisRunMetadata, model: EsqModel | undefined, label?: string) => Promise<void>;
 }
 
 type FindingSeverity = "error" | "warning" | "note";
@@ -219,32 +300,76 @@ function failedTrees(summary: { trees: { treeId: string; status: string; failure
   return summary.trees.filter((tree) => tree.status === "FAILED").map((tree) => ({ treeId: tree.treeId, failure: tree.failure }));
 }
 
+function runFailure(workbookId: string, run: AnalysisRunMetadata, model: EsqModel | undefined): Promise<{ message: string; trees: FailedTree[] }> {
+  const message = run.status === "CANCELLED" ? "The run was stopped before it finished." : run.failure?.message ?? "The run did not finish and gave no reason.";
+  const treeOf = new Map((model?.trees ?? []).map((tree) => [esqTreeRunId(tree.id), tree.id]));
+  return getEsqRunDetails(workbookId, run.id)
+    .then((details) => ({
+      message,
+      trees: (details.members ?? []).flatMap((member) => (member.run.status === "FAILED"
+        ? [{ treeId: treeOf.get(member.run.owner.modelId) ?? member.run.owner.modelId, failure: member.run.failure?.message ?? null }]
+        : [])),
+    }))
+    .catch((caught: Error) => ({ message: `${message} The failed event trees could not be listed. ${caught.message}`, trees: [] }));
+}
+
 function useRunner(): Runner {
   const [running, setRunning] = useState(false);
+  const [live, setLive] = useState<AnalysisRunMetadata | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [failed, setFailed] = useState<FailedTree[]>([]);
   return {
     running,
+    live,
     error,
     failed,
+    progress: setLive,
     start: (task) => {
       setRunning(true);
+      setLive(null);
       setError(null);
       setFailed([]);
       task()
         .catch((caught: Error) => setError(caught.message))
-        .finally(() => setRunning(false));
+        .finally(() => {
+          setRunning(false);
+          setLive(null);
+        });
     },
     fail: (message, trees) => {
       setError(message);
       setFailed(trees);
     },
+    failRun: (workbookId, run, model, label) => runFailure(workbookId, run, model).then((outcome) => {
+      setError(label === undefined ? outcome.message : `${label}: ${outcome.message}`);
+      setFailed(outcome.trees);
+    }),
   };
+}
+
+function RunProgress({ runner }: { runner: Runner }): JSX.Element | null {
+  const { runtime, editable } = useEsqWorkbook();
+  const live = runner.live;
+  if (!runner.running || live === null) return null;
+  const text = runProgressText(live);
+  const workbookId = runtime.workbookId;
+  const active = live.status === "QUEUED" || live.status === "RUNNING";
+  return (
+    <div className="esq-bar">
+      <p className="esq-meta" role="status">{text}</p>
+      {editable && active && workbookId !== null && (
+        <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => {
+          cancelAnalysisRun("esq", workbookId, live.id).catch((caught: Error) => runner.fail(caught.message, []));
+        }}>Stop</button>
+      )}
+    </div>
+  );
 }
 
 function RunState({ runner, model, blocked }: { runner: Runner; model: EsqModel; blocked: string | null }): JSX.Element {
   return (
     <>
+      <RunProgress runner={runner} />
       {blocked !== null && <p className="esq-run__notice" role="status">{blocked}</p>}
       {runner.error !== null && <p className="esq-run__error" role="alert">{runner.error}</p>}
       {runner.failed.length > 0 && (
@@ -305,6 +430,104 @@ function FindingsTable<K extends string>({ label, findings, openWindow }: { labe
   );
 }
 
+interface CheckOption {
+  id: string;
+  label: string;
+}
+
+interface CheckRow {
+  severity: FindingSeverity;
+  check: string;
+  item: string;
+  detail: string;
+}
+
+function numberFrom(text: string, apply: (value: number | undefined) => void): void {
+  if (text.trim().length === 0) {
+    apply(undefined);
+    return;
+  }
+  const value = Number(text);
+  if (Number.isFinite(value)) apply(value);
+}
+
+function CheckGroup({ label, options, values, editable, onChange }: { label: string; options: readonly CheckOption[]; values: readonly string[]; editable: boolean; onChange: (values: string[]) => void }): JSX.Element {
+  const all = [...options, ...values.filter((value) => !options.some((option) => option.id === value)).map((value) => ({ id: value, label: value }))];
+  return (
+    <div className="posfield posfield-grid--span2 es-dialog-list" role="group" aria-label={label}>
+      <span className="posfield__label">{label}</span>
+      <div className="es-dialog-checks">
+        {all.map((option) => (
+          <label key={option.id} className="es-dialog-check">
+            <input type="checkbox" checked={values.includes(option.id)} disabled={!editable} onChange={(event) => onChange(event.target.checked ? [...values, option.id] : values.filter((value) => value !== option.id))} />
+            <span>{option.label}</span>
+          </label>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function TextField({ label, value, editable, wide = false, onChange }: { label: string; value: string; editable: boolean; wide?: boolean; onChange: (value: string) => void }): JSX.Element {
+  const id = useId();
+  return (
+    <div className={wide ? "posfield posfield-grid--span2" : "posfield"}>
+      <label className="posfield__label" htmlFor={id}>{label}</label>
+      <WorkbookInput id={id} className="posfield__input" value={value} disabled={!editable} onChange={(event) => onChange(event.target.value)} />
+    </div>
+  );
+}
+
+function AreaField({ label, value, editable, required = false, onChange }: { label: string; value: string; editable: boolean; required?: boolean; onChange: (value: string) => void }): JSX.Element {
+  const id = useId();
+  const missing = required && value.trim().length === 0;
+  return (
+    <div className="posfield posfield-grid--span2">
+      <label className="posfield__label" htmlFor={id}>{label}</label>
+      <WorkbookTextarea id={id} className="posfield__textarea" rows={2} fitContent aria-invalid={missing} value={value} disabled={!editable} onChange={(event) => onChange(event.target.value)} />
+      {missing && <span className="esq-dialog-error" role="alert">Required</span>}
+    </div>
+  );
+}
+
+function NumberField({ label, value, editable, onChange }: { label: string; value: number | undefined; editable: boolean; onChange: (value: number | undefined) => void }): JSX.Element {
+  const id = useId();
+  return (
+    <div className="posfield">
+      <label className="posfield__label" htmlFor={id}>{label}</label>
+      <WorkbookInput id={id} type="number" step="any" className="posfield__input posmono esq-dialog-number" value={value ?? ""} disabled={!editable} onChange={(event) => numberFrom(event.target.value, onChange)} />
+    </div>
+  );
+}
+
+function ChecksPanel<F extends CheckRow>({ findings, opens, onOpen }: { findings: readonly F[]; opens: (finding: F) => boolean; onOpen: (finding: F) => void }): JSX.Element {
+  const [page, setPage] = useState(0);
+  const rows = paged(findings.length, page);
+  const shown = findings.slice(rows.start, rows.start + PAGE);
+  return (
+    <>
+      <div className="es-records__bar">
+        <EsPager rows={rows} noun="finding" onPage={setPage} />
+      </div>
+      {findings.length > 0 && (
+        <table className="postable postable--mid es-records" aria-label="Checks">
+          <thead><tr><th scope="col">Severity</th><th scope="col">Check</th><th scope="col">Item</th><th scope="col">Detail</th></tr></thead>
+          <tbody>
+            {shown.map((finding, index) => (
+              <tr key={`${finding.check}:${finding.item}:${String(rows.start + index)}`}>
+                <td className={`es-severity es-severity--${finding.severity}`}>{SEVERITY_TEXT[finding.severity]}</td>
+                <td>{finding.check}</td>
+                <td>{opens(finding) ? <button type="button" className="es-records__link" onClick={() => onOpen(finding)}>{finding.item}</button> : finding.item}</td>
+                <td>{finding.detail}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </>
+  );
+}
+
 function sciText(v: number): string {
   if (!Number.isFinite(v) || v === 0) return String(v);
   const [mantissa, exponent] = v.toExponential(2).split("e");
@@ -328,6 +551,12 @@ function useExpressionPoints(entries: readonly EsqPointEntry[], table: ReadonlyM
   }));
 }
 
+function useInputPoints(esq: EventSequenceQuantification, table: ReadonlyMap<string, UncertainParameter>): Map<string, number> {
+  const entries = useMemo(() => sampledInputsOf(esq).flatMap((input) => (input.expression === undefined || input.unit !== "PROBABILITY" ? [] : [{ key: input.key, expression: input.expression, unit: input.unit }])), [esq]);
+  const states = useExpressionPoints(entries, table);
+  return new Map([...states].flatMap(([key, state]) => (state.status === "ready" ? [[key, state.value.point] as const] : [])));
+}
+
 function pointText(state: UncertaintyState<UncertaintyExpressionSummary> | undefined): string {
   if (state === undefined || state.status === "failed") return "—";
   return state.status === "pending" ? "…" : sciText(state.value.point);
@@ -347,19 +576,128 @@ function pctText(frac: number): string {
   return `${Math.round(frac * 100)}%`;
 }
 
+const READ_ONLY_TREE = { mode: "READ_ONLY" as const, canEditBasicEvents: false, canEditLayout: false, canImport: false, canExport: true, canRunAnalysis: false };
+
+function selectionIn(logic: SystemLogicModel | undefined, eventIds: readonly string[]): FaultTreeSelection {
+  if (logic === undefined) return null;
+  const leaf = logic.leafNodes.find((node) => node.kind === "BASIC_EVENT_REFERENCE" && eventIds.includes(node.basicEventId));
+  if (leaf !== undefined) return { kind: "LEAF", leafId: leaf.id };
+  return logic.topGate === null ? null : { kind: "GATE", gateId: logic.topGate.gateId };
+}
+
+function valueTexts(esq: EventSequenceQuantification, points: ReadonlyMap<string, number>): Record<string, string> {
+  const model = esq.model;
+  if (model === undefined) return {};
+  return Object.fromEntries(model.events.map((event) => {
+    const point = points.get(eventInputKey(esq, model, event.id));
+    const text = point !== undefined ? sciText(point)
+      : event.expression !== undefined ? expressionText(event.expression)
+      : event.value !== undefined ? sciText(event.value)
+      : "No value yet";
+    return [event.id, text];
+  }));
+}
+
+function useLogicModels(): SystemLogicModel[] {
+  const { upstream } = useEsqWorkbook();
+  const sy = upstream.sy;
+  return useMemo(() => (sy?.systemLogicModels ?? []).filter((model) => model.topGate !== null), [sy]);
+}
+
+function FaultTreeDiagram({ modelId, eventIds, onModel }: { modelId: string; eventIds: readonly string[]; onModel: (modelId: string) => void }): JSX.Element | null {
+  const { esq, upstream } = useEsqWorkbook();
+  const sy = upstream.sy;
+  const logicModels = useLogicModels();
+  const logic = logicModels.find((model) => model.uuid === modelId);
+  const [selection, setSelection] = useState<FaultTreeSelection>(() => selectionIn(logic, eventIds));
+  const table = useMemo(() => parameterTableOf(esq, missionTimeSourcesOf(esq, upstream)), [esq, upstream]);
+  const points = useInputPoints(esq, table);
+  const catalogue = useMemo(() => toFaultTreeEditorCatalogue(sy?.systemBasicEvents ?? []), [sy]);
+  const values = useMemo(() => valueTexts(esq, points), [esq, points]);
+  if (logic === undefined) return null;
+  const transferTargets = logicModels.flatMap((candidate) => (candidate.topGate === null || candidate.uuid === modelId
+    ? []
+    : [{ target: { modelId: candidate.uuid, entityId: candidate.topGate.gateId }, code: candidate.code, name: candidate.name, description: candidate.description }]));
+  return (
+    <div className="esq-dialog-ft">
+      <FaultTreeEditor
+        model={toFaultTreeEditorModel(logic)}
+        catalogue={catalogue}
+        readOnlyBasicEventValues={values}
+        capabilities={READ_ONLY_TREE}
+        selection={selection}
+        validation={[]}
+        saveState="saved"
+        analysisResult={null}
+        showResults={false}
+        showHeaderStatus={false}
+        resultIsStale={false}
+        transferTargets={transferTargets}
+        onOperation={() => undefined}
+        onSelectionChange={setSelection}
+        onOpenReference={(request) => { if (request.kind === "TRANSFER") onModel(request.target.modelId); }}
+        onRun={() => undefined}
+      />
+    </div>
+  );
+}
+
+function FaultTreeWindow({ modelIds, eventIds, onClose }: { modelIds: readonly string[]; eventIds: readonly string[]; onClose: () => void }): JSX.Element {
+  const fieldId = useId();
+  const logicModels = useLogicModels();
+  const [modelId, setModelId] = useState(() => modelIds[0] ?? logicModels[0]?.uuid ?? "");
+  const logic = logicModels.find((model) => model.uuid === modelId);
+  const choices = modelIds.length === 0 ? logicModels : logicModels.filter((model) => modelIds.includes(model.uuid) || model.uuid === modelId);
+  return (
+    <DialogShell label="Fault trees" onClose={onClose} fit>
+      <DialogHead cap="Fault tree · SY" title={logic === undefined ? "Fault tree" : `${logic.code} · ${logic.name}`} onClose={onClose} />
+      <div className="modal__body">
+        {choices.length > 1 && (
+          <div className="es-records__bar">
+            <div className="es-records__filters">
+              <div className="es-records__filter">
+                <label className="posfield__label" htmlFor={`${fieldId}-model`}>Fault tree</label>
+                <select id={`${fieldId}-model`} className="posfield__select" value={modelId} onChange={(event) => setModelId(event.target.value)}>
+                  {choices.map((model) => <option key={model.uuid} value={model.uuid}>{`${model.code} · ${model.name}`}</option>)}
+                </select>
+              </div>
+            </div>
+          </div>
+        )}
+        <FaultTreeDiagram key={modelId} modelId={modelId} eventIds={eventIds} onModel={setModelId} />
+      </div>
+    </DialogShell>
+  );
+}
+
 export {
+  AreaField,
   Badge,
+  CheckGroup,
+  ChecksPanel,
+  CUT_OFF_EXPONENTS,
+  FaultTreeDiagram,
+  FaultTreeWindow,
+  NumberField,
+  Pager,
+  TextField,
+  pageOf,
+  type EsqWindowContext,
   ChecksRow,
   CutOffField,
   FindingsTable,
+  RunProgress,
   RunState,
   dateText,
   decade,
   exponentOf,
   failedTrees,
+  networkLabel,
+  networkOptionsOf,
   treeLabel,
   useRunner,
   type FailedTree,
+  type NetworkOption,
   type FindingRow,
   type FindingSeverity,
   type Runner,
@@ -376,6 +714,7 @@ export {
   pointText,
   useElementWidth,
   useExpressionPoints,
+  useInputPoints,
   valText,
   freqText,
   pctText,

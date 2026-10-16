@@ -57,7 +57,7 @@ function SyDocumentsCard({ workbookId, canEdit }: { workbookId: string; canEdit:
   return (
     <div className="poscard">
       <div className="poscard__head">
-        <WorkbookSectionHeading workbook="SY" title="Supporting documents" level={3} />
+        <WorkbookSectionHeading title="Supporting documents" level={3} />
         {canEdit && (
           <label className="posnav__btn posnav__btn--sm posnav__btn--primary" style={{ cursor: busy ? "wait" : "pointer" }}>
             <SYIcon.Plus /> {busy ? "Uploading…" : "Upload"}

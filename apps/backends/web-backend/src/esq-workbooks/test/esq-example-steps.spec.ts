@@ -14,36 +14,34 @@ import { RI_ANALYSIS_HTGR } from "../../example-workbooks/seeds/ri-seed-htgr";
 import { normalizeEsqMef } from "../esq-mef-normalize";
 
 const variants = [
-  { name: "HTGR", esq: ESQ_ANALYSIS_HTGR, sy: SY_ANALYSIS_HTGR, pos: POS_ANALYSIS, hr: HR_ANALYSIS_HTGR, ri: RI_ANALYSIS_HTGR, hs: "example-hs-htgr" },
-  { name: "SFR", esq: ESQ_ANALYSIS, sy: SY_ANALYSIS, pos: POS_ANALYSIS_SFR, hr: HR_ANALYSIS, ri: RI_ANALYSIS, hs: "example-hs-sfr" },
+  { name: "HTGR", esq: ESQ_ANALYSIS_HTGR, sy: SY_ANALYSIS_HTGR, pos: POS_ANALYSIS, hr: HR_ANALYSIS_HTGR, ri: RI_ANALYSIS_HTGR, hs: "example-hs-htgr", cells: ["BC-1", "BC-2", "BC-3", "BC-4", "BC-5"] },
+  { name: "SFR", esq: ESQ_ANALYSIS, sy: SY_ANALYSIS, pos: POS_ANALYSIS_SFR, hr: HR_ANALYSIS, ri: RI_ANALYSIS, hs: "example-hs-sfr", cells: ["BC-1", "BC-2", "BC-3", "BC-4", "BC-5", "BC-6", "BC-7"] },
 ] as const;
 
 describe("ESQ examples Steps 02 to 10", () => {
-  it("parses the HTGR example with its review, spreads, cases and responses", () => {
+  it("parses the HTGR example with its review, cases and responses", () => {
     const parsed = EventSequenceQuantificationSchema.safeParse(normalizeEsqMef(ESQ_ANALYSIS_HTGR));
     expect(parsed.success).toBe(true);
     if (!parsed.success) return;
     const mef = parsed.data;
     expect(mef.review?.screened?.map((bound) => bound.groupId)).toEqual(["IE-35", "IEG-DEPENDENCY-DEMO"]);
     expect(mef.review?.comparison).toMatchObject({ possible: false, plants: [] });
-    expect(mef.uncertaintyWork?.spreads).toHaveLength(9);
-    expect(mef.uncertaintyWork?.spreads?.find((spread) => spread.key === "HFE:HR-PRE-018")?.errorFactor).toBe(6);
+    expect(HR_ANALYSIS_HTGR.hepQuantifications.find((quantification) => quantification.hfeId === "HR-PRE-018")?.hep).toEqual({ node: "VALUE", value: { unit: "PROBABILITY", law: { family: "TRUNCATED", law: { family: "LOGNORMAL", mean: 1.5e-3, errorFactor: 6, level: 0.95 }, lower: null, upper: 1 } } });
     expect(mef.sensitivityWork?.cases?.map((entry) => entry.id)).toEqual(["SC-1", "SS-2-HIGH", "SS-3-LOW", "SS-3-HIGH", "SS-6-HIGH", "SC-4", "SC-5", "SC-6"]);
     expect(mef.handoffWork?.responses).toHaveLength(12);
   });
 
-  it("parses the SFR example with its review, spreads, cases and responses", () => {
+  it("parses the SFR example with its review, cases and responses", () => {
     const parsed = EventSequenceQuantificationSchema.safeParse(normalizeEsqMef(ESQ_ANALYSIS));
     expect(parsed.success).toBe(true);
     if (!parsed.success) return;
     const mef = parsed.data;
     expect(mef.review?.screened?.map((bound) => bound.groupId)).toEqual(["IE-22", "IE-23", "IEG-DEPENDENCY-DEMO"]);
-    expect(mef.uncertaintyWork?.spreads).toHaveLength(8);
     expect(mef.sensitivityWork?.cases?.map((entry) => entry.id)).toEqual(["SC-1", "SS-2-HIGH", "SS-3-LOW", "SS-3-HIGH", "SS-4-LOW", "SS-4-HIGH", "SS-6-HIGH", "SC-4", "SC-5", "SC-6"]);
     expect(mef.handoffWork?.responses).toHaveLength(13);
   });
 
-  it.each(variants)("keeps the $name Step 02 to 06 entries through the MEF schema", ({ esq, hs }) => {
+  it.each(variants)("keeps the $name Step 02 to 06 entries through the MEF schema", ({ esq, hs, cells }) => {
     const parsed = EventSequenceQuantificationSchema.safeParse(normalizeEsqMef(esq));
     expect(parsed.success).toBe(true);
     if (!parsed.success) return;
@@ -52,7 +50,7 @@ describe("ESQ examples Steps 02 to 10", () => {
     expect(mef.modelDecisions?.familyChoices?.map((choice) => choice.familyId)).toEqual(["ESF-OK", "ESF-LEAK", "ESF-LATE", "ESF-EARLY", "ESF-ATWS"]);
     expect(mef.modelDecisions?.familyChoices?.every((choice) => (choice.groupingReason ?? "").length > 0)).toBe(true);
     expect(mef.logic?.exclusions).toHaveLength(1);
-    expect(mef.barrierWork?.cells?.map((cell) => cell.id)).toEqual(["BC-1"]);
+    expect(mef.barrierWork?.cells?.map((cell) => cell.id)).toEqual(cells);
     expect(mef.postWork?.recoveries?.filter((rule) => rule.credited).map((rule) => rule.id)).toEqual(["REC-1"]);
     expect(mef.postWork?.combinations?.map((combination) => combination.id)).toEqual(["HC-1"]);
   });
@@ -100,7 +98,9 @@ describe("ESQ examples Steps 02 to 10", () => {
   it.each(variants)("takes the $name joint HEP of record from an HR assessment that matches THERP at its level", ({ esq, hr }) => {
     const hepOf = (quantificationId: string | undefined, hfeId: string | undefined): number | undefined => {
       const quantification = hr.hepQuantifications.find((candidate) => (quantificationId === undefined ? candidate.hfeId === hfeId : candidate.uuid === quantificationId));
-      return quantification?.meanHep ?? quantification?.pointEstimateHep;
+      const stated = quantification?.hep?.node === "VALUE" ? quantification.hep.value.law : undefined;
+      const law = stated?.family === "TRUNCATED" ? stated.law : stated;
+      return law?.family === "POINT" ? law.value : law?.family === "LOGNORMAL" ? law.mean : undefined;
     };
     for (const combination of esq.postWork?.combinations ?? []) {
       const assessment = hr.dependencyAssessments.find((candidate) => candidate.uuid === combination.dependencyId);

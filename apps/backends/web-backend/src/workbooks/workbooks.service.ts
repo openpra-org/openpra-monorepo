@@ -2,16 +2,21 @@ import { BadRequestException, ForbiddenException, Injectable, NotFoundException,
 import { InjectModel } from "@nestjs/mongoose";
 import { Model, isValidObjectId } from "mongoose";
 import {
+  type CreateProjectWorkbooksRequest,
   type CreateWorkbookRequest,
+  type ProjectWorkbookFailure,
+  type ProjectWorkbooksResult,
   type UpdateWorkbookRequest,
   type Workbook as WorkbookDto,
   type WorkbookListResponse,
+  elementsForMode,
 } from "interfaces-shared-types";
 import { User, type UserDocument } from "../users/user.schema";
 import { ProjectsService } from "../projects/projects.service";
 import { Workbook, type WorkbookDocument } from "./workbook.schema";
 import { WorkbookElementRegistry, type WorkbookExampleVariant } from "./workbook-element-registry";
 import { WorkbookRolesService } from "./workbook-roles.service";
+import { knownWorkbookStatus, workbookStatusOf } from "./workbook-status";
 import { AnalyticsService } from "../analytics/analytics.service";
 import type { SystemsAnalysis } from "interfaces-mef-types/sy/systems-analysis";
 import type { DataAnalysis } from "interfaces-mef-types/da/data-analysis";
@@ -19,18 +24,22 @@ import type { HumanReliabilityAnalysis } from "interfaces-mef-types/hr/human-rel
 import type { EventSequenceAnalysis } from "interfaces-mef-types/es/event-sequence-analysis";
 import type { EventSequenceQuantification } from "interfaces-mef-types/esq/event-sequence-quantification";
 import type { RadiologicalConsequenceAnalysis } from "interfaces-mef-types/rc/radiological-consequence-analysis";
-import type { RiskIntegration } from "interfaces-mef-types/ri/risk-integration";
+import type { RiApplicationContext, RiskIntegration } from "interfaces-mef-types/ri/risk-integration";
 import type { SuccessCriteriaDevelopment } from "interfaces-mef-types/sc/success-criteria-development";
 import {
   reconcileExampleEsqDependencyReferences,
   reconcileExampleEventTreeDependencyReferences,
   reconcileExampleSyDataAnalysisReferences,
   reconcileExampleDaMissionTimeReferences,
+  reconcileExampleDaOwnReferences,
+  reconcileExampleEsqDataAnalysisLinks,
   reconcileExampleEsqMissionTimeReferences,
   reconcileExampleSyMissionTimeReferences,
   reconcileExampleSyHumanReliabilityReferences,
   reconcileExampleRiskResultReferences,
   reconcileExampleSyDependencyOwnership,
+  esqDataAnalysisLinks,
+  relinkExampleDataAnalysis,
 } from "../example-workbooks/seeds/dependency-model-seed";
 
 function computeInitials(fullName: string): string {
@@ -46,7 +55,7 @@ function toDto(doc: WorkbookDocument): WorkbookDto {
     projectId: doc.projectId,
     elementCode: doc.elementCode,
     name: doc.name,
-    status: doc.status,
+    status: knownWorkbookStatus(doc.status),
     version: doc.version,
     ownerUsername: doc.ownerUsername,
     ownerFullName: doc.ownerFullName,
@@ -63,6 +72,13 @@ interface ActingUser {
 export interface ProjectExampleOption {
   id: string;
   label: string;
+  partial: boolean;
+  elements: string[];
+}
+
+interface ProjectExampleChoices {
+  complete: ProjectExampleOption[];
+  partial: ProjectExampleOption[];
 }
 
 export interface ProjectExampleInfo {
@@ -89,6 +105,49 @@ interface ExampleCapableElement {
   loadExample: (workbookId: string, acting: ActingUser, exampleId: string) => Promise<void>;
 }
 
+type LinkedMef = { linkedWorkbooks?: Record<string, string> };
+
+type LinkPreparer = (elementCode: string, mef: LinkedMef, links: Readonly<Record<string, string>>) => LinkedMef;
+
+const PROJECT_LINK_SOURCES: Readonly<Record<string, readonly string[]>> = {
+  POS: ["DA"],
+  IE: ["POS", "DA"],
+  ES: ["POS", "IE", "SC", "SY", "HRA"],
+  SC: ["POS", "IE", "ES"],
+  SY: ["POS", "SC", "ES", "DA", "HRA"],
+  HRA: ["POS", "IE", "SC", "SY", "DA"],
+  DA: ["POS", "IE", "SC", "SY", "HRA", "ESQ"],
+  ESQ: ["ES", "SY", "DA", "HRA", "IE", "POS", "SC", "RI", "HS"],
+  MS: ["POS", "ES", "RI"],
+  RC: ["ES", "MS", "RI"],
+  RI: ["POS", "ES", "ESQ", "MS", "RC"],
+};
+
+function withLinks(mef: LinkedMef, links: Readonly<Record<string, string>>): LinkedMef {
+  return { ...mef, linkedWorkbooks: { ...mef.linkedWorkbooks, ...links } };
+}
+
+function withIntegrationLinks(integration: RiskIntegration, links: Readonly<Record<string, string>>): RiskIntegration {
+  const context: RiApplicationContext = integration.applicationContext ?? { applicationType: integration.riskSignificanceCriteria[0]?.applicationType ?? "FIXED_RISK_TARGET", linkedWorkbooks: {} };
+  return { ...integration, applicationContext: { ...context, linkedWorkbooks: { ...context.linkedWorkbooks, ...links } } };
+}
+
+function exampleDaRelinked(mef: LinkedMef, daId: string | undefined): LinkedMef {
+  if (daId === undefined) return mef;
+  return JSON.parse(JSON.stringify(mef, (key: string, value: string) => (key === "workbookId" && typeof value === "string" && value.startsWith("example-da-") ? daId : value)));
+}
+
+const EXAMPLE_LOAD_ORDER: readonly string[] = ["POS", "IE", "ES", "SC", "HRA", "DA", "SY", "ESQ"];
+
+function loadRank(elementCode: string): number {
+  const rank = EXAMPLE_LOAD_ORDER.indexOf(elementCode);
+  return rank === -1 ? EXAMPLE_LOAD_ORDER.length : rank;
+}
+
+function upstreamFirst(elements: readonly ExampleCapableElement[]): ExampleCapableElement[] {
+  return [...elements].sort((left, right) => loadRank(left.elementCode) - loadRank(right.elementCode));
+}
+
 @Injectable()
 export class WorkbooksService {
   constructor(
@@ -106,6 +165,13 @@ export class WorkbooksService {
       .find({ projectId, elementCode })
       .sort({ updatedAt: -1 })
       .exec();
+    for (const doc of docs) {
+      if (doc.statusSynced === true) continue;
+      const loaded = await this.elementRegistry.tryGet(doc.elementCode)?.load(String(doc._id));
+      const status = workbookStatusOf(loaded === null || loaded === undefined ? undefined : (loaded.mef as { workflowState?: string }).workflowState);
+      await this.workbookModel.updateOne({ _id: doc._id }, { $set: { status, statusSynced: true } }, { timestamps: false }).exec();
+      doc.status = status;
+    }
     return { workbooks: docs.map(toDto) };
   }
 
@@ -119,6 +185,7 @@ export class WorkbooksService {
       elementCode: payload.elementCode,
       name: payload.name,
       status: "draft",
+      statusSynced: true,
       version: 1,
       ownerUsername: owner.username,
       ownerFullName: owner.fullName,
@@ -143,6 +210,52 @@ export class WorkbooksService {
     return toDto(created);
   }
 
+  async createProjectWorkbooks(projectId: string, payload: CreateProjectWorkbooksRequest, acting: ActingUser): Promise<ProjectWorkbooksResult> {
+    const { role, doc: project } = await this.projectsService.resolveAccess(projectId, acting);
+    if (role === "viewer") throw new ForbiddenException("You cannot create workbooks in this project");
+    const workbooks: WorkbookDto[] = [];
+    const failed: ProjectWorkbookFailure[] = [];
+    for (const element of elementsForMode(project.mode)) {
+      try {
+        workbooks.push(await this.createWorkbook(projectId, { elementCode: element.code, name: payload.name }, acting));
+      } catch (error) {
+        failed.push({ elementCode: element.code, reason: error instanceof Error ? error.message : "The workbook could not be created" });
+      }
+    }
+    const ids = new Map(workbooks.map((workbook) => [workbook.elementCode, workbook.id]));
+    const unlinked = await this.linkWorkbooks((elementCode) => ids.get(elementCode));
+    return { workbooks, failed, unlinked };
+  }
+
+  private async linkWorkbooks(idFor: (elementCode: string) => string | undefined, prepare?: LinkPreparer): Promise<ProjectWorkbookFailure[]> {
+    const unlinked: ProjectWorkbookFailure[] = [];
+    for (const [elementCode, sources] of Object.entries(PROJECT_LINK_SOURCES)) {
+      const adapter = this.elementRegistry.tryGet(elementCode);
+      const workbookId = idFor(elementCode);
+      const links = Object.fromEntries(sources.flatMap((code): [string, string][] => {
+        const id = idFor(code);
+        return id === undefined ? [] : [[code, id]];
+      }));
+      if (adapter === undefined || workbookId === undefined || Object.keys(links).length === 0) continue;
+      try {
+        const loaded = await adapter.load(workbookId);
+        if (loaded === null) {
+          unlinked.push({ elementCode, reason: "The workbook was not found" });
+          continue;
+        }
+        if (elementCode === "RI") {
+          await adapter.save(workbookId, withIntegrationLinks(loaded.mef as RiskIntegration, links), loaded.revision);
+          continue;
+        }
+        const stored = loaded.mef as LinkedMef;
+        await adapter.save(workbookId, withLinks(prepare === undefined ? stored : prepare(elementCode, stored, links), links), loaded.revision);
+      } catch (error) {
+        unlinked.push({ elementCode, reason: error instanceof Error ? error.message : "The links could not be saved" });
+      }
+    }
+    return unlinked;
+  }
+
   private exampleCapableElements(): ExampleCapableElement[] {
     const out: ExampleCapableElement[] = [];
     for (const adapter of this.elementRegistry.list()) {
@@ -162,35 +275,43 @@ export class WorkbooksService {
     return out;
   }
 
+  private projectExampleChoices(capable: readonly ExampleCapableElement[]): ProjectExampleChoices {
+    const byId = new Map<string, ProjectExampleOption>();
+    for (const entry of capable) {
+      for (const variant of entry.variants) {
+        const option = byId.get(variant.exampleId) ?? { id: variant.exampleId, label: variant.label, partial: false, elements: [] };
+        if (!option.elements.includes(entry.elementCode)) option.elements.push(entry.elementCode);
+        byId.set(variant.exampleId, option);
+      }
+    }
+    const shared = [...byId.values()].filter((option) => option.elements.length > 1);
+    return {
+      complete: shared.filter((option) => option.elements.length === capable.length),
+      partial: shared.filter((option) => option.elements.length < capable.length).map((option) => ({ ...option, partial: true })),
+    };
+  }
+
   async getProjectExampleInfo(projectId: string, acting: ActingUser): Promise<ProjectExampleInfo> {
     await this.projectsService.resolveAccess(projectId, acting);
     const capable = this.exampleCapableElements();
-    const options: ProjectExampleOption[] = [];
-    for (const entry of capable) {
-      for (const variant of entry.variants) {
-        if (!options.some((o) => o.id === variant.exampleId)) options.push({ id: variant.exampleId, label: variant.label });
-      }
-    }
-    if (options.length > 1) options.push({ id: "both", label: "Both reactors" });
-    return { elements: capable.map((e) => e.elementCode), options };
+    const elements = capable.map((e) => e.elementCode);
+    const { complete, partial } = this.projectExampleChoices(capable);
+    const both: ProjectExampleOption[] = complete.length > 1 ? [{ id: "both", label: "Both reactors", partial: false, elements }] : [];
+    return { elements, options: [...complete, ...both, ...partial] };
   }
 
   async generateExamples(projectId: string, exampleId: string | undefined, acting: ActingUser): Promise<GenerateExamplesResult> {
     const { role } = await this.projectsService.resolveAccess(projectId, acting);
     if (role === "viewer") throw new ForbiddenException("You cannot create workbooks in this project");
     const capable = this.exampleCapableElements();
-    const available: string[] = [];
-    for (const entry of capable) {
-      for (const variant of entry.variants) {
-        if (!available.includes(variant.exampleId)) available.push(variant.exampleId);
-      }
-    }
+    const { complete, partial } = this.projectExampleChoices(capable);
+    const available = [...complete, ...partial].map((option) => option.id);
     if (available.length === 0) throw new BadRequestException("No example workbooks are available");
     const chosen = exampleId === undefined || exampleId.length === 0 ? available[0] : exampleId;
-    if (chosen !== "both" && !available.includes(chosen)) throw new BadRequestException(`Unknown example "${chosen}"`);
-    const requested = chosen === "both" ? available : [chosen];
+    if (chosen === "both" ? complete.length < 2 : !available.includes(chosen)) throw new BadRequestException(`Unknown example "${chosen}"`);
+    const requested = chosen === "both" ? complete.map((option) => option.id) : [chosen];
     const generated: GeneratedExampleWorkbook[] = [];
-    for (const entry of capable) {
+    for (const entry of upstreamFirst(capable)) {
       for (const variant of entry.variants) {
         if (!requested.includes(variant.exampleId)) continue;
         try {
@@ -214,7 +335,19 @@ export class WorkbooksService {
     }
     await this.reconcileGeneratedDependencyExamples(generated);
     await this.linkGeneratedConsequenceExamples(generated);
+    await this.linkGeneratedHandoffSources(generated);
     return { generated };
+  }
+
+  private async linkGeneratedHandoffSources(generated: GeneratedExampleWorkbook[]): Promise<void> {
+    const unlinked: ProjectWorkbookFailure[] = [];
+    for (const variant of [...new Set(generated.map(({ exampleId }) => exampleId))]) {
+      const idFor = (elementCode: string): string | undefined => generated.find((entry) => entry.exampleId === variant && entry.elementCode === elementCode)?.workbookId ?? undefined;
+      unlinked.push(...await this.linkWorkbooks(idFor, (elementCode, mef, links) => (elementCode === "POS" || elementCode === "IE" ? exampleDaRelinked(mef, links.DA) : mef)));
+    }
+    if (unlinked.length > 0) {
+      throw new BadRequestException(`The example workbooks were made, but these could not be linked: ${unlinked.map((entry) => `${entry.elementCode} (${entry.reason})`).join(", ")}.`);
+    }
   }
 
   private async linkGeneratedConsequenceExamples(generated: GeneratedExampleWorkbook[]): Promise<void> {
@@ -267,9 +400,14 @@ export class WorkbooksService {
       const scEntry = generated.find((entry) => entry.exampleId === variant && entry.elementCode === "SC");
       const scLoaded = scAdapter === undefined || scEntry?.workbookId === null || scEntry?.workbookId === undefined ? null : await scAdapter.load(scEntry.workbookId);
       const missionTimes = scLoaded === null || scEntry?.workbookId === null || scEntry?.workbookId === undefined ? undefined : { sc: scLoaded.mef as SuccessCriteriaDevelopment, workbookId: scEntry.workbookId };
-      if (daAdapter !== undefined && missionTimes !== undefined && daEntry?.workbookId !== null && daEntry?.workbookId !== undefined) {
+      if (daAdapter !== undefined && daEntry?.workbookId !== null && daEntry?.workbookId !== undefined) {
         const dataAnalysis = await daAdapter.load(daEntry.workbookId);
-        if (dataAnalysis !== null) await daAdapter.save(daEntry.workbookId, reconcileExampleDaMissionTimeReferences(dataAnalysis.mef as DataAnalysis, missionTimes.sc, missionTimes.workbookId), dataAnalysis.revision);
+        if (dataAnalysis !== null) {
+          const stored = dataAnalysis.mef as DataAnalysis;
+          const timed = missionTimes === undefined ? stored : reconcileExampleDaMissionTimeReferences(stored, missionTimes.sc, missionTimes.workbookId);
+          const owned = reconcileExampleDaOwnReferences(timed, daEntry.workbookId);
+          if (owned !== stored) await daAdapter.save(daEntry.workbookId, owned, dataAnalysis.revision);
+        }
       }
       if (syEntry?.workbookId === null || syEntry?.workbookId === undefined) continue;
 
@@ -318,9 +456,12 @@ export class WorkbooksService {
 
       if (esqAdapter !== undefined && esqEntry?.workbookId !== null && esqEntry?.workbookId !== undefined) {
         const esq = await esqAdapter.load(esqEntry.workbookId);
+        const dataAnalysis = daAdapter === undefined || daEntry?.workbookId === null || daEntry?.workbookId === undefined ? null : await daAdapter.load(daEntry.workbookId);
         if (esq !== null && esq.revision !== undefined) {
+          const timedEsq = missionTimes === undefined ? esq.mef as EventSequenceQuantification : reconcileExampleEsqMissionTimeReferences(esq.mef as EventSequenceQuantification, missionTimes.sc, missionTimes.workbookId);
+          const daSources = dataAnalysis === null || daEntry?.workbookId === null || daEntry?.workbookId === undefined ? [] : [{ da: dataAnalysis.mef as DataAnalysis, workbookId: daEntry.workbookId, exampleVariant: variant }];
           const reconciledEsq = reconcileExampleEsqDependencyReferences(
-            missionTimes === undefined ? esq.mef as EventSequenceQuantification : reconcileExampleEsqMissionTimeReferences(esq.mef as EventSequenceQuantification, missionTimes.sc, missionTimes.workbookId),
+            relinkExampleDataAnalysis(timedEsq, esqDataAnalysisLinks(timedEsq), daSources, reconcileExampleEsqDataAnalysisLinks).mef,
             esqEntry.workbookId,
             systems.mef as SystemsAnalysis,
             syEntry.workbookId,
@@ -332,11 +473,20 @@ export class WorkbooksService {
       if (esAdapter === undefined || esEntry?.workbookId === null || esEntry?.workbookId === undefined) continue;
       const eventSequences = await esAdapter.load(esEntry.workbookId);
       if (eventSequences === null || eventSequences.revision === undefined) continue;
-      const reconciledEventSequences = reconcileExampleEventTreeDependencyReferences(
+      const dependentEventSequences = reconcileExampleEventTreeDependencyReferences(
         eventSequences.mef as EventSequenceAnalysis,
         systems.mef as SystemsAnalysis,
         syEntry.workbookId,
       );
+      const reconciledEventSequences: EventSequenceAnalysis = {
+        ...dependentEventSequences,
+        linkedWorkbooks: {
+          ...dependentEventSequences.linkedWorkbooks,
+          SY: syEntry.workbookId,
+          ...(scEntry?.workbookId === null || scEntry?.workbookId === undefined ? {} : { SC: scEntry.workbookId }),
+          ...(hrEntry?.workbookId === null || hrEntry?.workbookId === undefined ? {} : { HRA: hrEntry.workbookId }),
+        },
+      };
       await esAdapter.save(esEntry.workbookId, reconciledEventSequences, eventSequences.revision);
 
       if (
@@ -377,8 +527,7 @@ export class WorkbooksService {
     const { role } = await this.projectsService.resolveAccess(projectId, acting);
     if (role === "viewer") throw new ForbiddenException("You cannot edit workbooks in this project");
     const doc = await this.findScoped(projectId, id);
-    if (payload.name !== undefined) doc.name = payload.name;
-    if (payload.status !== undefined) doc.status = payload.status;
+    doc.name = payload.name;
     await doc.save();
     return toDto(doc);
   }

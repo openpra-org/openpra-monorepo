@@ -1,7 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ProducerService } from './producer.service';
 import { QueueService, RabbitMQChannelModelService, QueueConfigFactory, MinioService, } from '../../shared';
-import { SequenceExtractorService } from './sequence-extractor';
 import { RpcException } from '@nestjs/microservices';
 import type { NodeQuantRequest } from '../../common/types/quantify-request';
 describe('ProducerService', () => {
@@ -27,19 +26,10 @@ describe('ProducerService', () => {
         createQuantJobQueueConfig: vi
             .fn()
             .mockReturnValue({ exchange: { name: 'quant', routingKey: 'key' } }),
-        createDistributedSequencesJobQueueConfig: vi
-            .fn()
-            .mockReturnValue({ exchange: { name: 'dist', routingKey: 'key' } }),
-        createAdaptiveSequencesJobQueueConfig: vi
-            .fn()
-            .mockReturnValue({ exchange: { name: 'adapt', routingKey: 'key' } }),
     };
     const mockMinioService = {
         storeInputData: vi.fn().mockResolvedValue('input-id'),
         createJobMetadata: vi.fn().mockResolvedValue(undefined),
-    };
-    const mockSequenceExtractorService = {
-        extractSequenceRequests: vi.fn(),
     };
     beforeEach(async () => {
         vi.clearAllMocks();
@@ -50,10 +40,6 @@ describe('ProducerService', () => {
                 { provide: RabbitMQChannelModelService, useValue: mockRabbitMQService },
                 { provide: QueueConfigFactory, useValue: mockQueueConfigFactory },
                 { provide: MinioService, useValue: mockMinioService },
-                {
-                    provide: SequenceExtractorService,
-                    useValue: mockSequenceExtractorService,
-                },
             ],
         }).compile();
         service = module.get<ProducerService>(ProducerService);
@@ -76,36 +62,6 @@ describe('ProducerService', () => {
             mockChannel.checkExchange.mockRejectedValueOnce(new Error());
             const quantRequest: NodeQuantRequest = { _id: 'job-id' };
             await expect(service.createAndQueueQuant(quantRequest)).rejects.toThrow(RpcException);
-        });
-    });
-    describe('createAndQueueSequenceBatch', () => {
-        it('should create and queue sequence batch', async () => {
-            const quantRequest: NodeQuantRequest = { _id: 'job-id' };
-            const sequenceRequests = [{ _id: 'seq-1' }, { _id: 'seq-2' }];
-            const sequenceJobIds = ['seq-1', 'seq-2'];
-            mockSequenceExtractorService.extractSequenceRequests.mockReturnValue({
-                sequenceRequests,
-                sequenceJobIds,
-            });
-            const result = await service.createAndQueueSequenceBatch(quantRequest);
-            expect(result).toEqual(sequenceJobIds);
-            expect(minioService.storeInputData).toHaveBeenCalledTimes(3);
-            expect(mockChannel.publish).toHaveBeenCalledTimes(2);
-        });
-    });
-    describe('createAndQueueAdaptiveSequenceBatch', () => {
-        it('should create and queue adaptive sequence batch', async () => {
-            const quantRequest: NodeQuantRequest = { _id: 'job-id' };
-            const sequenceRequests = [{ _id: 'seq-1' }, { _id: 'seq-2' }];
-            const sequenceJobIds = ['seq-1', 'seq-2'];
-            mockSequenceExtractorService.extractSequenceRequests.mockReturnValue({
-                sequenceRequests,
-                sequenceJobIds,
-            });
-            const result = await service.createAndQueueAdaptiveSequenceBatch(quantRequest);
-            expect(result).toEqual(sequenceJobIds);
-            expect(minioService.storeInputData).toHaveBeenCalledTimes(3);
-            expect(mockChannel.publish).toHaveBeenCalledTimes(2);
         });
     });
 });

@@ -343,6 +343,7 @@ describe("ESQ model run contracts", () => {
     expect(EsqModelRunRequestSchema.safeParse(exact).success).toBe(true);
     expect(EsqModelRunRequestSchema.safeParse({ ...exact, calculation: "CUT_SETS", cutSets }).success).toBe(true);
     expect(EsqModelRunRequestSchema.safeParse({ ...exact, calculation: "CUT_SETS", cutSets: { ...cutSets, basis: "PROBABILITY", limitOrder: 4 } }).success).toBe(true);
+    expect(EsqModelRunRequestSchema.safeParse({ ...exact, treeIds: ["ET-PLOFC"] }).success).toBe(true);
   });
 
   it.each([
@@ -358,7 +359,8 @@ describe("ESQ model run contracts", () => {
     { ...exact, calculation: "CUT_SETS", cutSets: { ...cutSets, limitOrder: 0 } },
     { ...exact, calculation: "CUT_SETS", cutSets: { ...cutSets, quantifier: "MIN_CUT" } },
     { ...exact, calculation: "SAMPLED" },
-    { ...exact, treeIds: ["ET-PLOFC"] },
+    { ...exact, treeIds: [] },
+    { ...exact, treeIds: ["ET-PLOFC", "ET-PLOFC"] },
   ])("rejects malformed model run request %#", (candidate) => {
     expect(EsqModelRunRequestSchema.safeParse(candidate).success).toBe(false);
   });

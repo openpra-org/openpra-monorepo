@@ -80,7 +80,7 @@ function analysisModelBasicEvents(sy: Pick<SystemsAnalysis, "systemLogicModels" 
 
 function vectorUncertain(vector: UncertainVector | undefined): boolean {
   if (vector === undefined) return false;
-  return vector.node === "PARAMETER" || vector.law.family === "DIRICHLET";
+  return vector.node === "PARAMETER" || vector.law.family !== "FIXED";
 }
 
 function factorsUncertain(factors: CcfFactorModel, table: ParameterTable): boolean {
@@ -88,7 +88,7 @@ function factorsUncertain(factors: CcfFactorModel, table: ParameterTable): boole
 }
 
 function ccfUncertain(sy: CcfAnalysis, model: SystemLogicModel, table: ParameterTable): boolean {
-  return ccfGroupsForModel(sy, model).some((group) => factorsUncertain(group.factors, table) || expressionUncertain(group.total, table));
+  return ccfGroupsForModel(sy, model).some((group) => factorsUncertain(group.factors, table) || (group.total !== undefined && expressionUncertain(group.total, table)));
 }
 
 function eventInput(event: SystemBasicEvent, parameters: readonly SyControlledParameterOption[], table: ParameterTable): UncertaintyInput {

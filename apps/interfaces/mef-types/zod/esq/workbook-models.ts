@@ -21,6 +21,7 @@ import {
   HclHazardGridDefinitionSchema,
   HclSolverSettingsSchema,
 } from "../modeling/hybrid-causal-logic";
+import { WorkbookHclEventTreeScopeSchema } from "../modeling/workbook-models";
 
 const EsqWorkbookModelIdentitySchema = z
   .object({
@@ -67,6 +68,7 @@ const EsqHclConfigurationBaseSchema = z
     baseEvidence: BayesianNetworkEvidenceConfigurationSchema,
     evidenceScenarios: z.array(HclEvidenceScenarioSchema).optional(),
     hazardGrid: HclHazardGridDefinitionSchema.optional(),
+    eventTreeScope: WorkbookHclEventTreeScopeSchema.optional(),
     solverSettings: HclSolverSettingsSchema.extend({ uncertainty: z.unknown().optional() }),
   })
   .strict();

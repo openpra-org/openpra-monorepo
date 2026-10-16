@@ -13,6 +13,7 @@ import {
 import { carriesUncertainExpression, type CommonCauseFailureGroup, type SystemBasicEvent, type SystemDefinition, type SystemsAnalysis } from "interfaces-mef-types/sy/systems-analysis";
 import { analysisModelBasicEvents, ccfSources, dependencySources, modelSources, plantItems, systemStudies, type PlantList } from "./syUncertainty";
 import { isSystemLevelModel } from "./sySelectors";
+import { ccfModelTakesTotal } from "interfaces-mef-types/core/uncertainty";
 import { CONFIRM_METHODS, RESOURCE_TYPE_LABELS, SCREENING_CRITERIA, toExp } from "./syViewData";
 import { ccfFactorText, ccfModelText, memberEvents, sharedCauseLines } from "./syCcf";
 import {
@@ -34,7 +35,7 @@ import { evaluateResolved } from "../newly-developed-methods/shared/uncertaintyL
 import { parametersFor } from "../newly-developed-methods/shared/useUncertainty";
 import { expressionText } from "../newly-developed-methods/shared/uncertainText";
 import { linkedOptions } from "./syBasicEventValues";
-import { syValueSources } from "./syMissionTimes";
+import { syValueSources, type SyCcfSources } from "./syMissionTimes";
 import { pointsOf } from "../newly-developed-methods/shared/uncertaintyPoints";
 import { numberText } from "../newly-developed-methods/shared/uncertainText";
 
@@ -43,6 +44,7 @@ interface ReportLinks {
   parameters: readonly SyControlledParameterOption[];
   boundaries: readonly SyControlledComponentBoundaryOption[];
   missionTimes: Pick<SyLinkedInputs, "scMissionTimeOptions" | "scMissionTimeTable"> | null;
+  ccf?: SyCcfSources;
 }
 type Heading = (typeof HeadingLevel)[keyof typeof HeadingLevel];
 interface UncertaintySummary { modelId: string; mean: number; lower: number; upper: number; samples: number }
@@ -52,7 +54,7 @@ async function eventPoints(events: readonly SystemBasicEvent[], links: ReportLin
   if (valued.length === 0) return new Map();
   try {
     const response = await evaluateResolved({
-      parameters: parametersFor(valued.map(({ expression }) => expression), syValueSources(links.parameters, links.missionTimes).table),
+      parameters: parametersFor(valued.map(({ expression }) => expression), syValueSources(links.parameters, links.missionTimes, links.ccf).table),
       laws: [],
       expressions: valued.map(({ expression }, index) => ({ id: String(index), expression, unit: "PROBABILITY", probabilities: [] })),
       operations: [],
@@ -71,14 +73,14 @@ function eventValueRow(event: SystemBasicEvent, links: ReportLinks, points: Read
   const mode = String(event.failureMode ?? "—");
   if (!carriesUncertainExpression(event.failureMode)) return [event.code, mode, event.controlledDataSource === undefined ? "Typed probability" : "Linked probability", event.probability === undefined ? "—" : toExp(event.probability)];
   if (event.expression === undefined) return [event.code, mode, "No value", "—"];
-  return [event.code, mode, expressionText(event.expression, syValueSources(links.parameters, links.missionTimes).label), points.get(event.uuid) ?? "—"];
+  return [event.code, mode, expressionText(event.expression, syValueSources(links.parameters, links.missionTimes, links.ccf).label), points.get(event.uuid) ?? "—"];
 }
 
 async function systemHours(systems: readonly SystemDefinition[], links: ReportLinks): Promise<Map<string, string>> {
   const entries = systems.flatMap((system) => (system.missionTime === undefined ? [] : [{ key: system.uuid, expression: system.missionTime, unit: "HOURS" as const }]));
   const text = new Map(systems.map((system) => [system.uuid, system.missionTime === undefined ? "Not set" : "Not available"]));
   try {
-    const points = await pointsOf(entries, syValueSources(links.parameters, links.missionTimes).table);
+    const points = await pointsOf(entries, syValueSources(links.parameters, links.missionTimes, links.ccf).table);
     points.forEach((point, key) => text.set(key, `${numberText(point)} h`));
     return text;
   } catch (error) {
@@ -90,7 +92,7 @@ async function systemHours(systems: readonly SystemDefinition[], links: ReportLi
 
 function missionTimeText(system: SystemDefinition, hours: ReadonlyMap<string, string>, links: ReportLinks): string {
   const point = hours.get(system.uuid) ?? "Not set";
-  return system.missionTime === undefined ? point : `${point} (${expressionText(system.missionTime, syValueSources(links.parameters, links.missionTimes).label)})`;
+  return system.missionTime === undefined ? point : `${point} (${expressionText(system.missionTime, syValueSources(links.parameters, links.missionTimes, links.ccf).label)})`;
 }
 
 async function currentUncertaintySummaries(workbookId: string | null, revision: number | null): Promise<UncertaintySummary[]> {
@@ -185,7 +187,7 @@ function modelLabel(a: SystemsAnalysis, systemId: string): string {
 }
 
 function commonCauseTable(a: SystemsAnalysis, groups: readonly CommonCauseFailureGroup[], links: ReportLinks): Table {
-  const label = syValueSources(links.parameters, links.missionTimes).label;
+  const label = syValueSources(links.parameters, links.missionTimes, links.ccf).label;
   const systemName = (id: string): string => {
     const system = a.systemDefinitions.find((candidate) => candidate.uuid === id);
     return system?.abbreviation ?? system?.name ?? id;
@@ -199,7 +201,7 @@ function commonCauseTable(a: SystemsAnalysis, groups: readonly CommonCauseFailur
         memberEvents(group, a).map((event) => event.name).join(", ") || "—",
         sharedCauseLines(group).join(", ") || "—",
         (group.defenseMechanisms ?? []).join(", ") || "—",
-        [ccfModelText(group.factors), ccfFactorText(group.factors, label), `Qₜ ${expressionText(group.total, label)}`].join(" · "),
+        [ccfModelText(group.factors), ccfFactorText(group.factors, label), ...(group.total === undefined || !ccfModelTakesTotal(group.factors) ? [] : [`Qₜ ${expressionText(group.total, label)}`])].join(" · "),
         reference.length > 0 ? `DA ${reference}` : (group.dataSources?.[0]?.reference ?? "Typed"),
       ];
     }),

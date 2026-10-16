@@ -13,6 +13,7 @@ const PLOT_HEIGHT = 150;
 const AXIS_BAND = 30;
 const LEFT = 34;
 const RIGHT = 16;
+const GRID_POINTS = 49;
 
 function probabilityText(value: number): string {
   return value >= 0.01 ? String(Number(value.toPrecision(3))) : sciText(value);
@@ -25,7 +26,7 @@ function hoursText(value: number): string {
 function survivalGrid(window: number): number[] {
   const from = Math.log10(window / 200);
   const to = Math.log10(window * 5);
-  const grid = Array.from({ length: 161 }, (_, index) => 10 ** (from + ((to - from) * index) / 160)).filter((value) => Math.abs(value - window) > 1e-9 * window);
+  const grid = Array.from({ length: GRID_POINTS }, (_, index) => 10 ** (from + ((to - from) * index) / (GRID_POINTS - 1))).filter((value) => Math.abs(value - window) > 1e-9 * window);
   return [...grid, window].sort((a, b) => a - b);
 }
 

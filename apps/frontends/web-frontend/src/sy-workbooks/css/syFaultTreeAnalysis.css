@@ -24,7 +24,7 @@
 .syft-analysis__notice {
   margin: 0;
   color: var(--color-text-muted);
-  font-size: 12px;
+  font-size: 12.5px;
   line-height: 1.5;
 }
 
@@ -64,10 +64,8 @@
   margin: 0;
   padding: 0;
   color: var(--color-text-muted);
-  font-size: 9.5px;
-  font-weight: 800;
-  letter-spacing: .06em;
-  text-transform: uppercase;
+  font-size: 12.5px;
+  font-weight: 650;
 }
 
 .syft-analysis__calculation-picker > div,
@@ -148,10 +146,8 @@
   gap: 9px;
   min-width: 0;
   color: var(--color-text-muted);
-  font-size: 10px;
-  font-weight: 750;
-  letter-spacing: .04em;
-  text-transform: uppercase;
+  font-size: 12.5px;
+  font-weight: 650;
 }
 
 .syft-analysis__run-field > span {
@@ -215,10 +211,8 @@
 .syft-analysis__advanced label > span,
 .syft-analysis__batch-models legend {
   color: var(--color-text-muted);
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: .04em;
-  text-transform: uppercase;
+  font-size: 12.5px;
+  font-weight: 650;
 }
 
 .syft-analysis__advanced select,
@@ -238,9 +232,9 @@
 .syft-analysis__advanced .syft-analysis__check {
   display: flex;
   align-items: center;
-  align-self: center;
+  align-self: end;
   gap: 8px;
-  padding-top: 15px;
+  min-height: 34px;
 }
 
 .syft-analysis__batch-models {
@@ -276,18 +270,11 @@
 
 .syft-analysis__batch-results > h3 {
   margin: 0;
-  font-size: 14px;
+  font-size: 15px;
 }
 
-.syft-analysis__batch-result {
-  display: grid;
-  gap: 6px;
-  border-top: 1px solid var(--color-border);
-  padding-top: 12px;
-}
-
-.syft-analysis__batch-result > strong {
-  font-size: 12px;
+.syft-analysis__batch-results > .es-records__bar {
+  margin-bottom: 0;
 }
 
 @media (max-width: 900px) {

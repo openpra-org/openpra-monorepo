@@ -1,7 +1,8 @@
-import { JSX, useEffect, useId, useRef, useState } from "react";
+import { JSX, useCallback, useEffect, useId, useRef, useState } from "react";
+import { z } from "zod";
 import { carriesUncertainExpression, type SystemBasicEvent, type SystemLogicModel, type SystemsAnalysis } from "interfaces-mef-types/sy/systems-analysis";
 import type { UncertainExpression } from "interfaces-mef-types/core/uncertainty";
-import { failureRateToProbability, requiresFailureRateConversionReview, type QuantificationTimeUnit } from "interfaces-mef-types/modeling";
+import { failureRateToProbability, requiresFailureRateConversionReview, type CanvasViewport, type QuantificationTimeUnit } from "interfaces-mef-types/modeling";
 import type { ValidationIssue } from "interfaces-shared-types/newly-developed-methods/shared";
 import {
   applyFaultTreeBasicEventToSystemBasicEvent,
@@ -21,9 +22,11 @@ import {
   type FaultTreeAnalysisResult,
 } from "interfaces-shared-types/newly-developed-methods/fault-tree";
 import { useAnalysisSourceGuard } from "../newly-developed-methods/shared/useAnalysisSourceGuard";
-import { expressionText } from "../newly-developed-methods/shared/uncertainText";
+import { expressionText, numberText } from "../newly-developed-methods/shared/uncertainText";
+import { hoursPoint, type HoursState } from "../sc-workbooks/scMissionTimePoints";
 import { AnalysisRunHistory } from "../newly-developed-methods/shared/analysisRunHistory";
-import { WorkbookSectionHeading } from "../workbooks/workbookSectionHeading";
+import { transferBreadcrumb, useTransferTrail, type TrailState } from "../newly-developed-methods/shared/transferTrail";
+import { OPTIONAL_TEXT_VIEW, jsonView, useWorkbookView, useWorkbookViewSlot } from "../workbooks/workbookViewMemory";
 import { NoSystemsCard } from "./syShared";
 import { SyFaultTreeAnalysis, type FaultTreeRunConfiguration } from "./SyFaultTreeAnalysis";
 import { SyCapabilityRepresentation } from "./SyCapabilityRepresentation";
@@ -45,7 +48,9 @@ import type { SyDrawerContext } from "./syScreens";
 import { SyDiagramPanel } from "./SyDiagramPanel";
 import "./css/syModels.css";
 
-type ModelTab = "description" | "diagram" | "fault-tree" | "basic-events" | "quantification" | "assumptions";
+const ModelTabSchema = z.enum(["description", "diagram", "fault-tree", "basic-events", "quantification", "assumptions"]);
+
+type ModelTab = z.infer<typeof ModelTabSchema>;
 
 const MODEL_TABS: { id: ModelTab; label: string }[] = [
   { id: "description", label: "Description" },
@@ -60,6 +65,18 @@ interface CatalogueSources {
   legacyParameters?: readonly SyControlledLegacyParameterOption[];
   humanFailures?: readonly SyControlledHumanFailureOption[];
   points?: ReadonlyMap<string, PointState>;
+}
+
+function silMissionChange(
+  result: FaultTreeAnalysisResult | null,
+  missionTime: UncertainExpression | undefined,
+  hours: HoursState | undefined,
+): string | null {
+  const used = result?.calculationType === "SIL" ? result.settings?.missionTimeHours : undefined;
+  if (used === undefined) return null;
+  if (missionTime === undefined) return "The system mission time was removed.";
+  const point = hoursPoint(hours);
+  return point === undefined || point === used ? null : `The system mission time changed from ${numberText(used)} h to ${numberText(point)} h.`;
 }
 
 function toFaultTreeEditorModel(model: SystemLogicModel): FaultTreeEditorModel {
@@ -95,14 +112,14 @@ function toFaultTreeEditorCatalogue(
     ]),
   );
   const controlledHumanFailureValues = new Map(
-    humanFailures.map((humanFailure) => [
+    humanFailures.flatMap((humanFailure) => (humanFailure.value === undefined ? [] : [[
       JSON.stringify([
         humanFailure.workbookId,
         humanFailure.humanFailureEventId,
         humanFailure.quantificationId,
       ]),
       humanFailure.value,
-    ]),
+    ] as const])),
   );
   return {
     basicEvents: events.map((event) => {
@@ -234,6 +251,58 @@ function syFaultTreeOperation(
   };
 }
 
+interface TreeView {
+  modelId: string;
+  viewport: CanvasViewport;
+}
+
+interface SyTrailPlace {
+  systemId: string;
+  selection: FaultTreeSelection;
+  view?: TreeView;
+}
+
+interface HeldSelection {
+  systemId: string;
+  selection: FaultTreeSelection;
+}
+
+interface BatchRun {
+  modelId: string;
+  runId: string;
+}
+
+const SelectionSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("GATE"), gateId: z.string() }),
+  z.object({ kind: z.literal("LEAF"), leafId: z.string() }),
+  z.object({ kind: z.literal("BASIC_EVENT"), basicEventId: z.string() }),
+]).nullable();
+
+const ViewportSchema = z.object({ x: z.number(), y: z.number(), zoom: z.number().positive() });
+
+const TAB_VIEW = jsonView<ModelTab>(ModelTabSchema);
+const SELECTION_VIEW = jsonView<HeldSelection>(z.object({ systemId: z.string(), selection: SelectionSchema }));
+const VIEWPORT_VIEW = jsonView<CanvasViewport>(ViewportSchema);
+const TRAIL_VIEW = jsonView<TrailState<SyTrailPlace>>(z.object({
+  steps: z.array(z.object({
+    place: z.object({
+      systemId: z.string(),
+      selection: SelectionSchema,
+      view: z.object({ modelId: z.string(), viewport: ViewportSchema }).optional(),
+    }),
+    label: z.string(),
+  })),
+  index: z.number().int().nonnegative(),
+}));
+const RUNS_VIEW = jsonView<Readonly<Record<string, string>>>(z.record(z.string(), z.string()));
+const BATCH_VIEW = jsonView<readonly BatchRun[]>(z.array(z.object({ modelId: z.string(), runId: z.string() })));
+
+const NO_SELECTION: HeldSelection = { systemId: "", selection: null };
+const EMPTY_TRAIL: TrailState<SyTrailPlace> = { steps: [], index: 0 };
+const NO_RUNS: Readonly<Record<string, string>> = {};
+const NO_BATCH: readonly BatchRun[] = [];
+const NO_RESTORED: readonly string[] = [];
+
 function ModelsScreen({ sysId, setSysId, openDrawer, onOpenSystems }: {
   sysId: string;
   setSysId: (id: string) => void;
@@ -250,22 +319,77 @@ function ModelsScreen({ sysId, setSysId, openDrawer, onOpenSystems }: {
     controlledLegacyParameters,
     controlledHumanFailures,
   } = useSyWorkbook();
-  const { sourceWarning } = useAnalysisSourceGuard("sy", runtime.workbookId);
-  const [tab, setTab] = useState<ModelTab>("description");
-  const [selection, setSelection] = useState<FaultTreeSelection>(null);
-  const [analysisResults, setAnalysisResults] = useState<Record<string, FaultTreeAnalysisResult>>({});
-  const [batchAnalysisResults, setBatchAnalysisResults] = useState<FaultTreeAnalysisResult[]>([]);
-  const [runningModelId, setRunningModelId] = useState<string | null>(null);
-  const [runError, setRunError] = useState<string | null>(null);
+  const [tab, setTab] = useWorkbookView<ModelTab>("models.tab", "description", TAB_VIEW);
+  const [heldSelection, setHeldSelection] = useWorkbookView<HeldSelection>("models.selection", NO_SELECTION, SELECTION_VIEW);
+  const [resultRuns, setResultRuns] = useWorkbookView<Readonly<Record<string, string>>>("models.results", NO_RUNS, RUNS_VIEW);
+  const [batchRuns, setBatchRuns] = useWorkbookView<readonly BatchRun[]>("models.batch", NO_BATCH, BATCH_VIEW);
+  const [runningModelId, setRunningModelId] = useWorkbookView<string | null>("models.running", null, OPTIONAL_TEXT_VIEW, false);
+  const [runError, setRunError] = useWorkbookView<string | null>("models.error", null, OPTIONAL_TEXT_VIEW, false);
+  const [trailState, setTrailState] = useWorkbookView<TrailState<SyTrailPlace>>("models.trail", EMPTY_TRAIL, TRAIL_VIEW);
+  const [loaded, setLoaded] = useState<Readonly<Partial<Record<string, FaultTreeAnalysisResult>>>>({});
+  const [restored, setRestored] = useState<readonly string[]>(NO_RESTORED);
+  const requested = useRef(new Set<string>());
   const tablist = useRef<HTMLDivElement>(null);
   const id = useId();
   const sysDef = sy.systemDefinitions.find((s) => s.uuid === sysId) ?? sy.systemDefinitions[0];
   const shownLogic = sysDef === undefined ? undefined : sy.systemLogicModels.find((m) => m.systemReference === sysDef.uuid);
+  const { sourceChanges } = useAnalysisSourceGuard("sy", runtime.workbookId, runtime.revision, restored);
   const values = useSyValueSources();
   const points = useEventPoints(shownLogic === undefined || isSystemLevelModel(shownLogic) ? [] : systemLogicModelBasicEvents(sy, shownLogic), values.table);
   const missionHours = useSystemHours(sysDef === undefined ? [] : [sysDef]).get(sysDef?.uuid ?? "");
+  const systemKey = sysDef?.uuid ?? "";
+  const selection = heldSelection.systemId === systemKey ? heldSelection.selection : null;
+  const setSelection = useCallback((next: FaultTreeSelection): void => {
+    setHeldSelection({ systemId: systemKey, selection: next });
+  }, [setHeldSelection, systemKey]);
+  const viewSlot = useWorkbookViewSlot<CanvasViewport>(`models.view:${shownLogic?.uuid ?? ""}`, VIEWPORT_VIEW);
+  const shownRun = shownLogic === undefined ? undefined : resultRuns[shownLogic.uuid];
+  const wanted = [
+    ...(shownLogic === undefined || shownRun === undefined ? [] : [{ modelId: shownLogic.uuid, runId: shownRun }]),
+    ...batchRuns,
+  ].filter(({ runId }) => loaded[runId] === undefined);
+  const wantedRuns = useRef(wanted);
+  wantedRuns.current = wanted;
+  const wantedKey = wanted.map(({ runId }) => runId).join(" ");
 
-  useEffect(() => setSelection(null), [sysId]);
+  const [restoreView, setRestoreView] = useState<TreeView | null>(null);
+  const pendingSelection = useRef<FaultTreeSelection>(null);
+  const shownSystem = useRef(sysId);
+  const trail = useTransferTrail<SyTrailPlace>(
+    (place) => place.systemId === sysDef?.uuid,
+    (from, to, live) => {
+      const chosen = live ? selection : from.selection;
+      if (chosen === null || chosen.kind !== "LEAF") return false;
+      const leafId = chosen.leafId;
+      const leaf = sy.systemLogicModels.find((candidate) => candidate.systemReference === from.systemId)?.leafNodes.find((node) => node.id === leafId);
+      return leaf !== undefined && leaf.kind === "TRANSFER_REFERENCE" && sy.systemLogicModels.find((candidate) => candidate.uuid === leaf.target.modelId)?.systemReference === to.systemId;
+    },
+    [trailState, setTrailState],
+  );
+
+  useEffect(() => {
+    if (shownSystem.current === sysId) return;
+    shownSystem.current = sysId;
+    setSelection(pendingSelection.current);
+    pendingSelection.current = null;
+  }, [setSelection, sysId]);
+
+  useEffect(() => {
+    const workbookId = runtime.workbookId;
+    if (workbookId === null) return;
+    wantedRuns.current.forEach(({ modelId, runId }) => {
+      if (requested.current.has(runId)) return;
+      requested.current.add(runId);
+      getSyFaultTreeResult(workbookId, modelId, runId)
+        .then((result) => {
+          setLoaded((current) => ({ ...current, [runId]: result }));
+          setRestored((current) => (current.includes(runId) ? current : [...current, runId]));
+        })
+        .catch(() => {
+          requested.current.delete(runId);
+        });
+    });
+  }, [runtime.workbookId, wantedKey]);
 
   if (sysDef === undefined) {
     return <NoSystemsCard title="System models" purpose="describe and build each one here." onOpenSystems={onOpenSystems} />;
@@ -273,6 +397,25 @@ function ModelsScreen({ sysId, setSysId, openDrawer, onOpenSystems }: {
 
   const system = sysDef;
   const logic = sy.systemLogicModels.find((m) => m.systemReference === system.uuid);
+  const currentPlace = (): SyTrailPlace => {
+    const viewport = logic === undefined ? undefined : viewSlot.read();
+    return { systemId: system.uuid, selection, ...(logic === undefined || viewport === undefined ? {} : { view: { modelId: logic.uuid, viewport } }) };
+  };
+  const goTo = (place: SyTrailPlace): void => {
+    setTab("fault-tree");
+    setRestoreView(place.view ?? null);
+    if (place.systemId === system.uuid) {
+      setSelection(place.selection);
+      return;
+    }
+    pendingSelection.current = place.selection;
+    setSysId(place.systemId);
+  };
+  const pickSystem = (systemId: string): void => {
+    trail.reset();
+    setRestoreView(null);
+    setSysId(systemId);
+  };
   const systemLevel = logic !== undefined && isSystemLevelModel(logic);
   const catalogue = toFaultTreeEditorCatalogue(sy.systemBasicEvents, {
     legacyParameters: controlledLegacyParameters,
@@ -301,8 +444,16 @@ function ModelsScreen({ sysId, setSysId, openDrawer, onOpenSystems }: {
         availableTransferTargets: transferTargets.map(({ target }) => target),
         faultTreeModels: editorModels,
       }), sy.systemBasicEvents, points);
-  const analysisResult = logic === undefined ? null : (analysisResults[logic.uuid] ?? null);
-  const resultIsStale = analysisResult !== null && (sourceWarning !== null || runtime.saveStatus !== "saved" || analysisResult.owner.workbookRevision !== runtime.revision);
+  const analysisRun = logic === undefined ? undefined : resultRuns[logic.uuid];
+  const analysisResult = analysisRun === undefined ? null : (loaded[analysisRun] ?? null);
+  const batchAnalysisResults = batchRuns.flatMap(({ runId }) => {
+    const result = loaded[runId];
+    return result === undefined ? [] : [result];
+  });
+  const staleReason = analysisResult === null
+    ? null
+    : silMissionChange(analysisResult, system.missionTime, missionHours) ?? sourceChanges.get(analysisResult.runId) ?? null;
+  const resultIsStale = staleReason !== null;
   const eventCount = logic === undefined || systemLevel ? 0 : systemLogicModelBasicEvents(sy, logic).length;
 
   function createFaultTree(): void {
@@ -347,9 +498,9 @@ function ModelsScreen({ sysId, setSysId, openDrawer, onOpenSystems }: {
     }
     setRunningModelId(configuration.workflow === "BATCH" ? "BATCH" : logic.uuid);
     setRunError(null);
-    setBatchAnalysisResults([]);
+    setBatchRuns(NO_BATCH);
     try {
-      const completed: FaultTreeAnalysisResult[] = [];
+      const completed: BatchRun[] = [];
       const failures: string[] = [];
       for (const modelId of modelIds) {
         try {
@@ -361,19 +512,24 @@ function ModelsScreen({ sysId, setSysId, openDrawer, onOpenSystems }: {
           if (execution.run.status === "FAILED") {
             throw new Error(execution.run.failure?.message ?? "Fault-tree analysis failed.");
           }
+          if (execution.run.status === "CANCELLED") {
+            throw new Error("The run was cancelled.");
+          }
           if (execution.run.status !== "SUCCEEDED") {
             throw new Error(`Fault-tree analysis did not complete (status: ${execution.run.status}).`);
           }
           const result = await getSyFaultTreeResult(runtime.workbookId, modelId, execution.run.id);
-          completed.push(result);
-          setAnalysisResults((current) => ({ ...current, [modelId]: result }));
+          completed.push({ modelId, runId: result.runId });
+          requested.current.add(result.runId);
+          setLoaded((current) => ({ ...current, [result.runId]: result }));
+          setResultRuns((current) => ({ ...current, [modelId]: result.runId }));
         } catch (error) {
           const label = sy.systemLogicModels.find((candidate) => candidate.uuid === modelId)?.code ?? modelId;
           failures.push(`${label}: ${error instanceof Error ? error.message : "Fault-tree analysis failed."}`);
           if (configuration.workflow === "MANUAL") throw error;
         }
       }
-      setBatchAnalysisResults(configuration.workflow === "BATCH" ? completed : []);
+      setBatchRuns(configuration.workflow === "BATCH" ? completed : NO_BATCH);
       if (failures.length > 0) throw new Error(failures.join(" "));
     } catch (error) {
       setRunError(error instanceof Error ? error.message : "Fault-tree analysis failed.");
@@ -406,6 +562,7 @@ function ModelsScreen({ sysId, setSysId, openDrawer, onOpenSystems }: {
       case "diagram":
         return (
           <SyDiagramPanel
+            key={system.uuid}
             systemId={system.uuid}
             onAddDiagram={editable ? () => openDrawer({ kind: "diagram", id: system.uuid }) : undefined}
             onEditDiagram={editable ? (diagramId) => openDrawer({ kind: "diagram", id: system.uuid, diagramId }) : undefined}
@@ -416,6 +573,9 @@ function ModelsScreen({ sysId, setSysId, openDrawer, onOpenSystems }: {
         return (
           <FaultTreeEditor
             model={editorModel}
+            breadcrumb={transferBreadcrumb(trail, currentPlace, goTo)}
+            initialViewport={restoreView !== null && restoreView.modelId === editorModel.modelId ? restoreView.viewport : viewSlot.read()}
+            onViewportChange={(viewport) => viewSlot.write(viewport)}
             catalogue={catalogue}
             readOnlyBasicEventValues={readOnlyValues(sy.systemBasicEvents, catalogue, values.label)}
             capabilities={{
@@ -446,7 +606,14 @@ function ModelsScreen({ sysId, setSysId, openDrawer, onOpenSystems }: {
                 return;
               }
               const target = sy.systemLogicModels.find((candidate) => candidate.uuid === request.target.modelId);
-              if (target !== undefined) setSysId(target.systemReference);
+              if (target === undefined) return;
+              const targetSystem = sy.systemDefinitions.find((candidate) => candidate.uuid === target.systemReference);
+              trail.follow(
+                { place: currentPlace(), label: logic.code.length > 0 ? logic.code : system.name },
+                { place: { systemId: target.systemReference, selection: null }, label: target.code.length > 0 ? target.code : targetSystem?.name ?? target.name },
+              );
+              setRestoreView(null);
+              setSysId(target.systemReference);
             }}
             onRun={() => undefined}
           />
@@ -468,7 +635,7 @@ function ModelsScreen({ sysId, setSysId, openDrawer, onOpenSystems }: {
               exactResultIsStale={resultIsStale}
               exactRunError={runError}
               exactRunning={runningModelId === logic.uuid}
-              sourceWarning={sourceWarning}
+              staleReason={staleReason}
               currentModelId={logic.uuid}
               missionHours={missionHours}
               basicEventCodes={Object.fromEntries(catalogue.basicEvents.map((event) => [event.id, event.code]))}
@@ -495,10 +662,9 @@ function ModelsScreen({ sysId, setSysId, openDrawer, onOpenSystems }: {
   return (
     <div className="poscard sy-model-card">
       <div className="poscard__head sy-model-card__head">
-        <WorkbookSectionHeading workbook="SY" title={system.name} cueKey="System definition" level={3} />
         <label className="sy-model-card__picker">
           <span className="posfield__label">System</span>
-          <select className="posfield__select" aria-label="System" value={system.uuid} onChange={(event) => setSysId(event.target.value)}>
+          <select className="posfield__select" aria-label="System" value={system.uuid} onChange={(event) => pickSystem(event.target.value)}>
             {sy.systemDefinitions.map((s) => (
               <option key={s.uuid} value={s.uuid}>{shortOf(s.uuid)} · {s.name}</option>
             ))}
@@ -544,4 +710,4 @@ function ModelsScreen({ sysId, setSysId, openDrawer, onOpenSystems }: {
   );
 }
 
-export { ModelsScreen, syFaultTreeOperation, toFaultTreeEditorCatalogue };
+export { ModelsScreen, syFaultTreeOperation, toFaultTreeEditorCatalogue, toFaultTreeEditorModel };

@@ -1,6 +1,7 @@
 import type { BayesianNetworkEvidenceConfiguration, WorkbookHclConfiguration } from "interfaces-mef-types/modeling";
 import type { ReactNode } from "react";
 import type { UncertainExpression } from "interfaces-mef-types/core/uncertainty";
+import type { ParameterOption } from "../shared/uncertainEditor";
 import type { BayesianNetworkModel } from "interfaces-shared-types/newly-developed-methods/bayesian-network";
 import type { EventTreeAnalysisResult } from "interfaces-shared-types/newly-developed-methods/event-tree";
 import type {
@@ -12,6 +13,7 @@ import type {
   HclQuantificationResult,
 } from "interfaces-shared-types/newly-developed-methods/hybrid-causal-logic";
 import type { ValidationIssue } from "interfaces-shared-types/newly-developed-methods/shared";
+import type { AnalysisHost } from "../shared/analysisRunWait";
 
 interface HclSyValue {
   expression?: UncertainExpression;
@@ -32,6 +34,7 @@ interface HclFaultTreeOption {
     name: string;
     syValue?: HclSyValue;
   }>;
+  parameterOptions?: ParameterOption[];
 }
 
 interface HclEventTreeOption {
@@ -40,6 +43,9 @@ interface HclEventTreeOption {
   modelId: string;
   modelCode: string;
   modelName: string;
+  initiatingEventId?: string;
+  plantOperatingStateId?: string;
+  unlinkedFunctionalEventIds?: string[];
   sequences: Array<{ id: string; name: string; modelId?: string; modelName?: string; endStateName?: string }>;
   endStates?: Array<{ id: string; name: string }>;
   faultTrees: Array<{ workbookId: string; modelId: string }>;
@@ -96,6 +102,7 @@ interface HclBindingEditorProps {
   evidenceEditor?: ReactNode;
   calculationType?: HclCalculationType;
   workflow?: QuantificationWorkflow;
+  analysisHost?: AnalysisHost;
   onGenerateScenarios?: (configuration: WorkbookHclConfiguration, spec: HclHazardSweepSpec) => Promise<HclEvidenceScenario[]>;
   onEditEvidence?: () => void;
   onChange: (configurations: WorkbookHclConfiguration[]) => void;

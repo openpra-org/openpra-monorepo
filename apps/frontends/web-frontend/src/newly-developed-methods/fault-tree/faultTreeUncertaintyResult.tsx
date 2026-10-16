@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState, type JSX } from "react";
+import { useCallback, useMemo, useRef, useState, type JSX, type ReactNode } from "react";
 import type { FaultTreeAnalysisResult, FaultTreeUncertaintyResult } from "interfaces-shared-types/newly-developed-methods/fault-tree";
 import type { UncertaintySamplingMethod } from "interfaces-shared-types/newly-developed-methods/shared";
 import { ResultCsvButton } from "../shared/resultPresentation";
@@ -174,10 +174,6 @@ function DistributionChart({ uncertainty, point, view }: { uncertainty: FaultTre
   );
 }
 
-function resultAnchor(result: FaultTreeAnalysisResult): string {
-  return `ftunc-result-${result.runId}`;
-}
-
 function FaultTreeUncertaintyCard({ entry }: { entry: FaultTreeUncertaintyEntry }): JSX.Element | null {
   const [view, setView] = useState<ChartView>("DISTRIBUTION");
   const { label, distributionCount, result } = entry;
@@ -192,7 +188,7 @@ function FaultTreeUncertaintyCard({ entry }: { entry: FaultTreeUncertaintyEntry 
   ];
   const samples = uncertainty.samples;
   return (
-    <article id={resultAnchor(result)} className="ftunc-result" aria-label={label === undefined ? "Uncertainty result" : `Uncertainty result for ${label}`}>
+    <article className="ftunc-result" aria-label={label === undefined ? "Uncertainty result" : `Uncertainty result for ${label}`}>
       <div className="ftunc-result__views" role="group" aria-label="Chart view">
         {CHART_VIEWS.map((option) => (
           <button key={option.view} type="button" className="ftunc-result__view" aria-pressed={view === option.view} onClick={() => setView(option.view)}>{option.label}</button>
@@ -211,58 +207,11 @@ function FaultTreeUncertaintyCard({ entry }: { entry: FaultTreeUncertaintyEntry 
   );
 }
 
-function FaultTreeUncertaintyBatch({ entries }: { entries: readonly FaultTreeUncertaintyEntry[] }): JSX.Element {
-  const rows = entries.flatMap((entry) => {
-    const uncertainty = entry.result.uncertainty;
-    return uncertainty === undefined ? [] : [{ entry, name: entry.label ?? entry.result.owner.modelId, uncertainty, low: quantileAt(uncertainty, 0.05), high: quantileAt(uncertainty, 0.95) }];
-  });
-  const range = decadeRange(rows.flatMap(({ entry, uncertainty, low, high }) => [entry.result.topEventProbability, uncertainty.mean, low ?? 0, high ?? 0]));
-  const share = (value: number | undefined): number | undefined => (range === undefined || value === undefined || !(value > 0)
-    ? undefined
-    : ((Math.log10(value) - range.low) / (range.high - range.low)) * 100);
-  return (
-    <section className="ftunc-batch" aria-label="Batch summary">
-      <div className="ftunc-batch__head">
-        <strong>Batch summary</strong>
-        <span>{`${rows.length} fault tree${rows.length === 1 ? "" : "s"}`}</span>
-      </div>
-      <div className="ftunc-batch__grid">
-        <span className="ftunc-batch__label">Fault tree</span>
-        <span className="ftunc-batch__label">Point</span>
-        <span className="ftunc-batch__label">Mean</span>
-        <span className="ftunc-batch__label">5th to 95th percentile</span>
-        {rows.map(({ entry, name, uncertainty, low, high }) => {
-          const from = share(low);
-          const to = share(high);
-          const mean = share(uncertainty.mean);
-          const point = share(entry.result.topEventProbability);
-          return (
-            <div key={entry.result.runId} className="ftunc-batch__row">
-              <button type="button" className="ftunc-batch__name" title={name} onClick={() => document.getElementById(resultAnchor(entry.result))?.scrollIntoView({ block: "start" })}>{name}</button>
-              <span className="ftunc-batch__value">{probability(entry.result.topEventProbability)}</span>
-              <span className="ftunc-batch__value">{probability(uncertainty.mean)}</span>
-              <span className="ftunc-batch__track" aria-label={`5th percentile ${probability(low)}, 95th percentile ${probability(high)}`}>
-                {from !== undefined && to !== undefined && <span className="ftunc-batch__interval" style={{ left: `${from}%`, width: `${Math.max(0.5, to - from)}%` }} />}
-                {mean !== undefined && <span className="ftunc-batch__mean" style={{ left: `${mean}%` }} />}
-                {point !== undefined && <span className="ftunc-batch__point" style={{ left: `${point}%` }} />}
-              </span>
-            </div>
-          );
-        })}
-        {range !== undefined && <>
-          <span /><span /><span />
-          <span className="ftunc-batch__scale"><span>{`1E${range.low}`}</span><span>{`1E${range.high}`}</span></span>
-        </>}
-      </div>
-    </section>
-  );
-}
-
-function FaultTreeUncertaintyResults({ entries, batch }: { entries: readonly FaultTreeUncertaintyEntry[]; batch: boolean }): JSX.Element {
+function FaultTreeUncertaintyResults({ entries, batch, picker }: { entries: readonly FaultTreeUncertaintyEntry[]; batch: boolean; picker?: ReactNode }): JSX.Element {
   return (
     <section className="ftunc-results" aria-label="Uncertainty results">
       <h3>{batch ? "Analysis results" : "Analysis result"}</h3>
-      {batch && entries.length > 1 && <FaultTreeUncertaintyBatch entries={entries} />}
+      {picker}
       {entries.map((entry) => <FaultTreeUncertaintyCard key={entry.result.runId} entry={entry} />)}
     </section>
   );

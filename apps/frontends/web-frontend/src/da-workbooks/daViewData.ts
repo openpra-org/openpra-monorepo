@@ -22,7 +22,7 @@ const DA_STEPS: DaStep[] = [
   { id: "ccf", num: "07", label: "Common cause", sub: "Groups · events · factors", hlr: "DA-D", status: "idle" },
   { id: "ie", num: "08", label: "Initiating events", sub: "Groups · evidence · estimates", hlr: "DA-D", status: "idle" },
   { id: "uncert", num: "09", label: "Uncertainty", sub: "Distributions · register · cases", hlr: "DA-E", status: "idle" },
-  { id: "handoffs", num: "10", label: "Hand-offs", sub: "SY · IE · HR · POS · ESQ", hlr: "DA-D", status: "idle" },
+  { id: "handoff", num: "10", label: "Technical Element Handoff", sub: "Exported sections", hlr: "DA-D", status: "idle" },
   { id: "draft", num: "11", label: "Draft", sub: "Produce DA report (HLR-E)", status: "idle", terminal: true },
   { id: "review", num: "12", label: "Review", sub: "Reviewer comments", status: "idle", terminal: true },
   { id: "approval", num: "13", label: "Approval", sub: "Everyone signs", status: "idle", terminal: true },
@@ -165,25 +165,24 @@ const CCF_TESTING_LABELS: Record<DaCcfTesting, string> = {
 };
 
 const CCF_METHOD_LABELS: Record<DaCcfMethod, string> = {
-  PRIOR: "Published factors as they are",
-  BAYES: "Updated with events",
-  TYPED: "Typed",
+  PRIOR: "From a dataset",
+  BAYES: "From a dataset, updated with events",
+  TYPED: "Typed by hand",
 };
 
 interface DaLinkTile {
   code: DaLinkCode;
   label: string;
   name: string;
-  handoff: string;
 }
 
 const DA_LINK_TILES: DaLinkTile[] = [
-  { code: "SY", label: "SY", name: "Systems Analysis", handoff: "Provides · Basic events, common cause groups and typed values" },
-  { code: "IE", label: "IE", name: "Initiating Events", handoff: "Provides · Initiator groups, module count and typed frequencies" },
-  { code: "HRA", label: "HR", name: "Human Reliability", handoff: "Provides · Human failure events and typed HEPs" },
-  { code: "POS", label: "POS", name: "Plant Operating States", handoff: "Provides · Operating states and their durations" },
-  { code: "SC", label: "SC", name: "Success Criteria", handoff: "Provides · Mission times and failure definitions" },
-  { code: "ESQ", label: "ESQ", name: "Event Sequence Quantification", handoff: "Provides · Importance of each parameter" },
+  { code: "SY", label: "SY", name: "Systems Analysis" },
+  { code: "IE", label: "IE", name: "Initiating Events" },
+  { code: "HRA", label: "HR", name: "Human Reliability" },
+  { code: "POS", label: "POS", name: "Plant Operating States" },
+  { code: "SC", label: "SC", name: "Success Criteria" },
+  { code: "ESQ", label: "ESQ", name: "Event Sequence Quantification" },
 ];
 
 const EXAMPLE_VARIANT_LABELS: Record<string, string> = {
@@ -269,6 +268,16 @@ const HFE_TIMING_TEXT: Record<string, string> = {
   PRE_INITIATOR: "Pre-initiator",
   AT_INITIATOR: "At initiator",
   POST_INITIATOR: "Post-initiator",
+};
+
+const PARAMETER_TYPE_LABELS: Record<ParameterType, string> = {
+  FREQUENCY: "Frequency",
+  FAILURE_RATE: "Failure rate",
+  PROBABILITY: "Probability",
+  UNAVAILABILITY: "Unavailability",
+  CCF_PARAMETER: "Common cause parameter",
+  HUMAN_ERROR_PROBABILITY: "Human error probability",
+  OTHER: "Other",
 };
 
 const OPERATING_MODE_TEXT: Record<string, string> = {
@@ -372,17 +381,21 @@ const PRIOR_FORM_LABELS: Record<DaPriorForm, string> = {
   JEFFREYS: "Jeffreys",
 };
 
-const ESTIMATE_METHOD_LABELS: Record<"PRIOR" | "BAYES" | "POPULATION" | "TYPED", string> = {
+const ESTIMATE_METHOD_LABELS: Record<"PRIOR" | "BAYES" | "POPULATION" | "EMPIRICAL_BAYES" | "TREND" | "TYPED", string> = {
   PRIOR: "Prior as is",
   BAYES: "Bayes update",
   POPULATION: "Population variability",
+  EMPIRICAL_BAYES: "Empirical Bayes",
+  TREND: "Trend over time",
   TYPED: "Typed",
 };
 
-const COMPUTATION_LABELS: Record<"PRIOR" | "POSTERIOR" | "POPULATION", string> = {
+const COMPUTATION_LABELS: Record<"PRIOR" | "POSTERIOR" | "POPULATION" | "EMPIRICAL_BAYES" | "TREND", string> = {
   PRIOR: "No update",
   POSTERIOR: "Bayes posterior",
   POPULATION: "Hierarchical Bayes",
+  EMPIRICAL_BAYES: "Empirical Bayes",
+  TREND: "Loglinear trend",
 };
 
 const EVIDENCE_ORIGIN_LABELS: Record<DaEvidenceOrigin, string> = {
@@ -420,6 +433,7 @@ const MAINTENANCE_METHOD_LABELS: Record<DaMaintenanceMethod | "TYPED", string> =
   PLANNED: "Planned program",
   RECORDS: "Plant records",
   GENERIC: "Published value",
+  BAYES: "Published value updated with records",
   TYPED: "Typed",
 };
 
@@ -450,6 +464,8 @@ const FREQUENCY_PER_LABELS: Record<DaFrequencyPer, string> = {
 const FREQUENCY_METHOD_LABELS: Record<DaFrequencyMethod, string> = {
   PRIOR: "Source as it is",
   BAYES: "Updated with events",
+  POPULATION: "Population variability",
+  EMPIRICAL_BAYES: "Empirical Bayes",
 };
 
 const FREQUENCY_MODE_LABELS: Record<"CALCULATED" | "TYPED" | "LINKED", string> = {
@@ -555,6 +571,7 @@ export {
   FREQUENCY_BASIS_TEXT,
   HFE_TIMING_TEXT,
   OPERATING_MODE_TEXT,
+  PARAMETER_TYPE_LABELS,
   exampleLinkVariant,
   exampleLinkLabel,
   DA_TOC,

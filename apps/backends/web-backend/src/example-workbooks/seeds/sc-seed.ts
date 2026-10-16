@@ -521,9 +521,9 @@ export const SC_ANALYSIS: SuccessCriteriaDevelopment = {
     { uuid: "MT-FIRE", eventSequenceReference: "ESI-1", missionTime: hours(24), basis: "Suppression timing not yet confirmed within 24 h.", safeStableStateAchievedWithinMissionTime: false, treatmentWhenNotAchieved: "ADDITIONAL_EVALUATION", treatmentJustification: "Further evaluation open, pending F-PRA suppression timing (CC-II).", analysisReferences: ["TF-CALC-17"], isRiskSignificant: true, implementsSrs: srs("SC-A7") },
   ],
   componentMissionTimes: [
-    { uuid: "CMT-1", componentId: "Class-1E DC battery", missionTime: hours(24), eventSequenceReference: "ESL-2", analysisReferences: ["TF-CALC-09"], implementsSrs: srs("SC-A8") },
-    { uuid: "CMT-2", componentId: "DRACS air damper actuator", missionTime: hours(24), eventSequenceReference: "ESL-2", analysisReferences: ["TF-CALC-09"], implementsSrs: srs("SC-A8") },
-    { uuid: "CMT-3", componentId: "Cover-gas clean-up blower", missionTime: hours(8), eventSequenceReference: "ESR-4", shorterMissionTimeJustification: "8 h duty against a 72 h sequence, justified by aerosol settling.", analysisReferences: ["ST-CALC-05"], implementsSrs: srs("SC-A8") },
+    { uuid: "CMT-1", componentId: "Class-1E DC battery", missionTime: hours(24), eventSequenceReference: "ESL-2", shorterMissionTimeJustification: "The trip and actuation loads act in the first hours of the 96 h loss of heat sink, and DRACS needs no DC after that. Load shedding within 30 minutes carries the bank to 24 h.", analysisReferences: ["TF-CALC-09"], implementsSrs: srs("SC-A8") },
+    { uuid: "CMT-2", componentId: "DRACS air damper actuator", missionTime: hours(24), eventSequenceReference: "ESL-2", shorterMissionTimeJustification: "The air dampers open within the first hours of the 96 h loss of heat sink and stay open, so the actuators need not act after 24 h.", analysisReferences: ["TF-CALC-09"], implementsSrs: srs("SC-A8") },
+    { uuid: "CMT-3", componentId: "Cover-gas clean-up blower", missionTime: hours(8), eventSequenceReference: "ESL-2", shorterMissionTimeJustification: "8 h duty against the 96 h loss-of-heat-sink sequence, which confinement links. Aerosols settle within 8 h in every sequence family.", analysisReferences: ["ST-CALC-05"], implementsSrs: srs("SC-A8") },
     { uuid: "CMT-4", componentId: "Leak-detection instrument", missionTime: hours(72), eventSequenceReference: "ESR-4", analysisReferences: ["TF-CALC-14"], implementsSrs: srs("SC-A8") },
   ],
   engineeringAnalyses: [

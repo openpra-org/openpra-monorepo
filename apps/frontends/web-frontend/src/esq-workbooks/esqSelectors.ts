@@ -1,7 +1,5 @@
 import {
   ESQ_PLAN_DEFAULTS,
-  type EsqFrequencyBasis,
-  type EsqModuleCounting,
   type EsqQuantificationPlan,
   type EsqScopeAspect,
   type EsqScopeExclusion,
@@ -10,12 +8,12 @@ import {
   type ModelIntegration,
 } from "interfaces-mef-types/esq/event-sequence-quantification";
 import { type EventSequenceAnalysis } from "interfaces-mef-types/es/event-sequence-analysis";
+import { type RiskIntegration } from "interfaces-mef-types/ri/risk-integration";
 import { EMPTY_UPSTREAM, type EsqUpstream } from "./esqLinks";
 import { modelComplete, sameItem, transferEntryInitiators } from "./esqModel";
 import { logicComplete } from "./esqLogic";
 import { barriersComplete } from "./esqBarriers";
 import { solveComplete } from "./esqSolve";
-import { postComplete } from "./esqPost";
 import { resultsComplete } from "./esqResults";
 import { uncertaintyComplete } from "./esqUncertainty";
 import { sensitivityComplete } from "./esqSensitivity";
@@ -188,6 +186,7 @@ function inEsFor(upstream: EsqUpstream, aspect: EsqScopeAspect, row: ScopeCandid
   if (es === undefined) return undefined;
   if (aspect === "INITIATOR_GROUP") return esInitiatorIds(es).some((id) => rowMatches(row, id));
   if (aspect === "OPERATING_STATE") return esStateIds(es).some((id) => rowMatches(row, id));
+  if (aspect === "SOURCE") return es.scopeDefinition.radioactiveMaterialSources.some((id) => rowMatches(row, id));
   return undefined;
 }
 
@@ -272,28 +271,32 @@ function withRestIncluded(esq: EventSequenceQuantification, aspect: EsqScopeAspe
 }
 
 interface EsqPlanValues {
-  frequencyBasis: EsqFrequencyBasis;
   stateWeighting: EsqStateWeighting;
-  moduleCounting: EsqModuleCounting;
   reportingFloorPerYear: number;
   convergenceStepPercent: number;
 }
 
-const ESQ_PLAN_KEYS: EsqPlanKey[] = ["frequencyBasis", "stateWeighting", "moduleCounting", "reportingFloorPerYear", "convergenceStepPercent"];
+const ESQ_PLAN_KEYS: EsqPlanKey[] = ["stateWeighting", "reportingFloorPerYear", "convergenceStepPercent"];
 
 function planValues(esq: EventSequenceQuantification): EsqPlanValues {
   const plan = esq.quantificationPlan ?? {};
   return {
-    frequencyBasis: plan.frequencyBasis?.value ?? ESQ_PLAN_DEFAULTS.frequencyBasis,
     stateWeighting: plan.stateWeighting?.value ?? ESQ_PLAN_DEFAULTS.stateWeighting,
-    moduleCounting: plan.moduleCounting?.value ?? ESQ_PLAN_DEFAULTS.moduleCounting,
     reportingFloorPerYear: plan.reportingFloorPerYear?.value ?? ESQ_PLAN_DEFAULTS.reportingFloorPerYear,
     convergenceStepPercent: plan.convergenceStepPercent?.value ?? ESQ_PLAN_DEFAULTS.convergenceStepPercent,
   };
 }
 
 function planChanged(esq: EventSequenceQuantification, key: EsqPlanKey): boolean {
+  if (key === "reportingFloorPerYear" && esq.quantificationPlan?.reportingFloorPerYear?.link !== undefined) return false;
   return planValues(esq)[key] !== ESQ_PLAN_DEFAULTS[key];
+}
+
+function riReportingFloor(esq: EventSequenceQuantification, ri: RiskIntegration | undefined): number | undefined {
+  if (ri === undefined) return undefined;
+  const perPlantYear = ri.reportingThresholds.minimumReportingFrequencyPerPlantYear;
+  if (!(perPlantYear > 0)) return undefined;
+  return perPlantYear / Math.max(1, esq.quantificationPlan?.modulesPerPlant?.value ?? 1);
 }
 
 function planReason(esq: EventSequenceQuantification, key: EsqPlanKey): string {
@@ -306,18 +309,14 @@ function withPlan(esq: EventSequenceQuantification, plan: EsqQuantificationPlan)
 
 function withPlanReason(esq: EventSequenceQuantification, key: EsqPlanKey, reason: string): EventSequenceQuantification {
   const plan = esq.quantificationPlan ?? {};
-  if (key === "frequencyBasis") return plan.frequencyBasis === undefined ? esq : withPlan(esq, { ...plan, frequencyBasis: { ...plan.frequencyBasis, reason } });
   if (key === "stateWeighting") return plan.stateWeighting === undefined ? esq : withPlan(esq, { ...plan, stateWeighting: { ...plan.stateWeighting, reason } });
-  if (key === "moduleCounting") return plan.moduleCounting === undefined ? esq : withPlan(esq, { ...plan, moduleCounting: { ...plan.moduleCounting, reason } });
   if (key === "reportingFloorPerYear") return plan.reportingFloorPerYear === undefined ? esq : withPlan(esq, { ...plan, reportingFloorPerYear: { ...plan.reportingFloorPerYear, reason } });
   return plan.convergenceStepPercent === undefined ? esq : withPlan(esq, { ...plan, convergenceStepPercent: { ...plan.convergenceStepPercent, reason } });
 }
 
 function withPlanDefault(esq: EventSequenceQuantification, key: EsqPlanKey): EventSequenceQuantification {
   const plan = esq.quantificationPlan ?? {};
-  if (key === "frequencyBasis") return withPlan(esq, { ...plan, frequencyBasis: undefined });
   if (key === "stateWeighting") return withPlan(esq, { ...plan, stateWeighting: undefined });
-  if (key === "moduleCounting") return withPlan(esq, { ...plan, moduleCounting: undefined });
   if (key === "reportingFloorPerYear") return withPlan(esq, { ...plan, reportingFloorPerYear: undefined });
   return withPlan(esq, { ...plan, convergenceStepPercent: undefined });
 }
@@ -329,7 +328,6 @@ function plural(count: number, noun: string): string {
 function scopeItemsToComplete(esq: EventSequenceQuantification, upstream: EsqUpstream): string[] {
   const items: string[] = [];
   if (esq.praScope.trim().length === 0) items.push("Write the PRA scope.");
-  if ((esq.linkedWorkbooks?.ES ?? "").length === 0) items.push("Link the ES workbook.");
   for (const spec of ESQ_SCOPE_ASPECTS) {
     const rows = scopeRowsView(esq, upstream, spec.aspect);
     const unset = rows.filter((row) => row.state === "unset").length;
@@ -443,7 +441,6 @@ function stepsFromMef(esq: EventSequenceQuantification, persona: EsqPersona, ups
   const modelDone = modelComplete(esq);
   const solveDone = solveComplete(esq);
   const logicDone = logicComplete(esq);
-  const postDone = postComplete(esq);
   const barriersDone = barriersComplete(esq);
   const resultsDone = resultsComplete(esq, upstream.ri, upstream.ie);
   const uncertDone = uncertaintyComplete(esq);
@@ -462,7 +459,6 @@ function stepsFromMef(esq: EventSequenceQuantification, persona: EsqPersona, ups
       case "model": return { ...s, status: status(modelDone) };
       case "solve": return { ...s, status: status(solveDone) };
       case "logic": return { ...s, status: status(logicDone) };
-      case "post": return { ...s, status: status(postDone) };
       case "barriers": return { ...s, status: status(barriersDone) };
       case "results": return { ...s, status: status(resultsDone) };
       case "uncert": return { ...s, status: status(uncertDone) };
@@ -499,6 +495,7 @@ export {
   planValues,
   planChanged,
   planReason,
+  riReportingFloor,
   withPlan,
   withPlanReason,
   withPlanDefault,

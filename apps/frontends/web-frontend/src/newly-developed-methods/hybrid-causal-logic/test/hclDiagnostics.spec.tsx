@@ -110,7 +110,7 @@ it("identifies an unconditional sequence without inventing BDD or bridge metrics
   );
   expand();
   expect(await screen.findByText("No BDD built: unconditional sequence.")).toBeInTheDocument();
-  expect(screen.getByText("HCL bridge not used for this sequence.")).toBeInTheDocument();
+  expect(screen.getByText("This sequence does not use the dependency bridge.")).toBeInTheDocument();
   expect(metric("Cliques")).toHaveTextContent("2");
   expect(screen.queryByText("BDD variables")).not.toBeInTheDocument();
 });
@@ -131,7 +131,7 @@ it("pages actual order without sorting or truncating it, and resets on a new res
   await screen.findByText("event-63");
   fireEvent.click(screen.getByRole("button", { name: "Last" }));
   expect(screen.getByText("event-1")).toBeInTheDocument();
-  expect(screen.getByRole("list", { name: "Actual BDD variable order" })).toHaveAttribute("start", "51");
+  expect(screen.getByRole("list", { name: "Actual BDD variable order" })).toHaveAttribute("start", "61");
   view.rerender(
     <HclSolverDiagnostics
       diagnostics={diagnostics}

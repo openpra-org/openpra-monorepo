@@ -35,7 +35,7 @@ function ListEditor({ label, items, editable, addLabel, onChange }: {
   return (
     <div className="posfield sy-dialog-list">
       <span className="posfield__label">{label}</span>
-      {items.length === 0 && <span className="posmuted">None recorded.</span>}
+      {!editable && items.length === 0 && <span className="posmuted">None recorded.</span>}
       {items.map((item, index) => (
         <div key={`${index}:${item}`} className="sy-dialog-list__row">
           {editable ? (
@@ -68,12 +68,9 @@ function SystemMissionTimeField({ system, editable, onChange }: {
   const point = useSystemHours([system]).get(system.uuid);
   const missionTime = system.missionTime;
   return (
-    <div className="posfield posfield-grid--span2"><span className="posfield__label">Mission time (hours)</span>
+    <div className="posfield posfield-grid--span2"><span className="posfield__label">Mission time</span>
       {missionTime === undefined ? (
-        <div className="sy-event-review">
-          <p className="posmuted">No mission time yet.</p>
-          {editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => onChange(defaultExpression("HOURS"))}>Add a mission time</button>}
-        </div>
+        editable && <div className="sy-event-review"><button type="button" className="posnav__btn posnav__btn--sm" onClick={() => onChange(defaultExpression("HOURS"))}>Add a mission time</button></div>
       ) : (
         <>
           <ExpressionEditor expression={missionTime} unit="HOURS" options={values.missionTimeOptions} disabled={!editable} onChange={onChange} />
@@ -81,7 +78,6 @@ function SystemMissionTimeField({ system, editable, onChange }: {
           {editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => onChange(undefined)}>Remove mission time</button>}
         </>
       )}
-      {values.missionTimeOptions.length === 0 && <span className="posmuted">Typed. Link an SC workbook in Step 01 Interfaces to use its mission times.</span>}
     </div>
   );
 }
@@ -282,6 +278,7 @@ function SystemDialogContent({ context, onClose }: { context: SyDrawerContext & 
           successCriteriaIds: [criterion.id],
           description,
           successCriterion: criterion.capacities.length > 0 ? criterion.capacities : candidate.successCriterion,
+          ...(criterion.missionTime === undefined ? {} : { missionTime: criterion.missionTime }),
         })),
         systemLogicModels: draft.systemLogicModels.map((candidate) => (candidate.systemReference === system.uuid ? { ...candidate, description } : candidate)),
       }));
@@ -291,21 +288,21 @@ function SystemDialogContent({ context, onClose }: { context: SyDrawerContext & 
         <DialogHead cap={`System definition · ${shortOf(system.uuid)}`} title={system.name} onClose={onClose} />
         <div className="modal__body">
           <div className="posfield-grid">
-            <div className="posfield posfield-grid--span2"><label className="posfield__label">SC criterion</label>
+            <div className="posfield posfield-grid--span2"><label className="posfield__label">Top event</label>
+              {editable ? <WorkbookTextarea className="posfield__textarea" rows={2} aria-label="Top event" value={system.description ?? ""} onChange={(event) => setTopEvent(event.target.value)} /> : <div>{system.description ?? ""}</div>}
+            </div>
+            <SystemMissionTimeField system={system} editable={editable} onChange={(missionTime) => patchSystem(system.uuid, { missionTime })} />
+            <div className="posfield posfield-grid--span2"><label className="posfield__label">SC record</label>
               {scOptions.length === 0 ? <span className="posmuted">Link an SC workbook in Step 01 Interfaces to use its system success criteria.</span> : (
-                <select className="posfield__select" aria-label="SC criterion" value={scId} disabled={!editable} onChange={(event) => setScCriterion(event.target.value)}>
+                <select className="posfield__select" aria-label="SC record" value={scId} disabled={!editable} onChange={(event) => setScCriterion(event.target.value)}>
                   <option value="">Typed</option>
                   {scOptions.map((criterion) => <option key={criterion.id} value={criterion.id}>{criterion.name}</option>)}
                 </select>
               )}
             </div>
-            <div className="posfield posfield-grid--span2"><label className="posfield__label">Top event</label>
-              {editable ? <WorkbookTextarea className="posfield__textarea" rows={2} aria-label="Top event" value={system.description ?? ""} onChange={(event) => setTopEvent(event.target.value)} /> : <div>{system.description ?? ""}</div>}
-            </div>
             <div className="posfield posfield-grid--span2"><label className="posfield__label">Success criterion</label>
               {editable ? <WorkbookTextarea className="posfield__textarea" rows={2} aria-label="Success criterion" value={system.successCriterion ?? ""} onChange={(event) => patchSystem(system.uuid, { successCriterion: event.target.value.trim().length > 0 ? event.target.value : undefined })} /> : <div>{system.successCriterion ?? ""}</div>}
             </div>
-            <SystemMissionTimeField system={system} editable={editable} onChange={(missionTime) => patchSystem(system.uuid, { missionTime })} />
           </div>
         </div>
       </>
@@ -357,9 +354,9 @@ function SystemDialogContent({ context, onClose }: { context: SyDrawerContext & 
             <div className="posfield"><label className="posfield__label">Condition</label>
               {editable ? <WorkbookInput className="posfield__input" aria-label="Condition" value={item.scenarioCondition ?? ""} onChange={(event) => patch({ scenarioCondition: event.target.value.trim().length > 0 ? event.target.value.trim() : undefined })} /> : <div>{item.scenarioCondition ?? ""}</div>}
             </div>
-            <div className="posfield posfield-grid--span2"><label className="posfield__label">SC criterion</label>
+            <div className="posfield posfield-grid--span2"><label className="posfield__label">SC record</label>
               {variantScOptions.length === 0 ? <span className="posmuted">Link an SC workbook in Step 01 Interfaces to use its system success criteria.</span> : (
-                <select className="posfield__select" aria-label="Variant SC criterion" value={variantScId} disabled={!editable} onChange={(event) => setVariantSource(event.target.value)}>
+                <select className="posfield__select" aria-label="Variant SC record" value={variantScId} disabled={!editable} onChange={(event) => setVariantSource(event.target.value)}>
                   <option value="">Typed</option>
                   {variantScOptions.map((criterion) => <option key={criterion.id} value={criterion.id}>{criterion.name}</option>)}
                 </select>

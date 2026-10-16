@@ -1,18 +1,18 @@
-import { type EventSequenceAnalysis, type KeySafetyFunction, type EventTreeBranch, type SystemStatus } from "interfaces-mef-types/es/event-sequence-analysis";
-import { type PRAConfigurationControl } from "interfaces-mef-types/cross-cutting/pra-configuration-control";
-import { type NewlyDevelopedMethod } from "interfaces-mef-types/cross-cutting/newly-developed-methods";
+import { type EventSequence, type EventSequenceAnalysis, type EventSequenceFamily, type KeySafetyFunction, type EventTreeBranch, type EventTreeOutcome, type EventTreeSequence, type EventTreeTransfer } from "interfaces-mef-types/es/event-sequence-analysis";
+import { EndState } from "interfaces-mef-types/core/events";
+import { endStateOfKind } from "interfaces-mef-types/es/es-end-states";
 import {
   CONFORMANCE_ITEMS,
   ES_STEPS,
   ES_PERSONA_STEPS,
   ES_FE_SC_MAP,
-  ES_POS_NAMES,
   type ConformanceItem,
   type EsPersona,
   type EsStep,
   type Stage,
 } from "./esViewData";
-import { type EsPosLinkStatus } from "./esWorkbookApi";
+import { type EsIeLinkStatus, type EsPosLinkStatus } from "./esWorkbookApi";
+import { distinctSequenceName } from "../newly-developed-methods/event-tree";
 
 interface CommentView {
   id: string;
@@ -38,16 +38,6 @@ interface CcScore {
   blocked: number;
   na: number;
   percent: number;
-}
-
-interface CcSnapshotView {
-  id: string;
-  label: string;
-}
-
-interface NmView {
-  id: string;
-  name: string;
 }
 
 interface ScopeView {
@@ -147,14 +137,6 @@ function commentsView(es: EventSequenceAnalysis, now: Date = new Date()): Commen
   });
 }
 
-function ccSnapshotView(cc: PRAConfigurationControl): CcSnapshotView {
-  return { id: cc.uuid, label: cc.name };
-}
-
-function nmViews(nms: NewlyDevelopedMethod[]): NmView[] {
-  return nms.map((nm) => ({ id: nm.uuid, name: nm.name }));
-}
-
 function scopeView(es: EventSequenceAnalysis): ScopeView {
   return {
     praScope: es.praScope,
@@ -171,25 +153,14 @@ function stepsForPersona(persona: EsPersona): EsStep[] {
   return ES_STEPS.filter((s) => ids.includes(s.id));
 }
 
-function hasDependencyModels(es: EventSequenceAnalysis): boolean {
-  const d = es.dependencyModels;
-  if (d === undefined) return false;
-  return (d.functionalDependencies?.length ?? 0) > 0
-    || (d.phenomenologicalDependencies?.length ?? 0) > 0
-    || (d.operationalDependencies?.length ?? 0) > 0
-    || (d.humanDependencies?.length ?? 0) > 0
-    || (d.systemInterfaces?.length ?? 0) > 0;
-}
-
 function stepsFromMef(es: EventSequenceAnalysis, persona: EsPersona): EsStep[] {
   const base = stepsForPersona(persona);
   const scopeComplete = es.scopeDefinition.initiatingEventIds.length > 0 || es.scopeDefinition.plantOperatingStateIds.length > 0 || es.keySafetyFunctions.length > 0;
   const sequencesComplete = es.eventSequences.length > 0;
-  const depsComplete = hasDependencyModels(es);
-  const timingComplete = es.eventSequences.some((s) => (s.timing?.length ?? 0) > 0);
-  const endStatesComplete = (es.releaseCategoryMappings ?? []).length > 0;
-  const familiesComplete = es.eventSequenceFamilies.length > 0;
-  const quantComplete = es.eventSequenceFamilies.some((f) => f.meanFrequency !== undefined);
+  const timingComplete = es.eventSequences.some((sequence) => (sequence.timing ?? []).length > 0) || (es.operatorActionWindows ?? []).length > 0 || (es.dependencyModels?.phenomenologicalDependencies ?? []).length > 0 || (es.repairCreditRecords ?? []).length > 0;
+  const dynamicComplete = (es.dynamicRuns ?? []).length > 0;
+  const uncertaintyComplete = es.modelUncertainty.uncertaintySources.length > 0 || (es.preOperationalAssumptions ?? []).length > 0 || (es.sensitivityStudies ?? []).length > 0;
+  const handoffComplete = (es.eventTrees ?? []).length > 0 && es.eventSequenceFamilies.length > 0;
   const draftComplete = es.workflowState !== "DRAFT" && es.workflowState !== "REVISION_REQUIRED";
   const reviewComplete = es.workflowState === "FINAL";
 
@@ -201,11 +172,10 @@ function stepsFromMef(es: EventSequenceAnalysis, persona: EsPersona): EsStep[] {
     switch (s.id) {
       case "scope": return { ...s, status: status(scopeComplete) };
       case "sequences": return { ...s, status: status(sequencesComplete) };
-      case "deps": return { ...s, status: status(depsComplete) };
       case "timing": return { ...s, status: status(timingComplete) };
-      case "endstates": return { ...s, status: status(endStatesComplete) };
-      case "families": return { ...s, status: status(familiesComplete) };
-      case "quant": return { ...s, status: status(quantComplete) };
+      case "dynamic": return { ...s, status: status(dynamicComplete) };
+      case "uncertainty": return { ...s, status: status(uncertaintyComplete) };
+      case "handoff": return { ...s, status: status(handoffComplete) };
       case "draft": return { ...s, status: status(draftComplete) };
       case "review": return { ...s, status: status(reviewComplete) };
       default: return { ...s, status: "idle" as const };
@@ -381,8 +351,6 @@ export {
   groupBySection,
   ccScore,
   commentsView,
-  ccSnapshotView,
-  nmViews,
   scopeView,
   sequencesView,
   familiesView,
@@ -396,8 +364,6 @@ export {
   initialsOf,
   type CommentView,
   type CcScore,
-  type CcSnapshotView,
-  type NmView,
   type ScopeView,
   type SequenceView,
   type FamilyView,
@@ -422,7 +388,7 @@ interface SeqLeafView {
   familyId?: string;
   meanFrequency?: number;
   importance?: string;
-  path: Record<string, SystemStatus>;
+  path: Record<string, EventTreeOutcome>;
 }
 
 interface SeqLeafRef {
@@ -478,8 +444,8 @@ function eventTreesView(es: EventSequenceAnalysis): EventTreeView[] {
         ...(bypassed === undefined ? {} : { B: childOf(bypassed.target, bypassed.targetType) }),
       };
     }
-    const paths = new Map<string, Record<string, SystemStatus>>();
-    function walkPaths(branchId: string, acc: Record<string, SystemStatus>): void {
+    const paths = new Map<string, Record<string, EventTreeOutcome>>();
+    function walkPaths(branchId: string, acc: Record<string, EventTreeOutcome>): void {
       const b = tree.branches[branchId];
       if (b === undefined) return;
       const feId = b.functionalEventId;
@@ -559,45 +525,166 @@ function buildBranchesFromPaths(
   return { branches, initialBranchId: root.targetType === "BRANCH" ? root.target : "" };
 }
 
-interface CoverageStateView {
+interface CoverageAxis {
   id: string;
   name: string;
 }
 
-interface CoverageIeView {
-  id: string;
-  treeCount: number;
-}
-
 interface CoverageView {
-  ies: CoverageIeView[];
-  states: CoverageStateView[];
+  groups: CoverageAxis[];
+  states: CoverageAxis[];
   cellTree: Record<string, string>;
 }
 
-function coverageView(es: EventSequenceAnalysis, posLink?: EsPosLinkStatus): CoverageView {
-  const nameById = new Map<string, string>();
-  for (const st of posLink?.states ?? []) nameById.set(st.id, st.name);
-  const states: CoverageStateView[] = es.scopeDefinition.plantOperatingStateIds.map((id) => ({ id, name: nameById.get(id) ?? ES_POS_NAMES[id] ?? "" }));
+function coverageView(es: EventSequenceAnalysis, posLink: EsPosLinkStatus, ieLink: EsIeLinkStatus): CoverageView {
+  const stateNames = new Map(posLink.states.map((state) => [state.id, state.name]));
+  const groupNames = new Map(ieLink.groups.map((group) => [group.id, group.name]));
+  const stateIds = es.scopeDefinition.plantOperatingStateIds.slice();
+  const groupIds = es.scopeDefinition.initiatingEventIds.slice();
   const cellTree: Record<string, string> = {};
-  const ieCount = new Map<string, number>();
   for (const tree of es.eventTrees ?? []) {
-    const pos = tree.plantOperatingStateId;
-    if (pos === undefined || pos.length === 0) continue;
-    cellTree[`${tree.initiatingEventId}|${pos}`] = tree.uuid;
-    ieCount.set(tree.initiatingEventId, (ieCount.get(tree.initiatingEventId) ?? 0) + 1);
+    const state = tree.plantOperatingStateId;
+    if (state === undefined || state.length === 0) continue;
+    if (!stateIds.includes(state)) stateIds.push(state);
+    if (!groupIds.includes(tree.initiatingEventId)) groupIds.push(tree.initiatingEventId);
+    cellTree[`${tree.initiatingEventId}|${state}`] ??= tree.uuid;
   }
-  const ieIds = es.scopeDefinition.initiatingEventIds.slice();
+  return {
+    groups: groupIds.map((id) => ({ id, name: groupNames.get(id) ?? "" })),
+    states: stateIds.map((id) => ({ id, name: stateNames.get(id) ?? "" })),
+    cellTree,
+  };
+}
+
+function releaseCategoryOptions(es: EventSequenceAnalysis): CoverageAxis[] {
+  const names = new Map<string, string>();
+  for (const mapping of es.releaseCategoryMappings ?? []) {
+    if ((names.get(mapping.releaseCategoryId) ?? "").length === 0) names.set(mapping.releaseCategoryId, mapping.name ?? "");
+  }
+  for (const sequence of es.eventSequences) {
+    if (sequence.releaseCategoryId !== undefined && !names.has(sequence.releaseCategoryId)) names.set(sequence.releaseCategoryId, "");
+  }
+  return [...names].map(([id, name]) => ({ id, name }));
+}
+
+function nextReleaseCategoryId(used: readonly string[]): string {
+  let index = used.length + 1;
+  while (used.includes(`RC-${String(index)}`)) index += 1;
+  return `RC-${String(index)}`;
+}
+
+function withSequenceReleaseCategory(es: EventSequenceAnalysis, sequenceId: string, releaseCategoryId: string | undefined): EventSequenceAnalysis {
+  return {
+    ...es,
+    eventSequences: es.eventSequences.map((sequence) => {
+      if (sequence.uuid !== sequenceId) return sequence;
+      const { releaseCategoryId: _previous, ...rest } = sequence;
+      return releaseCategoryId === undefined ? rest : { ...rest, releaseCategoryId };
+    }),
+    ...(es.releaseCategoryMappings === undefined ? {} : {
+      releaseCategoryMappings: es.releaseCategoryMappings.map((mapping) => {
+        const others = mapping.eventSequenceIds.filter((id) => id !== sequenceId);
+        return { ...mapping, eventSequenceIds: mapping.releaseCategoryId === releaseCategoryId ? [...others, sequenceId] : others };
+      }),
+    }),
+  };
+}
+
+function withLinkedSequence(es: EventSequenceAnalysis, treeId: string, treeSequenceId: string): { es: EventSequenceAnalysis; id: string } | undefined {
+  const tree = es.eventTrees?.find((candidate) => candidate.uuid === treeId);
+  const treeSequence = tree?.sequences[treeSequenceId];
+  if (tree === undefined || treeSequence === undefined) return undefined;
+  const existing = treeSequence.eventSequenceId;
+  if (existing !== undefined && es.eventSequences.some((sequence) => sequence.uuid === existing)) return { es, id: existing };
+  const id = crypto.randomUUID();
+  const record: EventSequence = {
+    uuid: id,
+    name: treeSequence.name,
+    initiatingEventId: tree.initiatingEventId,
+    plantOperatingStateId: tree.plantOperatingStateId ?? "",
+    eventTreeId: tree.uuid,
+    eventTreeSequenceId: treeSequenceId,
+    ...(treeSequence.functionalEventStates === undefined ? {} : { functionalEventStates: treeSequence.functionalEventStates }),
+    endState: treeSequence.endState ?? EndState.SUCCESSFUL_MITIGATION,
+    implementsSrs: [],
+  };
+  return {
+    id,
+    es: {
+      ...es,
+      eventSequences: [...es.eventSequences, record],
+      eventTrees: (es.eventTrees ?? []).map((candidate) => (candidate.uuid === treeId ? { ...candidate, sequences: { ...candidate.sequences, [treeSequenceId]: { ...treeSequence, eventSequenceId: id } } } : candidate)),
+    },
+  };
+}
+
+function withSequenceFamily(es: EventSequenceAnalysis, sequenceId: string, familyId: string | undefined): EventSequenceAnalysis {
+  return {
+    ...es,
+    eventSequences: es.eventSequences.map((sequence) => {
+      if (sequence.uuid !== sequenceId) return sequence;
+      const { sequenceFamilyId: _previous, ...rest } = sequence;
+      return familyId === undefined ? rest : { ...rest, sequenceFamilyId: familyId };
+    }),
+    eventSequenceFamilies: es.eventSequenceFamilies.map((family) => {
+      const others = family.memberSequenceIds.filter((id) => id !== sequenceId);
+      return { ...family, memberSequenceIds: family.uuid === familyId ? [...others, sequenceId] : others };
+    }),
+  };
+}
+
+function withTreeSequenceClassification(es: EventSequenceAnalysis, treeId: string, treeSequenceId: string, changes: Partial<Pick<EventSequence, "sequenceFamilyId" | "releaseCategoryId">>): EventSequenceAnalysis {
+  const linked = withLinkedSequence(es, treeId, treeSequenceId);
+  if (linked === undefined) return es;
+  let next = linked.es;
+  if ("sequenceFamilyId" in changes) next = withSequenceFamily(next, linked.id, changes.sequenceFamilyId);
+  if ("releaseCategoryId" in changes) next = withSequenceReleaseCategory(next, linked.id, changes.releaseCategoryId);
+  return next;
+}
+
+function withSyncedSequenceEndState(es: EventSequenceAnalysis, treeId: string, treeSequenceId: string): EventSequenceAnalysis {
+  const sequence = es.eventTrees?.find((tree) => tree.uuid === treeId)?.sequences[treeSequenceId];
+  const definition = sequence?.endStateId === undefined ? undefined : es.endStateDefinitions?.find((candidate) => candidate.id === sequence.endStateId);
+  if (definition === undefined) return es;
+  const classified = withTreeSequenceClassification(es, treeId, treeSequenceId, { releaseCategoryId: definition.kind === "RELEASE" ? definition.releaseCategoryId : undefined });
+  const recordId = classified.eventTrees?.find((tree) => tree.uuid === treeId)?.sequences[treeSequenceId]?.eventSequenceId;
+  return {
+    ...classified,
+    eventSequences: classified.eventSequences.map((record) => (record.uuid === recordId ? { ...record, endState: endStateOfKind(definition.kind), endStateId: definition.id } : record)),
+  };
+}
+
+function withEndStateDefinitionApplied(es: EventSequenceAnalysis, endStateId: string): EventSequenceAnalysis {
+  const definition = es.endStateDefinitions?.find((candidate) => candidate.id === endStateId);
+  if (definition === undefined) return es;
+  let next = es;
   for (const tree of es.eventTrees ?? []) {
-    if (!ieIds.includes(tree.initiatingEventId)) ieIds.push(tree.initiatingEventId);
+    for (const [sequenceId, sequence] of Object.entries(tree.sequences)) {
+      if (sequence.endStateId !== endStateId) continue;
+      next = {
+        ...next,
+        eventTrees: (next.eventTrees ?? []).map((candidate) => (candidate.uuid === tree.uuid ? { ...candidate, sequences: { ...candidate.sequences, [sequenceId]: { ...(candidate.sequences[sequenceId] ?? sequence), endState: endStateOfKind(definition.kind) } } } : candidate)),
+      };
+      next = withSyncedSequenceEndState(next, tree.uuid, sequenceId);
+    }
   }
-  const ies: CoverageIeView[] = ieIds.map((id) => ({ id, treeCount: ieCount.get(id) ?? 0 }));
-  return { ies, states, cellTree };
+  return next;
+}
+
+function endStateUseCount(es: EventSequenceAnalysis, endStateId: string): number {
+  return (es.eventTrees ?? []).reduce((count, tree) => count + Object.values(tree.sequences).filter((sequence) => sequence.endStateId === endStateId).length, 0);
 }
 
 export {
   eventTreesView,
   coverageView,
+  endStateUseCount,
+  withEndStateDefinitionApplied,
+  withSyncedSequenceEndState,
+  withTreeSequenceClassification,
+  nextReleaseCategoryId,
+  releaseCategoryOptions,
+  withSequenceReleaseCategory,
   buildBranchesFromPaths,
   type EventTreeView,
   type TreeNodeView,
@@ -605,8 +692,7 @@ export {
   type SeqLeafView,
   type FeView,
   type CoverageView,
-  type CoverageStateView,
-  type CoverageIeView,
+  type CoverageAxis,
 };
 
 interface DependencyView {
@@ -636,52 +722,372 @@ function dependenciesView(es: EventSequenceAnalysis): DependencyView[] {
 
 export { dependenciesView, type DependencyView };
 
-type TimelineKind = "init" | "auto" | "cue" | "op" | "limit";
-
-interface TimelineMilestoneView {
-  t: number;
-  label: string;
-  kind: TimelineKind;
-  basis?: string;
+interface TreeSequenceRow {
+  treeId: string;
+  treeName: string;
+  sequenceId: string;
+  name: string;
+  endStateId?: string;
+  transferTargetId?: string;
+  familyId?: string;
 }
 
-interface TimelineView {
-  milestones: TimelineMilestoneView[];
-  damageFrom: number | null;
-  tMax: number;
+function treeSequenceRows(es: EventSequenceAnalysis): TreeSequenceRow[] {
+  const familyOf = new Map(es.eventSequences.map((record) => [record.uuid, record.sequenceFamilyId]));
+  return (es.eventTrees ?? []).flatMap((tree) => Object.entries(tree.sequences).map(([sequenceId, sequence]): TreeSequenceRow => {
+    const familyId = sequence.eventSequenceId === undefined ? undefined : familyOf.get(sequence.eventSequenceId);
+    const transferTargetId = tree.transfers?.[sequenceId]?.targetEventTreeId;
+    return {
+      treeId: tree.uuid,
+      treeName: tree.name,
+      sequenceId,
+      name: sequence.name,
+      ...(sequence.endStateId === undefined ? {} : { endStateId: sequence.endStateId }),
+      ...(transferTargetId === undefined ? {} : { transferTargetId }),
+      ...(familyId === undefined ? {} : { familyId }),
+    };
+  }));
 }
 
-const TIMING_KIND: Record<string, TimelineKind> = {
-  INITIATOR: "init",
-  AUTOMATIC: "auto",
-  OPERATOR_CUE: "cue",
-  OPERATOR_ACTION: "op",
-  DAMAGE_LIMIT: "limit",
+interface ReleaseCategoryRow {
+  id: string;
+  name: string;
+  endStateCodes: string[];
+  sequenceCount: number;
+  physicalReleaseCharacteristics: string[];
+  commonCharacteristics: string[];
+  mappingBasis: string;
+}
+
+interface ReleaseCategoryEdit {
+  id: string;
+  name: string;
+  physicalReleaseCharacteristics: string[];
+  commonCharacteristics: string[];
+  mappingBasis: string;
+}
+
+function releaseCategoryRows(es: EventSequenceAnalysis): ReleaseCategoryRow[] {
+  const rows = treeSequenceRows(es);
+  const definitions = es.endStateDefinitions ?? [];
+  const options = releaseCategoryOptions(es);
+  const known = new Set(options.map((option) => option.id));
+  const extra = [...new Set(definitions.flatMap((definition) => (definition.releaseCategoryId === undefined || known.has(definition.releaseCategoryId) ? [] : [definition.releaseCategoryId])))];
+  return [...options, ...extra.map((id) => ({ id, name: "" }))].map((option) => {
+    const mapping = es.releaseCategoryMappings?.find((candidate) => candidate.releaseCategoryId === option.id);
+    const endStates = definitions.filter((definition) => definition.releaseCategoryId === option.id);
+    const endStateIds = new Set(endStates.map((definition) => definition.id));
+    return {
+      id: option.id,
+      name: option.name,
+      endStateCodes: endStates.map((definition) => definition.code),
+      sequenceCount: rows.filter((row) => row.endStateId !== undefined && endStateIds.has(row.endStateId)).length,
+      physicalReleaseCharacteristics: mapping?.physicalReleaseCharacteristics ?? [],
+      commonCharacteristics: mapping?.commonCharacteristics ?? [],
+      mappingBasis: mapping?.mappingBasis ?? "",
+    };
+  });
+}
+
+function releaseCategoryInUse(es: EventSequenceAnalysis, categoryId: string): boolean {
+  return (es.endStateDefinitions ?? []).some((definition) => definition.releaseCategoryId === categoryId)
+    || es.eventSequences.some((record) => record.releaseCategoryId === categoryId);
+}
+
+function withReleaseCategoryRenamed(es: EventSequenceAnalysis, fromId: string, toId: string): EventSequenceAnalysis {
+  if (fromId === toId) return es;
+  return {
+    ...es,
+    ...(es.endStateDefinitions === undefined ? {} : {
+      endStateDefinitions: es.endStateDefinitions.map((definition) => (definition.releaseCategoryId === fromId ? { ...definition, releaseCategoryId: toId } : definition)),
+    }),
+    eventSequences: es.eventSequences.map((record) => (record.releaseCategoryId === fromId ? { ...record, releaseCategoryId: toId } : record)),
+    eventSequenceFamilies: es.eventSequenceFamilies.map((family) => (family.releaseCategoryIds === undefined ? family : { ...family, releaseCategoryIds: [...new Set(family.releaseCategoryIds.map((id) => (id === fromId ? toId : id)))] })),
+    ...(es.releaseCategoryMappings === undefined ? {} : {
+      releaseCategoryMappings: es.releaseCategoryMappings.map((mapping) => (mapping.releaseCategoryId === fromId ? { ...mapping, releaseCategoryId: toId } : mapping)),
+    }),
+  };
+}
+
+function withReleaseCategorySaved(es: EventSequenceAnalysis, previousId: string | undefined, edit: ReleaseCategoryEdit): EventSequenceAnalysis {
+  const renamed = previousId === undefined ? es : withReleaseCategoryRenamed(es, previousId, edit.id);
+  const mappings = renamed.releaseCategoryMappings ?? [];
+  const existing = mappings.find((mapping) => mapping.releaseCategoryId === edit.id);
+  const fields = {
+    name: edit.name,
+    physicalReleaseCharacteristics: edit.physicalReleaseCharacteristics,
+    commonCharacteristics: edit.commonCharacteristics,
+    mappingBasis: edit.mappingBasis,
+  };
+  return {
+    ...renamed,
+    releaseCategoryMappings: existing === undefined
+      ? [...mappings, { uuid: crypto.randomUUID(), releaseCategoryId: edit.id, eventSequenceIds: renamed.eventSequences.filter((record) => record.releaseCategoryId === edit.id).map((record) => record.uuid), implementsSrs: [], ...fields }]
+      : mappings.map((mapping) => (mapping === existing ? { ...mapping, ...fields } : mapping)),
+  };
+}
+
+function withReleaseCategoryMerged(es: EventSequenceAnalysis, fromId: string, intoId: string): EventSequenceAnalysis {
+  if (fromId === intoId) return es;
+  const mappings = es.releaseCategoryMappings ?? [];
+  const source = mappings.find((mapping) => mapping.releaseCategoryId === fromId);
+  const kept = mappings.filter((mapping) => mapping.releaseCategoryId !== fromId);
+  const target = kept.find((mapping) => mapping.releaseCategoryId === intoId);
+  const moved = source?.eventSequenceIds ?? [];
+  const merged = target === undefined
+    ? (source === undefined ? kept : [...kept, { ...source, releaseCategoryId: intoId }])
+    : kept.map((mapping) => (mapping === target ? { ...mapping, eventSequenceIds: [...new Set([...mapping.eventSequenceIds, ...moved])] } : mapping));
+  return withReleaseCategoryRenamed({ ...es, releaseCategoryMappings: merged }, fromId, intoId);
+}
+
+function withReleaseCategoryRemoved(es: EventSequenceAnalysis, categoryId: string): EventSequenceAnalysis {
+  if (es.releaseCategoryMappings === undefined) return es;
+  return { ...es, releaseCategoryMappings: es.releaseCategoryMappings.filter((mapping) => mapping.releaseCategoryId !== categoryId) };
+}
+
+interface FamilyRow {
+  id: string;
+  name: string;
+  endStateIds: string[];
+  memberCount: number;
+  similarityBasis: string;
+}
+
+function familyRows(es: EventSequenceAnalysis): FamilyRow[] {
+  const rows = treeSequenceRows(es);
+  return es.eventSequenceFamilies.map((family) => {
+    const members = rows.filter((row) => row.familyId === family.uuid);
+    return {
+      id: family.uuid,
+      name: family.name,
+      endStateIds: [...new Set(members.flatMap((row) => (row.endStateId === undefined ? [] : [row.endStateId])))],
+      memberCount: members.length,
+      similarityBasis: family.similarityBasis ?? "",
+    };
+  });
+}
+
+function withFamilySaved(es: EventSequenceAnalysis, family: EventSequenceFamily): EventSequenceAnalysis {
+  const known = es.eventSequenceFamilies.some((candidate) => candidate.uuid === family.uuid);
+  return {
+    ...es,
+    eventSequenceFamilies: known ? es.eventSequenceFamilies.map((candidate) => (candidate.uuid === family.uuid ? family : candidate)) : [...es.eventSequenceFamilies, family],
+  };
+}
+
+function withFamilyRemoved(es: EventSequenceAnalysis, familyId: string): EventSequenceAnalysis {
+  return {
+    ...es,
+    eventSequenceFamilies: es.eventSequenceFamilies.filter((family) => family.uuid !== familyId),
+    eventSequences: es.eventSequences.map((record) => {
+      if (record.sequenceFamilyId !== familyId) return record;
+      const { sequenceFamilyId: _removed, ...rest } = record;
+      return rest;
+    }),
+  };
+}
+
+function unfamiliedSequences(es: EventSequenceAnalysis): TreeSequenceRow[] {
+  return treeSequenceRows(es).filter((row) => row.endStateId !== undefined && row.familyId === undefined);
+}
+
+function withFamiliesByDefinition(es: EventSequenceAnalysis): EventSequenceAnalysis {
+  const definitions = new Map((es.endStateDefinitions ?? []).map((definition) => [definition.id, definition]));
+  const trees = new Map((es.eventTrees ?? []).map((tree) => [tree.uuid, tree]));
+  let next = es;
+  for (const row of unfamiliedSequences(es)) {
+    const tree = trees.get(row.treeId);
+    const definition = row.endStateId === undefined ? undefined : definitions.get(row.endStateId);
+    if (tree === undefined || definition === undefined) continue;
+    const stateId = tree.plantOperatingStateId ?? "";
+    let family: EventSequenceFamily | undefined = next.eventSequenceFamilies.find((candidate) => candidate.endStateId === definition.id
+      && candidate.representativeInitiatingEventId === tree.initiatingEventId
+      && candidate.representativePlantOperatingStateId === stateId);
+    if (family === undefined) {
+      family = {
+        uuid: crypto.randomUUID(),
+        name: [tree.initiatingEventId, stateId, definition.code].filter((part) => part.length > 0).join(" · "),
+        groupingCriteriaId: next.groupingCriteria?.[0]?.uuid ?? "",
+        representativeInitiatingEventId: tree.initiatingEventId,
+        representativePlantOperatingStateId: stateId,
+        representativePlantResponse: "",
+        releaseCategoryIds: definition.releaseCategoryId === undefined ? [] : [definition.releaseCategoryId],
+        memberSequenceIds: [],
+        endState: endStateOfKind(definition.kind),
+        endStateId: definition.id,
+        implementsSrs: [],
+      };
+      next = { ...next, eventSequenceFamilies: [...next.eventSequenceFamilies, family] };
+    }
+    next = withTreeSequenceClassification(next, row.treeId, row.sequenceId, { sequenceFamilyId: family.uuid });
+  }
+  return next;
+}
+
+interface TransferRow {
+  treeId: string;
+  treeName: string;
+  sequenceId: string;
+  sequenceName: string;
+  targetTreeId: string;
+  targetName: string;
+}
+
+function transferRows(es: EventSequenceAnalysis): TransferRow[] {
+  const trees = es.eventTrees ?? [];
+  const names = new Map(trees.map((tree) => [tree.uuid, tree.name]));
+  return trees.flatMap((tree) => Object.entries(tree.transfers ?? {}).map(([sequenceId, transfer]) => ({
+    treeId: tree.uuid,
+    treeName: tree.name,
+    sequenceId,
+    sequenceName: tree.sequences[sequenceId]?.name ?? sequenceId,
+    targetTreeId: transfer.targetEventTreeId,
+    targetName: names.get(transfer.targetEventTreeId) ?? transfer.targetEventTreeId,
+  })));
+}
+
+function withTransferEdited(es: EventSequenceAnalysis, treeId: string, sequenceId: string, transfer: EventTreeTransfer): EventSequenceAnalysis {
+  return {
+    ...es,
+    eventTrees: (es.eventTrees ?? []).map((tree) => (tree.uuid === treeId ? { ...tree, transfers: { ...(tree.transfers ?? {}), [sequenceId]: transfer } } : tree)),
+  };
+}
+
+function transferLoops(es: EventSequenceAnalysis): string[] {
+  const edges = new Map((es.eventTrees ?? []).map((tree) => [tree.uuid, [...new Set(Object.values(tree.transfers ?? {}).map((transfer) => transfer.targetEventTreeId))]]));
+  const looping: string[] = [];
+  for (const start of edges.keys()) {
+    const seen = new Set<string>();
+    const pending = [...(edges.get(start) ?? [])];
+    while (pending.length > 0) {
+      const current = pending.pop();
+      if (current === undefined || seen.has(current)) continue;
+      if (current === start) {
+        looping.push(start);
+        break;
+      }
+      seen.add(current);
+      pending.push(...(edges.get(current) ?? []));
+    }
+  }
+  return looping;
+}
+
+export {
+  treeSequenceRows,
+  releaseCategoryRows,
+  releaseCategoryInUse,
+  withReleaseCategorySaved,
+  withReleaseCategoryMerged,
+  withReleaseCategoryRemoved,
+  familyRows,
+  withFamilySaved,
+  withFamilyRemoved,
+  unfamiliedSequences,
+  withFamiliesByDefinition,
+  transferRows,
+  withTransferEdited,
+  transferLoops,
+  type TreeSequenceRow,
+  type ReleaseCategoryRow,
+  type FamilyRow,
+  type TransferRow,
 };
 
-function timelineView(es: EventSequenceAnalysis, treeId: string): TimelineView {
-  const seqs = es.eventSequences.filter((s) => s.eventTreeId === treeId);
-  const byKey = new Map<string, TimelineMilestoneView>();
-  for (const s of seqs) {
-    for (const entry of s.timing ?? []) {
-      const kind = TIMING_KIND[String(entry.category ?? "AUTOMATIC")] ?? "auto";
-      const key = `${entry.event}|${entry.timeAfterInitiator}`;
-      if (!byKey.has(key)) byKey.set(key, { t: entry.timeAfterInitiator, label: entry.event, kind, basis: entry.basis });
-    }
-  }
-  const ie = seqs[0]?.initiatingEventId;
-  for (const w of es.operatorActionWindows ?? []) {
-    if (ie === undefined || !(w.applicableInitiatingEvents ?? []).includes(ie)) continue;
-    if (w.cueMinutes !== undefined && w.cue !== undefined && w.cue.length > 0) {
-      byKey.set(`cue|${w.uuid}`, { t: w.cueMinutes, label: w.cue, kind: "cue", basis: w.humanActionId });
-    }
-    byKey.set(`op|${w.uuid}`, { t: w.windowStartMinutes, label: `${w.action} window opens`, kind: "op", basis: w.humanActionId });
-  }
-  const milestones = Array.from(byKey.values()).sort((a, b) => a.t - b.t);
-  const limits = milestones.filter((m) => m.kind === "limit").map((m) => m.t);
-  const damageFrom = limits.length > 0 ? Math.min(...limits) : null;
-  const tMax = milestones.reduce((mx, m) => Math.max(mx, m.t), 60) * 1.25;
-  return { milestones, damageFrom, tMax };
+function reservedSequenceNames(es: EventSequenceAnalysis, treeId: string): Set<string> {
+  return new Set((es.eventTrees ?? []).filter((tree) => tree.uuid !== treeId).flatMap((tree) => Object.values(tree.sequences).map((sequence) => sequence.name)));
 }
 
-export { timelineView, type TimelineView, type TimelineMilestoneView };
+function copiedRecord(record: EventSequence, uuid: string, name: string, treeId: string, sequenceId: string, sequence: EventTreeSequence): EventSequence {
+  return {
+    uuid,
+    name,
+    initiatingEventId: record.initiatingEventId,
+    plantOperatingStateId: record.plantOperatingStateId,
+    eventTreeId: treeId,
+    eventTreeSequenceId: sequenceId,
+    ...(sequence.functionalEventStates === undefined ? {} : { functionalEventStates: sequence.functionalEventStates }),
+    endState: record.endState,
+    ...(record.endStateId === undefined ? {} : { endStateId: record.endStateId }),
+    ...(record.sequenceFamilyId === undefined ? {} : { sequenceFamilyId: record.sequenceFamilyId }),
+    ...(record.releaseCategoryId === undefined ? {} : { releaseCategoryId: record.releaseCategoryId }),
+    ...(record.affectedReactorSourceCombinations === undefined ? {} : { affectedReactorSourceCombinations: record.affectedReactorSourceCombinations }),
+    implementsSrs: [],
+  };
+}
+
+function withDistinctSequences(before: EventSequenceAnalysis, after: EventSequenceAnalysis): EventSequenceAnalysis {
+  const trees = after.eventTrees ?? [];
+  const previous = new Map<string, EventTreeSequence>((before.eventTrees ?? []).flatMap((tree) => Object.entries(tree.sequences).map(([id, sequence]) => [`${tree.uuid}|${id}`, sequence] as const)));
+  const nameOwners = new Map<string, string>();
+  const recordOwners = new Map<string, string>();
+  for (const tree of trees) {
+    for (const [id, sequence] of Object.entries(tree.sequences)) {
+      const key = `${tree.uuid}|${id}`;
+      const prior = previous.get(key);
+      if (sequence.name.length > 0 && prior?.name === sequence.name && !nameOwners.has(sequence.name)) nameOwners.set(sequence.name, key);
+      if (sequence.eventSequenceId !== undefined && prior?.eventSequenceId === sequence.eventSequenceId && !recordOwners.has(sequence.eventSequenceId)) recordOwners.set(sequence.eventSequenceId, key);
+    }
+  }
+  const taken = new Set(nameOwners.keys());
+  const records = new Map(after.eventSequences.map((record) => [record.uuid, record]));
+  const copies: EventSequence[] = [];
+  let changed = false;
+  const nextTrees = trees.map((tree) => {
+    let treeChanged = false;
+    const sequences = Object.fromEntries(Object.entries(tree.sequences).map(([id, sequence]): [string, EventTreeSequence] => {
+      const key = `${tree.uuid}|${id}`;
+      let next = sequence;
+      if (nameOwners.get(sequence.name) !== key) {
+        const name = distinctSequenceName(sequence.name, taken);
+        taken.add(name);
+        if (name !== sequence.name) next = { ...next, name };
+      }
+      const recordId = sequence.eventSequenceId;
+      if (recordId !== undefined) {
+        const owner = recordOwners.get(recordId);
+        if (owner === undefined) recordOwners.set(recordId, key);
+        else if (owner !== key) {
+          const record = records.get(recordId);
+          if (record === undefined) {
+            const { eventSequenceId: _shared, ...rest } = next;
+            next = rest;
+          } else {
+            const uuid = crypto.randomUUID();
+            copies.push(copiedRecord(record, uuid, next.name, tree.uuid, id, next));
+            next = { ...next, eventSequenceId: uuid };
+          }
+        }
+      }
+      if (next !== sequence) treeChanged = true;
+      return [id, next];
+    }));
+    if (!treeChanged) return tree;
+    changed = true;
+    return { ...tree, sequences };
+  });
+  if (!changed) return after;
+  const familyMembers = new Map<string, string[]>();
+  const categoryMembers = new Map<string, string[]>();
+  for (const copy of copies) {
+    if (copy.sequenceFamilyId !== undefined) familyMembers.set(copy.sequenceFamilyId, [...(familyMembers.get(copy.sequenceFamilyId) ?? []), copy.uuid]);
+    if (copy.releaseCategoryId !== undefined) categoryMembers.set(copy.releaseCategoryId, [...(categoryMembers.get(copy.releaseCategoryId) ?? []), copy.uuid]);
+  }
+  return {
+    ...after,
+    eventTrees: nextTrees,
+    eventSequences: [...after.eventSequences, ...copies],
+    eventSequenceFamilies: after.eventSequenceFamilies.map((family) => {
+      const added = familyMembers.get(family.uuid);
+      return added === undefined ? family : { ...family, memberSequenceIds: [...family.memberSequenceIds, ...added] };
+    }),
+    ...(after.releaseCategoryMappings === undefined ? {} : {
+      releaseCategoryMappings: after.releaseCategoryMappings.map((mapping) => {
+        const added = categoryMembers.get(mapping.releaseCategoryId);
+        return added === undefined ? mapping : { ...mapping, eventSequenceIds: [...mapping.eventSequenceIds, ...added] };
+      }),
+    }),
+  };
+}
+
+export { reservedSequenceNames, withDistinctSequences };

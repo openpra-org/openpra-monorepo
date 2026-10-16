@@ -11,15 +11,14 @@ import {
   BorderStyle,
 } from "docx";
 import { type EventSequenceQuantification } from "interfaces-mef-types/esq/event-sequence-quantification";
-import { logicViewOf } from "./esqLogic";
+import { JOINT_SOURCE_LABELS, LEVEL_LABELS, logicViewOf, runLogicText } from "./esqLogic";
 import { barriersViewOf, cellRecordText, modeLabel, sideSourceText, MECHANISM_KIND_LABELS, MODE_KIND_LABELS } from "./esqBarriers";
 import { parameterLabelOf } from "./esqModel";
 import { BASIS_LABELS, CALCULATION_LABELS, QUANTIFIER_LABELS, SOURCE_LABELS, pctText, solveViewOf } from "./esqSolve";
-import { runLogicText } from "./esqLogic";
-import { JOINT_SOURCE_LABELS, LEVEL_LABELS, postViewOf } from "./esqPost";
 import { FEASIBILITY_LABELS } from "./esqBarriers";
 import { CONSISTENCY_LABELS, CONSISTENCY_TOPICS, IMPORTANCE_KIND_LABELS, fourDigits } from "./esqResults";
 import { METHOD_LABELS } from "./esqUncertainty";
+import { expressionText } from "../newly-developed-methods/shared/uncertainText";
 
 function heading(text: string, level: (typeof HeadingLevel)[keyof typeof HeadingLevel]): Paragraph {
   return new Paragraph({ text, heading: level, spacing: { before: 240, after: 120 }, pageBreakBefore: level === HeadingLevel.HEADING_1 });
@@ -158,11 +157,6 @@ function buildChildren(a: EventSequenceQuantification, final: boolean): (Paragra
   out.push(heading("Cutset review records", HeadingLevel.HEADING_1));
   out.push(para(doc.cutsetReviewProcess));
   const reviewWork = a.review ?? {};
-  const eventCode = new Map((a.model?.events ?? []).map((event) => [event.id, event.code]));
-  out.push(dataTable(
-    ["Family", "Cut set", "Frequency (/yr)", "Significant", "Logic", "Note"],
-    (reviewWork.cutSetReviews ?? []).filter((c) => c.verdict !== undefined).map((c) => [c.familyId, c.eventIds.map((id) => eventCode.get(id) ?? id).join(" · "), val(c.annualFrequency), c.significant ? "Yes" : "No", c.verdict === "CORRECT" ? "Correct" : "Issue", c.note]),
-  ));
   out.push(heading("Consistency of the results", HeadingLevel.HEADING_2));
   out.push(dataTable(
     ["Checked against", "Result", "Note"],
@@ -188,38 +182,28 @@ function buildChildren(a: EventSequenceQuantification, final: boolean): (Paragra
     ["Support loop", "Cut at", "State", "Basis"],
     (logic?.loops ?? []).flatMap((loop) => loop.edges.flatMap((edge) => (edge.cut === undefined ? [] : [[loop.codes.join(", "), `${edge.fromCode} to ${edge.toCode}`, edge.cut.state ? "TRUE" : "FALSE", edge.cut.basis]]))),
   ));
-  const post = postViewOf(a);
-  const deletions = post?.work.deletions;
+  const deletions = logic?.work.deletions;
   out.push(dataTable(
     ["Exclusion", "Events", "Basis", "Cut sets deleted", "Frequency (/yr)"],
-    (post?.exclusions ?? []).map((x) => [x.exclusion.id, x.codes.join(", "), x.exclusion.basis, deletions === undefined || !x.checkable ? "—" : String(x.finding?.cutSetCount ?? 0), val(x.finding?.nominalFrequency)]),
+    (logic?.exclusions ?? []).map((x) => [x.exclusion.id, x.codes.join(", "), x.exclusion.basis, deletions === undefined || !x.checkable ? "—" : String(x.finding?.cutSetCount ?? 0), val(x.finding?.nominalFrequency)]),
   ));
-  if (deletions !== undefined) out.push(para(`Deleted combinations listed by PRAXIS run ${deletions.runId} of ${deletions.at} at a cutoff of ${val(deletions.cutOff)} per year${post?.deletionsStale === true ? ", older than its inputs" : ""}.`));
+  if (deletions !== undefined) out.push(para(`Deleted combinations listed by PRAXIS run ${deletions.runId} of ${deletions.at} at a cutoff of ${val(deletions.cutOff)} per year${logic?.deletionsStale === true ? ", older than its inputs" : ""}.`));
   out.push(dataTable(
-    ["Recovery", "Recovers", "Non-recovery HEP", "From", "Credited", "Feasibility not shown", "Basis"],
-    (post?.recoveries ?? []).map((r) => [r.recovery.id, r.codes.join(", "), val(r.recovery.value), r.recovery.source === undefined ? "Not chosen" : r.recovery.source === "HRA" ? "HR" : r.recovery.rule?.typed?.source ?? "Typed", r.recovery.credited ? "Yes" : "No", r.recovery.missing.length === 0 ? "None" : r.recovery.missing.map((key) => FEASIBILITY_LABELS[key]).join(", "), r.recovery.rule?.basis ?? ""]),
+    ["Recovery", "Restores", "Non-recovery", "From", "Credited", "Feasibility not shown", "Basis"],
+    (logic?.recoveries ?? []).map((r) => [r.recovery.repairRecord === undefined ? r.recovery.id : `${r.recovery.id} (ES repair)`, r.codes.join(", "), r.recovery.expression === undefined ? "—" : r.recovery.source === "DA" ? r.recovery.parameterId ?? "DA" : expressionText(r.recovery.expression), r.recovery.source === undefined ? "Not chosen" : r.recovery.source === "HRA" ? "HR" : r.recovery.source === "DA" ? "DA" : r.recovery.rule?.typed?.source ?? "Typed", r.recovery.credited ? "Yes" : "No", r.recovery.missing.length === 0 ? "None" : r.recovery.missing.map((key) => FEASIBILITY_LABELS[key]).join(", "), r.recovery.rule?.basis ?? ""]),
   ));
 
   out.push(heading("Dependency treatment", HeadingLevel.HEADING_1));
   out.push(para(doc.intermediateStateDependencyTreatment));
   out.push(para(a.dependencyTreatment.postInitiatorHfeDependencyBasis));
-  const search = post?.work.search;
+  const search = logic?.work.search;
   out.push(para(search === undefined
     ? "No PRAXIS search for cut sets with several human failure events is kept."
-    : `PRAXIS run ${search.runId} of ${search.at} found the cut sets with two or more human failure events, with each HEP at ${String(search.raisedHep)} and a cutoff of ${val(search.cutOff)} per year${post?.searchStale === true ? ". It is older than its inputs" : ""}.`));
-  out.push(para(post?.floor === undefined ? "No joint HEP floor is set." : `Joint HEP floor ${val(post.floor)}${post.work.floor === undefined ? " from HR" : `, typed from ${post.work.floor.source}`}. No joint HEP goes below it unless a waiver gives the reason.`));
+    : `PRAXIS run ${search.runId} of ${search.at} found the cut sets with two or more human failure events, with each HEP at ${String(search.raisedHep)} and a cutoff of ${val(search.cutOff)} per year${logic?.searchStale === true ? ". It is older than its inputs" : ""}.`));
+  out.push(para(logic?.floor === undefined ? "No joint HEP floor is set." : `Joint HEP floor ${val(logic.floor)}${logic.work.floor === undefined ? " from HR" : `, typed from ${logic.work.floor.source}`}. No joint HEP goes below it unless a waiver gives the reason.`));
   out.push(dataTable(
     ["Combination", "Events", "Joint HEP", "From", "Level", "Nominal (/yr)", "Basis"],
-    (post?.combinations ?? []).map((c) => [c.entry?.combination.id ?? "Not assessed", c.codes.join(", "), val(c.entry?.joint), c.entry?.source === undefined ? "—" : JOINT_SOURCE_LABELS[c.entry.source], c.entry?.level === undefined ? "—" : LEVEL_LABELS[c.entry.level], val(c.finding?.nominalFrequency), c.entry?.combination.basis ?? ""]),
-  ));
-
-  out.push(heading("Post-processing results", HeadingLevel.HEADING_1));
-  out.push(para(post?.work.comparison === undefined
-    ? "No run without the post-processing rules is kept."
-    : `PRAXIS run ${post.work.comparison.runId} of ${post.work.comparison.at} repeats the run of record with recovery and HFE dependency off${post.comparisonStale ? ". It is older than its inputs" : ""}.`));
-  out.push(dataTable(
-    ["Family", "Without the rules (/yr)", "With the rules (/yr)", "Change"],
-    (post?.results ?? []).map((r) => [r.familyId, val(r.without), val(r.withRules), r.withRules === undefined ? "—" : differenceText(r.withRules, r.without)]),
+    (logic?.combinations ?? []).map((c) => [c.entry?.combination.id ?? "Not assessed", c.codes.join(", "), val(c.entry?.joint), c.entry?.source === undefined ? "—" : JOINT_SOURCE_LABELS[c.entry.source], c.entry?.level === undefined ? "—" : LEVEL_LABELS[c.entry.level], val(c.finding?.nominalFrequency), c.entry?.combination.basis ?? ""]),
   ));
 
   out.push(heading("Barrier challenge & capacity", HeadingLevel.HEADING_1));
@@ -230,16 +214,17 @@ function buildChildren(a: EventSequenceQuantification, final: boolean): (Paragra
     (barriers?.barriers ?? []).flatMap((b) => (b.modes.length === 0 ? [[b.name, "—", "—", "—"]] : b.modes.map((m) => [b.name, modeLabel(m), MODE_KIND_LABELS[m.kind], m.location]))),
   ));
   out.push(dataTable(
-    ["Mechanism", "Kind", "Barrier", "Status", "Basis"],
-    (barriers?.mechanisms ?? []).map((m) => [m.mechanism.name, MECHANISM_KIND_LABELS[m.mechanism.kind], m.barrier?.name ?? m.mechanism.barrierId, m.mechanism.screening === undefined ? "Retained" : `Screened ${m.mechanism.screening.criterion}`, m.mechanism.screening?.basis ?? m.mechanism.basis]),
-  ));
-  out.push(dataTable(
-    ["Cell", "Barrier mode", "Family or hazard", "Load", "Capacity", "P(fail)"],
-    [...(barriers?.cells ?? []), ...(barriers?.hazardCells ?? [])].map((c) => [c.cell.id, `${c.barrier?.name ?? c.cell.barrierId} · ${modeLabel(c.mode)}`, c.cell.hazardGroup ?? c.cell.familyId ?? "—", sideSourceText(c.cell.load, c.cell.unit), sideSourceText(c.cell.capacity, c.cell.unit), cellRecordText(c.cell, parameterLabelOf(a))]),
+    ["Cell", "Barrier mode", "Phenomenon", "Family or hazard", "Load", "Capacity", "P(fail)"],
+    (barriers?.cells ?? []).map((c) => {
+      const phenomenon = c.phenomena[0];
+      const phenomenonText = phenomenon === undefined ? "—" : `${phenomenon.name} (${phenomenon.fromEs ? "ES" : MECHANISM_KIND_LABELS[phenomenon.mechanism.kind].toLowerCase()})`;
+      if (c.cell.screening !== undefined) return [c.cell.id, `${c.barrier?.name ?? c.cell.barrierId} · ${modeLabel(c.mode)}`, phenomenonText, "—", "—", "—", `Screened ${c.cell.screening.criterion}: ${c.cell.screening.basis}`];
+      return [c.cell.id, `${c.barrier?.name ?? c.cell.barrierId} · ${modeLabel(c.mode)}`, phenomenonText, c.cell.hazardGroup ?? c.cell.familyId ?? "—", sideSourceText(c.cell.load, c.cell.unit), sideSourceText(c.cell.capacity, c.cell.unit), cellRecordText(c.cell, parameterLabelOf(a))];
+    }),
   ));
   out.push(dataTable(
     ["Credit", "Kind", "Families", "Decision", "Basis"],
-    (barriers?.credits ?? []).map((c) => [c.credit.name, c.credit.kind === "EQUIPMENT" ? "Equipment" : "Action", c.credit.familyIds.join(", "), c.credit.credited ? "Credited" : "Not credited", c.credit.basis]),
+    (barriers?.credits ?? []).map((c) => [c.name, c.kind === "EQUIPMENT" ? "Equipment" : "Action", c.credit?.familyIds.join(", ") ?? "—", c.credit === undefined ? "Not decided" : c.credit.credited ? "Credited" : "Not credited", c.credit?.basis ?? "—"]),
   ));
 
   out.push(heading("Risk-significant contributors & importance", HeadingLevel.HEADING_1));

@@ -4,7 +4,8 @@ import path from 'path';
 export default defineConfig({
     test: {
         globals: true,
-        root: './',
+        root: __dirname,
+        reporters: ['default'],
         include: ['src/**/*.spec.ts', 'src/**/*.test.ts'],
         alias: {
             'scram-node': path.resolve(__dirname, './test/mocks/scram-node.ts'),

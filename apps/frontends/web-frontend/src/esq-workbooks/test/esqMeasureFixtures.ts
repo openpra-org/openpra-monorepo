@@ -5,10 +5,9 @@ import { caseInputsKey, esqSensitivityRunId } from "interfaces-mef-types/esq/esq
 import { solveInputsKey } from "interfaces-mef-types/esq/esq-solve-inputs";
 import type { EsqImportanceRunResult, EsqModelRunResult, EsqUncertaintyRunResult } from "interfaces-shared-types/newly-developed-methods/event-tree";
 import type { EsqUpstream } from "../esqLinks";
-import { withModelImported } from "../esqModel";
 import { MODEL_AS_SET } from "../esqLogic";
 import { withRunOfRecord } from "../esqSolve";
-import { PUMP_ESTIMATE, linkedEsq, modelUpstream } from "./esqModelFixtures";
+import { PUMP_ESTIMATE, linkedEsq, liveImport, modelUpstream } from "./esqModelFixtures";
 import { NOW, modelSummary } from "./esqPostFixtures";
 
 const IMPORTANCE_RUN = "1c6c1a2e-8b3d-4c5e-9f70-1a2b3c4d5e6f";
@@ -44,7 +43,7 @@ function measureUpstream(): EsqUpstream {
 }
 
 function measureEsq(): EventSequenceQuantification {
-  const esq = withModelImported(linkedEsq(), measureUpstream(), NOW);
+  const esq = liveImport(linkedEsq(), measureUpstream(), NOW);
   return withRunOfRecord(esq, modelSummary(esq, RELEASE));
 }
 

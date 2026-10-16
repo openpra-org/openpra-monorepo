@@ -39,7 +39,11 @@ import type {
   FaultTreeGateInput,
   FaultTreeLeafNode,
   FaultTreeNodePosition,
+  HclCptRowUncertainty,
+  HclEvidenceScenario,
+  HclUncertaintySettings,
 } from "interfaces-mef-types/modeling";
+import { DEFAULT_ANNUALIZATION_CONVENTION } from "interfaces-mef-types/modeling";
 import { EndState, FrequencyUnit, type UncertainFrequency } from "interfaces-mef-types/core/events";
 import type { UncertainExpression } from "interfaces-mef-types/core/uncertainty";
 import { ImportanceLevel, ScreeningStatus } from "interfaces-mef-types/core/shared-patterns";
@@ -204,8 +208,8 @@ const COMPONENT_EVENT_KEYS = BASIC_EVENT_KEYS.filter((key) => HUMAN_BASIC_EVENT_
 
 const DA_LINK = "example-da-hcl";
 
-function pointProbability(value: number): UncertainExpression {
-  return { node: "VALUE", value: { unit: "PROBABILITY", law: { family: "POINT", value } } };
+function meanOnlyProbability(mean: number): UncertainExpression {
+  return { node: "VALUE", value: { unit: "PROBABILITY", law: { family: "CONSTRAINED_NONINFORMATIVE", mean } } };
 }
 
 function daEstimate(parameterId: string): UncertainExpression {
@@ -535,7 +539,7 @@ const SY_ANALYSIS_HCL = {
     processDescription: "Builds the 22 event-tree top events as executable fault trees with selected transfer structures for EPS and AFW.",
     systemFunctionsAndBoundaries: "Boundaries follow the top-event labels shown in the LOOP, SBO, and FLEX event trees.",
     modeledComponentsAndFailureModes: "Each tree contains an HCL-mapped dependency event and an independent residual event; selected published trees retain their transfer decomposition.",
-    dependencySearchAndTables: "The BN carries seismic, flood, fire, and shared plant-condition dependencies into mapped basic events.",
+    dependencySearchAndTables: `The BN carries seismic, flood, fire, and shared plant-condition dependencies into mapped basic events. Its configuration runs the 49 seismic and flood cells as evidence scenarios and as a hazard grid scaled by the ${String(LOOP_FREQUENCY)}/yr LOOP frequency, with no internal fire as base evidence. Each row of the ten mapped nodes takes the minimally informative Dirichlet of Kelly and Atwood (2011) that keeps its probabilities as means. The hazard rows stay fixed because their rarest bins would sample exact zeros. The plant-condition rows stay fixed because some give a state zero probability, which no Dirichlet law holds.`,
     modularizationAndLogicLoops: "EPS transfers to the two 4160 V bus trees; AFW transfers to the two steam-generator delivery paths.",
     evaluationResultsSummary: "Each tree can be run independently or as part of the HCL event-tree calculation.",
     informationSources: "Dissertation source, Figures 9.13–9.17 and Appendix A.",
@@ -556,7 +560,7 @@ const DA_ANALYSIS_HCL: DataAnalysis = {
     versionInfo: { ...daBase.metadata.versionInfo, lastUpdated: NOW },
     analysisDate: NOW,
     analysts: [OWNER],
-    scope: "Point-estimate probability inputs for the non-human fault-tree basic events in the connected HCL case study.",
+    scope: "Probability inputs for the non-human fault-tree basic events in the connected HCL case study.",
     limitations: ["Values reconstructed from the executable dissertation-source example remain provisional until the original source-model package is available."],
     lastModifiedDate: NOW,
     lastModifiedBy: OWNER,
@@ -590,6 +594,8 @@ const DA_ANALYSIS_HCL: DataAnalysis = {
       component: BASIC_EVENT_META[key].code,
       failureMode: BASIC_EVENT_META[key].name,
       quantity: "PROBABILITY",
+      estimateType: "POINT_ESTIMATE",
+      spread: "NONE",
       law: { family: "POINT", value: BASIC_EVENT_META[key].probability },
       mean: BASIC_EVENT_META[key].probability,
       method: "Point estimate from the executable example",
@@ -601,15 +607,19 @@ const DA_ANALYSIS_HCL: DataAnalysis = {
     description: BASIC_EVENT_META[key].name,
     parameterType: "PROBABILITY",
     quantificationModel: "OTHER_PROBABILITY",
-    estimate: pointProbability(BASIC_EVENT_META[key].probability),
-    estimateReason: "Typed from the executable dissertation-source example, which gives this event a point probability.",
+    estimate: meanOnlyProbability(BASIC_EVENT_META[key].probability),
+    valueMode: "CALCULATED",
+    priorForm: "CONSTRAINED_NONINFORMATIVE",
+    priorFormReason: "The source gives a mean only. The constrained noninformative form keeps that mean and adds no other information (Atwood 1996).",
+    estimateMethod: "PRIOR",
+    estimateReason: "The case study gives no failure counts, so the prior stands as the estimate.",
     evidenceKind: "GENERIC_NUCLEAR",
     evidenceReason: "The case study is a code-verification model with no plant records. Its inputs are the case study's own values.",
-    uncertaintyNote: "Kept as a point value. The original data package is not public, so no distribution is given.",
+    uncertaintyNote: "The spread is the constrained noninformative one, because the source gives no spread.",
     priorUseId: "U-1",
     sourceUses: [{ id: "U-1", sourceId: "SRC-01", entryId: BASIC_EVENT_IDS[key], verdict: "APPLIES", boundary: "SAME", reason: "The executable example's own input for this event." }],
     basicEventRef: BASIC_EVENT_IDS[key],
-    modelSelectionBasis: "Reconstructed point estimate used by the executable dissertation-source HCL example.",
+    modelSelectionBasis: "Reconstructed mean used by the executable dissertation-source HCL example.",
       dataSources: [{
         source: "Dissertation-source case-study reconstruction",
         sourceType: "EXPERT_JUDGMENT",
@@ -620,7 +630,7 @@ const DA_ANALYSIS_HCL: DataAnalysis = {
   uncertaintyRegister: [{
     id: "MU-1",
     source: "Unpublished source-model details and the reconstruction of compact fault trees",
-    impact: "The point values reproduce the executable example's inputs. The original data package is not public, so no distribution is given.",
+    impact: "The means reproduce the executable example's inputs. The original data package is not public, so each spread is the constrained noninformative one.",
     parameterIds: COMPONENT_EVENT_KEYS.map((key) => BASIC_EVENT_IDS[key]),
     alternatives: [{ id: "A-1", alternative: "Recover the original model package and its data.", reasonNotSelected: "The package is not public." }],
     key: false,
@@ -628,9 +638,9 @@ const DA_ANALYSIS_HCL: DataAnalysis = {
   documentation: {
     ...daBase.documentation,
     processDescription: "Maintains one revisioned probability parameter for every non-human basic event used by the case-study fault trees.",
-    basicEventProbabilityModels: "Point estimates reproduce the current executable fault-tree inputs; HCL bindings replace the mapped dependency events during hybrid quantification.",
+    basicEventProbabilityModels: "Constrained noninformative laws keep the executable fault-tree means. HCL bindings replace the mapped dependency events during hybrid quantification.",
     genericParameterSources: "Dissertation-source case-study reconstruction.",
-    parameterEstimatesWithUncertainty: "Point estimates are retained without an invented uncertainty distribution because the complete source data package is not public.",
+    parameterEstimatesWithUncertainty: "Each estimate is the constrained noninformative law with the source mean (Atwood 1996). The complete source data package is not public, so no other spread is claimed.",
     modelUncertaintySources: "Unpublished source-model details and the reconstruction of compact fault trees.",
     asBuiltLimitations: "This temporary example demonstrates the DA-to-SY connection and is not an as-built plant data analysis.",
     praTaskInterfaces: "Controls the non-human SY basic-event probabilities used by native FT, ET, and HCL runs; HRA controls the two human-error probabilities.",
@@ -638,6 +648,8 @@ const DA_ANALYSIS_HCL: DataAnalysis = {
 };
 
 const hrBase = createBlankHr("HCL dissertation case study — HRA", OWNER);
+
+const HEP_UNCERTAINTY_METHOD = "Constrained noninformative distribution with the dissertation-source mean, as SPAR-H recommends (NUREG/CR-6883, Section 2.7.6).";
 
 const HR_ANALYSIS_HCL: HumanReliabilityAnalysis = {
   ...hrBase,
@@ -698,19 +710,21 @@ const HR_ANALYSIS_HCL: HumanReliabilityAnalysis = {
     {
       uuid: `HEPQ-${HCL_HFE_IDS.feedBleed}`,
       hfeId: HCL_HFE_IDS.feedBleed,
-      methodology: "Dissertation-source point estimate",
+      methodology: "Dissertation-source mean",
       assessmentType: "DETAILED_ASSESSMENT",
       isRiskSignificant: true,
-      pointEstimateHep: BASIC_EVENT_META.FEED_BLEED_RANDOM.probability,
+      hep: meanOnlyProbability(BASIC_EVENT_META.FEED_BLEED_RANDOM.probability),
+      uncertaintyCharacterization: { riskSignificant: true, method: HEP_UNCERTAINTY_METHOD, probabilisticRepresentationProvided: true },
       implementsSrs: [],
     },
     {
       uuid: `HEPQ-${HCL_HFE_IDS.cooldown}`,
       hfeId: HCL_HFE_IDS.cooldown,
-      methodology: "Dissertation-source point estimate",
+      methodology: "Dissertation-source mean",
       assessmentType: "DETAILED_ASSESSMENT",
       isRiskSignificant: true,
-      pointEstimateHep: BASIC_EVENT_META.COOLDOWN_RANDOM.probability,
+      hep: meanOnlyProbability(BASIC_EVENT_META.COOLDOWN_RANDOM.probability),
+      uncertaintyCharacterization: { riskSignificant: true, method: HEP_UNCERTAINTY_METHOD, probabilisticRepresentationProvided: true },
       implementsSrs: [],
     },
   ],
@@ -718,7 +732,7 @@ const HR_ANALYSIS_HCL: HumanReliabilityAnalysis = {
     ...hrBase.documentation,
     processDescription: "Defines and quantifies the two human-error basic events retained in the executable case-study fault trees.",
     hfeDefinitions: "Feed-and-bleed initiation and primary/secondary cooldown are explicit post-initiator operator responses.",
-    hepMethodologies: "Point estimates preserve the reconstructed dissertation-source probabilities without inventing additional uncertainty.",
+    hepMethodologies: "Each HEP keeps the reconstructed dissertation-source mean. Its spread is the constrained noninformative distribution that SPAR-H uses when only the mean is known.",
     praTaskInterfaces: "Supplies typed HFE and HEP references to Systems Analysis; native FT, ET, and HCL runs resolve these values from this revisioned workbook.",
   },
 };
@@ -1181,6 +1195,8 @@ function componentCpt(key: ComponentNodeKey, nodeIndex: number): BayesianNetwork
   };
 }
 
+const componentCpts = COMPONENT_NODE_KEYS.map(componentCpt);
+
 const bayesianNetwork: EsqBayesianNetwork = {
   modelId: BN_IDS.model,
   code: "BN-HCL-LOOP-SBO-FLEX",
@@ -1200,7 +1216,7 @@ const bayesianNetwork: EsqBayesianNetwork = {
     rootCpt(BN_IDS.flood, FLOOD_STATES, [0.996, 0.0025, 0.0009, 0.00035, 0.00015, 0.00007, 0.00003], 371),
     rootCpt(BN_IDS.fire, FIRE_STATES, [0.998, 0.002], 372),
     { nodeId: BN_IDS.stress, parents: [{ nodeId: BN_IDS.seismic, order: 0 }, { nodeId: BN_IDS.flood, order: 1 }], rows: stressRows },
-    ...COMPONENT_NODE_KEYS.map(componentCpt),
+    ...componentCpts,
   ],
   nodePositions: [
     { nodeId: BN_IDS.seismic, position: { x: 40, y: 40 } },
@@ -1213,6 +1229,39 @@ const bayesianNetwork: EsqBayesianNetwork = {
 };
 
 SY_ANALYSIS_HCL.dependencyBayesianNetworks.push(bayesianNetwork);
+
+function minimallyInformativeDirichlet(means: readonly number[]): number[] {
+  const rest = 1 - Math.max(...means);
+  return means.map((mean) => mean / (2 * rest));
+}
+
+const hazardScenarios: HclEvidenceScenario[] = SEISMIC_STATES.flatMap((seismicState, seismicIndex) => FLOOD_STATES.map((floodState, floodIndex) => ({
+  id: id(390 + seismicIndex, floodIndex + 1),
+  code: `${seismicState.code}-${floodState.code}`,
+  name: `${seismicState.name} · ${floodState.name}`,
+  enabled: true,
+  evidence: {
+    observations: [
+      { nodeId: BN_IDS.seismic, stateId: seismicState.id },
+      { nodeId: BN_IDS.flood, stateId: floodState.id },
+    ],
+  },
+})));
+
+const componentRowLaws: HclCptRowUncertainty[] = componentCpts.flatMap((table) => table.rows.map((row) => ({
+  bayesianNetworkNode: { referenceType: "BAYESIAN_NETWORK_NODE", workbookId: PLACEHOLDER_SY_WORKBOOK_ID, modelId: BN_IDS.model, entityId: table.nodeId },
+  cptRowId: row.id,
+  row: { node: "VALUE", law: { family: "DIRICHLET", concentrations: minimallyInformativeDirichlet(row.values.map((value) => value.probability)) } },
+})));
+
+const dependencyUncertainty: HclUncertaintySettings = {
+  sampleCount: 1_000,
+  seed: 42,
+  sampler: "LHS",
+  basicEvents: [],
+  cptRows: componentRowLaws,
+  cptGenerators: [],
+};
 
 const hclConfiguration: EsqHclConfiguration = {
   modelId: BN_IDS.hclConfiguration,
@@ -1229,12 +1278,17 @@ const hclConfiguration: EsqHclConfiguration = {
   })),
   baseEvidence: {
     observations: [
-      { nodeId: BN_IDS.seismic, stateId: SEISMIC_STATES[0]!.id },
-      { nodeId: BN_IDS.flood, stateId: FLOOD_STATES[0]!.id },
       { nodeId: BN_IDS.fire, stateId: FIRE_STATES[0].id },
     ],
   },
-  solverSettings: { variableOrder: null, foldConstants: true, spliceNullGates: true },
+  evidenceScenarios: hazardScenarios,
+  hazardGrid: {
+    name: "Seismic and external-flood hazard grid",
+    hazardNodeIds: [BN_IDS.seismic, BN_IDS.flood],
+    annualFrequencyScale: { value: LOOP_FREQUENCY, unit: "PER_YEAR", annualization: { ...DEFAULT_ANNUALIZATION_CONVENTION } },
+    normalizeWeights: false,
+  },
+  solverSettings: { variableOrder: null, foldConstants: true, spliceNullGates: true, uncertainty: dependencyUncertainty },
 };
 
 SY_ANALYSIS_HCL.dependencyHclConfigurations = [hclConfiguration];
@@ -1389,7 +1443,7 @@ const ESQ_ANALYSIS_HCL: EventSequenceQuantification = {
     appliedMethods: "Exact junction-tree BN inference, BDD fault-tree quantification, and exact success-complement event-tree formulas.",
     resultsSummary: "Published comparison targets: baseline conditional CD probability 3.37E-6; baseline-cell contribution 2.82E-6/yr; 49-cell total 9.71E-4/yr; upgraded-defense total 1.76E-4/yr.",
     quantificationProcessDescription: "Choose evidence, run BN inference if desired, then run the HCL configuration against a fault-tree top event or linked event tree.",
-    uncertaintySensitivityResults: "The evidence grid exposes the six seismic and six flood bins plus no-hazard states; internal fire remains inside the BN.",
+    uncertaintySensitivityResults: "The 49 seismic and flood cells run as evidence scenarios and as the hazard grid. Internal fire stays inside the BN, and the base evidence sets it to no fire.",
     codeVerificationProcess: "Use the published baseline and 49-cell matrix as external regression targets once the complete source model is available.",
     limitationsForApplications: "This temporary seed is an executable reproduction scaffold, not a substitute for the unpublished complete dissertation input package.",
     praTaskInterfaces: "Consumes IE, SY, and ES case-study examples and supplies exact HCL outputs for verification.",

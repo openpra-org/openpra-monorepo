@@ -13,10 +13,13 @@ import {
   UseGuards,
 } from "@nestjs/common";
 import {
+  type CreateProjectWorkbooksRequest,
   type CreateWorkbookRequest,
+  type ProjectWorkbooksResult,
   type UpdateWorkbookRequest,
   type Workbook,
   type WorkbookListResponse,
+  CreateProjectWorkbooksRequestSchema,
   CreateWorkbookRequestSchema,
   UpdateWorkbookRequestSchema,
 } from "interfaces-shared-types";
@@ -51,6 +54,16 @@ export class WorkbooksController {
     @Req() req: AuthenticatedRequest,
   ): Promise<Workbook> {
     return this.workbooksService.createWorkbook(projectId, body, { username: req.user!.username });
+  }
+
+  @Post("common")
+  @HttpCode(HttpStatus.CREATED)
+  createCommon(
+    @Param("projectId") projectId: string,
+    @Body(new ZodValidationPipe(CreateProjectWorkbooksRequestSchema)) body: CreateProjectWorkbooksRequest,
+    @Req() req: AuthenticatedRequest,
+  ): Promise<ProjectWorkbooksResult> {
+    return this.workbooksService.createProjectWorkbooks(projectId, body, { username: req.user!.username });
   }
 
   @Get("example-info")

@@ -25,6 +25,7 @@ const tree: HclFaultTreeOption = {
     { id: EVENT_B, code: "CCW-PMP-B", name: "Pump B fails", syValue: { expression: linked, text: "DA · Pump fails", daLinks: ["DA · Pump fails"] } },
     { id: EVENT_C, code: "CCW-VLV", name: "Valve fails" },
   ],
+  parameterOptions: [{ reference: { referenceType: "WORKBOOK_PARAMETER", workbookId: "da-1", entityId: "DA-BE-7" }, label: "Plant DA · Pump fails", unit: "PROBABILITY" }],
 };
 
 const choices: HclBasicEventChoice[] = tree.basicEvents.map((event) => ({ key: basicEventKey(tree.workbookId, event.id), tree, event }));
@@ -73,12 +74,19 @@ it("starts an override from a typed SY value, edits it as a law and deletes it",
   expect(changed.mock.lastCall[0].basicEvents).toEqual([]);
 });
 
-it("starts a typed point when the SY value links DA", () => {
+it("keeps the DA link of the SY value and links a typed override to DA", () => {
   const changed = jest.fn();
   render(<Harness changed={changed} />);
   fireEvent.change(screen.getByRole("combobox", { name: "Basic event to override" }), { target: { value: basicEventKey("sy-1", EVENT_B) } });
   fireEvent.click(screen.getByRole("button", { name: "Add override" }));
-  expect(changed.mock.lastCall[0].basicEvents[0].expression).toEqual({ node: "VALUE", value: { unit: "PROBABILITY", law: { family: "POINT", value: 0.001 } } });
+  expect(changed.mock.lastCall[0].basicEvents[0].expression).toEqual(linked);
+  fireEvent.click(screen.getByRole("button", { name: "Add override" }));
+  fireEvent.click(screen.getByText("Overrides"));
+  const item = screen.getByText("FT-CCW / CCW-PMP-A").closest("details")!;
+  fireEvent.change(within(item).getByRole("combobox", { name: "Source" }), { target: { value: "da-1:DA-BE-7" } });
+  const settings: HclUncertaintySettings = changed.mock.lastCall[0];
+  expect(settings.basicEvents.find((entry) => entry.faultTreeBasicEvent.entityId === EVENT_A)?.expression).toEqual(linked);
+  expect(HclUncertaintySettingsSchema.safeParse(settings).success).toBe(true);
 });
 
 it("shows overrides without edits in read-only mode", () => {

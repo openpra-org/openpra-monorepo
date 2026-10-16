@@ -1,9 +1,7 @@
 .sy-scope-tiles{margin-top:4px}
 .sy-scope-lane{width:100%;overflow-x:auto;margin-top:16px;display:flex;flex-direction:column;gap:12px}
-.sy-scope-lane .postable{min-width:560px}
 .sy-scope-link{display:flex;flex-direction:column;gap:5px;max-width:420px}
 .sy-scope-link .posfield__select{width:100%;min-width:0}
-.sy-scope-note{margin:0;font-size:13px}
 .sy-scope-text{box-sizing:border-box;width:100%;min-height:76px}
 
 .sy-scope-systems th:nth-child(1){width:30%}
@@ -18,3 +16,7 @@
 label.sy-scope-choice .sy-scope-choice__head{justify-content:flex-start}
 .sy-scope-choice__name{font-weight:700;font-size:14px;color:var(--color-text)}
 .sy-scope-choice__desc{font-size:12.5px;line-height:1.5;color:var(--color-text-muted)}
+
+.sy-pager { display: inline-flex; flex: none; align-items: center; gap: 10px; white-space: nowrap; }
+.sy-sort__label { margin: 0; }
+.sy-sort__select { width: auto; }

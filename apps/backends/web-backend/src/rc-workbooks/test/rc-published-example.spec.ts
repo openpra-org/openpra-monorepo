@@ -134,6 +134,7 @@ describe("RC-only published input example", () => {
     expect(t.storage.size).toBe(13);
   });
   it("uses workbook-local original IDs and newer revisions on a second load", async () => {
+    const before = await t.reset();
     const first = (await load().expect(200)).body.mef, second = (await load().expect(200)).body.mef;
     const a = currentRcCase(first, RC_PUBLISHED_CATEGORY), b = currentRcCase(second, RC_PUBLISHED_CATEGORY);
     expect(b.source!.revision).toBeGreaterThan(a.source!.revision);
@@ -141,7 +142,7 @@ describe("RC-only published input example", () => {
     const originalId = first.consequenceQuantification.caseRecords.snapshots[0].file.documentId;
     await request(http()).delete(`${root}/documents/${originalId}`).expect(403);
     await request(http()).post(`${root}/unload-example`).send({}).expect(200);
-    expect((await request(http()).get(root)).body.mef.consequenceQuantification.caseRecords).toEqual(first.consequenceQuantification.caseRecords);
+    expect((await request(http()).get(root)).body.mef).toEqual(before);
   });
   it("rejects viewers and review-locked loading without copying any files", async () => {
     for (const user of ["reviewer", "viewer", "outsider"]) await load(user).expect(403);

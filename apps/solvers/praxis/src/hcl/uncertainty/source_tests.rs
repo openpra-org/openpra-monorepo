@@ -99,7 +99,7 @@ fn mixed_lhs_vectors_and_bdd_match_the_source_populations() {
             HclBaseEvidence::unobserved(2),
             &names,
         )
-        .unwrap();
+        .unwrap().values;
     assert_same_population(&actual, &floats(&case["top"]), "LHS vector BDD");
 }
 
@@ -130,7 +130,7 @@ fn vectors_complements_and_endpoints_match_the_source_populations() {
                 HclBaseEvidence::unobserved(2),
                 &names,
             )
-            .unwrap()
+            .unwrap().values
     };
     let samples = run(top);
     assert_same_population(&samples, &floats(&case["outputs"]["TOP"]), "TOP");
@@ -193,7 +193,7 @@ fn vectorized_bn_conditioning_matches_the_source_under_evidence() {
         }
         let actual = population
             .quantify(&bdd, root, bindings.clone(), evidence, &names)
-            .unwrap();
+            .unwrap().values;
         assert_same_population(&actual, &floats(&scenario["samples"]), "BN evidence");
     }
 }
@@ -222,14 +222,14 @@ fn chunks_preserve_cpt_and_ft_sample_pairing() {
     let evidence = HclBaseEvidence::unobserved(2);
     let expected = whole
         .quantify(&bdd, root, bindings.clone(), evidence.clone(), &names)
-        .unwrap();
+        .unwrap().values;
     for size in [1, 31, 256, 512] {
         let chunks = PreparedHclUncertainty::with_chunk_size(&graph, &settings, &[], size).unwrap();
         assert_eq!(chunks.event_samples, whole.event_samples);
         assert!(chunks.chunks.iter().all(|chunk| chunk.end - chunk.start <= size));
         let actual = chunks
             .quantify(&bdd, root, bindings.clone(), evidence.clone(), &names)
-            .unwrap();
+            .unwrap().values;
         for (left, right) in actual.iter().zip(&expected) {
             assert!((left - right).abs() <= 4.0 * f64::EPSILON, "{left} against {right}");
         }
@@ -241,6 +241,11 @@ fn plain_settings(sampler: HclSampler, count: usize, seed: u64) -> HclUncertaint
         sample_count: count,
         seed,
         sampler,
+        cpt_sampler: None,
+        correlation: Default::default(),
+        clip_probabilities: false,
+        cpt_clip_epsilon: 0.0,
+        zero_probability_contexts: Default::default(),
         basic_events: Vec::new(),
         cpt_rows: Vec::new(),
         cpt_generators: Vec::new(),
@@ -298,7 +303,7 @@ fn quantifies_a_sampled_unbound_bdd() {
             HclBaseEvidence::unobserved(1),
             &[Some("E".to_string())],
         )
-        .unwrap();
+        .unwrap().values;
     assert_eq!(samples.len(), 100);
     assert!(samples.iter().all(|sample| (0.1..0.3).contains(sample)));
     let mut bins = [0usize; 100];
@@ -376,7 +381,7 @@ fn catalogue_expressions_sample_unless_overridden_and_points_stay_points() {
             HclBaseEvidence::unobserved(2),
             &[Some("P".to_string())],
         )
-        .unwrap();
+        .unwrap().values;
     assert!(points.iter().all(|value| *value == 0.3));
 }
 

@@ -1,14 +1,14 @@
-import { WorkbookCueLabel, WorkbookSectionHeading } from "../workbooks/workbookSectionHeading";
+import { WorkbookSectionHeading } from "../workbooks/workbookSectionHeading";
 import { WorkbookInput, WorkbookTextarea } from "../workbooks/commitOnDeactivateFields";
 import { JSX } from "react";
 import { RCIcon } from "./rcIcons";
 
-function DrawerHead({ cap, title, sub, onClose, centered = false }: { cap: string; title: string; sub?: string; onClose: () => void; centered?: boolean }): JSX.Element {
+function DrawerHead({ cap, title, onClose, centered = false }: { cap: string; title: string; onClose: () => void; centered?: boolean }): JSX.Element {
   return (
     <div className={centered ? "modal__head" : "posdrawer__head"}>
       <div>
         <div className="posdrawer__cap">{cap}</div>
-        <WorkbookSectionHeading workbook="RC" title={title} cueKey={cap} description={sub} level={2} className={centered ? "modal__title" : "posdrawer__title"} />
+        <WorkbookSectionHeading title={title} level={2} className={centered ? "modal__title" : "posdrawer__title"} />
       </div>
       <button type="button" className={centered ? "modal__close" : "posdrawer__close"} onClick={onClose} aria-label="Close"><RCIcon.Close /></button>
     </div>
@@ -91,7 +91,7 @@ function RemoveBtn({ label, onClick }: { label: string; onClick: () => void }): 
 function SrChips({ srs }: { srs: { sr: string }[] }): JSX.Element {
   return (
     <div>
-      <WorkbookCueLabel workbook="RC" title="Standard requirements" className="essec" />
+      <div className="essec">Standard requirements</div>
       <div className="posdrawer__srs">{srs.map((s) => <span key={s.sr} className="poschip posmono">{s.sr}</span>)}</div>
     </div>
   );

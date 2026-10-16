@@ -4,14 +4,16 @@ import {
   Frequency,
   FrequencyWithDistribution,
   ParameterDistribution,
+  type FrequencyUnit,
   type UncertainFrequency,
 } from "../core/events";
 import { ImportanceLevel, SensitivityStudy, BaseUncertaintyAnalysis } from "../core/shared-patterns";
 import { BaseModelUncertaintyDocumentation, PreOperationalAssumption } from "../core/documentation";
 import { HlrId, PlantStage, SRReference } from "../core/pra-common";
 import type { EsqBayesianNetwork, EsqHclConfiguration } from "./workbook-models";
-import type { AleatoryVariable, CcfFactorModel, Law, UncertainExpression } from "../core/uncertainty";
+import type { AleatoryVariable, CcfFactorModel, Law, UncertainExpression, UncertainParameter, UncertainVectorParameter } from "../core/uncertainty";
 import type { DaQuantificationModel } from "../da/data-analysis";
+import type { EventTree } from "../es/event-sequence-analysis";
 import type { EventSequenceFamilyWorkbookReference } from "../modeling/references";
 
 export type EventSequenceReference = string;
@@ -23,7 +25,6 @@ export type SystemReference = string;
 export type ComponentReference = string;
 export type HumanActionReference = string;
 export type HrDependencyAssessmentReference = string;
-export type RecoveryActionReference = string;
 export type ReleaseCategoryReference = string;
 export type SourceReference = string;
 export type PlantDamageStateReference = string;
@@ -54,13 +55,6 @@ export enum QuantificationApproach {
   MARKOV_MODEL = "MARKOV_MODEL",
   DISCRETE_EVENT_SIMULATION = "DISCRETE_EVENT_SIMULATION",
   MONTE_CARLO_SIMULATION = "MONTE_CARLO_SIMULATION",
-}
-
-export enum CircularLogicResolutionMethod {
-  CONDITIONAL_SPLIT_FRACTIONS = "CONDITIONAL_SPLIT_FRACTIONS",
-  TRANSFER_GATES = "TRANSFER_GATES",
-  ITERATIVE_CONVERGENCE = "ITERATIVE_CONVERGENCE",
-  LOGIC_TRANSFORMATION = "LOGIC_TRANSFORMATION",
 }
 
 export interface EventSequenceFamilyQuantification extends Unique, Named {
@@ -119,11 +113,7 @@ export interface EsqScopeExclusion {
   reason: string;
 }
 
-export type EsqFrequencyBasis = "PER_PLANT_YEAR" | "PER_REACTOR_YEAR";
-
 export type EsqStateWeighting = "POS_HOURS" | "TYPED_SHARES";
-
-export type EsqModuleCounting = "EACH_MODULE" | "ONCE_PER_PLANT";
 
 export interface EsqPlanChoice<T> {
   value: T;
@@ -141,25 +131,29 @@ export interface EsqModuleCount {
   link?: EsqModuleCountLink;
 }
 
+export interface EsqReportingFloorLink {
+  element: "RI";
+  workbookId: string;
+  field: "minimumReportingFrequencyPerPlantYear";
+}
+
+export interface EsqReportingFloor extends EsqPlanChoice<number> {
+  link?: EsqReportingFloorLink;
+}
+
 export interface EsqQuantificationPlan {
-  frequencyBasis?: EsqPlanChoice<EsqFrequencyBasis>;
   stateWeighting?: EsqPlanChoice<EsqStateWeighting>;
   modulesPerPlant?: EsqModuleCount;
-  moduleCounting?: EsqPlanChoice<EsqModuleCounting>;
-  reportingFloorPerYear?: EsqPlanChoice<number>;
+  reportingFloorPerYear?: EsqReportingFloor;
   convergenceStepPercent?: EsqPlanChoice<number>;
 }
 
 export const ESQ_PLAN_DEFAULTS: {
-  frequencyBasis: EsqFrequencyBasis;
   stateWeighting: EsqStateWeighting;
-  moduleCounting: EsqModuleCounting;
   reportingFloorPerYear: number;
   convergenceStepPercent: number;
 } = {
-  frequencyBasis: "PER_PLANT_YEAR",
   stateWeighting: "POS_HOURS",
-  moduleCounting: "EACH_MODULE",
   reportingFloorPerYear: 1e-7,
   convergenceStepPercent: 5,
 };
@@ -188,9 +182,11 @@ export type EsqModelTable =
   | "BARRIER"
   | "CRITERION"
   | "IMPACT"
+  | "PHENOMENON"
   | "QUALIFICATION"
   | "ACTION"
   | "RECOVERY"
+  | "REPAIR"
   | "DEPENDENCY";
 
 export interface EsqModelChange {
@@ -216,7 +212,9 @@ export interface EsqTreeRecord {
   stateId?: string;
   functionIds: string[];
   missionTime?: UncertainExpression;
+  esMissionTime?: UncertainExpression;
   transferEntry: boolean;
+  typed?: boolean;
 }
 
 export interface EsqSequenceRecord {
@@ -224,6 +222,7 @@ export interface EsqSequenceRecord {
   code: string;
   treeId: string;
   path: Record<string, EsqBranchState>;
+  multiBranchFunctions?: string[];
   endState?: string;
   familyId?: string;
   releaseCategoryId?: string;
@@ -244,11 +243,25 @@ export interface EsqFunctionEsLink {
   top: EsqTopReference;
 }
 
+export interface EsqNetworkNodeReference {
+  workbookId: string;
+  modelId: string;
+  nodeId: string;
+}
+
+export interface EsqFunctionNodeLink {
+  treeId: string;
+  node: EsqNetworkNodeReference;
+  trueStateIds: string[];
+  label: string;
+}
+
 export interface EsqFunctionRecord {
   id: string;
   name: string;
   treeIds: string[];
   esLinks: EsqFunctionEsLink[];
+  nodeLinks?: EsqFunctionNodeLink[];
 }
 
 export interface EsqTopNode {
@@ -324,9 +337,6 @@ export interface EsqParameterRecord {
   estimate?: UncertainExpression;
   value?: number;
   valueType?: "POINT_ESTIMATE" | "MEAN";
-  distributionType?: string;
-  p05?: number;
-  p95?: number;
   missionTime?: UncertainExpression;
   evidenceKind?: string;
   distribution?: ParameterDistribution;
@@ -338,8 +348,7 @@ export interface EsqHumanRecord {
   id: string;
   name: string;
   timing?: EsqHfeTiming;
-  value?: number;
-  valueType?: "MEAN" | "POINT_ESTIMATE";
+  hep?: UncertainExpression;
   assessmentType?: "CONSERVATIVE_ESTIMATE" | "DETAILED_ASSESSMENT";
   riskSignificant: boolean;
   distributionGiven: boolean;
@@ -392,6 +401,17 @@ export interface EsqImpactRecord {
   mechanism?: string;
 }
 
+export interface EsqPhenomenonRecord {
+  id: string;
+  name: string;
+  phenomenon: string;
+  description: string;
+  onset?: string;
+  affectedSystems: string[];
+  conditions: string[];
+  references: string[];
+}
+
 export interface EsqQualificationRecord {
   id: string;
   kind: "ENVIRONMENT" | "CAPACITY";
@@ -419,17 +439,13 @@ export interface EsqActionRecord {
   id: string;
   name: string;
   timing: "AT_INITIATOR" | "POST_INITIATOR";
-  hep?: number;
+  hep?: UncertainExpression;
   assessmentType?: "CONSERVATIVE_ESTIMATE" | "DETAILED_ASSESSMENT";
   riskSignificant: boolean;
   cue?: string;
   cueMinutes?: number;
   availableMinutes?: number;
   requiredMinutes?: number;
-  recoveryId?: string;
-  recoveryName?: string;
-  feasibility?: EsqActionFeasibility;
-  feasibilityNote?: string;
 }
 
 export type EsqDependenceLevel = "ZERO" | "LOW" | "MODERATE" | "HIGH" | "COMPLETE";
@@ -441,10 +457,21 @@ export interface EsqRecoveryRecord {
   restoredFunction?: string;
   level: "CUTSET" | "SCENARIO" | "SEQUENCE";
   sequenceIds: string[];
-  hep?: number;
+  hep?: UncertainExpression;
   dependencyId?: string;
   feasibility: EsqActionFeasibility;
   feasibilityNote?: string;
+}
+
+export interface EsqRepairRecord {
+  id: string;
+  sequenceId: string;
+  credited: boolean;
+  equipment?: string;
+  timeMinutes?: number;
+  access?: string;
+  conservativeBasis?: string;
+  justification: string;
 }
 
 export interface EsqDependencyRecord {
@@ -479,13 +506,17 @@ export interface EsqModel {
   events: EsqEventRecord[];
   ccfGroups: EsqCcfRecord[];
   parameters: EsqParameterRecord[];
+  vectors?: UncertainVectorParameter[];
+  ccfFactors?: UncertainParameter[];
   humanEvents: EsqHumanRecord[];
   barriers?: EsqBarrierRecord[];
   criteria?: EsqCriterionRecord[];
   impacts?: EsqImpactRecord[];
+  phenomena?: EsqPhenomenonRecord[];
   qualifications?: EsqQualificationRecord[];
   actions?: EsqActionRecord[];
   recoveries?: EsqRecoveryRecord[];
+  repairs?: EsqRepairRecord[];
   dependencies?: EsqDependencyRecord[];
   jointFloor?: EsqJointFloorRecord;
 }
@@ -497,8 +528,7 @@ export interface EsqFaultTreeTarget {
 
 export interface EsqSplitFractionTarget {
   kind: "SPLIT_FRACTION";
-  value?: number;
-  errorFactor?: number;
+  expression?: UncertainExpression;
   parameterId?: string;
   cellId?: string;
   basis?: string;
@@ -508,6 +538,7 @@ export type EsqFunctionTarget = EsqFaultTreeTarget | EsqSplitFractionTarget;
 
 export interface EsqFunctionRule {
   id: string;
+  treeIds?: string[];
   groupIds: string[];
   stateIds: string[];
   target: EsqFunctionTarget;
@@ -533,6 +564,7 @@ export interface EsqInitiatorChoice {
   source: EsqInitiatorSource;
   parameterId?: string;
   expression?: UncertainExpression;
+  unit?: FrequencyUnit;
   basis?: string;
   shares?: EsqStateShare[];
 }
@@ -554,8 +586,9 @@ export interface EsqSequenceChoice {
 
 export interface EsqValueBinding {
   eventId: string;
-  heldBy: "DA" | "HRA";
-  holderId: string;
+  heldBy: "DA" | "HRA" | "TYPED";
+  holderId?: string;
+  expression?: UncertainExpression;
   reason: string;
 }
 
@@ -565,6 +598,7 @@ export interface EsqModelDecisions {
   familyChoices?: EsqFamilyChoice[];
   sequenceChoices?: EsqSequenceChoice[];
   valueBindings?: EsqValueBinding[];
+  typedTrees?: EventTree[];
 }
 
 export type EsqFlagTargetKind = "HOUSE" | "EVENT" | "GATE";
@@ -631,6 +665,7 @@ export interface EsqMechanismScreening {
 export interface EsqMechanism {
   id: string;
   barrierId: string;
+  phenomenonId?: string;
   modeIds: string[];
   kind: EsqMechanismKind;
   name: string;
@@ -709,6 +744,7 @@ export interface EsqCell {
   capacity?: EsqCellSide;
   aging?: string;
   use: EsqCellUse;
+  screening?: EsqMechanismScreening;
   assumption?: EsqCellAssumption;
   run?: EsqCellRun;
   typed?: EsqCellTyped;
@@ -747,6 +783,17 @@ export type EsqCutOffBasis = "FREQUENCY" | "PROBABILITY";
 
 export type EsqCutSetQuantifier = "MCUB" | "RARE_EVENT" | "EXACT";
 
+export type EsqSuccessTreatment = "COMPLEMENT" | "DELETE_TERM" | "UNITY";
+
+export interface EsqSolveMonteCarlo {
+  trials: number;
+  seed: number;
+  earlyStop: boolean;
+  convergenceDelta: number;
+  confidenceLevel: number;
+  burnInTrials: number;
+}
+
 export type EsqSolveLoopChoice = "AS_SET" | "TRUE" | "FALSE";
 
 export interface EsqSolveLogic {
@@ -764,6 +811,12 @@ export interface EsqSolveSweepPoint {
   annualFrequency: number;
 }
 
+export interface EsqSolveHcl {
+  workbookId: string;
+  modelId: string;
+  treeIds: string[];
+}
+
 export interface EsqSolveRun {
   runId: string;
   revision: number;
@@ -775,8 +828,11 @@ export interface EsqSolveRun {
   quantifier?: EsqCutSetQuantifier;
   cutOffs?: number[];
   limitOrder?: number;
+  successTreatment?: EsqSuccessTreatment;
+  monteCarlo?: EsqSolveMonteCarlo;
   peakProbability?: number;
   peakInitiatorFrequency?: number;
+  hcl?: EsqSolveHcl;
 }
 
 export interface EsqFamilyStateValue {
@@ -822,16 +878,19 @@ export interface EsqSolveWork {
   rareEventReason?: string;
 }
 
+export type EsqRecoverySource = "HRA" | "DA" | "TYPED";
+
 export interface EsqRecoveryRule {
   id: string;
-  manual?: { name: string };
+  manual?: { name: string; repair?: boolean };
   eventIds?: string[];
   groupIds: string[];
   stateIds: string[];
   credited: boolean;
   feasibility?: EsqActionFeasibility;
-  typed?: { value: number; errorFactor?: number; source: string };
-  ofRecord?: "HRA" | "TYPED";
+  parameterId?: string;
+  typed?: { expression: UncertainExpression; source: string };
+  ofRecord?: EsqRecoverySource;
   basis: string;
 }
 
@@ -883,20 +942,12 @@ export interface EsqPostDeletions {
   findings: EsqDeletionFinding[];
 }
 
-export interface EsqPostComparison {
-  runId: string;
-  at: string;
-  inputs: string;
-  families: { familyId: string; annualFrequency: number }[];
-}
-
 export interface EsqPostWork {
   recoveries?: EsqRecoveryRule[];
   combinations?: EsqCombination[];
   floor?: { value: number; source: string };
   search?: EsqPostSearch;
   deletions?: EsqPostDeletions;
-  comparison?: EsqPostComparison;
 }
 
 export type EsqImportanceKind = "EVENT" | "PARAMETER" | "HFE" | "CCF_GROUP" | "SYSTEM";
@@ -926,17 +977,6 @@ export interface EsqThresholds {
   fussellVesely: number;
   riskAchievementWorth: number;
   source: string;
-}
-
-export interface EsqCutSetReview {
-  key: string;
-  familyId: string;
-  treeId: string;
-  eventIds: string[];
-  annualFrequency: number;
-  significant: boolean;
-  verdict?: "CORRECT" | "ISSUE";
-  note: string;
 }
 
 export type EsqConsistencyTopic = "SYSTEMS" | "SUCCESS_CRITERIA" | "PROCEDURES" | "RULES";
@@ -981,18 +1021,11 @@ export interface EsqReviewWork {
   importance?: EsqImportanceRecord;
   thresholds?: EsqThresholds;
   cutSetList?: EsqCutSetList;
-  cutSetReviews?: EsqCutSetReview[];
   consistency?: EsqConsistencyEntry[];
   comparison?: EsqPlantComparison;
   screened?: EsqScreenedBound[];
   confirmations?: { eventId: string; reason: string }[];
   reconciliations?: { targetId: string; note: string }[];
-}
-
-export interface EsqSpread {
-  key: string;
-  errorFactor: number;
-  source: string;
 }
 
 export interface EsqUncertaintyStats {
@@ -1020,7 +1053,6 @@ export interface EsqUncertaintyRecord {
 }
 
 export interface EsqUncertaintyWork {
-  spreads?: EsqSpread[];
   run?: EsqUncertaintyRecord;
   independent?: EsqUncertaintyRecord;
 }
@@ -1180,15 +1212,6 @@ export interface QuantificationMethods {
   implementsSrs: SRReference[];
 }
 
-export interface RecoveryActionApplication extends Unique {
-  recoveryActionRef: RecoveryActionReference;
-  appliedAtLevel: "FAMILY" | "SEQUENCE" | "CUTSET";
-  applicableFamilyRefs?: EventSequenceFamilyReference[];
-  hrFeasibilityRequirementsSatisfied: boolean;
-  hrDependencyRequirementsSatisfied: boolean;
-  implementsSrs: SRReference[];
-}
-
 export interface ParameterConsistencyAttestation {
   capabilityCategory: "CC_I" | "CC_II";
   hrParameterConsistency: boolean;
@@ -1207,44 +1230,11 @@ export interface PhenomenaParameterBasis extends Unique {
   implementsSrs: SRReference[];
 }
 
-export interface CircularLogicResolution extends Unique {
-  description: string;
-  involvedElementIds: string[];
-  detectionMethod: string;
-  resolutionMethod: CircularLogicResolutionMethod;
-  resolutionDescription: string;
-  neutralityJustification: string;
-  resolutionImpact?: string;
-  implementsSrs: SRReference[];
-}
-
 export interface SystemSuccessTreatment {
   treatmentMethod: string;
   systemsWithSuccessModeled: SystemReference[];
   impactOnResults: string;
   modelingExamples?: string[];
-  implementsSrs: SRReference[];
-}
-
-export interface MutuallyExclusiveEventRule extends Unique {
-  description: string;
-  eventIds: string[];
-  basis: string;
-  identifiedInResults: boolean;
-  treatment: "LOGIC_ELIMINATION" | "CUTSET_DELETION";
-  retentionJustification?: string;
-  implementsSrs: SRReference[];
-}
-
-export interface FlagEventSetting extends Unique, Named {
-  purpose: string;
-  state: boolean;
-  effect: string;
-  basis: string;
-  isTemporary: boolean;
-  applicableFamilyRefs?: EventSequenceFamilyReference[];
-  setPriorToCutsetGeneration: boolean;
-  houseEventNodeRef?: number;
   implementsSrs: SRReference[];
 }
 
@@ -1254,21 +1244,6 @@ export interface ModuleUsageRecord extends Unique {
   sharedEventsIdentified: boolean;
   trueIndependenceVerified: boolean;
   perEventInterpretabilityMaintained: boolean;
-  implementsSrs: SRReference[];
-}
-
-export interface MultiHfeCutsetIdentification extends Unique {
-  quantificationResultRef?: number;
-  cutsetDescription: string;
-  hfeRefs: HumanActionReference[];
-  potentialRiskImpact: string;
-  implementsSrs: SRReference[];
-}
-
-export interface HfeDependencyApplication extends Unique {
-  hrDependencyAssessmentRef: HrDependencyAssessmentReference;
-  cutsetContext: string;
-  appliedJointHep?: number;
   implementsSrs: SRReference[];
 }
 
@@ -1610,17 +1585,11 @@ export interface EventSequenceQuantification
   quantificationMethods: QuantificationMethods;
   parameterConsistency: ParameterConsistencyAttestation;
   phenomenaParameterBases?: PhenomenaParameterBasis[];
-  recoveryActionApplications?: RecoveryActionApplication[];
 
-  circularLogicResolutions?: CircularLogicResolution[];
   systemSuccessTreatment: SystemSuccessTreatment;
-  mutuallyExclusiveEventRules?: MutuallyExclusiveEventRule[];
-  flagEventSettings?: FlagEventSetting[];
   moduleUsageRecords?: ModuleUsageRecord[];
 
   dependencyTreatment: DependencyTreatment;
-  multiHfeCutsetIdentifications?: MultiHfeCutsetIdentification[];
-  hfeDependencyApplications?: HfeDependencyApplication[];
   linkingTransferRecords?: LinkingTransferRecord[];
   phenomenaDependencyAssessments?: PhenomenaDependencyAssessment[];
   barrierQuantifications: RadionuclideBarrierQuantification[];

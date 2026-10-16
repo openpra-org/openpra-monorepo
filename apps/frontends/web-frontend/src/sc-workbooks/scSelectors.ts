@@ -137,6 +137,7 @@ function stepsFromMef(sc: SuccessCriteriaDevelopment, persona: ScPersona): ScSte
   const basesComplete = sc.engineeringAnalyses.length > 0;
   const passiveComplete = (sc.passiveSafetyFunctionCriteria?.length ?? 0) > 0;
   const consistencyComplete = (sc.consistencyVerifications?.length ?? 0) > 0 || sc.analysisDetailConsistency.basis.length > 0;
+  const handoffComplete = sc.overallSuccessCriteria.length > 0 && sc.endStateDefinitions.length > 0 && sc.missionTimes.length > 0;
   const draftComplete = sc.workflowState !== "DRAFT" && sc.workflowState !== "REVISION_REQUIRED";
   const reviewComplete = sc.workflowState === "FINAL";
 
@@ -153,6 +154,7 @@ function stepsFromMef(sc: SuccessCriteriaDevelopment, persona: ScPersona): ScSte
       case "bases": return { ...s, status: status(basesComplete) };
       case "passive": return { ...s, status: status(passiveComplete) };
       case "consistency": return { ...s, status: status(consistencyComplete) };
+      case "handoff": return { ...s, status: status(handoffComplete) };
       case "draft": return { ...s, status: status(draftComplete) };
       case "review": return { ...s, status: status(reviewComplete) };
       default: return { ...s, status: "idle" as const };

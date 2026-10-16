@@ -5,7 +5,7 @@ import { EsWorkbooksService, type EsWorkbookResponse } from "./es-workbooks.serv
 import { parseRevisionedWorkbookPatchBody } from "../workbooks/workbook-mef-patch";
 import { parseExpectedWorkbookRevision } from "../workbooks/workbook-revision";
 import { WorkbookAnalysisRunsService } from "../newly-developed-methods/shared/workbook-analysis-runs.service";
-import type { AnalysisRunMetadata } from "interfaces-shared-types/newly-developed-methods";
+import type { AnalysisRunJobList, AnalysisRunMetadata } from "interfaces-shared-types/newly-developed-methods";
 
 @UseInterceptors(AnalysisCancellationInterceptor)
 @Controller("es-workbooks")
@@ -27,6 +27,11 @@ export class EsWorkbooksController {
     return this.analysisRunsService.listRunProvenance("ES", id, { username: req.user!.username }, cursor);
   }
 
+  @Get(":id/analysis-jobs")
+  analysisJobs(@Param("id") id: string, @Req() req: AuthenticatedRequest): Promise<AnalysisRunJobList> {
+    return this.analysisRunsService.listAnalysisJobs("ES", id, { username: req.user!.username });
+  }
+
   @Get(":id/analysis-runs/:runId")
   analysisRun(@Param("id") id: string, @Param("runId") runId: string, @Req() req: AuthenticatedRequest) {
     return this.analysisRunsService.getRun("ES", id, undefined, runId, { username: req.user!.username });
@@ -35,6 +40,12 @@ export class EsWorkbooksController {
   @Get(":id/analysis-runs/:runId/details")
   analysisRunDetails(@Param("id") id: string, @Param("runId") runId: string, @Req() req: AuthenticatedRequest) {
     return this.analysisRunsService.getRunDetails("ES", id, runId, { username: req.user!.username });
+  }
+
+  @Post(":id/analysis-runs/:runId/cancel")
+  @HttpCode(HttpStatus.OK)
+  cancelAnalysisRun(@Param("id") id: string, @Param("runId") runId: string, @Req() req: AuthenticatedRequest) {
+    return this.analysisRunsService.cancelRun("ES", id, runId, { username: req.user!.username });
   }
 
   @Patch(":id")

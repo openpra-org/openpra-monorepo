@@ -2,10 +2,9 @@ import type { EventSequenceQuantification } from "interfaces-mef-types/esq/event
 import type { UncertainExpression } from "interfaces-mef-types/core/uncertainty";
 import { uncertaintyInputsKey } from "interfaces-mef-types/esq/esq-measure-inputs";
 import { stepsFromMef } from "../esqSelectors";
-import { withModelImported } from "../esqModel";
 import {
+  CONSISTENCY_TOPICS,
   contributorRows,
-  cutSetRows,
   importanceRecordOf,
   measureRows,
   resultsComplete,
@@ -14,20 +13,21 @@ import {
   withComparison,
   withConfirmation,
   withConsistency,
-  withCutSetReview,
   withImportance,
   withThresholds,
 } from "../esqResults";
-import { uncertaintyViewOf, withSpread, withUncertaintyRun } from "../esqUncertainty";
+import { uncertaintyViewOf, withUncertaintyRun } from "../esqUncertainty";
 import { sensitivityViewOf, withCase, withCaseRun, withDecision, withImportedDaCases, withPreOperational } from "../esqSensitivity";
 import { handoffViewOf, publishEsq } from "../esqHandoff";
 import { modelSummary } from "./esqPostFixtures";
 import { NOW } from "./esqPostFixtures";
 import { RELEASE, caseSummary, importanceResult, measureEsq, measureUpstream, uncertaintyResult } from "./esqMeasureFixtures";
-import { PUMP_ESTIMATE, daParameter, fanMission } from "./esqModelFixtures";
+import { PUMP_ESTIMATE, daParameter, fanMission, liveImport } from "./esqModelFixtures";
 import { applySensitivityCase } from "interfaces-mef-types/esq/esq-sensitivity-inputs";
 
 const FAN_LAW: UncertainExpression = { node: "VALUE", value: { unit: "PER_HOUR", law: { family: "LOGNORMAL", mean: 2e-5, errorFactor: 3, level: 0.95 } } };
+
+const HEP_LAW: UncertainExpression = { node: "VALUE", value: { unit: "PROBABILITY", law: { family: "LOGNORMAL", mean: 1e-3, errorFactor: 3, level: 0.95 } } };
 
 function checks(findings: { severity: string; check: string; item: string }[]): string[] {
   return findings.map((finding) => `${finding.severity}:${finding.check}:${finding.item}`);
@@ -38,20 +38,16 @@ function ranked(esq: EventSequenceQuantification): EventSequenceQuantification {
 }
 
 function reviewed(esq: EventSequenceQuantification): EventSequenceQuantification {
-  const view = resultsViewOf(esq);
-  if (view === undefined) throw new Error("no view");
-  const [row] = cutSetRows(modelSummary(esq, RELEASE), "F-REL", RELEASE, view.work, view.thresholds, (id) => id);
-  if (row === undefined) throw new Error("no cut set");
-  let next = withCutSetReview(esq, row, { verdict: "CORRECT", note: "The pump is the only cooling train." });
-  for (const topic of ["SYSTEMS", "SUCCESS_CRITERIA", "PROCEDURES", "RULES"] as const) next = withConsistency(next, topic, { topic, consistent: true, note: "Checked against the linked models." });
+  let next = esq;
+  for (const topic of CONSISTENCY_TOPICS) next = withConsistency(next, topic, { topic, consistent: true, note: "Checked against the linked models." });
   next = withComparison(next, { possible: false, reason: "No operating plant of this design exists.", plants: [] });
   return withConfirmation(next, "E-2", "The alignment action is only credited in sequences that do not reach a release.");
 }
 
-describe("ESQ Steps 07 to 10", () => {
-  it("lists the thirteen steps in order", () => {
+describe("ESQ Steps 06 to 09", () => {
+  it("lists the twelve steps in order", () => {
     expect(stepsFromMef(measureEsq(), "preparer").map((step) => `${step.num}:${step.id}`)).toEqual([
-      "01:scope", "02:model", "03:logic", "04:barriers", "05:solve", "06:post", "07:results", "08:uncert", "09:sens", "10:handoff", "11:draft", "12:review", "13:approval",
+      "01:scope", "02:model", "03:barriers", "04:logic", "05:solve", "06:results", "07:uncert", "08:sens", "09:handoff", "10:draft", "11:review", "12:approval",
     ]);
   });
 
@@ -78,21 +74,22 @@ describe("ESQ Steps 07 to 10", () => {
     expect(importanceRecordOf(result, typed, thresholdsOf(typed, undefined)).significant.map((entry) => entry.id).sort()).toEqual(["EVENT:E-1", "PARAMETER:P-1", "SYSTEM:SYS-COOL"]);
   });
 
-  it("asks for the reviews of Step 07 and completes once they are done", () => {
+  it("asks for the reviews of Step 06 and completes once they are done", () => {
     const esq = measureEsq();
-    expect(checks(resultsViewOf(esq)?.findings ?? [])).toEqual(expect.arrayContaining([
-      "error:No significant cut set reviewed:F-REL",
+    expect(checks(resultsViewOf(esq)?.findings ?? [])).toEqual([
       "error:Consistency not checked:System models",
+      "error:Consistency not checked:Success criteria",
+      "error:Consistency not checked:Procedures and operations",
       "error:Consistency not checked:Flags, exclusions and recovery",
       "error:Similar plants not addressed:Comparison",
       "error:Importance not ranked:Importance",
-    ]));
+    ]);
     const ranking = ranked(esq);
     expect(checks(resultsViewOf(ranking)?.findings ?? [])).toContain("warning:Event never in a retained cut set:SUP-HFE");
     const done = reviewed(ranking);
     const view = resultsViewOf(done);
     expect(checks(view?.findings ?? []).filter((text) => text.startsWith("error"))).toEqual([]);
-    expect(checks(view?.findings ?? [])).toContain("warning:No non-significant cut set sampled:Cut sets");
+    expect(checks(view?.findings ?? [])).not.toContain("warning:Event never in a retained cut set:SUP-HFE");
     expect(resultsComplete(done)).toBe(true);
     expect(stepsFromMef(done, "preparer").find((step) => step.id === "results")?.status).toBe("complete");
   });
@@ -108,33 +105,27 @@ describe("ESQ Steps 07 to 10", () => {
     expect(byKey.get("SYSTEM:SYSTEM:SYS-COOL")?.annualFrequency).toBeCloseTo(6e-6, 18);
   });
 
-  it("samples DA estimates and SY expressions, takes typed spreads only on the other inputs and keeps the record", () => {
+  it("samples each value with the law where it is held and keeps the record", () => {
     const esq = ranked(measureEsq());
     const view = uncertaintyViewOf(esq);
     const inputs = new Map((view?.inputs ?? []).map((row) => [row.input.key, row]));
-    expect(inputs.get("PARAMETER:P-1")).toMatchObject({ significant: true, sampled: true, input: { contract: true, source: "DA", unit: "PROBABILITY", expression: PUMP_ESTIMATE } });
-    expect(inputs.get("INITIATOR:IEG-01")).toMatchObject({ sampled: true, input: { contract: true, source: "IE", unit: "PER_YEAR", expression: { node: "VALUE", value: { unit: "PER_YEAR", law: { family: "LOGNORMAL", mean: 2.943, errorFactor: 2.3, level: 0.95 } } } } });
-    expect(inputs.get("EVENT:E-3")).toMatchObject({ significant: true, sampled: false, input: { contract: true, source: "SY", missing: "SY types this value without uncertainty. Give it a law in SY." } });
-    expect(inputs.get("HFE:HFE-1")).toMatchObject({ sampled: false, input: { contract: false, legacy: { point: 1e-3 }, missing: "HR gives no distribution. Type an error factor." } });
+    expect(inputs.get("PARAMETER:P-1")).toMatchObject({ significant: true, sampled: true, input: { source: "DA", unit: "PROBABILITY", expression: PUMP_ESTIMATE } });
+    expect(inputs.get("INITIATOR:IEG-01")).toMatchObject({ sampled: true, input: { source: "IE", unit: "PER_YEAR", expression: { node: "VALUE", value: { unit: "PER_YEAR", law: { family: "LOGNORMAL", mean: 2.943, errorFactor: 2.3, level: 0.95 } } } } });
+    expect(inputs.get("EVENT:E-3")).toMatchObject({ significant: true, sampled: false, input: { source: "SY", missing: "SY types this value without uncertainty. Give it a law in SY." } });
+    expect(inputs.get("HFE:HFE-1")).toMatchObject({ sampled: false, input: { source: "HR", missing: "HR gives this HEP no uncertainty. Give it a law in HR." } });
     expect(checks(view?.findings ?? [])).toEqual(expect.arrayContaining([
       "error:No propagated mean:Uncertainty",
       "error:Risk-significant input without a distribution:SUP-FAN-FR · Fan fails to run",
     ]));
-    const ignored = withSpread(esq, "EVENT:E-3", { key: "EVENT:E-3", errorFactor: 3, source: "Generic fan spread." });
-    const fan = uncertaintyViewOf(ignored)?.inputs.find((row) => row.input.key === "EVENT:E-3");
-    expect(fan).toMatchObject({ sampled: false, input: { source: "SY" } });
-    expect(fan?.spread).toBeUndefined();
-    const typed = withSpread(esq, "HFE:HFE-1", { key: "HFE:HFE-1", errorFactor: 3, source: "Generic HEP spread." });
-    const human = uncertaintyViewOf(typed)?.inputs.find((row) => row.input.key === "HFE:HFE-1");
-    expect(human).toMatchObject({ sampled: true, spread: { errorFactor: 3 }, input: { source: "TYPED", legacy: { point: 1e-3, errorFactor: 3 } } });
-    expect(human?.input.expression).toEqual({ node: "VALUE", value: { unit: "PROBABILITY", law: { family: "TRUNCATED", law: { family: "LOGNORMAL", mean: 1e-3, errorFactor: 3, level: 0.95 }, lower: null, upper: 1 } } });
-    expect(uncertaintyInputsKey(typed)).not.toBe(uncertaintyInputsKey(esq));
     const upstream = measureUpstream();
     const sy = upstream.sy;
-    if (sy === undefined) throw new Error("SY fixture missing");
+    const hr = upstream.hr;
+    if (sy === undefined || hr === undefined) throw new Error("SY or HR fixture missing");
     sy.systemBasicEvents = sy.systemBasicEvents.map((event) => (event.uuid === "E-3" ? { ...event, expression: fanMission(FAN_LAW) } : event));
-    const lawful = withModelImported(typed, upstream, NOW);
+    hr.hepQuantifications = hr.hepQuantifications.map((quantification) => (quantification.hfeId === "HFE-1" ? { ...quantification, hep: HEP_LAW } : quantification));
+    const lawful = liveImport(esq, upstream, NOW);
     expect(uncertaintyViewOf(lawful)?.inputs.find((row) => row.input.key === "EVENT:E-3")).toMatchObject({ sampled: true, input: { expression: fanMission(FAN_LAW) } });
+    expect(uncertaintyViewOf(lawful)?.inputs.find((row) => row.input.key === "HFE:HFE-1")).toMatchObject({ sampled: true, input: { source: "HR", expression: HEP_LAW } });
     const sampled = withUncertaintyRun(lawful, uncertaintyResult(lawful));
     const after = uncertaintyViewOf(sampled);
     expect(after?.run).toMatchObject({ trials: 1000, method: "LATIN_HYPERCUBE", correlation: "SHARED", total: { mean: 1.3e-5 }, families: [expect.objectContaining({ standardError: 2e-5 / Math.sqrt(1000) })] });

@@ -7,6 +7,7 @@ import type {
   DaQuantificationModel,
   DaSourceEntry,
   DaSourceUse,
+  DaTransferFactor,
 } from "interfaces-mef-types/da/data-analysis";
 import { entryHoldsLaw, holdsEstimate } from "interfaces-mef-types/da/data-analysis";
 import { canonicalJson, parameterReferenceKey, lawBounds, lawWithinUnit, unitBounds, type Law, type MixtureComponent, type UncertainExpression, type UncertainParameter, type UncertainUnit } from "interfaces-mef-types/core/uncertainty";
@@ -30,7 +31,7 @@ import {
   type UncertaintyAnswer,
   type UncertaintyState,
 } from "../newly-developed-methods/shared/useUncertainty";
-import { entryFit, priorUse } from "./daSourcing";
+import { entryFit, priorParts, type DaWeightedUse } from "./daSourcing";
 import { scMissionTimeEntries } from "../sc-workbooks/scMissionTimeLinks";
 import { type ScMissionTimeSource } from "../sc-workbooks/scMissionTimeSources";
 
@@ -54,6 +55,8 @@ const ESTIMATE_UNITS: Partial<Record<DaQuantificationModel, UncertainUnit>> = {
   RUNNING_RATE: "PER_HOUR",
   STANDBY_RATE: "PER_HOUR",
   UNAVAILABILITY: "FRACTION",
+  HUMAN_ERROR: "PROBABILITY",
+  NON_RECOVERY: "PROBABILITY",
   FREQUENCY: "PER_YEAR",
 };
 
@@ -126,6 +129,10 @@ function quantityUnit(quantity: DaEstimateQuantity): UncertainUnit {
 
 const SUMMARY_PROBABILITIES: readonly number[] = [0.05, 0.5, 0.95];
 
+const PROBABILITY_QUANTITIES: ReadonlySet<DaEstimateQuantity> = new Set(["PER_DEMAND", "PROBABILITY", "FRACTION"]);
+
+const SYMMETRY = 1e-9;
+
 const CURVE_PROBABILITIES: readonly number[] = Array.from({ length: 199 }, (_, index) => (index + 1) / 200);
 
 function lawParameter(parameter: DataAnalysisParameter): boolean {
@@ -135,7 +142,7 @@ function lawParameter(parameter: DataAnalysisParameter): boolean {
 function withinUnit(unit: UncertainUnit, law: Law): { law: Law; cut: boolean } {
   const domain = unitBounds(unit);
   const bounds = lawBounds(law);
-  const kept = lawWithinUnit(unit, law);
+  const kept: Law = law.family === "PRODUCT" && bounds.upper > domain.upper ? { family: "TRUNCATED", law, lower: null, upper: domain.upper } : lawWithinUnit(unit, law);
   return { law: kept, cut: bounds.upper > domain.upper && kept !== law };
 }
 
@@ -171,13 +178,18 @@ function quantileOf(summary: { quantiles: readonly { probability: number; value:
   return summary.quantiles.find((entry) => entry.probability === probability)?.value;
 }
 
-function expressionSpread(expression: UncertainExpression, unit: UncertainUnit): UncertaintyState<DaSpread> {
+function withExtra(extra: ReadonlyMap<string, UncertainParameter> | undefined): ReadonlyMap<string, UncertainParameter> {
+  if (extra === undefined || extra.size === 0) return parameterTable;
+  return new Map([...parameterTable, ...extra]);
+}
+
+function expressionSpread(expression: UncertainExpression, unit: UncertainUnit, extra?: ReadonlyMap<string, UncertainParameter>): UncertaintyState<DaSpread> {
   if (expression.node === "VALUE") {
     const state = lawSummary(expression.value.unit, expression.value.law);
     if (state.status !== "ready") return state;
     return { status: "ready", value: { mean: state.value.mean, standardDeviation: state.value.standardDeviation ?? undefined, p05: quantileOf(state.value, 0.05), median: quantileOf(state.value, 0.5), p95: quantileOf(state.value, 0.95), sampled: false } };
   }
-  const query: ExpressionQuery = { expression, unit, probabilities: SUMMARY_PROBABILITIES, parameters: parametersFor([expression], parameterTable), sampling: SPREAD_SAMPLING };
+  const query: ExpressionQuery = { expression, unit, probabilities: SUMMARY_PROBABILITIES, parameters: parametersFor([expression], withExtra(extra)), sampling: SPREAD_SAMPLING };
   const state = peekExpression(query);
   if (state.status === "pending") {
     requestExpression(query);
@@ -229,35 +241,40 @@ function entryLaw(entry: DaSourceEntry): Law | undefined {
   return fit === undefined ? undefined : legacyLaw(fit.distribution);
 }
 
-function judgmentOperations(elicitation: DaElicitation): { weight: number; operation: UncertaintyOperation }[] {
+function threePoints(p05: number, median: number, p95: number): { probability: number; value: number }[] {
+  return [{ probability: 0.05, value: p05 }, { probability: 0.5, value: median }, { probability: 0.95, value: p95 }];
+}
+
+function judgmentLaws(elicitation: DaElicitation): MixtureComponent[] {
   const evaluators = elicitation.experts.filter((expert) => expert.role === "EVALUATOR");
   const stated = evaluators.some((expert) => expert.weight !== undefined);
+  const upper = PROBABILITY_QUANTITIES.has(elicitation.quantity) ? 1 : null;
   return evaluators.flatMap((expert) => {
     const { p05, median, p95 } = expert;
     if (p05 === undefined || median === undefined || p95 === undefined || !(p05 > 0 && median > p05 && p95 > median)) return [];
+    if (upper !== null && !(p95 < upper)) return [];
     const weight = stated ? expert.weight ?? 0 : 1;
     if (!(weight > 0)) return [];
-    return [{ weight, operation: { kind: "LOGNORMAL_FIT" as const, mean: null, median, quantiles: [{ probability: 0.05, value: p05 }, { probability: 0.95, value: p95 }] } }];
+    return [{ weight, law: { family: "METALOG" as const, points: threePoints(p05, median, p95), lower: 0, upper } }];
   });
 }
 
 function elicitationLaw(elicitation: DaElicitation): DaLawState {
-  const parts = judgmentOperations(elicitation);
-  if (parts.length === 0) return { status: "missing", problem: "No evaluator gives a 5th, 50th and 95th percentile in rising order." };
-  const components: MixtureComponent[] = [];
-  for (const part of parts) {
-    const state = operationLaw(part.operation);
-    if (state.status !== "ready") return state;
-    const law = state.law;
-    if (law.family === "MIXTURE" || law.family === "POSTERIOR" || law.family === "POPULATION") return { status: "failed", error: "PRAXIS gave a judgment that cannot be pooled." };
-    components.push({ weight: part.weight, law });
-  }
+  const components = judgmentLaws(elicitation);
+  const [first] = components;
+  if (first === undefined) return { status: "missing", problem: PROBABILITY_QUANTITIES.has(elicitation.quantity) ? "No evaluator gives a 5th, 50th and 95th percentile in rising order, all between zero and one." : "No evaluator gives a 5th, 50th and 95th percentile in rising order." };
+  if (components.length === 1) return { status: "ready", law: first.law };
   return operationLaw({ kind: "POOL", pooling: elicitation.pooling, components });
 }
 
-function factorOf(use: DaSourceUse, quantity: DaEstimateQuantity, pick: DaFactorPick): { factor: number; quantity: DaEstimateQuantity } {
+function uncertainFactor(item: DaTransferFactor): boolean {
+  return item.low < item.high;
+}
+
+function factorOf(use: DaSourceUse, quantity: DaEstimateQuantity, pick: DaFactorPick): { factor: number; quantity: DaEstimateQuantity; uncertain: DaTransferFactor[] } {
   let factor = 1;
   let current = quantity;
+  const uncertain: DaTransferFactor[] = [];
   if (use.hoursPerYear !== undefined && use.hoursPerYear > 0 && current === "PER_YEAR") {
     factor /= use.hoursPerYear;
     current = "PER_HOUR";
@@ -267,9 +284,38 @@ function factorOf(use: DaSourceUse, quantity: DaEstimateQuantity, pick: DaFactor
     current = "PER_DEMAND";
   }
   if (use.verdict === "SCALED") {
-    for (const item of use.factors ?? []) factor *= pick === "low" ? item.low : pick === "high" ? item.high : item.nominal;
+    for (const item of use.factors ?? []) {
+      if (pick === "nominal" && uncertainFactor(item)) uncertain.push(item);
+      else factor *= pick === "low" ? item.low : pick === "high" ? item.high : item.nominal;
+    }
   }
-  return { factor, quantity: current };
+  return { factor, quantity: current, uncertain };
+}
+
+function factorLaw(item: DaTransferFactor): DaLawState {
+  const { low, nominal, high } = item;
+  if (!(low > 0 && low <= nominal && nominal <= high)) return { status: "missing", problem: `Factor ${item.name} needs positive values with low ≤ nominal ≤ high.` };
+  if (low < nominal && nominal < high) {
+    const below = Math.log(nominal / low);
+    const above = Math.log(high / nominal);
+    if (Math.abs(below - above) <= SYMMETRY * Math.max(below, above)) return operationLaw({ kind: "LOGNORMAL_FIT", mean: null, median: nominal, quantiles: [{ probability: 0.05, value: low }, { probability: 0.95, value: high }] });
+    return { status: "ready", law: { family: "METALOG", points: threePoints(low, nominal, high), lower: 0, upper: null } };
+  }
+  return { status: "ready", law: { family: "LOG_TRIANGULAR", lower: low, mode: nominal, upper: high } };
+}
+
+function factorLaws(items: readonly DaTransferFactor[]): { status: "ready"; laws: Law[] } | Exclude<DaLawState, { status: "ready" }> {
+  const laws: Law[] = [];
+  for (const item of items) {
+    const state = factorLaw(item);
+    if (state.status !== "ready") return state;
+    laws.push(state.law);
+  }
+  return { status: "ready", laws };
+}
+
+function productLaw(law: Law, unit: UncertainUnit, factors: readonly Law[]): Law {
+  return withinUnit(unit, { family: "PRODUCT", factors: [...(law.family === "PRODUCT" ? law.factors : [law]), ...factors] }).law;
 }
 
 function sourceUseLaw(da: DataAnalysis, use: DaSourceUse, pick: DaFactorPick = "nominal"): DaUseState {
@@ -290,19 +336,69 @@ function sourceUseLaw(da: DataAnalysis, use: DaSourceUse, pick: DaFactorPick = "
   }
   const scaled = factorOf(use, base.quantity, pick);
   const unit = quantityUnit(scaled.quantity);
-  if (scaled.factor === 1) return { status: "ready", value: { ...base, law: lawWithinUnit(unit, base.law), quantity: scaled.quantity, factor: 1, cut: false } };
-  if (!(scaled.factor > 0 && Number.isFinite(scaled.factor))) return { status: "missing", problem: "The factors must be positive." };
-  const state = operationLaw({ kind: "SCALE", law: base.law, factor: scaled.factor });
-  if (state.status !== "ready") return state;
-  const kept = withinUnit(unit, state.law);
-  const before = withinUnit(quantityUnit(base.quantity), base.law);
-  return { status: "ready", value: { ...base, law: kept.law, quantity: scaled.quantity, factor: scaled.factor, cut: kept.cut && !before.cut } };
+  let value: DaUseLaw;
+  if (scaled.factor === 1) value = { ...base, law: lawWithinUnit(unit, base.law), quantity: scaled.quantity, factor: 1, cut: false };
+  else {
+    if (!(scaled.factor > 0 && Number.isFinite(scaled.factor))) return { status: "missing", problem: "The factors must be positive." };
+    const state = operationLaw({ kind: "SCALE", law: base.law, factor: scaled.factor });
+    if (state.status !== "ready") return state;
+    const kept = withinUnit(unit, state.law);
+    const before = withinUnit(quantityUnit(base.quantity), base.law);
+    value = { ...base, law: kept.law, quantity: scaled.quantity, factor: scaled.factor, cut: kept.cut && !before.cut };
+  }
+  if (scaled.uncertain.length === 0) return { status: "ready", value };
+  const factors = factorLaws(scaled.uncertain);
+  if (factors.status !== "ready") return factors;
+  return { status: "ready", value: { ...value, law: productLaw(value.law, unit, factors.laws) } };
+}
+
+function mixable(law: Law): MixtureComponent["law"] | undefined {
+  switch (law.family) {
+    case "MIXTURE":
+    case "POSTERIOR":
+    case "POPULATION":
+    case "EMPIRICAL_BAYES":
+    case "DURATION":
+    case "TREND":
+      return undefined;
+    default:
+      return law;
+  }
+}
+
+function useLabel(use: DaSourceUse): string {
+  return use.elicitationId ?? `${use.sourceId ?? "?"} · ${use.entryId ?? "?"}`;
+}
+
+function weightedUseLaw(da: DataAnalysis, parts: readonly DaWeightedUse[]): DaUseState {
+  const [single] = parts;
+  if (single === undefined) return { status: "missing", problem: "No prior. Choose the source the estimate starts from in Step 04 Applicability." };
+  if (parts.length === 1) return sourceUseLaw(da, single.use);
+  const components: MixtureComponent[] = [];
+  const values: DaUseLaw[] = [];
+  for (const part of parts) {
+    const state = sourceUseLaw(da, part.use);
+    if (state.status !== "ready") return state;
+    const first = values[0];
+    if (first !== undefined && first.quantity !== state.value.quantity) return { status: "missing", problem: "The prior sources are in different units. Convert them in Step 04 Applicability." };
+    values.push(state.value);
+    const law = state.value.law;
+    if (law.family === "MIXTURE") {
+      const total = law.components.reduce((sum, component) => sum + component.weight, 0);
+      for (const component of law.components) components.push({ weight: (part.weight * component.weight) / total, law: component.law });
+      continue;
+    }
+    const kept = mixable(law);
+    if (kept === undefined) return { status: "missing", problem: `${useLabel(part.use)} is an updated or fitted law. It cannot be mixed. Use it alone.` };
+    components.push({ weight: part.weight, law: kept });
+  }
+  const first = values[0];
+  if (first === undefined) return { status: "missing", problem: "No prior." };
+  return { status: "ready", value: { law: { family: "MIXTURE", components }, quantity: first.quantity, sourceKind: first.sourceKind, label: parts.map((part) => useLabel(part.use)).join(" + "), factor: 1, cut: values.some((value) => value.cut) } };
 }
 
 function parameterPriorLaw(da: DataAnalysis, parameter: DataAnalysisParameter): DaUseState {
-  const use = priorUse(parameter);
-  if (use === undefined) return { status: "missing", problem: "No prior. Choose the source the estimate starts from in Step 04 Applicability." };
-  return sourceUseLaw(da, use);
+  return weightedUseLaw(da, priorParts(parameter));
 }
 
 function constrainedLaw(law: Law, likelihood: "BINOMIAL" | "POISSON"): DaLawState {
@@ -336,6 +432,8 @@ export {
   quantityUnit,
   setDaMissionTimes,
   sourceUseLaw,
+  useLabel,
+  weightedUseLaw,
   type DaFactorPick,
   type DaMissionTimes,
   type DaSpread,

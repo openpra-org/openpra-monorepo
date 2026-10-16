@@ -1,8 +1,10 @@
 import { HclSolverDiagnostics } from "./hclDiagnostics";
 import type {
   EventTreeAnalysisResult,
+  EventTreeEndStateAggregate,
   EventTreeSequenceAnalysisResult,
 } from "interfaces-shared-types/newly-developed-methods/event-tree";
+import type { HclSampleVector } from "interfaces-shared-types/newly-developed-methods/hybrid-causal-logic";
 import type { HclCalculationType } from "./hclBindingTypes";
 import { eventTreeSequenceLabel } from "../event-tree/eventTreeResultLabels";
 import { PagedResults } from "../shared/resultPresentation";
@@ -20,6 +22,26 @@ export function displayedSequenceName(
   labels: HclEventTreeViewLabels,
 ): string {
   return eventTreeSequenceLabel(sequence, (treeId, id) => labels.sequenceName(treeId || modelId, id));
+}
+
+function unionText(state: EventTreeEndStateAggregate): string | undefined {
+  if (state.sequenceSum === undefined) return undefined;
+  return `Union of its sequences · sequence sum ${formatScientific(state.sequenceSum)}/yr${state.sequencesOverlap === true ? " · sequences overlap" : ""}`;
+}
+
+export function eventTreeSampleColumn(result: EventTreeAnalysisResult, labels: HclEventTreeViewLabels): (vector: HclSampleVector) => string {
+  const sequences = new Map(result.sequences.map((sequence) => [sequence.sequenceId, sequence]));
+  return (vector) => {
+    if (vector.id === "initiator") return "Initiating event frequency /yr";
+    const [kind = "", ...rest] = vector.id.split(":");
+    const id = rest.join(":");
+    if (kind === "sequence") {
+      const sequence = sequences.get(id);
+      return `${sequence === undefined ? id : displayedSequenceName(sequence, result.owner.modelId, labels)} conditional probability`;
+    }
+    if (kind === "endState") return `${labels.endStateName(id)} conditional probability`;
+    return vector.id;
+  };
 }
 
 /** All-outcome totals are display summaries only. Selected values come directly from returned aggregates. */
@@ -64,31 +86,37 @@ export function HclEventTreeResults({
         )}
         <PagedResults
           items={states}
-          label="HCL end states"
+          label="Dependency end states"
           resetKey={resetKey}
         >
           {(page) =>
-            page.map((state) => (
-              <div
-                key={state.endStateId}
-                className="hcleditor__end-state-result"
-              >
-                {calculationType === "PROBABILITY" ?
-                  <HclResultMetric
-                    label={labels.endStateName(state.endStateId)}
-                    value={`${formatScientific(state.annualFrequency)}/yr`}
-                    exactValue={state.annualFrequency}
-                    detail="End-state annual frequency"
-                  />
-                : <HclUncertaintyResults
-                    summary={state.uncertainty}
-                    label={labels.endStateName(state.endStateId)}
-                    annual
-                    inline={inline}
-                  />
-                }
-              </div>
-            ))
+            page.map((state) => {
+              const union = unionText(state);
+              return (
+                <div
+                  key={state.endStateId}
+                  className="hcleditor__end-state-result"
+                >
+                  {calculationType === "PROBABILITY" ?
+                    <HclResultMetric
+                      label={labels.endStateName(state.endStateId)}
+                      value={`${formatScientific(state.annualFrequency)}/yr`}
+                      exactValue={state.annualFrequency}
+                      detail={union ?? "End-state annual frequency"}
+                    />
+                  : <>
+                      <HclUncertaintyResults
+                        summary={state.uncertainty}
+                        label={labels.endStateName(state.endStateId)}
+                        annual
+                        inline={inline}
+                      />
+                      {union !== undefined && <p className="analysis-results__identity">{union}</p>}
+                    </>
+                  }
+                </div>
+              );
+            })
           }
         </PagedResults>
       </section>
@@ -101,7 +129,7 @@ export function HclEventTreeResults({
         </h4>
         <PagedResults
           items={sequences}
-          label="HCL sequences"
+          label="Dependency sequences"
           resetKey={resetKey}
         >
           {(page) => (

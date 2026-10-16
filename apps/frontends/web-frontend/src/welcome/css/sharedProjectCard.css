@@ -44,6 +44,7 @@
 }
 
 .shared__card-body {
+  margin-top: auto;
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -76,34 +77,6 @@
   justify-content: space-between;
   font-size: 12px;
   color: var(--color-text-subtle);
-}
-
-.shared__mini-bar {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex: 1;
-}
-
-.shared__mini-track {
-  flex: 1;
-  height: 5px;
-  background: var(--color-surface-low);
-  border-radius: 999px;
-  overflow: hidden;
-}
-
-.shared__mini-fill {
-  height: 100%;
-  background: var(--color-primary);
-  border-radius: 999px;
-}
-
-.shared__pct {
-  font-variant-numeric: tabular-nums;
-  font-weight: 700;
-  color: var(--color-text-muted);
-  font-size: 12px;
 }
 
 .shared__open {

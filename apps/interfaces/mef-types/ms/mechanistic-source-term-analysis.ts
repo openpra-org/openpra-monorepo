@@ -316,9 +316,16 @@ export interface MsDocumentation {
   implementsSrs: SRReference[];
 }
 
+export interface MsLinkedWorkbooks {
+  POS?: string;
+  ES?: string;
+  RI?: string;
+}
+
 export interface MechanisticSourceTermAnalysis
   extends TechnicalElement<TechnicalElementTypes.MECHANISTIC_SOURCE_TERM_ANALYSIS> {
   praScope: string;
+  linkedWorkbooks?: MsLinkedWorkbooks;
 
   releaseCategories: ReleaseCategory[];
   releaseCategoryCompletenessAssessment: ReleaseCategoryCompletenessAssessment;

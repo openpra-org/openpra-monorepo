@@ -1,7 +1,8 @@
 import { resolve } from "node:path";
 
 
-import { runPraxisWithWorker } from "./praxis-worker-runner";
+import { praetorJobTimeout } from "interfaces-shared-types/execution/praetor-job";
+import { runPraxisProcess } from "./praxis-worker-runner";
 
 const addonPath = resolve(__dirname, "../../../../../solvers/praxis-node/index.js");
 const workerPath = resolve(__dirname, "praxis.worker.js");
@@ -45,8 +46,8 @@ const requestJson = JSON.stringify({
     faultTreeBasicEventCatalogue: {
       projectId: "project-1",
       basicEvents: [
-        { id: "A", probability: { value: 0.1 } },
-        { id: "B", probability: { value: 0.2 } },
+        { id: "A", expression: { node: "VALUE", value: { unit: "PROBABILITY", law: { family: "POINT", value: 0.1 } } } },
+        { id: "B", expression: { node: "VALUE", value: { unit: "PROBABILITY", law: { family: "POINT", value: 0.2 } } } },
       ],
     },
   },
@@ -57,7 +58,7 @@ describe("PRAXIS native worker integration", () => {
     ["validate", "FAULT_TREE"],
     ["execute", "FAULT_TREE"],
   ] as const)("runs %s through the native addon outside the calling process", async (operation, expectedScope) => {
-    const response = await runPraxisWithWorker({ operation, requestJson }, { addonPath, workerPath });
+    const response = await runPraxisProcess({ operation, requestJson }, { addonPath, workerPath, timeoutMs: praetorJobTimeout() });
     const result = JSON.parse(response.resultJson) as Record<string, Record<string, unknown>>;
 
     expect(response.workerProcessId).toBeGreaterThan(0);

@@ -24,6 +24,8 @@ import { SyWorkbench, type SyWorkbenchActions } from "./syWorkbench";
 import {
   SyWorkbookProvider,
   type SyControlledCcfEstimateOption,
+  type SyControlledCcfVectorOption,
+  type SyControlledCcfFactorOption,
   type SyControlledCoincidentMaintenanceOption,
   type SyControlledComponentBoundaryOption,
   type SyControlledFailureModeOption,
@@ -36,6 +38,7 @@ import {
 } from "./syWorkbookContext";
 import { useSyMefPatch } from "./useSyMefPatch";
 import { LoadExampleModal, UnloadExampleModal } from "../workbooks/exampleWorkbookModal";
+import { WorkbookViewMemory } from "../workbooks/workbookViewMemory";
 import { SyDocumentsCard } from "./syDocumentsCard";
 import { type SyPersona } from "./syViewData";
 import { type Workbook } from "interfaces-shared-types";
@@ -48,7 +51,7 @@ import { getEsWorkbook } from "../es-workbooks/esWorkbookApi";
 import { getScWorkbook } from "../sc-workbooks/scWorkbookApi";
 import { useReferencedScSources } from "./syMissionTimes";
 import { getPosWorkbook } from "../pos-workbooks/posWorkbookApi";
-import { buildLinkedInputs, controlledCcfEstimateOptions, controlledCoincidentMaintenanceOptions, controlledComponentBoundaryOptions, controlledFailureModeOptions, controlledHumanFailureOptions, controlledLegacyParameterOptions, controlledParameterOptions, listSyLinkOptions } from "./syLinks";
+import { buildLinkedInputs, controlledCcfEstimateOptions, controlledCcfFactorOptions, controlledCcfVectorOptions, controlledCoincidentMaintenanceOptions, controlledComponentBoundaryOptions, controlledFailureModeOptions, controlledHumanFailureOptions, controlledLegacyParameterOptions, controlledParameterOptions, listSyLinkOptions, type SyDaSource } from "./syLinks";
 
 const STEP_SR_HINT: Record<string, string | undefined> = {
   scope: "SY-A1",
@@ -58,6 +61,7 @@ const STEP_SR_HINT: Record<string, string | undefined> = {
   deps: "SY-B5",
   integrity: "SY-A30",
   uncert: "SY-A32",
+  handoff: "SY-C1",
 };
 
 interface SyExampleResponse {
@@ -98,6 +102,8 @@ function SyWorkbookPage(): JSX.Element {
   const [controlledFailureModes, setControlledFailureModes] = useState<SyControlledFailureModeOption[]>([]);
   const [controlledCoincidentMaintenance, setControlledCoincidentMaintenance] = useState<SyControlledCoincidentMaintenanceOption[]>([]);
   const [controlledCcfEstimates, setControlledCcfEstimates] = useState<SyControlledCcfEstimateOption[]>([]);
+  const [controlledCcfVectors, setControlledCcfVectors] = useState<SyControlledCcfVectorOption[]>([]);
+  const [controlledCcfFactors, setControlledCcfFactors] = useState<SyControlledCcfFactorOption[]>([]);
   const [controlledComponentBoundaries, setControlledComponentBoundaries] = useState<SyControlledComponentBoundaryOption[]>([]);
   const [linkOptions, setLinkOptions] = useState<Record<SyLinkCode, Workbook[]>>(NO_LINK_OPTIONS);
   const [linkedEs, setLinkedEs] = useState<EventSequenceAnalysis | undefined>(undefined);
@@ -115,6 +121,9 @@ function SyWorkbookPage(): JSX.Element {
     ])
       .then(async ([workbook, bundle]) => {
         if (cancelled) return;
+        const options = await listSyLinkOptions(workbook.projectId).catch(() => NO_LINK_OPTIONS);
+        if (cancelled) return;
+        setLinkOptions(options);
         setData({
           sy: workbook.mef,
           cc: bundle.configurationControl.mef as PRAConfigurationControl,
@@ -130,12 +139,6 @@ function SyWorkbookPage(): JSX.Element {
           if (!cancelled) setProjectName(project.name);
         } catch {
           if (!cancelled) setProjectName("");
-        }
-        try {
-          const options = await listSyLinkOptions(workbook.projectId);
-          if (!cancelled) setLinkOptions(options);
-        } catch {
-          if (!cancelled) setLinkOptions(NO_LINK_OPTIONS);
         }
       })
       .catch((err: unknown) => {
@@ -187,43 +190,36 @@ function SyWorkbookPage(): JSX.Element {
     return () => { cancelled = true; };
   }, [linkedPosId]);
 
-  useEffect(() => {
-    const entries = linkedDaId === undefined ? linkOptions.DA : linkOptions.DA.filter((entry) => entry.id === linkedDaId);
-    let cancelled = false;
-    Promise.allSettled(entries.map(async (entry) => ({ entry, workbook: await getDaWorkbook(entry.id) })))
-      .then((loaded) => {
-        if (cancelled) return;
-        const sources = loaded.flatMap((result) => result.status === "fulfilled" ? [result.value] : []);
-        setControlledParameters(controlledParameterOptions(sources));
-        setControlledLegacyParameters(controlledLegacyParameterOptions(sources));
-        setControlledFailureModes(controlledFailureModeOptions(sources));
-        setControlledCoincidentMaintenance(controlledCoincidentMaintenanceOptions(sources));
-        setControlledCcfEstimates(controlledCcfEstimateOptions(sources));
-        setControlledComponentBoundaries(controlledComponentBoundaryOptions(sources));
-      })
-      .catch(() => {
-        if (cancelled) return;
-        setControlledParameters([]);
-        setControlledLegacyParameters([]);
-        setControlledFailureModes([]);
-        setControlledCoincidentMaintenance([]);
-        setControlledCcfEstimates([]);
-        setControlledComponentBoundaries([]);
-      });
-    return () => { cancelled = true; };
-  }, [linkOptions.DA, linkedDaId]);
+  const linkedDaName = linkOptions.DA.find((entry) => entry.id === linkedDaId)?.name;
+  const linkedHrName = linkOptions.HRA.find((entry) => entry.id === linkedHrId)?.name;
 
   useEffect(() => {
-    const entries = linkedHrId === undefined ? linkOptions.HRA : linkOptions.HRA.filter((entry) => entry.id === linkedHrId);
+    function setDaSources(sources: readonly SyDaSource[]): void {
+      setControlledParameters(controlledParameterOptions(sources));
+      setControlledLegacyParameters(controlledLegacyParameterOptions(sources));
+      setControlledFailureModes(controlledFailureModeOptions(sources));
+      setControlledCoincidentMaintenance(controlledCoincidentMaintenanceOptions(sources));
+      setControlledCcfEstimates(controlledCcfEstimateOptions(sources));
+      setControlledCcfVectors(controlledCcfVectorOptions(sources));
+      setControlledCcfFactors(controlledCcfFactorOptions(sources));
+      setControlledComponentBoundaries(controlledComponentBoundaryOptions(sources));
+    }
+    if (linkedDaId === undefined) { setDaSources([]); return; }
     let cancelled = false;
-    Promise.allSettled(entries.map(async (entry) => ({ entry, workbook: await getHrWorkbook(entry.id) })))
-      .then((loaded) => {
-        if (cancelled) return;
-        setControlledHumanFailures(controlledHumanFailureOptions(loaded.flatMap((result) => result.status === "fulfilled" ? [result.value] : [])));
-      })
+    getDaWorkbook(linkedDaId)
+      .then((workbook) => { if (!cancelled) setDaSources([{ entry: { id: linkedDaId, name: linkedDaName ?? workbook.mef.name }, workbook }]); })
+      .catch(() => { if (!cancelled) setDaSources([]); });
+    return () => { cancelled = true; };
+  }, [linkedDaId, linkedDaName]);
+
+  useEffect(() => {
+    if (linkedHrId === undefined) { setControlledHumanFailures([]); return; }
+    let cancelled = false;
+    getHrWorkbook(linkedHrId)
+      .then((workbook) => { if (!cancelled) setControlledHumanFailures(controlledHumanFailureOptions([{ entry: { id: linkedHrId, name: linkedHrName ?? workbook.mef.name }, workbook }])); })
       .catch(() => { if (!cancelled) setControlledHumanFailures([]); });
     return () => { cancelled = true; };
-  }, [linkOptions.HRA, linkedHrId]);
+  }, [linkedHrId, linkedHrName]);
 
   const scReferenced = useReferencedScSources(data?.sy ?? null, controlledParameters, linkedScId, linkedSc);
 
@@ -339,39 +335,43 @@ function SyWorkbookPage(): JSX.Element {
       controlledFailureModes={controlledFailureModes}
       controlledCoincidentMaintenance={controlledCoincidentMaintenance}
       controlledCcfEstimates={controlledCcfEstimates}
+      controlledCcfVectors={controlledCcfVectors}
+      controlledCcfFactors={controlledCcfFactors}
       controlledComponentBoundaries={controlledComponentBoundaries}
       upstream={upstream}
     >
-      <SyWorkbench
-        data={providerData}
-        persona={persona}
-        setPersona={setPersona}
-        showPersonaPicker={availablePersonas.length > 1}
-        availablePersonas={availablePersonas}
-        onOpenRoles={() => setRolesOpen(true)}
-        onLoadExample={canLoadExample ? () => setLoadExOpen(true) : undefined}
-        onUnloadExample={canUnloadExample ? () => setUnloadExOpen(true) : undefined}
-        actions={actions}
-        headerMeta={{ projectName, workbookName, workbookVersion, saveStatus }}
-        renderApprovalTable={() => <WorkbookApprovalTable workbookId={id} refreshSignal={approvalRefresh} />}
-        renderSignCard={() => (
-          <WorkbookSignCard
-            workbookId={id}
-            actingUsername={actingUsername}
-            currentPersona={persona}
-            myOpenComments={data.sy.internalReviewComments.comments.filter((c) => c.authorId === actingUsername && !c.resolved).length}
-            refreshSignal={approvalRefresh}
-            onSigned={() => {
-              setApprovalRefresh((n) => n + 1);
-              void refreshWorkbook().catch((refreshError: unknown) => {
-                handleSaveErr((refreshError as { message?: string }).message ?? "Could not refresh this SY workbook");
-              });
-            }}
-          />
-        )}
-        renderRoster={() => <WorkbookRoster workbookId={id} refreshSignal={approvalRefresh} />}
-        renderDocuments={() => <SyDocumentsCard workbookId={id} canEdit={canEdit} />}
-      />
+      <WorkbookViewMemory scope={`sy.${id}`}>
+        <SyWorkbench
+          data={providerData}
+          persona={persona}
+          setPersona={setPersona}
+          showPersonaPicker={availablePersonas.length > 1}
+          availablePersonas={availablePersonas}
+          onOpenRoles={() => setRolesOpen(true)}
+          onLoadExample={canLoadExample ? () => setLoadExOpen(true) : undefined}
+          onUnloadExample={canUnloadExample ? () => setUnloadExOpen(true) : undefined}
+          actions={actions}
+          headerMeta={{ projectName, workbookName, workbookVersion, saveStatus }}
+          renderApprovalTable={() => <WorkbookApprovalTable workbookId={id} refreshSignal={approvalRefresh} />}
+          renderSignCard={() => (
+            <WorkbookSignCard
+              workbookId={id}
+              actingUsername={actingUsername}
+              currentPersona={persona}
+              myOpenComments={data.sy.internalReviewComments.comments.filter((c) => c.authorId === actingUsername && !c.resolved).length}
+              refreshSignal={approvalRefresh}
+              onSigned={() => {
+                setApprovalRefresh((n) => n + 1);
+                void refreshWorkbook().catch((refreshError: unknown) => {
+                  handleSaveErr((refreshError as { message?: string }).message ?? "Could not refresh this SY workbook");
+                });
+              }}
+            />
+          )}
+          renderRoster={() => <WorkbookRoster workbookId={id} refreshSignal={approvalRefresh} />}
+          renderDocuments={() => <SyDocumentsCard workbookId={id} canEdit={canEdit} />}
+        />
+      </WorkbookViewMemory>
       {saveError !== null && (
         <div className="ie-savebar" role="alert">
           <span>Could not save changes: {saveError}</span>
@@ -380,7 +380,7 @@ function SyWorkbookPage(): JSX.Element {
       )}
       {rolesOpen && <WorkbookRolesModal workbookId={id} onClose={() => setRolesOpen(false)} onChanged={(res) => setMyRoles(res.myRoles as SyWorkbookRoleName[])} />}
       {loadExOpen && (
-        <LoadExampleModal
+        <LoadExampleModal replacesLinks
           exampleName="SY"
           exampleOptions={exampleOptions}
           onCancel={() => setLoadExOpen(false)}

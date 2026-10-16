@@ -17,7 +17,7 @@ import { parameterPoint, parameterSpread } from "./daLaws";
 import { CCF_METHOD_LABELS, CCF_TESTING_LABELS, EVIDENCE_KIND_LABELS, FREQUENCY_MODE_LABELS, INITIATOR_CATEGORY_LABELS, SENSITIVITY_KIND_LABELS, MAINTENANCE_KIND_LABELS, MAINTENANCE_METHOD_LABELS, RESTORATION_KIND_LABELS, RESTORATION_FROM_LABELS, SOURCE_ORIGIN_LABELS } from "./daViewData";
 import { libraryCount } from "./daSourcing";
 import { maintenanceEstimate, maintenanceParameters, restorationEstimate, restorationParameters } from "./daUnavailability";
-import { ccfResult, factorsText } from "./daCcf";
+import { ccfLabelOf, ccfResult, factorsText } from "./daCcf";
 import { frequencyParameters } from "./daFrequencies";
 import { sensitivityResult } from "./daUncertainty";
 
@@ -192,7 +192,7 @@ function buildChildren(a: DataAnalysis, final: boolean): (Paragraph | Table)[] {
   out.push(heading("Repair and recovery", HeadingLevel.HEADING_2));
   out.push(dataTable(["Parameter", "Kind", "Method", "Window (h)", "State and sequence", "Mean", "Comparison"], restoration.length > 0 ? restoration.map((p) => {
     const estimate = restorationEstimate(a, p);
-    return [`${p.uuid} · ${p.name}`, RESTORATION_KIND_LABELS[estimate.kind], estimate.method === undefined ? "Not chosen" : RESTORATION_FROM_LABELS[estimate.method], hours(estimate.window), p.restoration?.sequence ?? "—", val(p.value), val(estimate.comparisonMean)];
+    return [`${p.uuid} · ${p.name}`, RESTORATION_KIND_LABELS[estimate.kind], estimate.method === undefined ? "Not chosen" : RESTORATION_FROM_LABELS[estimate.method], hours(estimate.window), p.restoration?.sequence ?? "—", pointText(p), val(estimate.comparisonMean)];
   }) : [["None", "—", "—", "—", "—", "—", "—"]]));
   const outages = a.outages ?? [];
   out.push(heading("Outages", HeadingLevel.HEADING_2));
@@ -206,7 +206,7 @@ function buildChildren(a: DataAnalysis, final: boolean): (Paragraph | Table)[] {
   out.push(dataTable(["Group", "Size", "Testing", "Method", "Template", "To Systems Analysis", "All fail, each"], ccfs.length > 0 ? ccfs.map((c) => {
     const result = ccfResult(a, c);
     const all = result.combinations[result.combinations.length - 1];
-    return [`${c.uuid} · ${c.name ?? c.ccfGroupReference}`, c.groupSize === undefined ? "—" : String(c.groupSize), c.testing === undefined ? "Not set" : CCF_TESTING_LABELS[c.testing], c.method === undefined ? "Not chosen" : CCF_METHOD_LABELS[c.method], c.priorTemplate ?? "—", c.factors === undefined ? "—" : factorsText(c.factors), val(all?.each)];
+    return [`${c.uuid} · ${c.name ?? c.ccfGroupReference}`, c.groupSize === undefined ? "—" : String(c.groupSize), c.testing === undefined ? "Not set" : CCF_TESTING_LABELS[c.testing], c.method === undefined ? "Not chosen" : CCF_METHOD_LABELS[c.method], c.priorTemplate ?? "—", c.factors === undefined ? "—" : factorsText(c.factors, ccfLabelOf(a)), val(all?.each)];
   }) : [["None", "—", "—", "—", "—", "—", "—"]]));
 
   const frequencies = frequencyParameters(a);

@@ -99,6 +99,17 @@ type EventTreeCutOffBasis = "FREQUENCY" | "PROBABILITY";
 
 type EventTreeCutSetQuantifier = "MCUB" | "RARE_EVENT" | "EXACT";
 
+type EventTreeSuccessTreatment = "COMPLEMENT" | "DELETE_TERM" | "UNITY";
+
+interface EventTreeMonteCarloSettings {
+  trials: number;
+  seed: number;
+  earlyStop: boolean;
+  convergenceDelta: number;
+  confidenceLevel: number;
+  burnInTrials: number;
+}
+
 interface EventTreeCutSetFocus {
   key: string;
   events: string[];
@@ -116,12 +127,21 @@ interface EventTreeCutSetSettings {
 
 type EsqModelCalculation = "EXACT" | "CUT_SETS";
 
+interface EsqModelRunHcl {
+  workbookId: string;
+  modelId: string;
+}
+
 interface EsqModelRunRequest {
   schemaVersion: WorkbookMethodSchemaVersion;
   workbookRevision: WorkbookRevision;
   logic: EsqEventTreeRunLogic;
   calculation: EsqModelCalculation;
   cutSets?: EventTreeCutSetSettings;
+  successTreatment?: EventTreeSuccessTreatment;
+  monteCarlo?: EventTreeMonteCarloSettings;
+  hcl?: EsqModelRunHcl;
+  treeIds?: string[];
 }
 
 type EsqPostRunPurpose = "COMBINATIONS" | "DELETIONS";
@@ -153,6 +173,7 @@ interface EsqUncertaintyRunRequest {
   seed: number;
   method: EventTreeSamplingMethod;
   correlation: EsqUncertaintyCorrelation;
+  treeIds?: string[];
 }
 
 interface EsqSensitivityRunRequest {
@@ -280,6 +301,19 @@ const EventTreeCutSetSettingsSchema = z
     }
   });
 
+const EventTreeSuccessTreatmentSchema = z.enum(["COMPLEMENT", "DELETE_TERM", "UNITY"]);
+
+const EventTreeMonteCarloSettingsSchema = z
+  .object({
+    trials: z.number().int().min(1, "Run at least one trial"),
+    seed: z.number().int().nonnegative("The seed cannot be negative"),
+    earlyStop: z.boolean(),
+    convergenceDelta: z.number().finite().positive("The relative error target must be above zero"),
+    confidenceLevel: z.number().gt(0, "The confidence must be above zero").lt(1, "The confidence must be below one"),
+    burnInTrials: z.number().int().nonnegative("The burn-in trials cannot be negative"),
+  })
+  .strict();
+
 const EsqModelCalculationSchema = z.enum(["EXACT", "CUT_SETS"]);
 
 const EsqPostRunPurposeSchema = z.enum(["COMBINATIONS", "DELETIONS"]);
@@ -303,6 +337,17 @@ const EsqPostRunRequestSchema = z
     }
   });
 
+const EsqModelRunHclSchema = z
+  .object({
+    workbookId: z.string().min(1),
+    modelId: z.string().min(1),
+  })
+  .strict();
+
+const HCL_RUN_IS_EXACT = "An HCL run is exact";
+
+const HCL_RUN_KEEPS_CCF_OFF = "An HCL run does not expand common cause. Set common cause to off";
+
 const EsqModelRunRequestSchema = z
   .object({
     schemaVersion: WorkbookMethodSchemaVersionSchema,
@@ -310,14 +355,36 @@ const EsqModelRunRequestSchema = z
     logic: EsqEventTreeRunLogicSchema,
     calculation: EsqModelCalculationSchema,
     cutSets: EventTreeCutSetSettingsSchema.optional(),
+    successTreatment: EventTreeSuccessTreatmentSchema.optional(),
+    monteCarlo: EventTreeMonteCarloSettingsSchema.optional(),
+    hcl: EsqModelRunHclSchema.optional(),
+    treeIds: z.array(z.string().min(1)).min(1, "Pick at least one event tree").optional(),
   })
   .strict()
   .superRefine((request, context) => {
+    if (request.monteCarlo !== undefined && request.calculation !== "EXACT") {
+      context.addIssue({ code: "custom", path: ["monteCarlo"], message: "Monte Carlo quantifies sequence probabilities, not cut sets" });
+    }
+    if (request.monteCarlo !== undefined && request.successTreatment !== undefined && request.successTreatment !== "COMPLEMENT") {
+      context.addIssue({ code: "custom", path: ["successTreatment"], message: "Monte Carlo complements every succeeded system" });
+    }
+    if (request.hcl !== undefined && (request.monteCarlo !== undefined || request.successTreatment !== undefined)) {
+      context.addIssue({ code: "custom", path: ["hcl"], message: "An HCL run takes its settings from its network configuration" });
+    }
     if (request.calculation === "CUT_SETS" && request.cutSets === undefined) {
       context.addIssue({ code: "custom", path: ["cutSets"], message: "A cut set run needs its settings" });
     }
+    if (request.treeIds !== undefined && new Set(request.treeIds).size !== request.treeIds.length) {
+      context.addIssue({ code: "custom", path: ["treeIds"], message: "Each event tree can be picked once" });
+    }
     if (request.calculation === "EXACT" && request.cutSets !== undefined) {
       context.addIssue({ code: "custom", path: ["cutSets"], message: "An exact run takes no cut set settings" });
+    }
+    if (request.hcl !== undefined && request.calculation !== "EXACT") {
+      context.addIssue({ code: "custom", path: ["hcl"], message: HCL_RUN_IS_EXACT });
+    }
+    if (request.hcl !== undefined && request.logic.expandCcf) {
+      context.addIssue({ code: "custom", path: ["logic", "expandCcf"], message: HCL_RUN_KEEPS_CCF_OFF });
     }
   });
 
@@ -342,6 +409,7 @@ const EsqUncertaintyRunRequestSchema = z
     seed: z.number().int().min(0).max(2_147_483_647),
     method: EventTreeSamplingMethodSchema,
     correlation: EsqUncertaintyCorrelationSchema,
+    treeIds: z.array(z.string().min(1)).min(1, "Pick at least one event tree").optional(),
   })
   .strict();
 
@@ -418,7 +486,10 @@ export {
   EventTreeCutOffBasisSchema,
   EventTreeCutSetQuantifierSchema,
   EventTreeCutSetSettingsSchema,
+  EventTreeSuccessTreatmentSchema,
+  EventTreeMonteCarloSettingsSchema,
   EsqModelCalculationSchema,
+  EsqModelRunHclSchema,
   EsqModelRunRequestSchema,
   EventTreeCutSetFocusSchema,
   EsqPostRunPurposeSchema,
@@ -442,7 +513,10 @@ export type {
   EventTreeCutOffBasis,
   EventTreeCutSetQuantifier,
   EventTreeCutSetSettings,
+  EventTreeSuccessTreatment,
+  EventTreeMonteCarloSettings,
   EsqModelCalculation,
+  EsqModelRunHcl,
   EsqModelRunRequest,
   EventTreeCutSetFocus,
   EsqPostRunPurpose,

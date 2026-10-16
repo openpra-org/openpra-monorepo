@@ -1,0 +1,20 @@
+.esq-input-plot { position: relative; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.esq-input-plot svg.esq-input-plot__svg { display: block; flex: none; width: 100%; height: auto; max-width: none; overflow: visible; touch-action: none; }
+.esq-input-plot__svg:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; border-radius: 4px; }
+.esq-input-plot__caption { fill: var(--color-text-muted); font-size: 13px; }
+.esq-input-plot__axis { stroke: var(--color-border-strong); stroke-width: 1; }
+.esq-input-plot__tick { fill: var(--color-text-muted); font-size: 13px; font-variant-numeric: tabular-nums; }
+.esq-input-plot__line { fill: none; stroke: var(--color-primary); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.esq-input-plot__band { fill: var(--color-primary); fill-opacity: 0.1; stroke: none; }
+.esq-input-plot__dot { fill: var(--color-primary); stroke: var(--color-surface); stroke-width: 2; }
+.esq-input-plot__cross { stroke: var(--color-border-strong); stroke-width: 1; }
+.esq-input-plot__tip { position: absolute; top: 2px; min-width: 190px; max-width: 280px; padding: 8px 10px; border: 1px solid var(--color-border); border-radius: 6px; background: var(--color-surface); box-shadow: var(--shadow-card); font-size: 15px; line-height: 1.45; pointer-events: none; z-index: 5; }
+.esq-input-plot__tip-value { font-weight: 600; color: var(--color-text); font-variant-numeric: tabular-nums; }
+.esq-input-plot__tip-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; color: var(--color-text-muted); }
+.esq-input-plot__tip-share { font-weight: 600; color: var(--color-text); font-variant-numeric: tabular-nums; }
+.esq-input-plot__values { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px 16px; margin: 0; }
+.esq-input-plot__value { display: grid; gap: 4px; min-width: 0; }
+.esq-input-plot__value dt { color: var(--color-text-muted); font-size: 15px; font-weight: 600; }
+.esq-input-plot__value dd { margin: 0; color: var(--color-text); font-size: 15px; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.esq-input-plot__status { margin: 0; color: var(--color-text-muted); font-size: 15px; }
+.esq-rowtable__plot:disabled { color: var(--color-text-subtle); cursor: default; }

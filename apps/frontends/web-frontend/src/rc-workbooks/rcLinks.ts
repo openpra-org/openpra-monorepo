@@ -2,6 +2,7 @@ import type { Workbook } from "interfaces-shared-types";
 import type { EventSequenceAnalysis } from "interfaces-mef-types/es/event-sequence-analysis";
 import type { MechanisticSourceTermAnalysis } from "interfaces-mef-types/ms/mechanistic-source-term-analysis";
 import type { RadiologicalConsequenceAnalysis, RcLinkedWorkbooks } from "interfaces-mef-types/rc/radiological-consequence-analysis";
+import type { RiskIntegration } from "interfaces-mef-types/ri/risk-integration";
 import type { RcStepLinks } from "interfaces-shared-types/rc-workbooks/step-checks";
 import { listWorkbooks } from "../workbooks/workbookApi";
 import { getEsWorkbook } from "../es-workbooks/esWorkbookApi";
@@ -13,6 +14,7 @@ type RcLinkCode = keyof RcLinkedWorkbooks;
 interface RcLinkedWorkbookData {
   es?: EventSequenceAnalysis;
   ms?: MechanisticSourceTermAnalysis;
+  ri?: RiskIntegration;
   riMeasures?: string[];
 }
 
@@ -40,7 +42,7 @@ async function loadRcLinkedWorkbooks(ids: RcLinkedWorkbooks | undefined): Promis
     ids?.MS ? getMsWorkbook(ids.MS).then((response) => response.mef, () => undefined) : Promise.resolve(undefined),
     ids?.RI ? getRiWorkbook(ids.RI).then((response) => response.mef, () => undefined) : Promise.resolve(undefined),
   ]);
-  return { es, ms, riMeasures: ri?.scopeDefinition.consequenceMeasures.map((measure) => measure.name).filter((name) => name.trim()) };
+  return { es, ms, ri, riMeasures: ri?.scopeDefinition.consequenceMeasures.map((measure) => measure.name).filter((name) => name.trim()) };
 }
 
 function rcStepLinks(rc: RadiologicalConsequenceAnalysis, links: RcLinks): RcStepLinks {

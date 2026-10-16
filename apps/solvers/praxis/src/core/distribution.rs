@@ -103,20 +103,36 @@ pub struct MixtureComponent {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-pub enum Likelihood {
+pub enum CountLikelihood {
     Binomial,
     Poisson,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum Likelihood {
+    Binomial,
+    Poisson,
+    StandbyDemand,
+    UncertainCount,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum StandbyDemandKind {
+    Test,
+    Random,
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct EvidenceTerm {
-    pub likelihood: Likelihood,
+pub struct CountEvidence {
+    pub likelihood: CountLikelihood,
     pub failures: f64,
     pub exposure: f64,
 }
 
-impl EvidenceTerm {
+impl CountEvidence {
     pub fn check_shape(&self) -> Result<()> {
         require(
             self.failures.is_finite() && self.failures >= 0.0,
@@ -127,10 +143,240 @@ impl EvidenceTerm {
             "Evidence exposure must be positive",
         )?;
         require(
-            self.likelihood == Likelihood::Poisson || self.failures <= self.exposure,
+            self.likelihood == CountLikelihood::Poisson || self.failures <= self.exposure,
             "Binomial evidence cannot have more failures than demands",
         )
     }
+
+    pub fn term(&self) -> EvidenceTerm {
+        match self.likelihood {
+            CountLikelihood::Binomial => EvidenceTerm::Binomial {
+                failures: self.failures,
+                exposure: self.exposure,
+            },
+            CountLikelihood::Poisson => EvidenceTerm::Poisson {
+                failures: self.failures,
+                exposure: self.exposure,
+            },
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(
+    tag = "likelihood",
+    rename_all = "SCREAMING_SNAKE_CASE",
+    rename_all_fields = "camelCase",
+    deny_unknown_fields
+)]
+pub enum EvidenceTerm {
+    Binomial {
+        failures: f64,
+        exposure: f64,
+    },
+    Poisson {
+        failures: f64,
+        exposure: f64,
+    },
+    StandbyDemand {
+        demand: StandbyDemandKind,
+        failures: f64,
+        exposure: f64,
+        test_interval: f64,
+    },
+    UncertainCount {
+        count: CountLikelihood,
+        outcomes: Vec<DiscreteOutcome>,
+        exposure: f64,
+    },
+}
+
+impl EvidenceTerm {
+    pub fn count(likelihood: CountLikelihood, failures: f64, exposure: f64) -> EvidenceTerm {
+        CountEvidence {
+            likelihood,
+            failures,
+            exposure,
+        }
+        .term()
+    }
+
+    pub fn likelihood(&self) -> Likelihood {
+        match self {
+            EvidenceTerm::Binomial { .. } => Likelihood::Binomial,
+            EvidenceTerm::Poisson { .. } => Likelihood::Poisson,
+            EvidenceTerm::StandbyDemand { .. } => Likelihood::StandbyDemand,
+            EvidenceTerm::UncertainCount { .. } => Likelihood::UncertainCount,
+        }
+    }
+
+    pub fn as_count(&self) -> Option<CountEvidence> {
+        match self {
+            EvidenceTerm::Binomial { failures, exposure } => Some(CountEvidence {
+                likelihood: CountLikelihood::Binomial,
+                failures: *failures,
+                exposure: *exposure,
+            }),
+            EvidenceTerm::Poisson { failures, exposure } => Some(CountEvidence {
+                likelihood: CountLikelihood::Poisson,
+                failures: *failures,
+                exposure: *exposure,
+            }),
+            _ => None,
+        }
+    }
+
+    pub fn is_probability(&self) -> bool {
+        matches!(
+            self,
+            EvidenceTerm::Binomial { .. }
+                | EvidenceTerm::UncertainCount {
+                    count: CountLikelihood::Binomial,
+                    ..
+                }
+        )
+    }
+
+    pub fn check_shape(&self) -> Result<()> {
+        match self {
+            EvidenceTerm::Binomial { .. } | EvidenceTerm::Poisson { .. } => {
+                self.as_count().map_or(Ok(()), |count| count.check_shape())
+            }
+            EvidenceTerm::StandbyDemand {
+                failures,
+                exposure,
+                test_interval,
+                ..
+            } => {
+                require(
+                    failures.is_finite() && *failures >= 0.0,
+                    "Evidence failures must be zero or more",
+                )?;
+                require(
+                    exposure.is_finite() && *exposure > 0.0,
+                    "Standby evidence needs a positive number of demands",
+                )?;
+                require(
+                    failures <= exposure,
+                    "Standby evidence cannot have more failures than demands",
+                )?;
+                require(
+                    test_interval.is_finite() && *test_interval > 0.0,
+                    "Standby evidence needs a positive test interval",
+                )
+            }
+            EvidenceTerm::UncertainCount {
+                count,
+                outcomes,
+                exposure,
+            } => {
+                require(
+                    exposure.is_finite() && *exposure > 0.0,
+                    "Evidence exposure must be positive",
+                )?;
+                require(!outcomes.is_empty(), "An uncertain count needs an outcome")?;
+                require(
+                    outcomes
+                        .iter()
+                        .all(|outcome| outcome.value.is_finite() && outcome.value >= 0.0),
+                    "Uncertain count outcomes must be zero or more failures",
+                )?;
+                require(
+                    outcomes
+                        .iter()
+                        .all(|outcome| outcome.weight.is_finite() && outcome.weight > 0.0),
+                    "Uncertain count weights must be positive",
+                )?;
+                require(
+                    *count == CountLikelihood::Poisson
+                        || outcomes.iter().all(|outcome| outcome.value <= *exposure),
+                    "An uncertain binomial count cannot have more failures than demands",
+                )
+            }
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum DurationModel {
+    Exponential,
+    Lognormal,
+    Weibull,
+    Gamma,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum DurationParameter {
+    Rate,
+    Mu,
+    Sigma,
+    Shape,
+    Scale,
+}
+
+impl DurationModel {
+    pub fn parameters(self) -> &'static [DurationParameter] {
+        match self {
+            DurationModel::Exponential => &[DurationParameter::Rate],
+            DurationModel::Lognormal => &[DurationParameter::Mu, DurationParameter::Sigma],
+            DurationModel::Weibull => &[DurationParameter::Shape, DurationParameter::Scale],
+            DurationModel::Gamma => &[DurationParameter::Shape, DurationParameter::Rate],
+        }
+    }
+
+    pub fn label(self) -> &'static str {
+        match self {
+            DurationModel::Exponential => "EXPONENTIAL",
+            DurationModel::Lognormal => "LOGNORMAL",
+            DurationModel::Weibull => "WEIBULL",
+            DurationModel::Gamma => "GAMMA",
+        }
+    }
+}
+
+impl DurationParameter {
+    pub fn positive(self) -> bool {
+        self != DurationParameter::Mu
+    }
+
+    pub fn label(self) -> &'static str {
+        match self {
+            DurationParameter::Rate => "RATE",
+            DurationParameter::Mu => "MU",
+            DurationParameter::Sigma => "SIGMA",
+            DurationParameter::Shape => "SHAPE",
+            DurationParameter::Scale => "SCALE",
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct DurationPrior {
+    pub parameter: DurationParameter,
+    pub law: Law,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(
+    tag = "kind",
+    rename_all = "SCREAMING_SNAKE_CASE",
+    rename_all_fields = "camelCase",
+    deny_unknown_fields
+)]
+pub enum DurationOutput {
+    Exceedance { time: f64 },
+    Mean,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct TrendBin {
+    pub time: f64,
+    pub failures: f64,
+    pub exposure: f64,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -246,6 +492,25 @@ pub enum Law {
         #[serde(deserialize_with = "required_nullable")]
         target: Option<usize>,
     },
+    EmpiricalBayes {
+        evidence: Vec<CountEvidence>,
+        #[serde(deserialize_with = "required_nullable")]
+        target: Option<usize>,
+    },
+    Duration {
+        model: DurationModel,
+        times: Vec<f64>,
+        censored: Vec<f64>,
+        priors: Vec<DurationPrior>,
+        output: DurationOutput,
+    },
+    Trend {
+        bins: Vec<TrendBin>,
+        at: f64,
+    },
+    Product {
+        factors: Vec<Law>,
+    },
 }
 
 fn shape_error(message: &str) -> PraxisError {
@@ -312,11 +577,32 @@ impl Law {
             Law::Mixture { .. } => "MIXTURE",
             Law::Posterior { .. } => "POSTERIOR",
             Law::Population { .. } => "POPULATION",
+            Law::EmpiricalBayes { .. } => "EMPIRICAL_BAYES",
+            Law::Duration { .. } => "DURATION",
+            Law::Trend { .. } => "TREND",
+            Law::Product { .. } => "PRODUCT",
         }
     }
 
     fn is_updated(&self) -> bool {
-        matches!(self, Law::Posterior { .. } | Law::Population { .. })
+        matches!(
+            self,
+            Law::Posterior { .. }
+                | Law::Population { .. }
+                | Law::EmpiricalBayes { .. }
+                | Law::Duration { .. }
+                | Law::Trend { .. }
+        )
+    }
+
+    pub fn is_probability_output(&self) -> bool {
+        match self {
+            Law::Duration { output, .. } => matches!(output, DurationOutput::Exceedance { .. }),
+            Law::EmpiricalBayes { evidence, .. } => evidence
+                .first()
+                .is_some_and(|term| term.likelihood == CountLikelihood::Binomial),
+            _ => false,
+        }
     }
 
     pub fn check_shape(&self) -> Result<()> {
@@ -514,13 +800,96 @@ impl Law {
                         )?;
                         law.check_shape()
                     }
-                    None => require(
-                        evidence
-                            .iter()
-                            .all(|term| term.likelihood == evidence[0].likelihood),
-                        "A Jeffreys posterior needs evidence of one likelihood",
-                    ),
+                    None => Ok(()),
                 }
+            }
+            Law::EmpiricalBayes { evidence, target } => {
+                require(
+                    evidence.len() >= 2,
+                    "Empirical Bayes needs two or more members",
+                )?;
+                evidence.iter().try_for_each(CountEvidence::check_shape)?;
+                require(
+                    evidence
+                        .iter()
+                        .all(|term| term.likelihood == evidence[0].likelihood),
+                    "Empirical Bayes members share one likelihood. Fit binomial and Poisson members apart",
+                )?;
+                require(
+                    target.is_none_or(|index| index < evidence.len()),
+                    "An empirical Bayes target names one of its members",
+                )
+            }
+            Law::Duration {
+                model,
+                times,
+                censored,
+                priors,
+                output,
+            } => {
+                require(
+                    !times.is_empty()
+                        || model
+                            .parameters()
+                            .iter()
+                            .all(|parameter| priors.iter().any(|prior| prior.parameter == *parameter)),
+                    "A duration law needs a completed time or a prior on each parameter",
+                )?;
+                require(
+                    times
+                        .iter()
+                        .chain(censored.iter())
+                        .all(|time| time.is_finite() && *time > 0.0),
+                    "Duration times must be positive hours",
+                )?;
+                let mut seen = HashSet::new();
+                for prior in priors {
+                    require(
+                        model.parameters().contains(&prior.parameter),
+                        "A duration prior names a parameter of its model",
+                    )?;
+                    require(
+                        seen.insert(prior.parameter),
+                        "Each duration parameter has at most one prior",
+                    )?;
+                    require(
+                        !prior.law.is_updated() && !matches!(prior.law, Law::Mixture { .. }),
+                        "A duration prior is a base law or a truncated law",
+                    )?;
+                    prior.law.check_shape()?;
+                }
+                match output {
+                    DurationOutput::Exceedance { time } => require(
+                        time.is_finite() && *time > 0.0,
+                        "An exceedance needs a positive time",
+                    ),
+                    DurationOutput::Mean => Ok(()),
+                }
+            }
+            Law::Trend { bins, at } => {
+                require(at.is_finite(), "A trend needs a finite time to report")?;
+                require(
+                    bins.iter().all(|bin| {
+                        bin.time.is_finite()
+                            && bin.failures.is_finite()
+                            && bin.failures >= 0.0
+                            && bin.exposure.is_finite()
+                            && bin.exposure > 0.0
+                    }),
+                    "Trend bins need finite times, zero or more failures and positive exposure",
+                )?;
+                require(
+                    bins.iter().any(|bin| bin.time != bins[0].time),
+                    "A trend needs bins at two or more times",
+                )?;
+                require(
+                    bins.iter().any(|bin| bin.failures > 0.0),
+                    "A trend needs at least one failure",
+                )
+            }
+            Law::Product { factors } => {
+                require(factors.len() >= 2, "A product law needs two or more factors")?;
+                factors.iter().try_for_each(Law::check_shape)
             }
             Law::Population {
                 mu,
@@ -566,11 +935,7 @@ impl Law {
                             law.family()
                         )));
                     }
-                    if high > 1.0
-                        && evidence
-                            .iter()
-                            .any(|term| term.likelihood == Likelihood::Binomial)
-                    {
+                    if high > 1.0 && evidence.iter().any(EvidenceTerm::is_probability) {
                         return Err(meaning_error(format!(
                             "The {} prior of a posterior with binomial evidence reaches above 1",
                             law.family()
@@ -594,9 +959,7 @@ impl Law {
                     ));
                 }
                 if upper.is_none_or(|bound| bound > 1.0)
-                    && evidence
-                        .iter()
-                        .any(|term| term.likelihood == Likelihood::Binomial)
+                    && evidence.iter().any(EvidenceTerm::is_probability)
                 {
                     return Err(meaning_error(
                         "A population with binomial evidence needs an upper bound of at most 1"
@@ -605,6 +968,20 @@ impl Law {
                 }
                 Ok(())
             }
+            Law::Duration { priors, .. } => {
+                for prior in priors {
+                    prior.law.check_meaning()?;
+                    if prior.parameter.positive() && prior.law.support().0 < 0.0 {
+                        return Err(meaning_error(format!(
+                            "The {} prior on {} reaches below 0",
+                            prior.law.family(),
+                            prior.parameter.label()
+                        )));
+                    }
+                }
+                Ok(())
+            }
+            Law::Product { factors } => factors.iter().try_for_each(Law::check_meaning),
             _ => Ok(()),
         }
     }
@@ -654,12 +1031,34 @@ impl Law {
                     (low.min(component_low), high.max(component_high))
                 },
             ),
-            Law::Posterior { prior, evidence } => match prior {
-                Some(law) => law.support(),
-                None if evidence[0].likelihood == Likelihood::Binomial => (0.0, 1.0),
-                None => (0.0, f64::INFINITY),
-            },
+            Law::Posterior { prior, evidence } => {
+                let bounded = evidence.iter().any(EvidenceTerm::is_probability);
+                match prior {
+                    Some(law) if bounded => {
+                        let (low, high) = law.support();
+                        (low.max(0.0), high.min(1.0))
+                    }
+                    Some(law) => law.support(),
+                    None if bounded => (0.0, 1.0),
+                    None => (0.0, f64::INFINITY),
+                }
+            }
             Law::Population { upper, .. } => (0.0, upper.unwrap_or(f64::INFINITY)),
+            Law::EmpiricalBayes { .. } | Law::Duration { .. } if self.is_probability_output() => {
+                (0.0, 1.0)
+            }
+            Law::EmpiricalBayes { .. } | Law::Duration { .. } | Law::Trend { .. } => {
+                (0.0, f64::INFINITY)
+            }
+            Law::Product { factors } => factors.iter().fold((1.0, 1.0), |(low, high), factor| {
+                let (factor_low, factor_high) = factor.support();
+                let corners = [low * factor_low, low * factor_high, high * factor_low, high * factor_high]
+                    .map(|value| if value.is_nan() { 0.0 } else { value });
+                (
+                    corners.iter().copied().fold(f64::INFINITY, f64::min),
+                    corners.iter().copied().fold(f64::NEG_INFINITY, f64::max),
+                )
+            }),
         }
     }
 }
@@ -674,6 +1073,31 @@ pub struct UncertainValue {
 impl UncertainValue {
     pub fn check_meaning(&self) -> Result<()> {
         self.law.check_meaning()?;
+        if self.law.is_probability_output() && self.unit.time_power() != 0 {
+            return Err(meaning_error(format!(
+                "The {} law gives a probability, so it cannot be a {} value",
+                self.law.family(),
+                self.unit.label()
+            )));
+        }
+        if let Law::Duration {
+            output: DurationOutput::Mean,
+            ..
+        } = &self.law
+        {
+            if self.unit != UncertainUnit::Hours {
+                return Err(meaning_error(format!(
+                    "A DURATION mean is in hours, so it cannot be a {} value",
+                    self.unit.label()
+                )));
+            }
+        }
+        if matches!(self.law, Law::Trend { .. }) && self.unit.time_power() != -1 {
+            return Err(meaning_error(format!(
+                "A TREND law gives a rate, so it cannot be a {} value",
+                self.unit.label()
+            )));
+        }
         let (low, high) = self.law.support();
         if low > high {
             return Err(meaning_error(format!(
@@ -903,12 +1327,13 @@ const SIMPLEX_TOLERANCE: f64 = 1e-6;
 pub enum VectorLaw {
     Dirichlet { concentrations: Vec<f64> },
     Fixed { values: Vec<f64> },
+    WeightedDirichlet { concentrations: Vec<f64>, weights: Vec<f64> },
 }
 
 impl VectorLaw {
     pub fn len(&self) -> usize {
         match self {
-            VectorLaw::Dirichlet { concentrations } => concentrations.len(),
+            VectorLaw::Dirichlet { concentrations } | VectorLaw::WeightedDirichlet { concentrations, .. } => concentrations.len(),
             VectorLaw::Fixed { values } => values.len(),
         }
     }
@@ -921,6 +1346,7 @@ impl VectorLaw {
         match self {
             VectorLaw::Dirichlet { .. } => "DIRICHLET",
             VectorLaw::Fixed { .. } => "FIXED",
+            VectorLaw::WeightedDirichlet { .. } => "WEIGHTED_DIRICHLET",
         }
     }
 
@@ -948,6 +1374,17 @@ impl VectorLaw {
                     "A fixed vector of fractions sums to 1",
                 )
             }
+            VectorLaw::WeightedDirichlet { concentrations, weights } => {
+                require(concentrations.len() >= 2, "A weighted Dirichlet law needs two or more components")?;
+                require(
+                    weights.len() == concentrations.len(),
+                    "A weighted Dirichlet law needs one weight per concentration",
+                )?;
+                require(
+                    concentrations.iter().chain(weights.iter()).all(|value| value.is_finite() && *value > 0.0),
+                    "Weighted Dirichlet concentrations and weights are finite and positive",
+                )
+            }
         }
     }
 
@@ -958,6 +1395,19 @@ impl VectorLaw {
                 concentrations.iter().map(|value| value / total).collect()
             }
             VectorLaw::Fixed { values } => values.clone(),
+            VectorLaw::WeightedDirichlet { concentrations, weights } => {
+                let scaled: Vec<f64> = concentrations.iter().zip(weights).map(|(value, weight)| value * weight).collect();
+                let total: f64 = scaled.iter().sum();
+                scaled.into_iter().map(|value| value / total).collect()
+            }
+        }
+    }
+
+    pub fn log_weights(&self) -> Vec<f64> {
+        match self {
+            VectorLaw::WeightedDirichlet { weights, .. } => weights.iter().map(|weight| weight.ln()).collect(),
+            VectorLaw::Dirichlet { concentrations } => vec![0.0; concentrations.len()],
+            VectorLaw::Fixed { values } => vec![0.0; values.len()],
         }
     }
 }
@@ -1004,6 +1454,12 @@ pub enum CcfFactorModel {
     Mgl { factors: Vec<UncertainExpression> },
     AlphaFactor { testing: CcfTesting, alphas: UncertainVector },
     PhiFactor { phis: UncertainVector },
+    BinomialFailureRate {
+        independent: Box<UncertainExpression>,
+        non_lethal_shock: Box<UncertainExpression>,
+        component_failure: Box<UncertainExpression>,
+        lethal_shock: Box<UncertainExpression>,
+    },
 }
 
 impl CcfFactorModel {
@@ -1016,7 +1472,19 @@ impl CcfFactorModel {
             }
             CcfFactorModel::AlphaFactor { alphas, .. } => alphas.check_shape(),
             CcfFactorModel::PhiFactor { phis } => phis.check_shape(),
+            CcfFactorModel::BinomialFailureRate {
+                independent,
+                non_lethal_shock,
+                component_failure,
+                lethal_shock,
+            } => [independent, non_lethal_shock, component_failure, lethal_shock]
+                .into_iter()
+                .try_for_each(|part| part.check_shape()),
         }
+    }
+
+    pub fn takes_total(&self) -> bool {
+        !matches!(self, CcfFactorModel::BinomialFailureRate { .. })
     }
 }
 

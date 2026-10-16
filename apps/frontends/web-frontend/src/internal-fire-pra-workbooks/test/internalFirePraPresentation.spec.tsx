@@ -84,7 +84,7 @@ describe("Internal Fire PRA presentation", () => {
     render(<InternalFirePraWorkbookProvider mef={createInternalFirePraExample("htgr")} editable mutate={jest.fn()}><DraftScreen /></InternalFirePraWorkbookProvider>);
     expect(screen.getByText("Generated preview · Word output")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Conformance check" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Hand-off to internal review" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Draft submission" })).toBeInTheDocument();
     expect(screen.getByText("Circuit failure analysis")).toBeInTheDocument();
   });
 

@@ -156,6 +156,11 @@ function SyBayesianNetworkWorkspace({
             const syValue = syValueOf(event, controlledParameters);
             return { id: event.uuid, code: event.code, name: event.name, ...(syValue === undefined ? {} : { syValue }) };
           }),
+        parameterOptions: controlledParameters.map((option) => ({
+          reference: { referenceType: "WORKBOOK_PARAMETER" as const, workbookId: option.workbookId, entityId: option.parameterId },
+          label: `${option.workbookName} · ${option.parameterName}`,
+          unit: option.unit,
+        })),
       };
     }), [controlledParameters, runtime.workbookId, sy.systemBasicEvents, sy.systemLogicModels]);
 
@@ -386,7 +391,7 @@ function SyBayesianNetworkWorkspace({
   return (
     <section className="poscard" aria-label="Systems Analysis dependency models">
       <div className="poscard__head bneditor__network-head">
-        <WorkbookSectionHeading workbook="SY" title="Bayesian dependency network" level={3} />
+        <WorkbookSectionHeading title="Bayesian dependency network" level={3} />
         <div className="posrow esqbn__network-actions" style={{ gap: 8 }}>
           {model !== undefined && (
             <select aria-label="Bayesian network" className="posfield__select" value={model.modelId} onChange={(event) => setSelectedModelId(event.target.value)}>
@@ -405,9 +410,10 @@ function SyBayesianNetworkWorkspace({
           saveBlockedReason={saveBlockedReason}
           onAnalysisInputChange={analysis.invalidate}
           editable={editable}
+          analysisHost="sy"
           workbookNotice={targetEsqWorkbook === undefined || runtime.workbookId === null ? undefined : {
             message: `This network is available in ${workbookBaseName(targetEsqWorkbook.name)}.`,
-            sourceHref: `/esq-workbooks/${encodeURIComponent(targetEsqWorkbook.id)}?step=logic&sourceWorkbook=${encodeURIComponent(runtime.workbookId)}&network=${encodeURIComponent(model.modelId)}`,
+            sourceHref: `/esq-workbooks/${encodeURIComponent(targetEsqWorkbook.id)}?step=solve&sourceWorkbook=${encodeURIComponent(runtime.workbookId)}&network=${encodeURIComponent(model.modelId)}`,
             sourceLabel: "Open Event Sequence Quantification workbook",
           }}
           hclScope="FAULT_TREE"

@@ -6,8 +6,9 @@ mod model;
 pub use model::{
     HclAnalysisResult, HclAnalysisSettings, HclBasicEventUncertainty, HclBatchCompilationStats,
     HclBatchResult, HclCptGenerator, HclCptGeneratorSpec, HclCptRowUncertainty,
-    HclFragilityDemand, HclHazardGridBatchResult, HclPgaBin, HclPgaFrequencyConversion,
-    HclSampler, HclUncertaintySettings, HclUncertaintySummary,
+    HclCorrelation, HclFragilityDemand, HclHazardGridBatchResult, HclPgaBin,
+    HclPgaFrequencyConversion, HclSampler, HclUncertaintyAdjustments, HclUncertaintySettings,
+    HclUncertaintySummary, HclZeroContexts,
 };
 
 use std::time::Duration;
@@ -192,8 +193,8 @@ fn quantify_hcl_batch_internal(
                     resolved_evidence,
                     &event_by_variable,
                 )?;
-                let summary = HclUncertaintySummary::from_samples(&samples, prepared.seed())?;
-                Ok::<_, PraxisError>((Some(summary), Some(samples)))
+                let summary = prepared.summarize(&samples)?;
+                Ok::<_, PraxisError>((Some(summary), Some(samples.values)))
             })
             .transpose()?
             .unwrap_or((None, None));
@@ -580,6 +581,11 @@ mod tests {
                 sample_count: 200,
                 seed: 2026,
                 sampler: crate::hcl::HclSampler::MonteCarlo,
+                cpt_sampler: None,
+                correlation: Default::default(),
+                clip_probabilities: false,
+                cpt_clip_epsilon: 0.0,
+                zero_probability_contexts: Default::default(),
                 basic_events: vec![],
                 cpt_rows: vec![crate::hcl::HclCptRowUncertainty {
                     node: "NODE-A".to_string(),

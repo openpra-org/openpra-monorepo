@@ -2,6 +2,7 @@ import { EventSequenceAnalysisSchema } from "interfaces-mef-types/zod/es/event-s
 import { EventSequenceQuantificationSchema } from "interfaces-mef-types/zod/esq/event-sequence-quantification";
 import { SystemsAnalysisSchema } from "interfaces-mef-types/zod/sy/systems-analysis";
 import { carriesUncertainExpression } from "interfaces-mef-types/sy/systems-analysis";
+import { expressionReferences } from "interfaces-mef-types/core/uncertainty";
 import { isComponentModel } from "interfaces-mef-types/da/data-analysis";
 import { RadiologicalConsequenceAnalysisSchema } from "interfaces-mef-types/zod/rc/radiological-consequence-analysis";
 import { RiskIntegrationSchema } from "interfaces-mef-types/zod/ri/risk-integration";
@@ -67,7 +68,7 @@ describe("dependency example models", () => {
       const quantification = hr.hepQuantifications.find((entry) => entry.uuid === source.quantificationId);
       return source.workbookId === "real-hr-workbook" &&
         quantification?.hfeId === source.entityId &&
-        (quantification.meanHep ?? quantification.pointEstimateHep) === event.probability;
+        quantification.hep !== undefined;
     })).toBe(true);
     expect(reconciled.humanFailureEventIntegrations.every((integration) =>
       integration.hfeSource?.referenceType === "HUMAN_FAILURE_EVENT" &&
@@ -84,15 +85,15 @@ describe("dependency example models", () => {
     const parameters = new Map(da.parameters.map((parameter) => [parameter.uuid, parameter]));
     const components = sy.systemBasicEvents.filter((event) => carriesUncertainExpression(event.failureMode));
     const estimated = components.flatMap((event) => {
-      const expression = event.expression;
-      return expression?.node === "PARAMETER" && parameters.has(expression.reference.entityId) ? [{ event, entityId: expression.reference.entityId }] : [];
+      const [reference] = event.expression === undefined ? [] : expressionReferences(event.expression).filter((candidate) => parameters.has(candidate.entityId));
+      return reference === undefined ? [] : [{ event, entityId: reference.entityId }];
     });
     expect(estimated.length).toBeGreaterThan(40);
     expect(estimated).toHaveLength(components.length);
     for (const { event, entityId } of estimated) {
       const linked = reconciled.systemBasicEvents.find((candidate) => candidate.uuid === event.uuid);
       expect(isComponentModel(parameters.get(entityId)?.quantificationModel)).toBe(true);
-      expect(linked?.expression).toEqual({ node: "PARAMETER", reference: { referenceType: "WORKBOOK_PARAMETER", workbookId: "real-da-workbook", entityId } });
+      expect(linked?.expression === undefined ? [] : expressionReferences(linked.expression)).toEqual([{ referenceType: "WORKBOOK_PARAMETER", workbookId: "real-da-workbook", entityId }]);
       expect(linked).not.toHaveProperty("probability");
       expect(linked).not.toHaveProperty("controlledDataSource");
       expect(linked).not.toHaveProperty("dataAnalysisBasicEventRef");

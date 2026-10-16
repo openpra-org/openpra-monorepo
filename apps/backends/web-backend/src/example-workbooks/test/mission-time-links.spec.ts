@@ -32,12 +32,11 @@ interface Variant {
   sy: SystemsAnalysis;
   da: DataAnalysis;
   link: string;
-  typed: string[];
 }
 
 const variants: Variant[] = [
-  { name: "SFR", sc: SC_ANALYSIS, sy: SY_ANALYSIS, da: DA_ANALYSIS, link: "example-sc-sfr", typed: [] },
-  { name: "HTGR", sc: SC_ANALYSIS_HTGR, sy: SY_ANALYSIS_HTGR, da: DA_ANALYSIS_HTGR, link: "example-sc-htgr", typed: ["DA-BE-238", "DA-BE-239"] },
+  { name: "SFR", sc: SC_ANALYSIS, sy: SY_ANALYSIS, da: DA_ANALYSIS, link: "example-sc-sfr" },
+  { name: "HTGR", sc: SC_ANALYSIS_HTGR, sy: SY_ANALYSIS_HTGR, da: DA_ANALYSIS_HTGR, link: "example-sc-htgr" },
 ];
 
 function evaluate(request: UncertaintyRequest): UncertaintyResponse {
@@ -54,6 +53,10 @@ function missionEstimates(variant: Variant): MissionEstimate[] {
     if (estimate?.node !== "MODEL" || estimate.model.form !== "MISSION") return [];
     return [{ id: parameter.uuid, systemId: parameter.systemReference, rate: estimate.model.rate, missionTime: estimate.model.missionTime }];
   });
+}
+
+function pointHours(expression: UncertainExpression | undefined): number {
+  return expression?.node === "VALUE" && expression.value.law.family === "POINT" ? expression.value.law.value : Number.NaN;
 }
 
 function scTable(variant: Variant): UncertainParameter[] {
@@ -92,21 +95,23 @@ describe("example mission times", () => {
   it.each(variants)("links every $name DA mission estimate to its system time or its component time", (variant) => {
     expect(DataAnalysisSchema.safeParse(variant.da).success).toBe(true);
     const systemTimes = new Map(variant.sy.systemDefinitions.map((system) => [system.uuid, system.missionTime]));
-    const components = new Set((variant.sc.componentMissionTimes ?? []).map((record) => record.uuid));
+    const components = new Map((variant.sc.componentMissionTimes ?? []).map((record) => [record.uuid, record]));
+    const sequences = new Map(variant.sc.missionTimes.map((record) => [record.uuid, record.eventSequenceReference]));
+    const values = new Map(variant.sc.missionTimes.map((record) => [record.uuid, record.missionTime]));
     const estimates = missionEstimates(variant);
     expect(estimates.length).toBeGreaterThan(0);
     for (const estimate of estimates) {
-      if (variant.typed.includes(estimate.id)) {
-        expect(estimate.missionTime.node).toBe("VALUE");
-        continue;
-      }
       expect(estimate.missionTime.node).toBe("PARAMETER");
       if (estimate.missionTime.node !== "PARAMETER") continue;
       expect(estimate.missionTime.reference.workbookId).toBe(variant.link);
       const systemTime = systemTimes.get(estimate.systemId ?? "");
       const entityId = estimate.missionTime.reference.entityId;
       const followsSystem = systemTime?.node === "PARAMETER" && systemTime.reference.entityId === entityId;
-      expect(followsSystem || components.has(entityId)).toBe(true);
+      const component = components.get(entityId);
+      expect(followsSystem || component !== undefined).toBe(true);
+      if (component === undefined || systemTime?.node !== "PARAMETER") continue;
+      expect([estimate.id, component.eventSequenceReference]).toEqual([estimate.id, sequences.get(systemTime.reference.entityId)]);
+      if (pointHours(component.missionTime) < pointHours(values.get(systemTime.reference.entityId))) expect([estimate.id, component.shorterMissionTimeJustification ?? ""]).not.toEqual([estimate.id, ""]);
     }
     expect(variant.da.parameters.every((parameter) => parameter.estimate === undefined || parameter.missionTime === undefined)).toBe(true);
   });

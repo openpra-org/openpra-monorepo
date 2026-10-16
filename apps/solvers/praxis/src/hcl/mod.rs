@@ -16,14 +16,15 @@ mod numpy_statistics;
 pub(crate) mod ordering;
 mod quantify;
 mod request;
+mod sample_outputs;
 mod uncertainty;
 
 pub use analysis::{
     analyze_hcl, quantify_hcl_batch, quantify_hcl_hazard_grid_batch, HclAnalysisResult,
     HclAnalysisSettings, HclBasicEventUncertainty, HclBatchCompilationStats, HclBatchResult,
     HclCptGenerator, HclCptGeneratorSpec, HclCptRowUncertainty, HclFragilityDemand,
-    HclHazardGridBatchResult, HclPgaBin, HclPgaFrequencyConversion, HclSampler,
-    HclUncertaintySettings, HclUncertaintySummary,
+    HclCorrelation, HclHazardGridBatchResult, HclPgaBin, HclPgaFrequencyConversion, HclSampler,
+    HclUncertaintyAdjustments, HclUncertaintySettings, HclUncertaintySummary, HclZeroContexts,
 };
 pub use api::quantify_hcl;
 pub use bayesian::{
@@ -44,6 +45,10 @@ pub use model::{
 pub use ordering::source_fault_tree_order;
 pub use quantify::HclQuantifier;
 pub use request::{HclNetworkInput, HclRequest, HCL_REQUEST_VERSION};
+pub use sample_outputs::{
+    hazard_exceedance, HclDistributionFit, HclExceedancePoint, HclFitCandidate, HclFitFamily,
+    HclHazardExceedancePoint, HclHistogram, HclQuantity, HclRejectedFit,
+};
 pub use uncertainty::validate_hcl_uncertainty_settings;
 pub(crate) use uncertainty::PreparedHclUncertainty;
 

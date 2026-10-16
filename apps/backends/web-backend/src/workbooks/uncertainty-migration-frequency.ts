@@ -34,6 +34,8 @@ import {
   type ConversionScope,
 } from "./uncertainty-migration-laws";
 import { convertFrequencyFaultTree, convertHazardFaultTrees } from "./uncertainty-migration-fault-trees";
+import { withEsEndStateCatalog } from "./uncertainty-migration-end-states";
+import { withDistinctEsSequences } from "./uncertainty-migration-sequences";
 
 type TypedFrequency = { kind: "NONE" } | { kind: "FREQUENCY"; frequency: UncertainFrequency } | { kind: "INVALID" };
 
@@ -260,7 +262,28 @@ function treeExpression(frequency: JsonRecord, scope: ConversionScope, what: str
   return parameterExpression(workbookId, parameterId);
 }
 
-function convertEventTree(tree: JsonRecord, scope: ConversionScope, host: string): JsonRecord {
+function treeMissionHours(tree: JsonRecord, scope: ConversionScope, host: string): JsonRecord {
+  const stored = recordField(tree, "missionTime");
+  if (stored === undefined) return tree;
+  const node = textField(stored, "node");
+  if (node === "PARAMETER") return without(tree, ["missionTime"]);
+  const value = recordField(stored, "value") ?? {};
+  const law = recordField(value, "law") ?? {};
+  const hours = node === "VALUE" && textField(value, "unit") === "HOURS" && textField(law, "family") === "POINT" ? numberField(law, "value") : undefined;
+  if (hours !== undefined) return { ...tree, missionTime: hours, missionTimeUnits: "h" };
+  scope.report(`The mission time of ${host} event tree ${textField(tree, "uuid") ?? "?"} is not a number of hours, so it cannot be converted.`);
+  return tree;
+}
+
+function withoutFailureEffects(tree: JsonRecord): JsonRecord {
+  return withRecord(tree, "functionalEvents", (events) => {
+    if (!Object.values(events).some((event) => isRecord(event) && present(event, "failureEffect"))) return events;
+    return Object.fromEntries(Object.entries(events).map(([key, event]): [string, Json] => [key, isRecord(event) ? without(event, ["failureEffect"]) : event]));
+  });
+}
+
+function convertEventTree(stored: JsonRecord, scope: ConversionScope, host: string): JsonRecord {
+  const tree = withoutFailureEffects(treeMissionHours(stored, scope, host));
   return withRecord(tree, "initiatingEventFrequency", (frequency) => {
     if (storedExpression(frequency, "expression") !== undefined || !TREE_OLD_FIELDS.some((key) => present(frequency, key))) return frequency;
     const expression = treeExpression(frequency, scope, `The initiating event frequency of ${host} event tree ${textField(tree, "uuid") ?? "?"}`);
@@ -269,7 +292,7 @@ function convertEventTree(tree: JsonRecord, scope: ConversionScope, host: string
 }
 
 function convertEsMef(mef: JsonRecord, scope: ConversionScope): JsonRecord {
-  return withArray(mef, "eventTrees", (tree) => convertEventTree(tree, scope, "ES"));
+  return withDistinctEsSequences(withEsEndStateCatalog(withArray(mef, "eventTrees", (tree) => convertEventTree(tree, scope, "ES"))));
 }
 
 function convertHazardMef(mef: JsonRecord, scope: ConversionScope): JsonRecord {

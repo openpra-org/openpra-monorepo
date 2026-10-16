@@ -98,7 +98,7 @@ describe("Seismic PRA Step 08 SSC screening and fragility development", () => {
     },
   );
 
-  it("keeps section help behind a question mark and entry detail beside its name", async () => {
+  it("keeps entry detail beside its name without section help", async () => {
     const mef = renderFragilityDevelopment();
     const mechanism = mef.seismicFragilityAnalysis.results
       .failureMechanisms[0]!;
@@ -107,13 +107,15 @@ describe("Seismic PRA Step 08 SSC screening and fragility development", () => {
         item.uuid === mechanism.sscRef)?.name ?? mechanism.sscRef;
 
     expect(screen.queryByRole("note")).not.toBeInTheDocument();
-    await userEvent.click(screen.getByRole("button", {
+    const heading = screen.getByRole("heading", {
+      name: "Fragility evaluations",
+    }).closest(".ssection__heading");
+    expect(heading).not.toBeNull();
+    expect(within(heading as HTMLElement).queryAllByRole("button"))
+      .toHaveLength(0);
+    expect(screen.queryByRole("button", {
       name: "About Fragility evaluations",
-    }));
-    expect(screen.getByRole("note")).toHaveTextContent(
-      "A fragility curve converts earthquake motion into a probability of failure",
-    );
-    expect(screen.getByRole("note")).toHaveTextContent("For example");
+    })).not.toBeInTheDocument();
 
     expect(screen.queryByText(mechanism.description, { exact: false }))
       .not.toBeInTheDocument();

@@ -7,19 +7,8 @@
   align-items: center;
   gap: 8px;
   margin-top: 12px;
-  font-size: 12px;
-}
-.analysis-results__pagination label {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-.analysis-results__pagination select {
-  color: inherit;
-  background: var(--color-surface, #fff);
-  border: 1px solid var(--color-border, #d8dee8);
-  border-radius: 4px;
-  padding: 4px;
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
 }
 .analysis-results__toolbar {
   display: flex;
@@ -31,7 +20,7 @@
 }
 .analysis-results__warnings {
   margin: 10px 0;
-  font-size: 12px;
+  font-size: 15px;
   overflow-wrap: anywhere;
 }
 .analysis-results__warnings ul {

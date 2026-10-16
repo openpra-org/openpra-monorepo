@@ -40,7 +40,7 @@ function MethodChips({ ids, label }: { ids: string[]; label?: string }): JSX.Ele
 }
 
 // ─── 01 — Scope (RCRE) ─────────────────────────────────────────────────────
-function HandoffScreen({ ccId, setCcId, site, setSite, openDrawer }: {
+function ScopeScreen({ ccId, setCcId, site, setSite, openDrawer }: {
   ccId: string;
   setCcId: (id: string) => void;
   site: SiteBasis;
@@ -132,14 +132,14 @@ function HandoffScreen({ ccId, setCcId, site, setSite, openDrawer }: {
   return (
     <>
       <div className="poscard rc-handoff__wide-card">
-        <div className="poscard__head"><WorkbookSectionHeading workbook="RC" title="Interfaces" level={3} /></div>
+        <div className="poscard__head"><WorkbookSectionHeading title="Interfaces" level={3} /></div>
         <RcInterfaces openDrawer={openDrawer} />
       </div>
 
       <RcMetricsCard openDrawer={openDrawer} />
 
       <div className="poscard rc-handoff__wide-card rc-handoff__scope">
-        <div className="poscard__head"><WorkbookSectionHeading workbook="RC" title="PRA scope" level={3} /></div>
+        <div className="poscard__head"><WorkbookSectionHeading title="PRA scope" level={3} /></div>
         <WorkbookTextarea
           className="posfield__textarea"
           aria-label="PRA scope"
@@ -178,7 +178,7 @@ function HandoffScreen({ ccId, setCcId, site, setSite, openDrawer }: {
 
       <div className="poscard rc-handoff__compact-card">
         <div className="poscard__head">
-          <WorkbookSectionHeading workbook="RC" title="Capability category" level={3} />
+          <WorkbookSectionHeading title="Capability category" level={3} />
           <Badge kind="progress">{cc.tag}</Badge>
         </div>
         <div className="rc-handoff__choices">
@@ -200,7 +200,7 @@ function HandoffScreen({ ccId, setCcId, site, setSite, openDrawer }: {
 
       <div className="poscard rc-handoff__compact-card">
         <div className="poscard__head">
-          <WorkbookSectionHeading workbook="RC" title="Site fork" level={3} />
+          <WorkbookSectionHeading title="Site fork" level={3} />
           <RcProvenanceChip>RCRE-A1</RcProvenanceChip>
         </div>
         <div className="rcsite">
@@ -229,7 +229,7 @@ function HandoffScreen({ ccId, setCcId, site, setSite, openDrawer }: {
       </div>
 
       <div className="poscard rc-handoff__compact-card">
-        <div className="poscard__head"><WorkbookSectionHeading workbook="RC" title="Plant stage" level={3} /></div>
+        <div className="poscard__head"><WorkbookSectionHeading title="Plant stage" level={3} /></div>
         <div className="posrow posrow--wrap" style={{ gap: 12 }}>
           {([
             ["pre_operational", "Pre-operational", "Plant-response data comes from general or design calculations, with gaps from the not-yet-built plant written down as assumptions."],
@@ -261,4 +261,4 @@ function WeatherScreen({ openDrawer, onReviewSite }: { openDrawer: (ctx: RcDrawe
   return <RcMeteorologyPanel onReviewSite={onReviewSite} onEditBasis={() => openDrawer({ kind: "metbasis", id: "meteorology" })} onEditQuality={() => openDrawer({ kind: "metquality", id: "meteorology" })} />;
 }
 
-export { RcInterfaces, HandoffScreen, ProtectiveScreen, WeatherScreen, MethodChips, type RcDrawerContext };
+export { RcInterfaces, ScopeScreen, ProtectiveScreen, WeatherScreen, MethodChips, type RcDrawerContext };

@@ -14,6 +14,7 @@ import { RadiologicalConsequenceAnalysisSchema } from "interfaces-mef-types/zod/
 import { ProjectsService } from "../projects/projects.service";
 import { ExampleWorkbooksService } from "../example-workbooks/example-workbooks.service";
 import { WorkbookRolesService, type WorkbookRoleName } from "../workbooks/workbook-roles.service";
+import { recordWorkbookStatus } from "../workbooks/workbook-status";
 import { WorkbookSignoff, type WorkbookSignoffDocument } from "../workbooks/workbook-signoff.schema";
 import { RcWorkbook, type RcWorkbookDocument } from "./rc-workbook.schema";
 import { RcDocumentsService } from "./rc-documents.service";
@@ -163,13 +164,14 @@ export class RcWorkbooksService {
       workflowState: "DRAFT",
       workflowHistory: [{ state: "DRAFT", enteredAt: new Date().toISOString(), actor: acting.username, note: "Loaded from example workbook" }],
     };
-    doc.previousMefJson = JSON.stringify(doc.mef);
+    if (typeof doc.previousMefJson !== "string" || doc.previousMefJson.length === 0) doc.previousMefJson = JSON.stringify(doc.mef);
     doc.mef = JSON.parse(JSON.stringify(cleaned));
     try { await doc.save(); } catch (error) {
       if (prepared) await this.publishedExample.rollback(workbookId, prepared.created);
       if (error instanceof Error && error.name === "VersionError") throw new ConflictException("The workbook changed. Reload before loading the example");
       throw error;
     }
+    await recordWorkbookStatus(this.rcWorkbookModel.db, workbookId, (doc.mef as { workflowState?: string }).workflowState);
     await this.signoffModel.deleteMany({ workbookId }).exec();
     await this.rcDocumentsService.removeAllForWorkbook(workbookId, true);
     return toResponse(doc, myRoles);
@@ -197,6 +199,7 @@ export class RcWorkbooksService {
     doc.mef = parsed.data;
     doc.previousMefJson = null;
     await doc.save();
+    await recordWorkbookStatus(this.rcWorkbookModel.db, workbookId, (doc.mef as { workflowState?: string }).workflowState);
     return toResponse(doc, myRoles);
   }
 }

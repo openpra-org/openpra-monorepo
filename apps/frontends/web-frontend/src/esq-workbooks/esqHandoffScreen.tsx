@@ -1,63 +1,57 @@
-import { Fragment, JSX, useId, useMemo, useState } from "react";
-import type { EsqHandoffResponse, EsqResponseStatus } from "interfaces-mef-types/esq/event-sequence-quantification";
-import { expressionText } from "../newly-developed-methods/shared/uncertainText";
-import { cellRecordText } from "./esqBarriers";
-import { parameterLabelOf } from "./esqModel";
-import { resolvedCombinations } from "interfaces-mef-types/esq/esq-post-inputs";
-import { WorkbookCueLabel, WorkbookSectionHeading } from "../workbooks/workbookSectionHeading";
+import { JSX, useEffect, useId, useMemo, useRef } from "react";
+import type {
+  EsqHandoffResponse,
+  EsqResponseStatus,
+  EventSequenceFamilyQuantification,
+  EventSequenceQuantification,
+  ImportanceAnalysisRecord,
+  ImportanceMeasureEntry,
+} from "interfaces-mef-types/esq/event-sequence-quantification";
+import type { ImportanceLevel } from "interfaces-mef-types/core/shared-patterns";
 import { WorkbookTextarea } from "../workbooks/commitOnDeactivateFields";
+import { TechnicalElementHandoff, handoffName, joinedOrNone, recordLabel, type HandoffSectionView } from "../workbooks/workbookHandoff";
 import { analysisSaveBlock } from "../newly-developed-methods/shared/useAnalysisScope";
+import { expressionText } from "../newly-developed-methods/shared/uncertainText";
 import { useEsqWorkbook } from "./esqWorkbookContext";
-import {
-  DetailRow,
-  DetailToggle,
-  EsqProvenanceChip,
-  EsqTabs,
-  FieldList,
-  FindingsTable,
-  FormFoot,
-  FormRow,
-  ModalHead,
-  dateText,
-  rowClass,
-  sciText,
-  useElementWidth,
-  useRunner,
-} from "./esqShared";
-import type { EsqWindowContext } from "./esqModelScreen";
+import { FormFoot, FormRow, ModalHead, sciText, useRunner, type EsqWindowContext } from "./esqShared";
 import { caseOptions } from "./esqDaLinks";
-import { SOURCE_LABELS } from "./esqSolve";
+import { parameterLabelOf } from "./esqModel";
 import { fourDigits } from "./esqResults";
-import { END_STATE_LABELS } from "./esqViewData";
+import { CONTRIBUTOR_TYPE_LABELS } from "./esqViewData";
 import {
   OWNER_ELEMENTS,
   RESPONSE_LABELS,
+  createdValues,
   handoffViewOf,
   handoffWorkOf,
   publishEsq,
   withResponse,
+  type EsqFeedbackItem,
   type EsqHandoffView,
   type EsqHandoffWindowKind,
 } from "./esqHandoff";
 import { getEsqImportanceResult, getEsqModelRunResult } from "./esqWorkbookApi";
-
-type HandoffTab = "summary" | "ri" | "ms" | "da" | "hrie" | "responses" | "checks";
-
-const TAB_HEADS: Record<HandoffTab, { title: string; sr: string }> = {
-  summary: { title: "Family package", sr: "ESQ-F1 · RI-B1" },
-  ri: { title: "To risk integration", sr: "RI-B1 · RI-B3 · ESQ-F2" },
-  ms: { title: "To mechanistic source terms", sr: "ESQ-F1" },
-  da: { title: "To data analysis", sr: "DA-D3" },
-  hrie: { title: "To HR and IE", sr: "HR-G1 · IE-C19" },
-  responses: { title: "RI feedback and responses", sr: "RI-B3 · ESQ-F1" },
-  checks: { title: "Hand-off checks", sr: "ESQ-F1" },
-};
 
 const HANDOFF_WINDOW_KINDS: ReadonlySet<string> = new Set<EsqHandoffWindowKind>(["esqHandoffResponse"]);
 
 const HANDOFF_WINDOW_LABELS: Record<EsqHandoffWindowKind, string> = { esqHandoffResponse: "Response to RI" };
 
 const STATUSES: readonly EsqResponseStatus[] = ["PENDING", "IN_PROGRESS", "COMPLETED"];
+
+const BASIS_LABELS: Record<EventSequenceFamilyQuantification["quantificationBasis"], string> = {
+  POINT_ESTIMATE: "Point estimate",
+  MEAN_PROPAGATED_SOKC: "Mean with shared draws",
+  MEAN_RISK_SIGNIFICANT_PARAMETERS: "Mean of significant parameters",
+};
+
+const ENTITY_LABELS: Record<ImportanceMeasureEntry["entityType"], string> = {
+  BASIC_EVENT: "Basic event",
+  INITIATING_EVENT: "Initiating event",
+  HUMAN_FAILURE_EVENT: "Human failure event",
+  CCF_GROUP: "Common cause group",
+  SYSTEM: "System",
+  COMPONENT: "Component",
+};
 
 function blank(text: string | undefined): boolean {
   return text === undefined || text.trim().length === 0;
@@ -67,40 +61,335 @@ function textValue(text: string | undefined): string {
   return text === undefined || text.trim().length === 0 ? "—" : text.trim();
 }
 
-function valueText(value: number | undefined): string {
-  return value === undefined ? "—" : sciText(value);
+function shareText(fraction: number): string {
+  return `${String(Number((100 * fraction).toPrecision(3)))}%`;
 }
 
-function measureText(value: number | undefined): string {
-  return value === undefined ? "—" : fourDigits(value);
+function levelText(level: ImportanceLevel | undefined): string {
+  return level === undefined ? "—" : level.charAt(0) + level.slice(1).toLowerCase();
 }
 
-function listText(items: readonly string[]): string {
-  return items.length === 0 ? "—" : items.join(", ");
+function noneText(text: string | undefined): string {
+  return text === undefined || text.trim().length === 0 ? "None" : text.trim();
 }
 
-function familyLabel(view: EsqHandoffView, familyId: string): string {
-  const row = view.families.find((entry) => entry.family.id === familyId);
-  return row === undefined || blank(row.family.name) ? familyId : `${familyId} · ${row.family.name}`;
+function noneMeasure(value: number | undefined): string {
+  return value === undefined ? "None" : fourDigits(value);
 }
 
-function SummaryPanel({ view }: { view: EsqHandoffView }): JSX.Element {
+function rangeText(low: number | undefined, high: number | undefined): string {
+  return low === undefined || high === undefined ? "None" : `${sciText(low)} to ${sciText(high)}`;
+}
+
+function frequencyValue(value: EventSequenceFamilyQuantification["meanFrequency"]): number {
+  return typeof value === "number" ? value : value.value;
+}
+
+function scopeText(record: ImportanceAnalysisRecord, family: (id: string) => string, sequence: (id: string) => string): string {
+  if (record.scope === "OVERALL") return "Overall";
+  if (record.scope === "PER_FAMILY") return record.familyRef === undefined ? "Family" : family(record.familyRef);
+  return record.sequenceRef === undefined ? "Sequence" : sequence(record.sequenceRef);
+}
+
+function feedbackText(level: ImportanceLevel | undefined, insights: readonly string[] | undefined, recommendations: readonly string[] | undefined): string {
+  const parts = [level === undefined ? "" : `${levelText(level)} significance.`, ...(insights ?? []), ...(recommendations ?? [])].filter((part) => part.trim().length > 0);
+  return parts.length === 0 ? "None" : parts.join(" ");
+}
+
+function responseOf(esq: EventSequenceQuantification, item: EsqFeedbackItem): EsqHandoffResponse {
+  return handoffWorkOf(esq).responses?.find((entry) => entry.id === item.id) ?? { id: item.id, kind: item.kind, ref: item.ref, response: "", status: "PENDING", ...(item.owner === undefined ? {} : { sentTo: item.owner }) };
+}
+
+function useResponseSave(item: EsqFeedbackItem): { response: EsqHandoffResponse; editable: boolean; save: (next: EsqHandoffResponse) => void } {
+  const { esq, editable, mutateEsq } = useEsqWorkbook();
+  return {
+    response: responseOf(esq, item),
+    editable,
+    save: (next) => {
+      if (editable) mutateEsq((draft) => withResponse(draft, next, item.id));
+    },
+  };
+}
+
+function ResponseTextCell({ item }: { item: EsqFeedbackItem }): JSX.Element {
+  const { response, editable, save } = useResponseSave(item);
+  return (
+    <WorkbookTextarea
+      className="posfield__textarea"
+      aria-label={`Response to ${item.label}`}
+      rows={1}
+      fitContent
+      value={response.response}
+      disabled={!editable}
+      onChange={(event) => save({ ...response, response: event.target.value })}
+    />
+  );
+}
+
+function ResponseStatusCell({ item }: { item: EsqFeedbackItem }): JSX.Element {
+  const { response, editable, save } = useResponseSave(item);
+  return (
+    <select
+      className="posfield__select"
+      aria-label={`Response status for ${item.label}`}
+      value={response.status}
+      disabled={!editable}
+      onChange={(event) => {
+        const status = STATUSES.find((candidate) => candidate === event.target.value);
+        if (status !== undefined) save({ ...response, status });
+      }}
+    >
+      {STATUSES.map((status) => <option key={status} value={status}>{RESPONSE_LABELS[status]}</option>)}
+    </select>
+  );
+}
+
+function ResponseOwnerCell({ item }: { item: EsqFeedbackItem }): JSX.Element {
+  const { response, editable, save } = useResponseSave(item);
+  return (
+    <select
+      className="posfield__select"
+      aria-label={`Sent to for ${item.label}`}
+      value={response.sentTo ?? ""}
+      disabled={!editable}
+      onChange={(event) => {
+        const { sentTo: _old, ...rest } = response;
+        save(event.target.value.length === 0 ? rest : { ...rest, sentTo: event.target.value });
+      }}
+    >
+      <option value="">Kept in ESQ</option>
+      {OWNER_ELEMENTS.map((element) => <option key={element} value={element}>{element}</option>)}
+    </select>
+  );
+}
+
+function feedbackDetail(item: EsqFeedbackItem): string {
+  const parts = [item.reason ?? "", ...item.insights, ...item.recommendations].filter((part) => part.trim().length > 0);
+  return parts.length === 0 ? "None" : parts.join(" ");
+}
+
+function esqHandoffSections(esq: EventSequenceQuantification, view: EsqHandoffView | undefined): HandoffSectionView[] {
+  const familyName = new Map((esq.model?.families ?? []).map((entry) => [entry.id, entry.name]));
+  const sequenceCode = new Map((esq.model?.sequences ?? []).map((entry) => [entry.id, entry.code]));
+  const family = (id: string): string => recordLabel(id, familyName.get(id));
+  const sequence = (id: string): string => sequenceCode.get(id) ?? recordLabel(id);
+  const labels = (ids: readonly string[]): string => joinedOrNone(ids.map((id) => recordLabel(id)));
+  const coverage = esq.modelIntegration.scopeCoverage;
+  const coverageGroups: [string, string[]][] = [
+    ["Hazard group", coverage.hazardGroups],
+    ["Operating state", coverage.plantOperatingStates],
+    ["Source", coverage.radionuclideSources],
+    ["Initiator group", coverage.initiatingEventGroups],
+    ["Plant evolution", coverage.plantEvolutions],
+  ];
+  const multiBasis = esq.modelIntegration.multiReactorInclusionBasis?.trim() ?? "";
+  const screened = esq.screenedEventCumulativeAssessment;
+  const feedback = esq.riskIntegrationFeedback;
+  const response = feedback?.response;
+  const overall = (esq.importanceAnalyses ?? []).find((record) => record.scope === "OVERALL");
+  const daMeasures = (overall?.measures ?? []).filter((measure) => measure.dataAnalysisParameterRef !== undefined);
+  const valued = (view?.families ?? []).filter((row) => row.value !== undefined);
+  return [
+    {
+      key: "frequencies",
+      subsections: [
+        {
+          key: "families",
+          name: "Families",
+          columns: [{ label: "Family" }, { label: "Basis" }, { label: "Mean (/yr)", numeric: true }, { label: "5th to 95th (/yr)", numeric: true }, { label: "Contributors", numeric: true }],
+          rows: esq.familyQuantifications.map((record) => ({
+            id: record.uuid,
+            cells: [
+              handoffName(record.eventSequenceFamilyRef, record.name),
+              BASIS_LABELS[record.quantificationBasis],
+              sciText(frequencyValue(record.meanFrequency)),
+              rangeText(record.percentile05, record.percentile95),
+              record.contributionBreakdown?.length ?? 0,
+            ],
+          })),
+        },
+        {
+          key: "sequences",
+          name: "Sequences",
+          columns: [{ label: "Sequence" }, { label: "Mean (/yr)", numeric: true }, { label: "5th to 95th (/yr)", numeric: true }],
+          rows: (esq.sequenceFrequencyEstimates ?? []).map((estimate) => ({
+            id: estimate.uuid,
+            cells: [sequence(estimate.eventSequenceRef), sciText(frequencyValue(estimate.meanFrequency)), rangeText(estimate.percentile05, estimate.percentile95)],
+          })),
+        },
+        {
+          key: "family-scope",
+          name: "Family scope",
+          columns: [{ label: "Family" }, { label: "Release category" }, { label: "Operating states" }, { label: "Initiators" }, { label: "Sources" }],
+          rows: valued.map((row) => ({
+            id: row.family.id,
+            cells: [
+              handoffName(row.family.id, row.family.name),
+              row.family.releaseCategoryId === undefined ? "None" : recordLabel(row.family.releaseCategoryId),
+              labels(row.family.stateIds),
+              labels(row.family.initiatorIds),
+              labels(row.family.sourceIds),
+            ],
+          })),
+        },
+        {
+          key: "contributors",
+          name: "Contributors",
+          columns: [{ label: "Family" }, { label: "Contributor" }, { label: "Type" }, { label: "Share", numeric: true }],
+          rows: esq.familyQuantifications.flatMap((record) => [...(record.contributionBreakdown ?? [])]
+            .sort((left, right) => right.fractionalContribution - left.fractionalContribution)
+            .map((part, index) => ({
+              id: `${record.uuid}-${String(index)}`,
+              cells: [family(record.eventSequenceFamilyRef), recordLabel(part.contributorRef), CONTRIBUTOR_TYPE_LABELS[part.contributorType] ?? part.contributorType, shareText(part.fractionalContribution)],
+            }))),
+        },
+      ],
+    },
+    {
+      key: "importance",
+      subsections: [
+        {
+          key: "measures",
+          name: "Measures",
+          columns: [{ label: "Scope" }, { label: "Item" }, { label: "Type" }, { label: "FV", numeric: true }, { label: "RAW", numeric: true }],
+          rows: (esq.importanceAnalyses ?? []).flatMap((record) => record.measures.map((measure, index) => ({
+            id: `${record.uuid}-${String(index)}`,
+            cells: [scopeText(record, family, sequence), recordLabel(measure.entityRef), ENTITY_LABELS[measure.entityType], noneMeasure(measure.fussellVesely), noneMeasure(measure.riskAchievementWorth)],
+          }))),
+        },
+        {
+          key: "by-da-item",
+          name: "By DA item",
+          columns: [{ label: "DA item" }, { label: "FV", numeric: true }, { label: "RAW", numeric: true }],
+          rows: daMeasures.map((measure) => ({
+            id: `${measure.dataAnalysisParameterRef ?? ""}:${measure.entityRef}`,
+            cells: [recordLabel(measure.entityRef), noneMeasure(measure.fussellVesely), noneMeasure(measure.riskAchievementWorth)],
+          })),
+        },
+      ],
+    },
+    {
+      key: "coverage",
+      columns: [{ label: "Kind" }, { label: "Item" }],
+      rows: [
+        ...coverageGroups.flatMap(([kind, items]) => items.map((item, index) => ({ id: `${kind}-${String(index)}-${item}`, cells: [kind, recordLabel(item)] }))),
+        {
+          id: "multi-reactor",
+          cells: ["Sequences with several reactors", `${esq.modelIntegration.multiReactorSequencesIncluded ? "Included" : "Not in scope"}${multiBasis.length === 0 ? "" : ` · ${multiBasis}`}`],
+        },
+      ],
+    },
+    {
+      key: "uncertainty",
+      subsections: [
+        {
+          key: "sources-and-studies",
+          name: "Sources and studies",
+          columns: [{ label: "Kind" }, { label: "Item" }, { label: "From" }, { label: "Effect or result" }],
+          rows: [
+            ...(esq.modelUncertaintySourceAssessments ?? []).map((assessment) => ({
+              id: `source-${assessment.uuid}`,
+              cells: ["Uncertainty source", assessment.uncertaintySource, assessment.sourceElementCode, noneText(assessment.effectOnFamilyFrequencies)],
+            })),
+            ...(esq.sensitivityStudies ?? []).map((study) => ({
+              id: `study-${study.uuid}`,
+              cells: ["Sensitivity study", study.name ?? study.description, study.dataAnalysisCaseRef === undefined ? "ESQ" : "DA", study.results ?? "Not run"],
+            })),
+            ...(screened === undefined ? [] : [{
+              id: "screened",
+              cells: ["Screened initiators", labels(screened.screenedInitiatingEventRefs), "ESQ", screened.cumulativeImpactAssessment],
+            }]),
+          ],
+        },
+        {
+          key: "da-references",
+          name: "References to DA",
+          columns: [{ label: "Kind" }, { label: "DA item" }, { label: "In ESQ" }],
+          rows: [
+            ...(esq.modelUncertaintySourceAssessments ?? []).flatMap((assessment) => (assessment.dataAnalysisSourceRef === undefined ? [] : [{
+              id: `source-${assessment.uuid}`,
+              cells: ["Register entry", recordLabel(assessment.dataAnalysisSourceRef.sourceId), assessment.uncertaintySource],
+            }])),
+            ...(esq.sensitivityStudies ?? []).flatMap((study) => (study.dataAnalysisCaseRef === undefined ? [] : [{
+              id: `case-${study.uuid}`,
+              cells: ["Sensitivity case", recordLabel(study.dataAnalysisCaseRef.caseId), study.name ?? study.description],
+            }])),
+          ],
+        },
+      ],
+    },
+    {
+      key: "created-values",
+      columns: [{ label: "Item" }, { label: "Value" }, { label: "Where" }, { label: "Source" }],
+      rows: createdValues(esq).map((entry) => ({
+        id: entry.key,
+        cells: [
+          recordLabel(entry.item),
+          entry.value !== undefined ? sciText(entry.value) : entry.expression !== undefined ? expressionText(entry.expression, parameterLabelOf(esq)) : "None",
+          entry.where,
+          entry.source.trim().length > 0 ? entry.source : "None",
+        ],
+      })),
+    },
+    {
+      key: "responses",
+      subsections: [
+        {
+          key: "ri-feedback",
+          name: "RI feedback",
+          columns: [{ label: "Item" }, { label: "RI level" }, { label: "RI detail" }, { label: "Response" }, { label: "Status" }, { label: "Sent to" }],
+          rows: (view?.feedback ?? []).map((item) => ({
+            id: item.id,
+            cells: [
+              item.label,
+              levelText(item.significance),
+              feedbackDetail(item),
+              <ResponseTextCell key="response" item={item} />,
+              <ResponseStatusCell key="status" item={item} />,
+              <ResponseOwnerCell key="owner" item={item} />,
+            ],
+          })),
+        },
+        {
+          key: "published",
+          name: "Published response",
+          columns: [{ label: "Kind" }, { label: "Item" }, { label: "Detail" }],
+          rows: feedback === undefined ? [] : [
+            ...(feedback.sequenceFeedback ?? []).map((entry, index) => ({
+              id: `feedback-${entry.sequenceRef}-${String(index)}`,
+              cells: ["RI feedback", handoffName(entry.sequenceRef, familyName.get(entry.sequenceRef)), feedbackText(entry.riskSignificance, entry.insights, entry.recommendations)],
+            })),
+            ...(blank(feedback.generalFeedback) ? [] : [{ id: "general", cells: ["RI feedback", "General", noneText(feedback.generalFeedback)] }]),
+            ...(response === undefined ? [] : [{ id: "response", cells: ["Response", RESPONSE_LABELS[response.status], noneText(response.description)] }]),
+            ...(response?.changes ?? []).map((change, index) => ({ id: `change-${String(index)}`, cells: ["Routed", change, "None"] })),
+          ],
+        },
+      ],
+    },
+  ];
+}
+
+function HandoffScreen(): JSX.Element {
   const { esq, editable, runtime, mutateEsq, upstream, daLinks } = useEsqWorkbook();
-  const [openId, setOpenId] = useState("");
-  const [wrapRef, wrapWidth] = useElementWidth(0);
+  const view = useMemo(() => handoffViewOf(esq, upstream), [esq, upstream]);
+  const sections = useMemo(() => esqHandoffSections(esq, view), [esq, view]);
   const runner = useRunner();
-  const blocked = analysisSaveBlock(runtime);
-  const published = view.work.published;
-  const shown = view.families.filter((row) => row.value !== undefined || row.family.members.length > 0);
+  const publishing = useRef(false);
+  const due = editable && analysisSaveBlock(runtime) === null && view?.run !== undefined && (view.work.published === undefined || view.publishedStale);
 
-  function publish(): void {
+  useEffect(() => {
+    if (!due) {
+      publishing.current = false;
+      return;
+    }
     const workbookId = runtime.workbookId;
     const revision = runtime.revision;
-    if (workbookId === null || revision === null) return;
+    if (publishing.current || runner.running || runner.error !== null || workbookId === null || revision === null) return;
+    publishing.current = true;
+    const record = esq.review?.importance;
+    const runId = view?.run?.runId;
     runner.start(async () => {
-      const record = esq.review?.importance;
       const importance = record === undefined ? undefined : await getEsqImportanceResult(workbookId, record.runId);
-      const runId = view.run?.runId;
       const summary = runId === undefined ? undefined : await getEsqModelRunResult(workbookId, runId);
       const daCases = caseOptions(daLinks ?? []);
       const at = new Date().toISOString();
@@ -113,356 +402,11 @@ function SummaryPanel({ view }: { view: EsqHandoffView }): JSX.Element {
         ...(summary === undefined ? {} : { summary }),
       }));
     });
-  }
+  }, [due, runner, runtime.workbookId, runtime.revision, esq.review, view, daLinks, mutateEsq, upstream]);
 
-  return (
-    <div className="esq-run">
-      <div className="esq-run__composer" aria-label="Publish controls">
-        <div className="esq-run__row">
-          <p className="esq-meta">Publishing writes the family frequencies with their percentiles and contributors, the importance measures, the uncertainty register, the cases and the pre-operational assumptions where RI, DA and the other elements read them.</p>
-          <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" disabled={runner.running || !editable || blocked !== null || view.run === undefined} onClick={publish}>
-            {runner.running ? "Publishing…" : "Publish"}
-          </button>
-        </div>
-      </div>
-      {blocked !== null && <p className="esq-run__notice" role="status">{blocked}</p>}
-      {runner.error !== null && <p className="esq-run__error" role="alert">{runner.error}</p>}
-      <p className="esq-meta">{published === undefined ? "Not published yet." : `Published ${dateText(published.at)} from revision ${published.revision}: ${published.families} families and ${published.measures} importance measures.${view.publishedStale ? " The workbook changed since, so publish again." : ""}`}</p>
-      {shown.length === 0 ? (
-        <p className="posmuted">No family has a value yet. Solve the model in Step 05.</p>
-      ) : (
-        <div className="esq-table-wrap" ref={wrapRef}>
-          <table className="postable esq-rowtable" aria-label="Family package">
-            <thead><tr><th className="esq-rowtable__pick">Details</th><th>Family</th><th>Value of record (/yr)</th><th>Mean (/yr)</th><th>95th (/yr)</th></tr></thead>
-            <tbody>
-              {shown.map((row) => {
-                const open = row.family.id === openId;
-                return (
-                  <Fragment key={row.family.id}>
-                    <tr className={rowClass(row.value === undefined, open)} onClick={() => { if (!open) setOpenId(row.family.id); }}>
-                      <td className="esq-rowtable__pick"><DetailToggle open={open} label={row.family.id} onToggle={() => setOpenId(open ? "" : row.family.id)} /></td>
-                      <td className="esq-rowtable__text">
-                        {familyLabel(view, row.family.id)}
-                        {row.family.release && <span className="esq-rowtable__tag">Release</span>}
-                      </td>
-                      <td className="esq-rowtable__num">{valueText(row.value)}</td>
-                      <td className="esq-rowtable__num">{valueText(row.mean)}</td>
-                      <td className="esq-rowtable__num">{valueText(row.p95)}</td>
-                    </tr>
-                    {open && (
-                      <DetailRow span={5} width={wrapWidth - 18}>
-                        <FieldList items={[
-                          { label: "Value from", value: row.source === undefined ? "—" : SOURCE_LABELS[row.source] },
-                          { label: "Sent as", value: row.sokc && esq.capabilityCategory !== "CC-I" ? "Mean with shared draws" : "Point value" },
-                          { label: "5th percentile", value: valueText(row.p05) },
-                          { label: "Median", value: valueText(row.p50) },
-                          { label: "End state", value: row.family.endState === undefined ? "—" : END_STATE_LABELS[row.family.endState] ?? row.family.endState },
-                          { label: "Release category", value: row.family.releaseCategoryId ?? "—" },
-                        ]} />
-                      </DetailRow>
-                    )}
-                  </Fragment>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function RiPanel({ view }: { view: EsqHandoffView }): JSX.Element {
-  const { esq } = useEsqWorkbook();
-  const [openId, setOpenId] = useState("");
-  const [wrapRef, wrapWidth] = useElementWidth(0);
-  const coverage = esq.modelIntegration.scopeCoverage;
-  const modules = esq.quantificationPlan?.modulesPerPlant;
-  const rows = view.families.filter((row) => row.value !== undefined);
-  const published = new Map(esq.familyQuantifications.map((record) => [record.eventSequenceFamilyRef, record]));
-  const familyMeasures = new Map((esq.importanceAnalyses ?? []).filter((record) => record.familyRef !== undefined).map((record) => [record.familyRef ?? "", record.measures.length]));
-  if (rows.length === 0) return <p className="posmuted">No family has a value yet.</p>;
-  return (
-    <div className="esq-run">
-      <p className="esq-meta">RI keys each family to its ES family and reads the published statistics, contributors and importance. Contributors are named "name (id)" so RI matches them across families.</p>
-      <div className="esq-table-wrap" ref={wrapRef}>
-        <table className="postable esq-rowtable" aria-label="To risk integration">
-          <thead><tr><th className="esq-rowtable__pick">Details</th><th>Family</th><th>Release category</th><th>Contributors</th></tr></thead>
-          <tbody>
-            {rows.map((row) => {
-              const open = row.family.id === openId;
-              const record = published.get(row.family.id);
-              return (
-                <Fragment key={row.family.id}>
-                  <tr className={rowClass(record === undefined, open)} onClick={() => { if (!open) setOpenId(row.family.id); }}>
-                    <td className="esq-rowtable__pick"><DetailToggle open={open} label={row.family.id} onToggle={() => setOpenId(open ? "" : row.family.id)} /></td>
-                    <td className="esq-rowtable__text">{familyLabel(view, row.family.id)}</td>
-                    <td className="esq-rowtable__text">{row.family.releaseCategoryId ?? "—"}</td>
-                    <td className="esq-rowtable__num">{record?.contributionBreakdown === undefined ? "—" : String(record.contributionBreakdown.length)}</td>
-                  </tr>
-                  {open && (
-                    <DetailRow span={4} width={wrapWidth - 18}>
-                      <FieldList items={[
-                        { label: "Operating states", value: listText(row.family.stateIds) },
-                        { label: "Initiators", value: listText(row.family.initiatorIds) },
-                        { label: "Hazard groups", value: listText(coverage.hazardGroups) },
-                        { label: "Sources", value: listText(row.family.sourceIds) },
-                        { label: "Modules per plant", value: modules === undefined ? "—" : String(modules.value) },
-                        { label: "Published mean (/yr)", value: record === undefined ? "Not published" : sciText(typeof record.meanFrequency === "number" ? record.meanFrequency : record.meanFrequency.value) },
-                        { label: "Published 5th to 95th", value: record?.percentile05 === undefined || record.percentile95 === undefined ? "—" : `${sciText(record.percentile05)} to ${sciText(record.percentile95)}` },
-                        { label: "Importance measures", value: String(familyMeasures.get(row.family.id) ?? 0) },
-                        { label: "Converged at (/yr)", value: valueText(row.convergedAt) },
-                        { label: "Register entries", value: String(row.register) },
-                      ]} />
-                    </DetailRow>
-                  )}
-                </Fragment>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
-}
-
-function MsPanel({ view }: { view: EsqHandoffView }): JSX.Element {
-  const { esq } = useEsqWorkbook();
-  const [openId, setOpenId] = useState("");
-  const [wrapRef, wrapWidth] = useElementWidth(0);
-  const rows = view.families.filter((row) => row.family.release);
-  const barriers = new Map((esq.barrierWork?.barriers ?? []).flatMap((barrier) => barrier.modes.map((mode): [string, string] => [`${barrier.barrierId}|${mode.id}`, `${barrier.barrierId} · ${mode.name}`])));
-  if (rows.length === 0) return <p className="posmuted">No release family.</p>;
-  return (
-    <div className="esq-run">
-      <p className="esq-meta">MS receives each release family with its release category and the barrier failure modes Step 04 quantified for it. MS does not read ESQ yet, so this list is the record of what it is given.</p>
-      <div className="esq-table-wrap" ref={wrapRef}>
-        <table className="postable esq-rowtable" aria-label="To mechanistic source terms">
-          <thead><tr><th className="esq-rowtable__pick">Details</th><th>Family</th><th>Release category</th><th>Barrier modes</th></tr></thead>
-          <tbody>
-            {rows.map((row) => {
-              const open = row.family.id === openId;
-              return (
-                <Fragment key={row.family.id}>
-                  <tr className={rowClass(row.family.releaseCategoryId === undefined, open)} onClick={() => { if (!open) setOpenId(row.family.id); }}>
-                    <td className="esq-rowtable__pick"><DetailToggle open={open} label={row.family.id} onToggle={() => setOpenId(open ? "" : row.family.id)} /></td>
-                    <td className="esq-rowtable__text">{familyLabel(view, row.family.id)}</td>
-                    <td className="esq-rowtable__text">{row.family.releaseCategoryId ?? "None"}</td>
-                    <td className="esq-rowtable__num">{String(row.cells.length)}</td>
-                  </tr>
-                  {open && (
-                    <DetailRow span={4} width={wrapWidth - 18}>
-                      <FieldList items={row.cells.length === 0 ? [{ label: "Barrier modes", value: "None quantified for this family" }] : row.cells.map((cell) => ({
-                        label: `${cell.id} · ${barriers.get(`${cell.barrierId}|${cell.modeId}`) ?? `${cell.barrierId} · ${cell.modeId}`}`,
-                        value: `${cellRecordText(cell, parameterLabelOf(esq))} · ${cell.variable}${blank(cell.unit) ? "" : ` (${cell.unit})`}`,
-                      }))} />
-                    </DetailRow>
-                  )}
-                </Fragment>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
-}
-
-function DaPanel({ view }: { view: EsqHandoffView }): JSX.Element {
-  const { esq } = useEsqWorkbook();
-  const overall = (esq.importanceAnalyses ?? []).find((record) => record.scope === "OVERALL");
-  const measures = (overall?.measures ?? []).filter((measure) => measure.dataAnalysisParameterRef !== undefined);
-  return (
-    <div className="esq-run">
-      <p className="esq-meta">DA reads the overall importance of each parameter and estimate from the published measures, and the register entries and cases ESQ took from it.</p>
-      {measures.length === 0 ? (
-        <p className="posmuted">{overall === undefined ? "No importance is published yet. Rank in Step 07 and publish." : "No published measure points at a DA item."}</p>
-      ) : (
-        <div className="esq-table-wrap">
-          <table className="postable esq-rowtable" aria-label="Importance by DA item">
-            <thead><tr><th>DA item</th><th>FV</th><th>RAW</th></tr></thead>
-            <tbody>
-              {measures.map((measure) => (
-                <tr key={`${measure.dataAnalysisParameterRef ?? ""}:${measure.entityRef}`}>
-                  <td className="esq-rowtable__wrap">{measure.entityRef}</td>
-                  <td className="esq-rowtable__num">{measureText(measure.fussellVesely)}</td>
-                  <td className="esq-rowtable__num">{measureText(measure.riskAchievementWorth)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-      <WorkbookCueLabel workbook="ESQ" title="Values ESQ created" className="essec" />
-      {view.created.length === 0 ? (
-        <p className="posmuted">ESQ typed no value of its own.</p>
-      ) : (
-        <div className="esq-table-wrap">
-          <table className="postable esq-rowtable" aria-label="Values ESQ created">
-            <thead><tr><th>Item</th><th>Value</th><th>Where</th><th>Source</th></tr></thead>
-            <tbody>
-              {view.created.map((entry) => (
-                <tr key={entry.key}>
-                  <td className="esq-rowtable__wrap">{entry.item}</td>
-                  <td className="esq-rowtable__num">{entry.value !== undefined ? sciText(entry.value) : entry.expression !== undefined ? expressionText(entry.expression, parameterLabelOf(esq)) : "—"}</td>
-                  <td className="esq-rowtable__text">{entry.where}</td>
-                  <td className="esq-rowtable__wrap">{textValue(entry.source)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function HrIePanel({ view }: { view: EsqHandoffView }): JSX.Element {
-  const { esq } = useEsqWorkbook();
-  const overall = (esq.importanceAnalyses ?? []).find((record) => record.scope === "OVERALL");
-  const humans = (overall?.measures ?? []).filter((measure) => measure.entityType === "HUMAN_FAILURE_EVENT");
-  const joints = resolvedCombinations(esq).filter((entry) => entry.joint !== undefined);
-  const release = new Set(view.families.filter((row) => row.family.release).map((row) => row.family.id));
-  const initiators = new Map<string, number>();
-  for (const record of esq.familyQuantifications) {
-    if (!release.has(record.eventSequenceFamilyRef)) continue;
-    const mean = typeof record.meanFrequency === "number" ? record.meanFrequency : record.meanFrequency.value;
-    for (const part of record.contributionBreakdown ?? []) {
-      if (part.contributorType !== "INITIATING_EVENT") continue;
-      initiators.set(part.contributorRef, (initiators.get(part.contributorRef) ?? 0) + mean * part.fractionalContribution);
-    }
-  }
-  const total = [...initiators.values()].reduce((sum, value) => sum + value, 0);
-  const screened = esq.review?.screened ?? [];
-  return (
-    <div className="esq-run">
-      <p className="esq-meta">HR receives the importance of each human failure event and the joint HEPs ESQ used. IE receives each initiator's share of the release total and the bounds on the screened initiators. Neither reads ESQ yet, so these lists are the record of what they are given.</p>
-      <WorkbookCueLabel workbook="ESQ" title="Human failure events" className="essec" />
-      {humans.length === 0 ? <p className="posmuted">No published HFE measure.</p> : (
-        <div className="esq-table-wrap">
-          <table className="postable esq-rowtable" aria-label="HFE importance">
-            <thead><tr><th>HFE</th><th>FV</th><th>RAW</th></tr></thead>
-            <tbody>
-              {humans.map((measure) => (
-                <tr key={measure.entityRef}>
-                  <td className="esq-rowtable__wrap">{measure.entityRef}</td>
-                  <td className="esq-rowtable__num">{measureText(measure.fussellVesely)}</td>
-                  <td className="esq-rowtable__num">{measureText(measure.riskAchievementWorth)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-      {joints.length > 0 && (
-        <div className="esq-table-wrap">
-          <table className="postable esq-rowtable" aria-label="Joint HEPs used">
-            <thead><tr><th>Combination</th><th>Events</th><th>Joint HEP</th></tr></thead>
-            <tbody>
-              {joints.map((entry) => (
-                <tr key={entry.combination.id}>
-                  <td className="esq-rowtable__text">{entry.combination.id}</td>
-                  <td className="esq-rowtable__wrap">{entry.members.map((member) => member.code).join(" · ")}</td>
-                  <td className="esq-rowtable__num">{valueText(entry.joint)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-      <WorkbookCueLabel workbook="ESQ" title="Initiators" className="essec" />
-      {initiators.size === 0 ? <p className="posmuted">No published initiator share. Publish first.</p> : (
-        <div className="esq-table-wrap">
-          <table className="postable esq-rowtable" aria-label="Initiator shares">
-            <thead><tr><th>Initiator</th><th>Release (/yr)</th><th>Share</th></tr></thead>
-            <tbody>
-              {[...initiators.entries()].sort((a, b) => b[1] - a[1]).map(([name, value]) => (
-                <tr key={name}>
-                  <td className="esq-rowtable__wrap">{name}</td>
-                  <td className="esq-rowtable__num">{sciText(value)}</td>
-                  <td className="esq-rowtable__num">{total > 0 ? `${String(Number((100 * value / total).toPrecision(3)))}%` : "—"}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-      {screened.length > 0 && <p className="esq-meta">{`${screened.length} screened initiators carry a bound from Step 07.`}</p>}
-    </div>
-  );
-}
-
-function ResponsesPanel({ view, openWindow }: { view: EsqHandoffView; openWindow: (ctx: EsqWindowContext) => void }): JSX.Element {
-  const { esq } = useEsqWorkbook();
-  if (esq.linkedWorkbooks?.RI === undefined) return <p className="posmuted">RI is not linked. Link it in Step 01 to read its significance back.</p>;
-  if (view.feedback.length === 0) return <p className="posmuted">RI has sent no feedback to ESQ yet.</p>;
-  return (
-    <div className="esq-table-wrap">
-      <table className="postable esq-rowtable" aria-label="RI feedback">
-        <thead><tr><th>Item</th><th>RI significance</th><th>Response</th><th>Sent to</th></tr></thead>
-        <tbody>
-          {view.feedback.map((item) => (
-            <tr key={item.id}>
-              <td className="esq-rowtable__wrap">
-                <button type="button" className="esq-rowtable__name" onClick={() => openWindow({ kind: "esqHandoffResponse", id: item.id })}>{item.label}</button>
-              </td>
-              <td className="esq-rowtable__text">{item.significance === undefined ? "—" : item.significance.charAt(0) + item.significance.slice(1).toLowerCase()}</td>
-              <td className="esq-rowtable__text">{item.response === undefined ? "None" : RESPONSE_LABELS[item.response.status]}</td>
-              <td className="esq-rowtable__text">{item.response?.sentTo ?? "—"}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-}
-
-function HandoffScreen({ openWindow }: { openWindow: (ctx: EsqWindowContext) => void }): JSX.Element {
-  const { esq, upstream } = useEsqWorkbook();
-  const view = useMemo(() => handoffViewOf(esq, upstream), [esq, upstream]);
-  const [tab, setTab] = useState<HandoffTab>("summary");
-  const tabId = useId();
-  const count = (n: number): string => (view === undefined ? "" : ` (${n})`);
-  const tabs: { id: HandoffTab; label: string }[] = [
-    { id: "summary", label: "Summary" },
-    { id: "ri", label: "RI" },
-    { id: "ms", label: "MS" },
-    { id: "da", label: "DA" },
-    { id: "hrie", label: "HR and IE" },
-    { id: "responses", label: `Responses${count(view?.feedback.length ?? 0)}` },
-    { id: "checks", label: `Checks${count(view?.findings.length ?? 0)}` },
-  ];
-  const head = TAB_HEADS[tab];
   return (
     <div className="esq-step">
-      <EsqTabs label="Hand-off sections" tabs={tabs} active={tab} onChange={setTab} idBase={tabId} className="esq-step__tabs" />
-      <div role="tabpanel" id={`${tabId}-panel`} aria-labelledby={`${tabId}-${tab}`} tabIndex={0} className="esq-step__panel">
-        <div className="poscard">
-          <div className="poscard__head">
-            <WorkbookSectionHeading workbook="ESQ" title={head.title} level={3} />
-            <div className="esq-card-actions">
-              <EsqProvenanceChip>{head.sr}</EsqProvenanceChip>
-            </div>
-          </div>
-          {view === undefined ? (
-            <p className="posmuted">Nothing is imported yet. Import the model in Step 02.</p>
-          ) : tab === "summary" ? (
-            <SummaryPanel view={view} />
-          ) : tab === "ri" ? (
-            <RiPanel view={view} />
-          ) : tab === "ms" ? (
-            <MsPanel view={view} />
-          ) : tab === "da" ? (
-            <DaPanel view={view} />
-          ) : tab === "hrie" ? (
-            <HrIePanel view={view} />
-          ) : tab === "responses" ? (
-            <ResponsesPanel view={view} openWindow={openWindow} />
-          ) : (
-            <FindingsTable label="Hand-off checks" findings={view.findings} openWindow={openWindow} />
-          )}
-        </div>
-      </div>
+      <TechnicalElementHandoff element="ESQ" sections={sections} />
     </div>
   );
 }

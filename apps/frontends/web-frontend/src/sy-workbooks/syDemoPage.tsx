@@ -8,10 +8,13 @@ import type { HumanReliabilityAnalysis } from "interfaces-mef-types/hr/human-rel
 import { type PRAConfigurationControl } from "interfaces-mef-types/cross-cutting/pra-configuration-control";
 import { type NewlyDevelopedMethod } from "interfaces-mef-types/cross-cutting/newly-developed-methods";
 import { fetchJson } from "../api/client";
+import { WorkbookViewMemory } from "../workbooks/workbookViewMemory";
 import { SyWorkbench } from "./syWorkbench";
 import {
   SyWorkbookProvider,
   type SyControlledCcfEstimateOption,
+  type SyControlledCcfVectorOption,
+  type SyControlledCcfFactorOption,
   type SyControlledCoincidentMaintenanceOption,
   type SyControlledComponentBoundaryOption,
   type SyControlledFailureModeOption,
@@ -23,6 +26,8 @@ import {
 import {
   buildLinkedInputs,
   controlledCcfEstimateOptions,
+  controlledCcfFactorOptions,
+  controlledCcfVectorOptions,
   controlledCoincidentMaintenanceOptions,
   controlledComponentBoundaryOptions,
   controlledFailureModeOptions,
@@ -75,10 +80,12 @@ interface ExampleLinkedData {
   humanFailures: SyControlledHumanFailureOption[];
   coincidentMaintenance: SyControlledCoincidentMaintenanceOption[];
   ccfEstimates: SyControlledCcfEstimateOption[];
+  ccfVectors: SyControlledCcfVectorOption[];
+  ccfFactors: SyControlledCcfFactorOption[];
   componentBoundaries: SyControlledComponentBoundaryOption[];
 }
 
-const NO_LINKED_DATA: ExampleLinkedData = { parameters: [], legacyParameters: [], failureModes: [], humanFailures: [], coincidentMaintenance: [], ccfEstimates: [], componentBoundaries: [] };
+const NO_LINKED_DATA: ExampleLinkedData = { parameters: [], legacyParameters: [], failureModes: [], humanFailures: [], coincidentMaintenance: [], ccfEstimates: [], ccfVectors: [], ccfFactors: [], componentBoundaries: [] };
 
 const EXAMPLE_VARIANT = "htgr";
 
@@ -110,6 +117,8 @@ function SyDemoPage(): JSX.Element {
           humanFailures: controlledHumanFailureOptions(hrSources),
           coincidentMaintenance: controlledCoincidentMaintenanceOptions(daSources),
           ccfEstimates: controlledCcfEstimateOptions(daSources),
+          ccfVectors: controlledCcfVectorOptions(daSources),
+          ccfFactors: controlledCcfFactorOptions(daSources),
           componentBoundaries: controlledComponentBoundaryOptions(daSources),
         });
         setData({
@@ -148,19 +157,23 @@ function SyDemoPage(): JSX.Element {
       controlledHumanFailures={linked.humanFailures}
       controlledCoincidentMaintenance={linked.coincidentMaintenance}
       controlledCcfEstimates={linked.ccfEstimates}
+      controlledCcfVectors={linked.ccfVectors}
+      controlledCcfFactors={linked.ccfFactors}
       controlledComponentBoundaries={linked.componentBoundaries}
     >
-      <SyWorkbench
-        data={data}
-        persona={persona}
-        setPersona={setPersona}
-        showPersonaPicker={true}
-        headerMeta={{
-          projectName: "Generic-1 Reactor — Pre-operational PRA",
-          workbookName: data.sy.name,
-          workbookVersion: data.sy.version,
-        }}
-      />
+      <WorkbookViewMemory scope={null}>
+        <SyWorkbench
+          data={data}
+          persona={persona}
+          setPersona={setPersona}
+          showPersonaPicker={true}
+          headerMeta={{
+            projectName: "Generic-1 Reactor — Pre-operational PRA",
+            workbookName: data.sy.name,
+            workbookVersion: data.sy.version,
+          }}
+        />
+      </WorkbookViewMemory>
     </SyWorkbookProvider>
   );
 }

@@ -3,8 +3,8 @@ import { type HumanReliabilityAnalysis } from "interfaces-mef-types/hr/human-rel
 import { type PRAConfigurationControl } from "interfaces-mef-types/cross-cutting/pra-configuration-control";
 import { type NewlyDevelopedMethod } from "interfaces-mef-types/cross-cutting/newly-developed-methods";
 import { fetchJson } from "../api/client";
-import { fetchHrLinkedInputs } from "./hrWorkbookApi";
 import { loadHrDaHeps } from "./hrDaLinks";
+import { exampleLinks, loadHrLinkedInputs } from "./hrLinks";
 import { HrWorkbench } from "./hrWorkbench";
 import { HrWorkbookProvider, type HrWorkbookData } from "./hrWorkbookContext";
 import { type HrPersona } from "./hrViewData";
@@ -38,11 +38,12 @@ function HrDemoPage(): JSX.Element {
           nms: res.newlyDevelopedMethods.map((nm) => nm.mef as NewlyDevelopedMethod),
           links: null,
         });
-        const variant = (res.hr.mef as HumanReliabilityAnalysis).uuid === "hr-generic-2" ? "htgr" : "sfr";
-        fetchHrLinkedInputs(variant)
-          .then((links) => { if (!cancelled) setData((prev) => (prev === null ? prev : { ...prev, links })); })
+        const hr = res.hr.mef as HumanReliabilityAnalysis;
+        const links = hr.linkedWorkbooks ?? exampleLinks(hr.uuid === "hr-generic-2" ? "htgr" : "sfr");
+        loadHrLinkedInputs(links)
+          .then((inputs) => { if (!cancelled) setData((prev) => (prev === null ? prev : { ...prev, links: inputs })); })
           .catch(() => undefined);
-        void loadHrDaHeps(null, res.hr.mef as HumanReliabilityAnalysis, variant).then((daHeps) => {
+        void loadHrDaHeps(links.DA).then((daHeps) => {
           if (!cancelled) setData((prev) => (prev === null ? prev : { ...prev, daHeps }));
         });
       })

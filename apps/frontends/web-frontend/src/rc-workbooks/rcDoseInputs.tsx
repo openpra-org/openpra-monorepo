@@ -70,7 +70,7 @@ export function RcDosePanel({ onAddPathway, canAddPathway = false, onEditPathway
     return included(true, [words(dose.ingestionTreatment.approach), dose.ingestionTreatment.description].filter(Boolean).join(" · "));
   };
   const reviewTable = (name: string, items: readonly { label: string; value: string }[]) => <table className="ds-review-table" aria-label={name}><tbody>{items.map(item => <tr key={item.label}><th scope="row">{item.label}</th><td>{item.value || "Not recorded"}</td></tr>)}</tbody></table>;
-  return <div className="poscard rc-dose-input-card"><div className="poscard__head"><WorkbookSectionHeading workbook="RC" title="Dosimetry inputs" level={3} /></div>
+  return <div className="poscard rc-dose-input-card"><div className="poscard__head"><WorkbookSectionHeading title="Dosimetry inputs" level={3} /></div>
     <section className="rc-dose" aria-label="Dosimetry inputs">
       <label className="ds-category">Release category<select className="posfield__select" aria-label="Dose release category" disabled={busy || !categories.length} value={categoryKey} onChange={e => setCategoryId(e.target.value)}>{!categories.length && <option value="">No release category yet</option>}{categories.map(c => <option key={c.releaseCategory} value={c.releaseCategory}>{c.releaseCategory}{c.sourceTermDefinitionRef ? ` · ${c.sourceTermDefinitionRef}` : ""}</option>)}</select></label>
       <div className="ds-tabs" role="tablist" aria-label="Dose inputs" ref={tabs} onKeyDown={e => {

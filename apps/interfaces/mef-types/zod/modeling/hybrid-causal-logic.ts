@@ -134,15 +134,26 @@ const HclCptGeneratorUncertaintySchema: z.ZodType<HclCptGeneratorUncertainty> = 
 
 const HclUncertaintySeedSchema = z.number().int().nonnegative();
 
+const HclUncertaintySampleCountSchema = z.number().int().min(2);
+
+const HclCptClipEpsilonSchema = z.number().finite().min(0).lt(0.5);
+
+const HclSamplerSchema = z.enum(["MC", "LHS"]);
+
 function nodeKey(reference: { workbookId: string; modelId: string; entityId: string }): string {
   return `${reference.workbookId}:${reference.modelId}:${reference.entityId}`;
 }
 
 const HclUncertaintySettingsSchema: z.ZodType<HclUncertaintySettings> = z
   .object({
-    sampleCount: z.number().int().min(10).max(10_000),
-    seed: HclUncertaintySeedSchema,
-    sampler: z.enum(["MC", "LHS"]),
+    sampleCount: HclUncertaintySampleCountSchema,
+    seed: HclUncertaintySeedSchema.optional(),
+    sampler: HclSamplerSchema,
+    cptSampler: HclSamplerSchema.optional(),
+    correlation: z.enum(["SHARED", "INDEPENDENT"]).optional(),
+    clipProbabilities: z.boolean().optional(),
+    cptClipEpsilon: HclCptClipEpsilonSchema.optional(),
+    zeroProbabilityContexts: z.enum(["ZERO", "FAIL"]).optional(),
     basicEvents: z.array(HclBasicEventUncertaintySchema),
     cptRows: z.array(HclCptRowUncertaintySchema),
     cptGenerators: z.array(HclCptGeneratorUncertaintySchema),
@@ -376,6 +387,9 @@ export {
   HclBasicEventUncertaintySchema,
   HclCptRowUncertaintySchema,
   HclUncertaintySeedSchema,
+  HclUncertaintySampleCountSchema,
+  HclCptClipEpsilonSchema,
+  HclSamplerSchema,
   HclUncertaintySettingsSchema,
   HclSolverSettingsSchema,
   HclConfigurationDefinitionBaseSchema,

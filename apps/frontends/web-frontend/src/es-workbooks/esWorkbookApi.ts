@@ -1,10 +1,6 @@
 import { createWorkbookPatch } from "interfaces-shared-types/workbooks";
 import { fetchJson, patchJson, postJson, postMultipart, deleteJson } from "../api/client";
 import { type EventSequenceAnalysis } from "interfaces-mef-types/es/event-sequence-analysis";
-import type {
-  EventTreeAnalysisResult,
-  EventTreeExecuteResult,
-} from "interfaces-shared-types/newly-developed-methods/event-tree";
 
 type EsWorkbookRoleName = "preparer" | "co_preparer" | "reviewer" | "approver";
 
@@ -54,27 +50,6 @@ async function unloadEsExample(workbookId: string): Promise<EsWorkbookResponse> 
   return postJson<EsWorkbookResponse>(`/api/es-workbooks/${workbookId}/unload-example`, {});
 }
 
-async function runEsEventTree(
-  workbookId: string,
-  modelId: string,
-  workbookRevision: number,
-): Promise<EventTreeExecuteResult> {
-  return postJson<EventTreeExecuteResult>(`/api/es-workbooks/${workbookId}/event-trees/${modelId}/runs`, {
-    schemaVersion: "1.0.0",
-    modelId,
-    workbookRevision,
-    mode: "INDEPENDENT",
-  });
-}
-
-async function getEsEventTreeResult(
-  workbookId: string,
-  modelId: string,
-  runId: string,
-): Promise<EventTreeAnalysisResult> {
-  return fetchJson<EventTreeAnalysisResult>(`/api/es-workbooks/${workbookId}/event-trees/${modelId}/runs/${runId}/result`);
-}
-
 interface ImportedPosState {
   id: string;
   name: string;
@@ -122,16 +97,15 @@ async function unlinkPosWorkbook(workbookId: string): Promise<EsPosLinkStatus> {
   return postJson<EsPosLinkStatus>(`/api/es-workbooks/${workbookId}/pos-link/unlink`, {});
 }
 
-interface ImportedIeInitiator {
+interface ImportedIeGroup {
   id: string;
   name: string;
-  category: string;
 }
 
 interface EsIeLinkStatus {
   linkedIeWorkbookId: string | null;
   linkedName: string | null;
-  initiators: ImportedIeInitiator[];
+  groups: ImportedIeGroup[];
 }
 
 interface AvailableIeWorkbook {
@@ -165,8 +139,6 @@ export {
   getEsExampleOptions,
   loadEsExample,
   unloadEsExample,
-  runEsEventTree,
-  getEsEventTreeResult,
   type EsExampleOption,
   getEsPosLink,
   getAvailablePosWorkbooks,
@@ -184,7 +156,7 @@ export {
   type ImportedPosSource,
   type EsIeLinkStatus,
   type AvailableIeWorkbook,
-  type ImportedIeInitiator,
+  type ImportedIeGroup,
 };
 
 interface EsDocumentEntry {

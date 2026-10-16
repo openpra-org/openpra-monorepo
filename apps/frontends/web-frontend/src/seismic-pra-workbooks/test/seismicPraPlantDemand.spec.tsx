@@ -68,14 +68,13 @@ describe("Seismic PRA Step 06 plant seismic demand", () => {
     },
   );
 
-  it("keeps beginner guidance behind the question-mark control", async () => {
+  it("shows the plant response demands title without a question-mark control", () => {
     renderPlantDemand();
     expect(screen.queryByRole("note")).not.toBeInTheDocument();
-    await userEvent.click(screen.getByRole("button", { name: "About Plant response demands" }));
-    expect(screen.getByRole("note")).toHaveTextContent(
-      "shows how hard the earthquake shakes each plant location",
-    );
-    expect(screen.getByRole("note")).toHaveTextContent("For example");
+    const heading = screen.getByRole("heading", { name: "Plant response demands" }).closest(".ssection__heading");
+    expect(heading).not.toBeNull();
+    expect(within(heading as HTMLElement).queryAllByRole("button")).toHaveLength(0);
+    expect(screen.queryByRole("button", { name: "About Plant response demands" })).not.toBeInTheDocument();
   });
 
   it("keeps add actions with their records and removes generic basis controls", () => {

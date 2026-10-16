@@ -75,26 +75,30 @@ describe('MinioService', () => {
             expect(mockMinioClient.makeBucket).not.toHaveBeenCalled();
         });
     });
-    describe('getCompletedSequenceCount', () => {
-        it('should return count of completed sequences', async () => {
-            const mockStream = {
-                [Symbol.asyncIterator]: async function* () {
-                    yield { name: 'obj1' };
-                    yield { name: 'obj2' };
-                },
-            };
-            mockMinioClient.listObjects.mockReturnValue(mockStream);
-            const count = await service.getCompletedSequenceCount('parent-job-id');
-            expect(count).toBe(2);
-            expect(mockMinioClient.listObjects).toHaveBeenCalledWith('jobs-bucket', 'job-parent-job-id/completed/', true);
+    describe('putText', () => {
+        it('should store text in the bucket of its kind', async () => {
+            await service.putText('jobs', 'praxis-job.json', '{"a":1}');
+            expect(mockMinioClient.putObject).toHaveBeenCalledWith('jobs-bucket', 'praxis-job.json', Buffer.from('{"a":1}', 'utf8'), 7, { 'Content-Type': 'application/json' });
         });
-        it('should return 0 if stream is empty', async () => {
-            const mockStream = {
-                [Symbol.asyncIterator]: async function* () { },
-            };
-            mockMinioClient.listObjects.mockReturnValue(mockStream);
-            const count = await service.getCompletedSequenceCount('parent-job-id');
-            expect(count).toBe(0);
+    });
+    describe('getText', () => {
+        it('should read the stored text from the bucket of its kind', async () => {
+            mockMinioClient.getObject.mockResolvedValue({
+                [Symbol.asyncIterator]: async function* () {
+                    yield Buffer.from('{"a":', 'utf8');
+                    yield Buffer.from('1}', 'utf8');
+                },
+            });
+            expect(await service.getText('output', 'result.json')).toBe('{"a":1}');
+            expect(mockMinioClient.getObject).toHaveBeenCalledWith('output-bucket', 'result.json');
+        });
+        it('should return undefined for a missing object', async () => {
+            mockMinioClient.getObject.mockRejectedValue(Object.assign(new Error('missing'), { code: 'NoSuchKey' }));
+            expect(await service.getText('input', 'missing.json')).toBeUndefined();
+        });
+        it('should rethrow any other storage error', async () => {
+            mockMinioClient.getObject.mockRejectedValue(Object.assign(new Error('denied'), { code: 'AccessDenied' }));
+            await expect(service.getText('input', 'secret.json')).rejects.toThrow('denied');
         });
     });
 });

@@ -78,6 +78,7 @@ COPY --from=builder /usr/src/app/apps/solvers/scram ./node_modules/scram-node
 COPY --from=builder /tmp/praxis-node-package ./node_modules/praxis-node
 # Praetor uses this dependency-free shared JSON transport module at runtime.
 COPY --from=builder /usr/src/app/apps/interfaces/shared-types/json.js ./node_modules/interfaces-shared-types/json.js
+COPY --from=builder /usr/src/app/apps/interfaces/shared-types/execution/praetor-job.js ./node_modules/interfaces-shared-types/execution/praetor-job.js
 
 # Ensure the library paths are set for scram-node
 ENV LD_LIBRARY_PATH="/root/.local/lib/scram:/root/.local/lib"

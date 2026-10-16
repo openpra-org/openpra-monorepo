@@ -1,6 +1,5 @@
-﻿import { type JSX, type ReactNode, useId, useState } from "react";
+﻿import { type JSX, type ReactNode } from "react";
 import { POSIcon } from "../pos-workbooks/posIcons";
-import { composeWorkbookCue } from "../workbooks/workbookCueContent";
 import { WorkbookInput, WorkbookTextarea } from "../workbooks/commitOnDeactivateFields";
 
 export function Field({
@@ -117,48 +116,12 @@ export function SelectInput({
   );
 }
 
-export function InfoButton({
-  children,
-  label = "More information",
-}: {
-  children: ReactNode;
-  label?: string;
-}): JSX.Element {
-  const [open, setOpen] = useState(false);
-  const popoverId = useId();
-  return (
-    <span className="flinfo">
-      <button
-        type="button"
-        className="flinfo__button"
-        aria-label={label}
-        aria-expanded={open}
-        aria-controls={popoverId}
-        onClick={() => setOpen((value) => !value)}
-      >
-        <POSIcon.Help />
-      </button>
-      {open && (
-        <span
-          className="flinfo__popover"
-          id={popoverId}
-          role="note"
-        >
-          {children}
-        </span>
-      )}
-    </span>
-  );
-}
-
 export function Section({
   title,
-  description,
   actions,
   children,
 }: {
   title: string;
-  description: string;
   actions?: ReactNode;
   children: ReactNode;
 }): JSX.Element {
@@ -167,7 +130,6 @@ export function Section({
       <div className="flsection__head">
         <div className="flsection__heading">
           <h2>{title}</h2>
-          <InfoButton label={`About ${title}`}>{composeWorkbookCue("O", title, description)}</InfoButton>
         </div>
         {actions !== undefined && <div className="flsection__actions">{actions}</div>}
       </div>
@@ -178,13 +140,11 @@ export function Section({
 
 export function Drawer({
   title,
-  subtitle,
   onClose,
   children,
   footer,
 }: {
   title: string;
-  subtitle?: string;
   onClose: () => void;
   children: ReactNode;
   footer?: ReactNode;
@@ -208,9 +168,6 @@ export function Drawer({
             <div className="posdrawer__cap">Other Hazards PRA · Flat record editor</div>
             <div className="flsection__heading">
               <h2 className="posdrawer__title">{title}</h2>
-              {subtitle !== undefined && (
-                <InfoButton label={`About ${title}`}>{composeWorkbookCue("O", title, subtitle)}</InfoButton>
-              )}
             </div>
           </div>
           <button

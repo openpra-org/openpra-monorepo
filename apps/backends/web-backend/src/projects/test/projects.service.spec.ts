@@ -1,7 +1,6 @@
 import { BadRequestException, ConflictException, ForbiddenException, NotFoundException } from "@nestjs/common";
 import { Test } from "@nestjs/testing";
 import { getModelToken } from "@nestjs/mongoose";
-import { elementsForMode } from "interfaces-shared-types";
 import { Types } from "mongoose";
 import { ProjectsService } from "../projects.service";
 import { Project } from "../project.schema";
@@ -21,11 +20,6 @@ function makeProjectDoc(overrides: Record<string, unknown> = {}): Record<string,
     ownerFullName: "Ada Lovelace",
     sharedTeams: [],
     sharedUsers: [],
-    status: {
-      POS: "baseline", IE: "baseline", ES: "baseline",
-      SC: "not-started", SY: "not-started", HRA: "not-started", DA: "not-started",
-      ESQ: "not-started", MS: "not-started", RC: "not-started", RI: "not-started",
-    },
     pinned: false,
     state: "active",
     updatedAt: new Date("2026-05-01T12:00:00Z"),
@@ -83,7 +77,7 @@ describe("ProjectsService", () => {
   });
 
   describe("createProject", () => {
-    it("scaffolds status map with not-started for every element in the mode and the creator as owner", async () => {
+    it("creates a full scope project with the creator as owner", async () => {
       userModelMock.findOne.mockReturnValue({
         lean: () => Promise.resolve({ username: "ada", fullName: "Ada Lovelace" }),
       });
@@ -91,25 +85,19 @@ describe("ProjectsService", () => {
         Promise.resolve(makeProjectDoc({ ...data })),
       );
 
-      const result = await service.createProject(
-        { name: "External Hazards Study", mode: "external-hazards" },
-        { username: "ada" },
-      );
+      const result = await service.createProject({ name: "External Hazards Study" }, { username: "ada" });
 
-      const expected = elementsForMode("external-hazards");
-      const created = projectModelMock.create.mock.calls[0][0] as { status: Record<string, string>; sharedTeams: unknown[]; sharedUsers: unknown[]; ownerUsername: string };
-      expect(Object.keys(created.status)).toHaveLength(expected.length);
-      for (const el of expected) expect(created.status[el.code]).toBe("not-started");
-      expect(created.ownerUsername).toBe("ada");
-      expect(created.sharedTeams).toEqual([]);
-      expect(created.sharedUsers).toEqual([]);
+      expect(projectModelMock.create).toHaveBeenCalledWith(
+        expect.objectContaining({ mode: "full-scope", state: "active", ownerUsername: "ada", sharedTeams: [], sharedUsers: [] }),
+      );
+      expect(projectModelMock.create.mock.calls[0][0]).not.toHaveProperty("status");
       expect(result.ownerInitials).toBe("AL");
     });
 
     it("throws NotFoundException when acting user cannot be resolved", async () => {
       userModelMock.findOne.mockReturnValue({ lean: () => Promise.resolve(null) });
       await expect(
-        service.createProject({ name: "Anything Here", mode: "internal-events" }, { username: "ghost" }),
+        service.createProject({ name: "Anything Here" }, { username: "ghost" }),
       ).rejects.toBeInstanceOf(NotFoundException);
     });
   });
@@ -127,7 +115,6 @@ describe("ProjectsService", () => {
       expect(sort).toHaveBeenCalledWith({ updatedAt: -1 });
       expect(out.project).not.toBeNull();
       expect(out.project!.name).toBe("Unit 2 — Internal Events Baseline");
-      expect(out.project!.progress).toBeCloseTo(3 / 11, 5);
     });
 
     it("returns null when the user has no projects", async () => {
@@ -253,16 +240,16 @@ describe("ProjectsService", () => {
 
       const result = await service.updateProject(
         String(doc._id),
-        { name: "Renamed Project", pinned: true, state: "baseline" },
+        { name: "Renamed Project", pinned: true, state: "archived" },
         { username: "ada" },
       );
 
       expect(doc.name).toBe("Renamed Project");
       expect(doc.pinned).toBe(true);
-      expect(doc.state).toBe("baseline");
+      expect(doc.state).toBe("archived");
       expect((doc.save as jest.Mock)).toHaveBeenCalledTimes(1);
       expect(result.pinned).toBe(true);
-      expect(result.state).toBe("baseline");
+      expect(result.state).toBe("archived");
     });
 
     it("throws NotFoundException when project id does not exist", async () => {

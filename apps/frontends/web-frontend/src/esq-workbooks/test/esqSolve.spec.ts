@@ -1,5 +1,5 @@
 import type { EventSequenceQuantification } from "interfaces-mef-types/esq/event-sequence-quantification";
-import { esqModelRunId, solveInputsKey } from "interfaces-mef-types/esq/esq-solve-inputs";
+import { esqModelRunId, solveInputsChange, solveInputsKey } from "interfaces-mef-types/esq/esq-solve-inputs";
 import type { EsqModelRunResult } from "interfaces-shared-types/newly-developed-methods/event-tree";
 import { withModelImported } from "../esqModel";
 import { AS_SET } from "../esqLogic";
@@ -10,8 +10,10 @@ import {
   solveComplete,
   solveViewOf,
   summaryProblem,
+  summaryStale,
   withFamilySolve,
   withRareEventReason,
+  withRunChange,
   withRunOfRecord,
 } from "../esqSolve";
 import { linkedEsq, modelUpstream } from "./esqModelFixtures";
@@ -112,7 +114,7 @@ describe("ESQ Step 05 solve and converge", () => {
     expect(checks(esq)).toEqual(["error:No value of record:F-OK", "error:No value of record:F-REL"]);
     expect(solveComplete(esq)).toBe(false);
     expect(stepsFromMef(esq, "preparer").map((step) => `${step.num}:${step.id}`)).toEqual([
-      "01:scope", "02:model", "03:logic", "04:barriers", "05:solve", "06:post", "07:results", "08:uncert", "09:sens", "10:handoff", "11:draft", "12:review", "13:approval",
+      "01:scope", "02:model", "03:barriers", "04:logic", "05:solve", "06:results", "07:uncert", "08:sens", "09:handoff", "10:draft", "11:review", "12:approval",
     ]);
   });
 
@@ -159,17 +161,17 @@ describe("ESQ Step 05 solve and converge", () => {
     expect(esq.sequenceFrequencyEstimates?.map((estimate) => `${estimate.eventSequenceRef}:${String(estimate.meanFrequency)}`)).toEqual([
       "A-1:2.5", "A-2:0.00007", "T-2:0.0000025", "B-2:0.0000035", "B-1:0.5",
     ]);
-    expect(checks(esq)).toEqual(["note:No independent comparison:Verification"]);
+    expect(checks(esq)).toEqual(["note:No independent comparison:Families"]);
     expect(solveComplete(esq)).toBe(true);
   });
 
-  it("flags stale results, the rare event above 0.1, a family not converged and a shallow cutoff", () => {
+  it("flags stale results with the change behind them, the rare event above 0.1, a family not converged and a shallow cutoff", () => {
     const base = importedEsq();
     const rare = withRunOfRecord(base, summaryOf(base, WORKED_MCUB.slice(0, 4), "RARE_EVENT", 0.2));
     expect(checks(rare)).toEqual([
       "error:Rare event above 0.1 without a reason:Run of record",
       "warning:Cutoff too close to a family:Run of record",
-      "note:No independent comparison:Verification",
+      "note:No independent comparison:Families",
     ]);
     const reasoned = withRareEventReason(rare, "Every cut set sits below 1E-3 except the initiator alone.");
     expect(checks(reasoned)).not.toContain("error:Rare event above 0.1 without a reason:Run of record");
@@ -184,11 +186,18 @@ describe("ESQ Step 05 solve and converge", () => {
 
     const stale = { ...unconverged, logic: { flags: [{ id: "FL-1", name: "Power", target: { kind: "EVENT" as const, id: "E-1" }, state: false, groupIds: [], stateIds: [], basis: "" }] } };
     expect(checks(stale)[0]).toBe("error:Result older than its inputs:Run of record");
-    expect(summaryProblem(summaryOf(base), stale)).toBe("The model, logic or values changed after this run. Run again before using it.");
+    const change = solveInputsChange(unconverged, stale);
+    expect(change).toBe("Flag Power was added.");
+    const staleView = solveViewOf(stale);
+    if (staleView === undefined) throw new Error("no solve view");
+    expect(withRunChange(staleView, stale, unconverged).findings[0]).toMatchObject({ check: "Result older than its inputs", detail: "Flag Power was added." });
+    expect(summaryStale(summaryOf(base), stale)).toBe(true);
+    expect(summaryStale(summaryOf(base), base)).toBe(false);
+    expect(summaryProblem(summaryOf(base), change)).toBe("Flag Power was added.");
     const failed = summaryOf(base);
     failed.trees = [{ ...failed.trees[0]!, status: "FAILED", failure: "Not linked." }, failed.trees[1]!];
-    expect(summaryProblem(failed, base)).toBe("1 of 2 event trees failed in this run. Fix them and run again before using it.");
-    expect(summaryProblem(summaryOf(base), base)).toBeUndefined();
+    expect(summaryProblem(failed, change)).toBe("1 of 2 event trees failed in this run.");
+    expect(summaryProblem(summaryOf(base), undefined)).toBeUndefined();
   });
 
   it("keeps typed and imported family values beside the run", () => {

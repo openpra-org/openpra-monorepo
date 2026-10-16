@@ -171,14 +171,14 @@ export type BaseLaw =
 
 export interface TruncatedLaw {
   family: "TRUNCATED";
-  law: BaseLaw | MixtureLaw;
+  law: BaseLaw | MixtureLaw | ProductLaw;
   lower: number | null;
   upper: number | null;
 }
 
 export interface MixtureComponent {
   weight: number;
-  law: BaseLaw | TruncatedLaw;
+  law: BaseLaw | TruncatedLaw | ProductLaw;
 }
 
 export interface MixtureLaw {
@@ -186,17 +186,38 @@ export interface MixtureLaw {
   components: MixtureComponent[];
 }
 
-export type Likelihood = "BINOMIAL" | "POISSON";
+export type CountLikelihood = "BINOMIAL" | "POISSON";
 
-export interface EvidenceTerm {
-  likelihood: Likelihood;
+export type Likelihood = CountLikelihood | "STANDBY_DEMAND" | "UNCERTAIN_COUNT";
+
+export interface CountEvidence {
+  likelihood: CountLikelihood;
   failures: number;
   exposure: number;
 }
 
+export type StandbyDemandKind = "TEST" | "RANDOM";
+
+export interface StandbyDemandEvidence {
+  likelihood: "STANDBY_DEMAND";
+  demand: StandbyDemandKind;
+  failures: number;
+  exposure: number;
+  testInterval: number;
+}
+
+export interface UncertainCountEvidence {
+  likelihood: "UNCERTAIN_COUNT";
+  count: CountLikelihood;
+  outcomes: DiscreteOutcome[];
+  exposure: number;
+}
+
+export type EvidenceTerm = CountEvidence | StandbyDemandEvidence | UncertainCountEvidence;
+
 export interface PosteriorLaw {
   family: "POSTERIOR";
-  prior: BaseLaw | TruncatedLaw | MixtureLaw | null;
+  prior: BaseLaw | TruncatedLaw | MixtureLaw | ProductLaw | null;
   evidence: EvidenceTerm[];
 }
 
@@ -209,7 +230,59 @@ export interface PopulationLaw {
   target: number | null;
 }
 
-export type Law = BaseLaw | TruncatedLaw | MixtureLaw | PosteriorLaw | PopulationLaw;
+export interface EmpiricalBayesLaw {
+  family: "EMPIRICAL_BAYES";
+  evidence: CountEvidence[];
+  target: number | null;
+}
+
+export type DurationModel = "EXPONENTIAL" | "LOGNORMAL" | "WEIBULL" | "GAMMA";
+
+export type DurationParameter = "RATE" | "MU" | "SIGMA" | "SHAPE" | "SCALE";
+
+export interface DurationPrior {
+  parameter: DurationParameter;
+  law: BaseLaw | TruncatedLaw;
+}
+
+export interface DurationExceedance {
+  kind: "EXCEEDANCE";
+  time: number;
+}
+
+export interface DurationMean {
+  kind: "MEAN";
+}
+
+export type DurationOutput = DurationExceedance | DurationMean;
+
+export interface DurationLaw {
+  family: "DURATION";
+  model: DurationModel;
+  times: number[];
+  censored: number[];
+  priors: DurationPrior[];
+  output: DurationOutput;
+}
+
+export interface TrendBin {
+  time: number;
+  failures: number;
+  exposure: number;
+}
+
+export interface TrendLaw {
+  family: "TREND";
+  bins: TrendBin[];
+  at: number;
+}
+
+export interface ProductLaw {
+  family: "PRODUCT";
+  factors: Law[];
+}
+
+export type Law = BaseLaw | TruncatedLaw | MixtureLaw | PosteriorLaw | PopulationLaw | EmpiricalBayesLaw | DurationLaw | TrendLaw | ProductLaw;
 
 export type LawFamily = Law["family"];
 
@@ -236,6 +309,10 @@ const LAW_FAMILY_SET: Record<LawFamily, true> = {
   MIXTURE: true,
   POSTERIOR: true,
   POPULATION: true,
+  EMPIRICAL_BAYES: true,
+  DURATION: true,
+  TREND: true,
+  PRODUCT: true,
 };
 
 export const LAW_FAMILIES: readonly string[] = Object.keys(LAW_FAMILY_SET);
@@ -333,7 +410,13 @@ export interface FixedVectorLaw {
   values: number[];
 }
 
-export type VectorLaw = DirichletLaw | FixedVectorLaw;
+export interface WeightedDirichletLaw {
+  family: "WEIGHTED_DIRICHLET";
+  concentrations: number[];
+  weights: number[];
+}
+
+export type VectorLaw = DirichletLaw | FixedVectorLaw | WeightedDirichletLaw;
 
 export interface VectorValueExpression {
   node: "VALUE";
@@ -370,7 +453,15 @@ export interface PhiFactorModel {
   phis: UncertainVector;
 }
 
-export type CcfFactorModel = BetaFactorModel | MultipleGreekLetterModel | AlphaFactorModel | PhiFactorModel;
+export interface BinomialFailureRateModel {
+  model: "BINOMIAL_FAILURE_RATE";
+  independent: UncertainExpression;
+  nonLethalShock: UncertainExpression;
+  componentFailure: UncertainExpression;
+  lethalShock: UncertainExpression;
+}
+
+export type CcfFactorModel = BetaFactorModel | MultipleGreekLetterModel | AlphaFactorModel | PhiFactorModel | BinomialFailureRateModel;
 
 export interface UncertainLawField {
   field: string;
@@ -413,13 +504,14 @@ export function mapModelArguments(model: ComponentModel, map: (argument: Uncerta
 }
 
 export function vectorLength(law: VectorLaw): number {
-  return law.family === "DIRICHLET" ? law.concentrations.length : law.values.length;
+  return law.family === "FIXED" ? law.values.length : law.concentrations.length;
 }
 
 export function vectorMean(law: VectorLaw): number[] {
   if (law.family === "FIXED") return [...law.values];
-  const total = law.concentrations.reduce((sum, value) => sum + value, 0);
-  return law.concentrations.map((value) => value / total);
+  const scaled = law.family === "WEIGHTED_DIRICHLET" ? law.concentrations.map((value, index) => value * (law.weights[index] ?? 1)) : law.concentrations;
+  const total = scaled.reduce((sum, value) => sum + value, 0);
+  return scaled.map((value) => value / total);
 }
 
 export function ccfFactorExpressions(model: CcfFactorModel): UncertainExpression[] {
@@ -428,10 +520,36 @@ export function ccfFactorExpressions(model: CcfFactorModel): UncertainExpression
       return [model.beta];
     case "MGL":
       return model.factors;
+    case "BINOMIAL_FAILURE_RATE":
+      return [model.independent, model.nonLethalShock, model.componentFailure, model.lethalShock];
     case "ALPHA_FACTOR":
     case "PHI_FACTOR":
       return [];
   }
+}
+
+export function mapCcfFactorExpressions(model: CcfFactorModel, map: (expression: UncertainExpression) => UncertainExpression): CcfFactorModel {
+  switch (model.model) {
+    case "BETA_FACTOR":
+      return { model: "BETA_FACTOR", beta: map(model.beta) };
+    case "MGL":
+      return { model: "MGL", factors: model.factors.map(map) };
+    case "BINOMIAL_FAILURE_RATE":
+      return {
+        model: "BINOMIAL_FAILURE_RATE",
+        independent: map(model.independent),
+        nonLethalShock: map(model.nonLethalShock),
+        componentFailure: map(model.componentFailure),
+        lethalShock: map(model.lethalShock),
+      };
+    case "ALPHA_FACTOR":
+    case "PHI_FACTOR":
+      return model;
+  }
+}
+
+export function ccfModelTakesTotal(model: CcfFactorModel): boolean {
+  return model.model !== "BINOMIAL_FAILURE_RATE";
 }
 
 export function ccfFactorVector(model: CcfFactorModel): UncertainVector | undefined {
@@ -442,6 +560,7 @@ export function ccfFactorVector(model: CcfFactorModel): UncertainVector | undefi
       return model.phis;
     case "BETA_FACTOR":
     case "MGL":
+    case "BINOMIAL_FAILURE_RATE":
       return undefined;
   }
 }
@@ -523,13 +642,41 @@ export function lawBounds(law: Law): LawBounds {
     case "MIXTURE":
       return joined(law.components.map((component) => lawBounds(component.law)));
     case "POSTERIOR": {
-      const binomial = law.evidence.some((term) => term.likelihood === "BINOMIAL");
+      const binomial = law.evidence.some(probabilityEvidence);
       const prior = law.prior === null ? { lower: 0, upper: binomial ? 1 : Number.POSITIVE_INFINITY } : lawBounds(law.prior);
       return binomial ? { lower: Math.max(prior.lower, 0), upper: Math.min(prior.upper, 1) } : prior;
     }
     case "POPULATION":
       return { lower: 0, upper: law.upper ?? Number.POSITIVE_INFINITY };
+    case "EMPIRICAL_BAYES":
+      return { lower: 0, upper: law.evidence.some(probabilityEvidence) ? 1 : Number.POSITIVE_INFINITY };
+    case "DURATION":
+      return law.output.kind === "EXCEEDANCE" ? { lower: 0, upper: 1 } : { lower: 0, upper: Number.POSITIVE_INFINITY };
+    case "TREND":
+      return { lower: 0, upper: Number.POSITIVE_INFINITY };
+    case "PRODUCT":
+      return productBounds(law.factors.map(lawBounds));
   }
+}
+
+function productBounds(parts: LawBounds[]): LawBounds {
+  return parts.reduce(
+    (total, part) => {
+      const corners = [total.lower * part.lower, total.lower * part.upper, total.upper * part.lower, total.upper * part.upper].map((value) => (Number.isNaN(value) ? 0 : value));
+      return { lower: Math.min(...corners), upper: Math.max(...corners) };
+    },
+    { lower: 1, upper: 1 },
+  );
+}
+
+export function probabilityEvidence(term: EvidenceTerm): boolean {
+  return term.likelihood === "BINOMIAL" || (term.likelihood === "UNCERTAIN_COUNT" && term.count === "BINOMIAL");
+}
+
+export function evidenceFailures(term: EvidenceTerm): number {
+  if (term.likelihood !== "UNCERTAIN_COUNT") return term.failures;
+  const total = term.outcomes.reduce((sum, outcome) => sum + outcome.weight, 0);
+  return term.outcomes.reduce((sum, outcome) => sum + outcome.value * outcome.weight, 0) / total;
 }
 
 export function unitBounds(unit: UncertainUnit): LawBounds {
@@ -546,7 +693,7 @@ export function lawWithinUnit(unit: UncertainUnit, law: Law): Law {
   if (law.family === "TRUNCATED") {
     return { family: "TRUNCATED", law: law.law, lower: lower ?? law.lower, upper: upper ?? law.upper };
   }
-  if (law.family === "POSTERIOR" || law.family === "POPULATION" || law.family === "POINT") return law;
+  if (law.family === "POSTERIOR" || law.family === "POPULATION" || law.family === "EMPIRICAL_BAYES" || law.family === "DURATION" || law.family === "TREND" || law.family === "PRODUCT" || law.family === "POINT") return law;
   return { family: "TRUNCATED", law, lower, upper };
 }
 

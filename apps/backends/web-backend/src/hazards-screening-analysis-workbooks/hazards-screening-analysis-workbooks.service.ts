@@ -9,6 +9,7 @@ import { healMef } from "../pos-workbooks/mef-heal";
 import { stripNulls } from "../pos-workbooks/mef-normalize";
 import { mergeWorkbookPatch } from "../workbooks/workbook-mef-patch";
 import { WorkbookRolesService, type WorkbookRoleName } from "../workbooks/workbook-roles.service";
+import { recordWorkbookStatus } from "../workbooks/workbook-status";
 import { Workbook, type WorkbookDocument } from "../workbooks/workbook.schema";
 import { WorkbookSignoff, type WorkbookSignoffDocument } from "../workbooks/workbook-signoff.schema";
 import { createBlankHazardsScreeningAnalysis } from "./blank-hazards-screening-analysis";
@@ -82,9 +83,9 @@ export class HazardsScreeningAnalysisWorkbooksService {
     const example = await this.exampleWorkbooksService.getHazardsScreeningAnalysisBundle(exampleId);
     const parsed = HazardsScreeningAnalysisSchema.safeParse(stripNulls(example.hazardsScreeningAnalysis.mef));
     if (!parsed.success) throw new ForbiddenException(`Example MEF failed validation: ${parsed.error.message}`);
-    doc.previousMefJson = JSON.stringify(doc.mef);
+    if (typeof doc.previousMefJson !== "string" || doc.previousMefJson.length === 0) doc.previousMefJson = JSON.stringify(doc.mef);
     doc.mef = { ...synchronizeHsaDerivedRegisters(parsed.data), workflowState: "DRAFT", workflowHistory: [{ state: "DRAFT", enteredAt: new Date().toISOString(), actor: acting.username, note: "Loaded from example workbook" }] };
-    await doc.save(); await this.signoffModel.deleteMany({ workbookId }).exec(); return toResponse(doc, myRoles);
+    await doc.save(); await recordWorkbookStatus(this.baseWorkbookModel.db, workbookId, (doc.mef as { workflowState?: string }).workflowState); await this.signoffModel.deleteMany({ workbookId }).exec(); return toResponse(doc, myRoles);
   }
 
   async unloadExample(workbookId: string, acting: ActingUser): Promise<HazardsScreeningAnalysisWorkbookResponse> {
@@ -98,6 +99,6 @@ export class HazardsScreeningAnalysisWorkbooksService {
     const healed = healMef(restored, createBlankHazardsScreeningAnalysis(restoredObject.name ?? "Hazards Screening Analysis Workbook", restoredObject.owner ?? acting.username));
     const parsed = HazardsScreeningAnalysisSchema.safeParse(healed);
     if (!parsed.success) throw new ForbiddenException(`Stored prior MEF failed validation: ${parsed.error.message}`);
-    doc.mef = parsed.data; doc.previousMefJson = null; await doc.save(); return toResponse(doc, myRoles);
+    doc.mef = parsed.data; doc.previousMefJson = null; await doc.save(); await recordWorkbookStatus(this.baseWorkbookModel.db, workbookId, (doc.mef as { workflowState?: string }).workflowState); return toResponse(doc, myRoles);
   }
 }

@@ -1,5 +1,6 @@
-import { PagedResults, ResultCsvButton } from "../shared/resultPresentation";
+import { PagedResults, ResultCsvButton, enumText } from "../shared/resultPresentation";
 import { faultTreeResultRecords } from "../shared/probabilityResultExport";
+import type { FaultTreeAnalysisResult, FaultTreeProbabilityMethod } from "interfaces-shared-types/newly-developed-methods/fault-tree";
 import {
   type ChangeEvent,
   type JSX,
@@ -161,14 +162,28 @@ function EditorIcon({
   );
 }
 
+const PROBABILITY_LABELS: Readonly<Record<FaultTreeProbabilityMethod, string>> = {
+  EXACT: "Exact top event probability",
+  LIMITED: "Exact top event probability within the cut set limits",
+  RARE_EVENT: "Rare event approximation of the top event probability",
+  MCUB: "Minimal cut upper bound of the top event probability",
+  MONTE_CARLO: "Direct Monte Carlo top event probability",
+};
+
+type FaultTreeSilLevel = NonNullable<FaultTreeAnalysisResult["sil"]>["pfdLevel"];
+
+function silLevelText(level: FaultTreeSilLevel): string {
+  return level === "NONE" ? "below SIL 1" : level.split("_").join(" ");
+}
+
 function ScientificProbability({ value }: { value: number | undefined }): JSX.Element {
-  if (value === undefined || !Number.isFinite(value)) return <span>—</span>;
-  if (value === 0) return <span className="fteditor__mono">0</span>;
+  if (value === undefined || !Number.isFinite(value)) return <span>Not available</span>;
+  if (value === 0) return <span>0</span>;
   const [coefficient = "0", rawExponent = "0"] = value.toExponential(2).split("e");
   const exponent = String(Number(rawExponent)).replace("-", "−");
   return (
     <span
-      className="fteditor__mono fteditor__scientific"
+      className="fteditor__scientific"
       aria-label={`${coefficient} times 10 to the power of ${exponent}`}
     >
       {coefficient}<span aria-hidden="true"> × 10</span><sup aria-hidden="true">{exponent}</sup>
@@ -177,7 +192,7 @@ function ScientificProbability({ value }: { value: number | undefined }): JSX.El
 }
 
 function formatNodeProbability(value: number | undefined): string {
-  return value === undefined || !Number.isFinite(value) ? "—" : value.toExponential(1);
+  return value === undefined || !Number.isFinite(value) ? "not available" : value.toExponential(1);
 }
 
 function uniqueCode(prefix: string, existing: readonly string[]): string {
@@ -669,7 +684,7 @@ function NodeInspector({
           {gate.gateType === "XOR" && <p>True when an odd number of inputs are true.</p>}
           {gate.gateType === "K_OF_N" && (
             <CommitField
-              label={`K (1–${Math.max(1, inputCount)})`}
+              label={`K (1 to ${Math.max(1, inputCount)})`}
               value={String(gate.k)}
               type="number"
               min={1}
@@ -820,7 +835,7 @@ export function FaultTreeResults({
       </div>
       <div className="fteditor__result-metrics">
         <div className="fteditor__result-metric">
-          <span>{result.probabilityMethod === undefined ? "Exact top-event probability" : result.probabilityMethod === "MONTE_CARLO" ? "Direct Monte Carlo top-event probability" : `${result.probabilityMethod.split("_").join(" ")} top-event probability`}</span>
+          <span>{PROBABILITY_LABELS[result.probabilityMethod ?? "EXACT"]}</span>
           <strong title={String(result.topEventProbability)}><ScientificProbability value={result.topEventProbability} /></strong>
         </div>
         {result.cutSets !== undefined && (
@@ -849,7 +864,7 @@ export function FaultTreeResults({
                     {items.map((set, index) => (
                       <tr key={`${index}:${set.literals.map((literal) => `${literal.negated ? "~" : ""}${literal.basicEventId}`).join("|")}`}>
                         <td>{set.order}</td>
-                        <td className="fteditor__mono">{set.literals.map((literal) => `${literal.negated ? "¬" : ""}${basicEventCodes[literal.basicEventId] ?? literal.basicEventId}`).join(" · ")}</td>
+                        <td>{set.literals.map((literal) => `${literal.negated ? "¬" : ""}${basicEventCodes[literal.basicEventId] ?? literal.basicEventId}`).join(" · ")}</td>
                         <td><ScientificProbability value={set.probability} /></td>
                       </tr>
                     ))}
@@ -863,21 +878,29 @@ export function FaultTreeResults({
       {result.importance !== undefined && (
         <section className="fteditor__result-section" aria-label="Importance measures">
           <div className="fteditor__result-section-heading"><h4>Importance measures</h4><span>{result.importance.length} basic events</span></div>
-          <div className="fteditor__result-table-wrap">
-            <table className="fteditor__result-table">
-              <thead><tr><th>Basic event</th><th>Birnbaum</th><th>Criticality</th><th>Fussell-Vesely</th><th>RAW</th><th>RRW</th></tr></thead>
-              <tbody>{result.importance.map((row) => (
-                <tr key={row.basicEventId}>
-                  <td className="fteditor__mono">{row.basicEventId}</td>
-                  <td><ScientificProbability value={row.birnbaum} /></td>
-                  <td><ScientificProbability value={row.criticality} /></td>
-                  <td><ScientificProbability value={row.fussellVesely} /></td>
-                  <td>{row.riskAchievementWorth.toPrecision(6)}</td>
-                  <td>{row.riskReductionWorth.toPrecision(6)}</td>
-                </tr>
-              ))}</tbody>
-            </table>
-          </div>
+          <PagedResults
+            items={result.importance}
+            label="Fault-tree importance measures"
+            resetKey={`${result.runId}:${result.importance.length}`}
+          >
+            {(rows) => (
+              <div className="fteditor__result-table-wrap">
+                <table className="fteditor__result-table">
+                  <thead><tr><th>Basic event</th><th>Birnbaum</th><th>Criticality</th><th>Fussell-Vesely</th><th>RAW</th><th>RRW</th></tr></thead>
+                  <tbody>{rows.map((row) => (
+                    <tr key={row.basicEventId}>
+                      <td title={row.basicEventId}>{basicEventCodes[row.basicEventId] ?? row.basicEventId}</td>
+                      <td><ScientificProbability value={row.birnbaum} /></td>
+                      <td><ScientificProbability value={row.criticality} /></td>
+                      <td><ScientificProbability value={row.fussellVesely} /></td>
+                      <td>{row.riskAchievementWorth.toPrecision(6)}</td>
+                      <td>{row.riskReductionWorth.toPrecision(6)}</td>
+                    </tr>
+                  ))}</tbody>
+                </table>
+              </div>
+            )}
+          </PagedResults>
         </section>
       )}
       {result.uncertainty !== undefined && (
@@ -892,9 +915,9 @@ export function FaultTreeResults({
             <div><dt>Trials</dt><dd>{result.monteCarlo.trials.toLocaleString()}</dd></div>
             {result.monteCarlo.requestedTrials !== undefined && <div><dt>Requested trials</dt><dd>{result.monteCarlo.requestedTrials.toLocaleString()}{result.monteCarlo.stoppedEarly ? " · stopped early" : ""}</dd></div>}
             <div><dt>Successes</dt><dd>{result.monteCarlo.successes.toLocaleString()}</dd></div>
-            {result.monteCarlo.varianceReduction !== undefined && <div><dt>Variance reduction</dt><dd>{result.monteCarlo.varianceReduction.replace(/_/g, " ").toLowerCase()}</dd></div>}
+            {result.monteCarlo.varianceReduction !== undefined && <div><dt>Variance reduction</dt><dd>{result.monteCarlo.varianceReduction.split("_").join(" ").toLowerCase()}</dd></div>}
             <div><dt>Standard deviation</dt><dd><ScientificProbability value={result.monteCarlo.standardDeviation} /></dd></div>
-            <div><dt>{result.monteCarlo.confidenceInterval.confidence * 100}% confidence interval</dt><dd><ScientificProbability value={result.monteCarlo.confidenceInterval.lower} /> – <ScientificProbability value={result.monteCarlo.confidenceInterval.upper} /></dd></div>
+            <div><dt>{result.monteCarlo.confidenceInterval.confidence * 100}% confidence interval</dt><dd><ScientificProbability value={result.monteCarlo.confidenceInterval.lower} /> to <ScientificProbability value={result.monteCarlo.confidenceInterval.upper} /></dd></div>
           </dl>
         </section>
       )}
@@ -902,8 +925,8 @@ export function FaultTreeResults({
         <section className="fteditor__result-section" aria-label="SIL results">
           <div className="fteditor__result-section-heading"><h4>Safety integrity level</h4></div>
           <dl className="fteditor__result-definition">
-            <div><dt>PFD average</dt><dd><ScientificProbability value={result.sil.probabilityOfFailureOnDemand} /> · {result.sil.pfdLevel.replace("_", " ")}</dd></div>
-            <div><dt>PFH</dt><dd><ScientificProbability value={result.sil.dangerousFailureRatePerHour} /> /h · {result.sil.pfhLevel.replace("_", " ")}</dd></div>
+            <div><dt>PFD average</dt><dd><ScientificProbability value={result.sil.probabilityOfFailureOnDemand} /> · {silLevelText(result.sil.pfdLevel)}</dd></div>
+            <div><dt>PFH</dt><dd><ScientificProbability value={result.sil.dangerousFailureRatePerHour} /> /h · {silLevelText(result.sil.pfhLevel)}</dd></div>
           </dl>
         </section>
       )}
@@ -913,7 +936,7 @@ export function FaultTreeResults({
           <ul className="fteditor__issues">
             {result.validationIssues.map((issue, index) => (
               <li key={`${issue.code}-${issue.entityId ?? "model"}-${index}`}>
-                <strong>{issue.severity}</strong> {issue.message}
+                <strong>{enumText(issue.severity)}</strong> {issue.message}
               </li>
             ))}
           </ul>
@@ -926,6 +949,8 @@ export function FaultTreeResults({
 function acceptsInput(model: FaultTreeEditorModel, gate: FaultTreeGate): boolean {
   return gate.gateType !== "NOT" || model.gateInputs.every(({ gateId }) => gateId !== gate.id);
 }
+
+const RECENT_BASIC_EVENTS = 5;
 
 function BasicEventPicker({
   catalogue,
@@ -944,11 +969,13 @@ function BasicEventPicker({
 }): JSX.Element {
   const [search, setSearch] = useState("");
   const normalized = search.trim().toLocaleLowerCase();
-  const matching = catalogue.basicEvents.filter((basicEvent) => (
-    normalized === ""
-    || basicEvent.code.toLocaleLowerCase().includes(normalized)
-    || basicEvent.name.toLocaleLowerCase().includes(normalized)
-  ));
+  const newestFirst = [...catalogue.basicEvents].reverse();
+  const matching = normalized === ""
+    ? newestFirst.slice(0, RECENT_BASIC_EVENTS)
+    : newestFirst.filter((basicEvent) => (
+      basicEvent.code.toLocaleLowerCase().includes(normalized)
+      || basicEvent.name.toLocaleLowerCase().includes(normalized)
+    ));
   return (
     <>
       <div className="fteditor__context-header">
@@ -973,7 +1000,8 @@ function BasicEventPicker({
           onChange={(event) => setSearch(event.target.value)}
         />
       </label>
-      <div className="fteditor__context-results" aria-label="Existing basic events">
+      {normalized === "" && matching.length > 0 && <span className="fteditor__context-caption">Recently created</span>}
+      <div className="fteditor__context-results" aria-label={normalized === "" ? "Recently created basic events" : "Existing basic events"}>
         {matching.map((basicEvent) => (
           <button key={basicEvent.id} type="button" className="fteditor__context-item" role={itemRole} title={basicEvent.code} onClick={() => onPick(basicEvent.id)}>
             {basicEvent.code}
@@ -1077,6 +1105,9 @@ export function FaultTreeEditor(props: FaultTreeEditorProps): JSX.Element {
     onOperation,
     onSelectionChange,
     onOpenReference,
+    initialViewport,
+    onViewportChange,
+    breadcrumb,
     onRun,
   } = props;
   const editable = capabilities.mode === "AUTHOR";
@@ -1105,10 +1136,24 @@ export function FaultTreeEditor(props: FaultTreeEditorProps): JSX.Element {
   ], [catalogue.basicEvents, draftVersion]);
   const points = useBasicEventPoints(pointEntries, parameterTable);
 
+  const initialViewportRef = useRef(initialViewport);
+  initialViewportRef.current = initialViewport;
+  const viewportChangeRef = useRef(onViewportChange);
+  viewportChangeRef.current = onViewportChange;
+  const heldViewport = useRef<ViewportState | null>(null);
+  const heldStructure = useRef<{ modelId: string; key: string } | null>(null);
+  useEffect(() => { viewportChangeRef.current?.(viewport); }, [viewport]);
+
   useLayoutEffect(
     () => setViewport(model.layout.viewport),
     [model.layout.viewport.x, model.layout.viewport.y, model.layout.viewport.zoom],
   );
+  useLayoutEffect(() => {
+    const held = initialViewportRef.current ?? null;
+    heldViewport.current = held;
+    heldStructure.current = null;
+    if (held !== null) setViewport(held);
+  }, [model.modelId]);
   useEffect(() => {
     if (modelIdRef.current === model.modelId) return;
     modelIdRef.current = model.modelId;
@@ -1173,7 +1218,8 @@ export function FaultTreeEditor(props: FaultTreeEditorProps): JSX.Element {
     if (element === null) return undefined;
     const refit = (): void => {
       if (element.clientWidth === 0 || element.clientHeight === 0) return;
-      setViewport(fittedViewport(element, geometryRef.current, inspectorOpenRef.current));
+      const held = heldViewport.current;
+      setViewport(held ?? fittedViewport(element, geometryRef.current, inspectorOpenRef.current));
     };
     refit();
     if (typeof ResizeObserver === "undefined") return undefined;
@@ -1182,10 +1228,20 @@ export function FaultTreeEditor(props: FaultTreeEditorProps): JSX.Element {
     return () => observer.disconnect();
   }, [model.modelId]);
   useLayoutEffect(() => {
+    const held = heldViewport.current;
+    if (held !== null) {
+      const marked = heldStructure.current;
+      if (marked === null || marked.modelId !== model.modelId) heldStructure.current = { modelId: model.modelId, key: structureKey };
+      if (marked === null || marked.modelId !== model.modelId || marked.key === structureKey) {
+        setViewport(held);
+        return;
+      }
+      heldViewport.current = null;
+    }
     const element = viewportRef.current;
     if (element === null || element.clientWidth === 0 || element.clientHeight === 0) return;
     setViewport(fittedViewport(element, geometryRef.current, inspectedSelectionExists));
-  }, [inspectedSelectionExists, structureKey]);
+  }, [inspectedSelectionExists, structureKey, model.modelId]);
 
   const emit = (operation: FaultTreeOperation, recordHistory = true): void => {
     try {
@@ -1238,6 +1294,7 @@ export function FaultTreeEditor(props: FaultTreeEditorProps): JSX.Element {
   };
 
   const commitViewport = (next: ViewportState): void => {
+    heldViewport.current = null;
     if (editable && capabilities.canEditLayout) {
       emit({ type: "SET_LAYOUT", layout: { ...model.layout, viewport: next } });
     }
@@ -1269,6 +1326,7 @@ export function FaultTreeEditor(props: FaultTreeEditorProps): JSX.Element {
     const px = event.clientX - bounds.left;
     const py = event.clientY - bounds.top;
     const fittedZoom = fittedViewport(event.currentTarget, geometry, inspectedSelectionExists).zoom;
+    heldViewport.current = null;
     setViewport((current) => {
       const zoom = clampZoom(current.zoom * Math.exp(-event.deltaY * multiplier * 0.002), fittedZoom);
       return {
@@ -1757,6 +1815,19 @@ export function FaultTreeEditor(props: FaultTreeEditorProps): JSX.Element {
           </details>
         )}
         <input ref={importRef} className="fteditor__file" type="file" accept=".xml,application/xml,text/xml" onChange={(event) => { void importXml(event); }} />
+        {breadcrumb !== undefined && (
+          <nav className="fteditor__breadcrumb" aria-label="Transfer path">
+            <ol className="fteditor__crumbs">
+              {breadcrumb.steps.map((label, at) => (
+                <li key={at} className="fteditor__crumb-item">
+                  {at === breadcrumb.current
+                    ? <span className="fteditor__crumb fteditor__crumb--current" aria-current="page" title={label}>{label}</span>
+                    : <button type="button" className="fteditor__crumb" title={label} onClick={() => breadcrumb.onSelect(at)}>{label}</button>}
+                </li>
+              ))}
+            </ol>
+          </nav>
+        )}
         <span className="fteditor__command-status" role="status">{exportingImage ? "Preparing the PNG…" : savedImage}</span>
       </div>
 
@@ -1957,7 +2028,7 @@ export function FaultTreeEditor(props: FaultTreeEditorProps): JSX.Element {
                     else if (catalogue.basicEvents.some(({ id }) => id === issue.entityId)) onSelectionChange({ kind: "BASIC_EVENT", basicEventId: issue.entityId });
                   }}
                 >
-                  <strong>{issue.severity}</strong>{issue.message}
+                  <strong>{enumText(issue.severity)}</strong>{issue.message}
                 </button>
               </li>
             ))}

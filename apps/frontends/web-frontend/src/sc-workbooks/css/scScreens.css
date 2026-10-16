@@ -252,3 +252,11 @@
 .scdrawer__close:hover { background: var(--color-surface-low); }
 .scdrawer__body { padding: 20px 24px; overflow-y: auto; display: flex; flex-direction: column; gap: 18px; }
 .scdrawer__text { font-size: 13px; line-height: 1.55; color: var(--color-text-muted); margin: 0; }
+
+.sc-scope-tiles { margin-top: 4px; }
+.sc-scope-lane { display: flex; width: 100%; flex-direction: column; gap: 12px; margin-top: 16px; }
+.sc-scope-link { display: flex; max-width: 420px; flex-direction: column; gap: 5px; }
+.sc-scope-link .posfield__select { width: 100%; min-width: 0; }
+.sc-scope-error { margin: 0; font-size: 12.5px; color: var(--color-error); }
+.sccrit__state-add { display: inline-flex; align-items: center; gap: 6px; }
+.sccrit__state-add .posfield__input { max-width: 200px; }

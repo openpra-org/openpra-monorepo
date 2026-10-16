@@ -41,8 +41,8 @@ function postUpstream(hrJoint = 1.6e-4): EsqUpstream {
   ] as HumanReliabilityAnalysis["humanFailureEvents"];
   hr.hepQuantifications = [
     ...hr.hepQuantifications,
-    { uuid: "Q-2", hfeId: "HFE-2", methodology: "THERP", assessmentType: "DETAILED_ASSESSMENT", isRiskSignificant: false, meanHep: 0.02 },
-    { uuid: "Q-R1", hfeId: "HFE-2", methodology: "THERP", assessmentType: "DETAILED_ASSESSMENT", isRiskSignificant: false, meanHep: 0.1 },
+    { uuid: "Q-2", hfeId: "HFE-2", methodology: "THERP", assessmentType: "DETAILED_ASSESSMENT", isRiskSignificant: false, hep: { node: "VALUE" as const, value: { unit: "PROBABILITY" as const, law: { family: "POINT" as const, value: 0.02 } } } },
+    { uuid: "Q-R1", hfeId: "HFE-2", methodology: "THERP", assessmentType: "DETAILED_ASSESSMENT", isRiskSignificant: false, hep: { node: "VALUE" as const, value: { unit: "PROBABILITY" as const, law: { family: "POINT" as const, value: 0.1 } } } },
   ] as HumanReliabilityAnalysis["hepQuantifications"];
   const recoveries: RecoveryAction[] = [
     { uuid: "REC-1", name: "Start the fan locally", hfeId: "HFE-2", appliedAtLevel: "SEQUENCE", restoredFunction: "Support cooling", appliedToSequenceIds: [], feasibility: FEASIBLE, hepQuantificationId: "Q-R1", dependencyAssessmentId: "DEP-2", implementsSrs: [] },

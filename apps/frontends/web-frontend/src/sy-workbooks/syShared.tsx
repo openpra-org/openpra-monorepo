@@ -82,7 +82,7 @@ function NoSystemsCard({ title, purpose, onOpenSystems }: { title: string; purpo
   return (
     <div className="poscard">
       <div className="poscard__head">
-        <WorkbookSectionHeading workbook="SY" title={title} level={3} />
+        <WorkbookSectionHeading title={title} level={3} />
       </div>
       <div className="sy-review">
         <p className="sy-review-empty">No systems are in scope yet. Add them in the <SystemsInScopeLink onOpen={onOpenSystems} /> section of Step 01, then {purpose}</p>

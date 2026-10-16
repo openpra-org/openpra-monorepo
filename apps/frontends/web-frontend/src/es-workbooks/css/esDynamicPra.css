@@ -1,0 +1,7 @@
+.es-dynamic { opacity: .55; }
+.es-records__filter .posfield__select.es-dynamic__tree { width: auto; max-width: none; }
+.es-dynamic .posnav__btn:disabled, .es-dynamic .posfield__select:disabled { cursor: default; }
+.es-dynamic__diagram { min-width: 0; margin-bottom: 12px; pointer-events: none; }
+.es-dynamic__table { min-width: 0; overflow-x: auto; }
+.es-dynamic__table th, .es-dynamic__table td { text-align: left; vertical-align: top; }
+.es-dynamic__num { white-space: nowrap; font-variant-numeric: tabular-nums; }

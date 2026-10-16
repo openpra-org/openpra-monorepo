@@ -1,13 +1,12 @@
 import { JSX } from "react";
 import type { Law, UncertainExpression, UncertainValue } from "interfaces-mef-types/core/uncertainty";
-import { LawEditor, draftFor } from "../shared/uncertainEditor";
+import { LawEditor, draftFor, updatedFamily } from "../shared/uncertainEditor";
 import { FREQUENCY_UNIT, valueExpression } from "./frequencySources";
 import "./css/ieFrequencyQuantification.css";
 
 function typedValue(expression: UncertainExpression): UncertainValue | undefined {
   if (expression.node !== "VALUE") return undefined;
-  const family = expression.value.law.family;
-  return family === "POSTERIOR" || family === "POPULATION" ? undefined : expression.value;
+  return updatedFamily(expression.value.law) ? undefined : expression.value;
 }
 
 function draftLaw(mean: number | undefined): Law {

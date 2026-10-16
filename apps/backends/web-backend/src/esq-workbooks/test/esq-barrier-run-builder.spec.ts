@@ -168,7 +168,7 @@ describe("ESQ load and capacity run builder", () => {
       cell("BC-5", { capacity: undefined }),
       cell("BC-6", { load: { source: "TYPED", variable: { law: { family: "POINT", value: 40 }, fields: [{ field: "value", value: { node: "PARAMETER", reference: { referenceType: "WORKBOOK_PARAMETER", workbookId: "other", entityId: "P-HEAT" } } }] }, basis: "" } }),
     ]);
-    expect(await buildError(() => buildEsqCellRun({ esq, cellId: "BC-9", esqRevision: 1 }, praxis))).toBe("Cell BC-9 is not in Step 04.");
+    expect(await buildError(() => buildEsqCellRun({ esq, cellId: "BC-9", esqRevision: 1 }, praxis))).toBe("Cell BC-9 is not in Step 03.");
     expect(await buildError(() => buildEsqCellRun({ esq, cellId: "BC-1", esqRevision: 1 }, praxis))).toBe("BC-1: The capacity takes Rate, which has no estimate in DA.");
     expect(await buildError(() => buildEsqCellRun({ esq, cellId: "BC-2", esqRevision: 1 }, praxis))).toBe("BC-2: The load law has no field median to make uncertain.");
     expect(await buildError(() => buildEsqCellRun({ esq, cellId: "BC-3", esqRevision: 1 }, praxis))).toBe("BC-3: The capacity takes Mixed, whose DA estimate is not one law.");

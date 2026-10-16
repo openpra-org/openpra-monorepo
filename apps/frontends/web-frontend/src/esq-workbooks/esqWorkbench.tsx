@@ -11,16 +11,16 @@ import {
   type Stage,
 } from "./esqViewData";
 import { ccScore, commentsView, filterConformance, groupBySection, stepsFromMef, type CommentView } from "./esqSelectors";
-import { ScopeScreen } from "./esqScreens";
-import { ModelScreen, ModelWindows, MODEL_WINDOW_LABELS, type EsqWindowContext } from "./esqModelScreen";
-import { LogicScreen, LogicWindows, LOGIC_WINDOW_KINDS, LOGIC_WINDOW_LABELS } from "./esqLogicScreen";
-import { BarrierScreen, BarrierWindows, BARRIER_WINDOW_KINDS, BARRIER_WINDOW_LABELS } from "./esqBarrierScreen";
-import { SolveScreen, SolveWindows, SOLVE_WINDOW_KINDS, SOLVE_WINDOW_LABELS } from "./esqSolveScreen";
-import { PostScreen, PostWindows, POST_WINDOW_KINDS, POST_WINDOW_LABELS } from "./esqPostScreen";
+import { EsqScopeScreen } from "./EsqScope";
+import { EsqModelTabs } from "./EsqModelTabs";
+import { type EsqWindowContext } from "./esqShared";
+import { EsqBarrierTabs } from "./EsqBarrierTabs";
+import { EsqLogicTabs } from "./EsqLogicTabs";
+import { EsqSolveTabs, SolveDialogs, SOLVE_WINDOW_KINDS, SOLVE_WINDOW_LABELS } from "./EsqSolveTabs";
 import { ResultsScreen, ResultsWindows, RESULTS_WINDOW_KINDS, RESULTS_WINDOW_LABELS } from "./esqResultsScreen";
 import { UncertScreen, UncertWindows, UNCERT_WINDOW_KINDS, UNCERT_WINDOW_LABELS } from "./esqUncertaintyScreen";
 import { SensScreen, SensWindows, SENS_WINDOW_KINDS, SENS_WINDOW_LABELS } from "./esqSensitivityScreen";
-import { HandoffScreen, HandoffWindows, HANDOFF_WINDOW_KINDS, HANDOFF_WINDOW_LABELS } from "./esqHandoffScreen";
+import { HandoffScreen, HandoffWindows, HANDOFF_WINDOW_LABELS } from "./esqHandoffScreen";
 import { DraftScreen, PlaceholderScreen } from "./esqScreens2";
 import { InternalReviewScreen, ReviewerCommentDock } from "./esqReview";
 import { useEsqWorkbook, type EsqWorkbookData } from "./esqWorkbookContext";
@@ -40,16 +40,15 @@ interface StepHeader {
 
 function headersFor(stepId: string): StepHeader {
   switch (stepId) {
-    case "scope": return { area: "HLR-ESQ-A", title: "Scope" };
-    case "model": return { area: "HLR-ESQ-A · C", title: "Model" };
+    case "scope": return { area: "ESQ-A", title: "Scope" };
+    case "model": return { area: "ESQ-A", title: "Model" };
     case "solve": return { area: "HLR-ESQ-A · B", title: "Solve and converge" };
-    case "logic": return { area: "HLR-ESQ-B", title: "Logic" };
-    case "post": return { area: "HLR-ESQ-A · B · C", title: "Post-processing" };
-    case "barriers": return { area: "HLR-ESQ-A · C", title: "Barriers and phenomena" };
+    case "logic": return { area: "ESQ-B · C", title: "Logic rules" };
+    case "barriers": return { area: "ESQ-C", title: "Barriers and phenomena" };
     case "results": return { area: "HLR-ESQ-D · F", title: "Results review" };
     case "uncert": return { area: "HLR-ESQ-A · E", title: "Uncertainty" };
     case "sens": return { area: "HLR-ESQ-C · E · F", title: "Sensitivity" };
-    case "handoff": return { area: "HLR-ESQ-F", title: "Hand-offs" };
+    case "handoff": return { area: "HLR-ESQ-F", title: "Technical Element Handoff" };
     case "draft": return { area: "Draft", title: "Produce the draft" };
     case "review": return { area: "Review", title: "Internal technical review" };
     case "approval": return { area: "Approval", title: "Approval & sign-off" };
@@ -262,18 +261,14 @@ function ConformanceDock({ ccId, stage, onGoToScope, onClose, mobileOpen }: {
 }
 
 const WINDOW_LABELS: Record<EsqWindowContext["kind"], string> = {
-  ...MODEL_WINDOW_LABELS,
-  ...LOGIC_WINDOW_LABELS,
-  ...BARRIER_WINDOW_LABELS,
   ...SOLVE_WINDOW_LABELS,
-  ...POST_WINDOW_LABELS,
   ...RESULTS_WINDOW_LABELS,
   ...UNCERT_WINDOW_LABELS,
   ...SENS_WINDOW_LABELS,
   ...HANDOFF_WINDOW_LABELS,
 };
 
-function EsqModal({ context, onClose, onRetarget }: { context: EsqWindowContext; onClose: () => void; onRetarget: (ctx: EsqWindowContext) => void }): JSX.Element {
+function EsqModal({ context, onClose }: { context: EsqWindowContext; onClose: () => void }): JSX.Element {
   const dialog = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const trigger = document.activeElement instanceof HTMLElement ? document.activeElement : null;
@@ -306,15 +301,10 @@ function EsqModal({ context, onClose, onRetarget }: { context: EsqWindowContext;
           else if (!e.shiftKey && (document.activeElement === last || document.activeElement === dialog.current)) { e.preventDefault(); first.focus(); }
         }}
       >
-        {LOGIC_WINDOW_KINDS.has(context.kind) ? <LogicWindows context={context} onClose={onClose} />
-          : BARRIER_WINDOW_KINDS.has(context.kind) ? <BarrierWindows context={context} onClose={onClose} />
-          : SOLVE_WINDOW_KINDS.has(context.kind) ? <SolveWindows context={context} onClose={onClose} />
-          : POST_WINDOW_KINDS.has(context.kind) ? <PostWindows context={context} onClose={onClose} />
-          : RESULTS_WINDOW_KINDS.has(context.kind) ? <ResultsWindows context={context} onClose={onClose} />
+        {RESULTS_WINDOW_KINDS.has(context.kind) ? <ResultsWindows context={context} onClose={onClose} />
           : UNCERT_WINDOW_KINDS.has(context.kind) ? <UncertWindows context={context} onClose={onClose} />
           : SENS_WINDOW_KINDS.has(context.kind) ? <SensWindows context={context} onClose={onClose} />
-          : HANDOFF_WINDOW_KINDS.has(context.kind) ? <HandoffWindows context={context} onClose={onClose} />
-          : <ModelWindows context={context} onClose={onClose} onRetarget={onRetarget} />}
+          : <HandoffWindows context={context} onClose={onClose} />}
       </div>
     </div>
   );
@@ -351,8 +341,8 @@ function EsqWorkbench({
   const isReviewer = persona === "reviewer";
   const isApprover = persona === "approver";
 
-  const { upstream } = useEsqWorkbook();
-  const visibleSteps = useMemo(() => stepsFromMef(data.esq, persona, upstream), [data.esq, persona, upstream]);
+  const { upstream, esq: liveEsq } = useEsqWorkbook();
+  const visibleSteps = useMemo(() => stepsFromMef(liveEsq, persona, upstream), [liveEsq, persona, upstream]);
   const [searchParams] = useSearchParams();
   const requestedStepId = searchParams.get("step");
   const requestedNetworkId = searchParams.get("network");
@@ -412,7 +402,7 @@ function EsqWorkbench({
   const submitted = actions === undefined ? demoSubmittedLocal : (workflowState === "INTERNAL_APPROVAL" || workflowState === "FINAL");
   const approved = actions === undefined ? demoApprovedLocal : workflowState === "FINAL";
   const cc = CAPABILITY_CATEGORIES.find((c) => c.id === ccId) ?? CAPABILITY_CATEGORIES[0];
-  const scores = ccScore(data.esq, ccId, stage);
+  const scores = ccScore(liveEsq, ccId, stage);
   const openCount = comments.filter((c) => !c.resolved).length;
   const resolvedCount = comments.filter((c) => c.resolved).length;
 
@@ -444,16 +434,21 @@ function EsqWorkbench({
 
   function renderScreen(): JSX.Element {
     switch (stepId) {
-      case "scope": return <ScopeScreen ccId={ccId} setCcId={setCcId} stage={stage} setStage={setStage} documents={renderDocuments?.() ?? null} />;
-      case "model": return <ModelScreen openWindow={setWindowCtx} />;
-      case "solve": return <SolveScreen openWindow={setWindowCtx} />;
-      case "logic": return <LogicScreen openWindow={setWindowCtx} initialNetworkId={requestedNetworkId} initialSourceWorkbookId={requestedSourceWorkbookId} />;
-      case "post": return <PostScreen openWindow={setWindowCtx} />;
-      case "barriers": return <BarrierScreen openWindow={setWindowCtx} />;
+      case "scope":
+        return (
+          <>
+            <EsqScopeScreen ccId={ccId} setCcId={setCcId} stage={stage} setStage={setStage} />
+            {renderDocuments?.()}
+          </>
+        );
+      case "model": return <EsqModelTabs />;
+      case "solve": return <EsqSolveTabs initialNetworkId={requestedNetworkId} initialSourceWorkbookId={requestedSourceWorkbookId} />;
+      case "logic": return <EsqLogicTabs />;
+      case "barriers": return <EsqBarrierTabs />;
       case "results": return <ResultsScreen openWindow={setWindowCtx} />;
       case "uncert": return <UncertScreen openWindow={setWindowCtx} />;
       case "sens": return <SensScreen openWindow={setWindowCtx} />;
-      case "handoff": return <HandoffScreen openWindow={setWindowCtx} />;
+      case "handoff": return <HandoffScreen />;
       case "draft": return <DraftScreen cc={cc} scores={scores} stage={stage} onSubmitDraft={() => { handleSubmitToApproval(); setStepId("review"); }} canSubmit={isPreparer} />;
       case "review":
       case "approval": return (
@@ -501,7 +496,7 @@ function EsqWorkbench({
           <div className="posmain__head">
             <div className="posmain__title-block">
               <div className="posmain__eyebrow">{h.area.length > 0 ? `Step ${step.num} · ${h.area}` : ""}</div>
-              <WorkbookSectionHeading workbook="ESQ" title={h.title} level={1} className="posmain__title" />
+              <WorkbookSectionHeading title={h.title} level={1} className="posmain__title" />
             </div>
             <div className="posmain__actions">
               {!railOpen && <button type="button" className="posnav__btn posnav__btn--sm esq-show-steps" onClick={() => setRailOpen(true)}><ESQIcon.Layers /> Show steps</button>}
@@ -512,7 +507,7 @@ function EsqWorkbench({
           </div>
 
           {renderScreen()}
-          {["logic", "barriers", "solve", "post", "results", "uncert", "sens"].includes(stepId) && <EsqAnalysisHistory />}
+          {["solve", "results", "uncert", "sens"].includes(stepId) && <EsqAnalysisHistory />}
 
           <div className="posnav">
             {prev ? (
@@ -534,7 +529,9 @@ function EsqWorkbench({
         )}
       </div>
 
-      {windowCtx !== null && <EsqModal context={windowCtx} onClose={() => setWindowCtx(null)} onRetarget={setWindowCtx} />}
+      {windowCtx !== null && (SOLVE_WINDOW_KINDS.has(windowCtx.kind)
+        ? <SolveDialogs context={windowCtx} onClose={() => setWindowCtx(null)} />
+        : <EsqModal context={windowCtx} onClose={() => setWindowCtx(null)} />)}
       {toast !== null && <div className="postoast esq-toast" role="status">{toast}</div>}
 
       {(isReviewer || isApprover) && (

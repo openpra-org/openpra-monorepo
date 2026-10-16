@@ -72,7 +72,8 @@ const mockControlledHumanFailures = [{
   quantificationId: "hep-1",
   methodology: "THERP",
   value: 0.037,
-  valueKind: "MEAN" as const,
+  hep: { node: "VALUE" as const, value: { unit: "PROBABILITY" as const, law: { family: "POINT" as const, value: 0.037 } } },
+  valueText: "3.7E-2",
 }];
 
 jest.mock("../syWorkbookContext", () => ({
@@ -82,6 +83,8 @@ jest.mock("../syWorkbookContext", () => ({
     mutateSy: mockMutateSy,
     shortOf: (id: string) => id,
     controlledParameters: mockControlledParameters,
+    controlledCcfVectors: [],
+    controlledCcfFactors: [],
     controlledLegacyParameters: mockControlledLegacyParameters,
     controlledHumanFailures: mockControlledHumanFailures,
     controlledFailureModes: [],

@@ -1,5 +1,6 @@
 import type {
   EsqActionFeasibility,
+  EsqCcfRecord,
   EsqCombination,
   EsqDependenceLevel,
   EsqDependencyRecord,
@@ -8,10 +9,13 @@ import type {
   EsqPostWork,
   EsqRecoveryRecord,
   EsqRecoveryRule,
+  EsqRecoverySource,
+  EsqRepairRecord,
   EsqTreeRecord,
   EventSequenceQuantification,
 } from "./event-sequence-quantification";
-import { esqStableId, sameItem } from "./esq-run-inputs";
+import type { UncertainExpression } from "../core/uncertainty";
+import { daParameterExpression, esqStableId, sameItem } from "./esq-run-inputs";
 
 type EsqFeasibilityKey = keyof EsqActionFeasibility;
 
@@ -19,14 +23,17 @@ interface EsqResolvedRecovery {
   id: string;
   name: string;
   record?: EsqRecoveryRecord;
+  repairRecord?: EsqRepairRecord;
   rule?: EsqRecoveryRule;
   manual: boolean;
+  repair: boolean;
   eventIds: string[];
   groupIds: string[];
   stateIds: string[];
   credited: boolean;
-  source?: "HRA" | "TYPED";
-  value?: number;
+  source?: EsqRecoverySource;
+  parameterId?: string;
+  expression?: UncertainExpression;
   feasibility?: EsqActionFeasibility;
   missing: EsqFeasibilityKey[];
   eventId: string;
@@ -64,9 +71,24 @@ interface EsqJointSolution {
   problem?: string;
 }
 
+type EsqPoints = ReadonlyMap<string, number>;
+
+type EsqSyntheticEvent =
+  | { kind: "RECOVERY" | "JOINT"; code: string; eventIds: string[] }
+  | { kind: "INDEPENDENT"; eventId: string };
+
+interface EsqEventReader {
+  code: (eventId: string) => string;
+  sources: (eventId: string) => string[];
+}
+
+const CCF_ORDER_TERMS: ReadonlySet<string> = new Set(["alpha", "mgl", "phi", "bfr"]);
+
+const MAX_EVENT_DEPTH = 4;
+
 const FEASIBILITY_REQUIRED: readonly EsqFeasibilityKey[] = ["cues", "time", "crew", "procedure", "access"];
 
-const PROBABILITY_TYPES = new Set(["PROBABILITY", "UNAVAILABILITY", "HUMAN_ERROR_PROBABILITY"]);
+const REPAIR_REQUIRED: readonly EsqFeasibilityKey[] = ["time", "access"];
 
 const TIMING_RANK: Record<string, number> = { PRE_INITIATOR: 0, AT_INITIATOR: 1, POST_INITIATOR: 2 };
 
@@ -100,6 +122,73 @@ function esqIndependentEventId(eventId: string): string {
   return esqStableId(`independent:${eventId}`);
 }
 
+function combinationAt(members: readonly string[], size: number, rank: number): string[] | undefined {
+  if (!Number.isInteger(size) || !Number.isInteger(rank) || size < 1 || size > members.length || rank < 0) return undefined;
+  const indices = Array.from({ length: size }, (_, index) => index);
+  for (let step = 0; step < rank; step += 1) {
+    let slot = size;
+    while (slot > 0 && indices[slot - 1] === members.length - size + slot - 1) slot -= 1;
+    if (slot === 0) return undefined;
+    indices[slot - 1] = (indices[slot - 1] ?? 0) + 1;
+    for (let next = slot; next < size; next += 1) indices[next] = (indices[next - 1] ?? 0) + 1;
+  }
+  return indices.flatMap((index) => {
+    const member = members[index];
+    return member === undefined ? [] : [member];
+  });
+}
+
+function ccfTermMembers(group: EsqCcfRecord, eventId: string): string[] | undefined {
+  const prefix = `${group.id}-`;
+  if (!eventId.startsWith(prefix)) return undefined;
+  const parts = eventId.slice(prefix.length).split("-");
+  const [term, first, second] = parts;
+  if (term === "common" && parts.length === 1) return [...group.memberIds];
+  if (term === "indep" && parts.length === 2) {
+    const member = group.memberIds[Number(first) - 1];
+    return member === undefined ? undefined : [member];
+  }
+  if (term !== undefined && CCF_ORDER_TERMS.has(term) && parts.length === 3) return combinationAt(group.memberIds, Number(first), Number(second) - 1);
+  return undefined;
+}
+
+function esqEventReader(esq: EventSequenceQuantification, known: Readonly<Record<string, string>> = {}): EsqEventReader {
+  const model = esq.model;
+  const codes = new Map((model?.events ?? []).map((event) => [event.id, event.code]));
+  const listed = new Map(Object.entries(known));
+  const synthetic = new Map<string, EsqSyntheticEvent>();
+  for (const recovery of resolvedRecoveries(esq)) synthetic.set(recovery.eventId, { kind: "RECOVERY", code: `NR-${recovery.id}`, eventIds: [...recovery.eventIds] });
+  for (const combination of postWorkOf(esq).combinations ?? []) {
+    synthetic.set(esqJointEventId(combination.id), { kind: "JOINT", code: `JHEP-${combination.id}`, eventIds: [...combination.eventIds] });
+    for (const eventId of combination.eventIds) synthetic.set(esqIndependentEventId(eventId), { kind: "INDEPENDENT", eventId });
+  }
+  const groups = [...(model?.ccfGroups ?? [])].sort((left, right) => right.id.length - left.id.length);
+  const termOf = (eventId: string): { group: EsqCcfRecord; memberIds: string[] } | undefined => {
+    for (const group of groups) {
+      const memberIds = ccfTermMembers(group, eventId);
+      if (memberIds !== undefined) return { group, memberIds };
+    }
+    return undefined;
+  };
+  const code = (eventId: string, depth: number): string => {
+    const own = codes.get(eventId);
+    if (own !== undefined) return own;
+    const made = synthetic.get(eventId);
+    if (made !== undefined && depth < MAX_EVENT_DEPTH) return made.kind === "INDEPENDENT" ? `${code(made.eventId, depth + 1)}-IND` : made.code;
+    const given = listed.get(eventId);
+    if (given !== undefined) return given;
+    const term = termOf(eventId);
+    return term === undefined ? eventId : `${term.group.name}[${term.memberIds.map((id) => code(id, depth + 1)).join("+")}]`;
+  };
+  const sources = (eventId: string, depth: number): string[] => {
+    if (depth >= MAX_EVENT_DEPTH) return [eventId];
+    const made = synthetic.get(eventId);
+    if (made !== undefined) return (made.kind === "INDEPENDENT" ? [made.eventId] : made.eventIds).flatMap((id) => sources(id, depth + 1));
+    return termOf(eventId)?.memberIds ?? [eventId];
+  };
+  return { code: (eventId) => code(eventId, 0), sources: (eventId) => sources(eventId, 0) };
+}
+
 function combinationKey(eventIds: readonly string[]): string {
   return [...eventIds].sort().join("|");
 }
@@ -122,14 +211,12 @@ function holderOf(esq: EventSequenceQuantification, model: EsqModel, eventId: st
   return out;
 }
 
-function eventProbabilityOf(esq: EventSequenceQuantification, model: EsqModel, eventId: string): number | undefined {
+function eventProbabilityOf(esq: EventSequenceQuantification, model: EsqModel, eventId: string, points?: EsqPoints): number | undefined {
   const record = model.events.find((event) => event.id === eventId);
   const { heldBy, holderId } = holderOf(esq, model, eventId);
-  if (heldBy === "DA") {
-    const parameter = model.parameters.find((entry) => entry.id === holderId);
-    return parameter?.value !== undefined && PROBABILITY_TYPES.has(parameter.parameterType) ? parameter.value : undefined;
-  }
-  if (heldBy === "HRA") return model.humanEvents.find((entry) => entry.id === holderId)?.value;
+  if (esq.modelDecisions?.valueBindings?.some((entry) => entry.eventId === eventId && entry.heldBy === "TYPED") === true) return points?.get(`EVENT:${eventId}`);
+  if (heldBy === "DA" && holderId !== undefined) return points?.get(`PARAMETER:${holderId}`);
+  if (heldBy === "HRA" && holderId !== undefined) return points?.get(`HFE:${holderId}`);
   if (record?.value === undefined || record.valueUnit === "PER_HOUR") return undefined;
   return record.value;
 }
@@ -138,8 +225,50 @@ function hfeEventIds(esq: EventSequenceQuantification, model: EsqModel): string[
   return model.events.flatMap((event) => (holderOf(esq, model, event.id).heldBy === "HRA" ? [event.id] : []));
 }
 
-function feasibilityMissing(feasibility: EsqActionFeasibility | undefined): EsqFeasibilityKey[] {
-  return FEASIBILITY_REQUIRED.filter((key) => feasibility?.[key] !== true);
+function feasibilityMissing(feasibility: EsqActionFeasibility | undefined, repair = false): EsqFeasibilityKey[] {
+  return (repair ? REPAIR_REQUIRED : FEASIBILITY_REQUIRED).filter((key) => feasibility?.[key] !== true);
+}
+
+function recoverySourceOf(rule: EsqRecoveryRule | undefined, record: EsqRecoveryRecord | undefined): EsqRecoverySource | undefined {
+  if (rule?.ofRecord !== undefined) return rule.ofRecord;
+  if (record?.hep !== undefined) return "HRA";
+  if (rule?.parameterId !== undefined) return "DA";
+  return rule?.typed === undefined ? undefined : "TYPED";
+}
+
+function recoveryExpressionOf(esq: EventSequenceQuantification, source: EsqRecoverySource | undefined, rule: EsqRecoveryRule | undefined, record: EsqRecoveryRecord | undefined): UncertainExpression | undefined {
+  if (source === "HRA") return record?.hep;
+  if (source === "DA") return rule?.parameterId === undefined ? undefined : daParameterExpression(esq, rule.parameterId);
+  return source === "TYPED" ? rule?.typed?.expression : undefined;
+}
+
+function withValueOf(esq: EventSequenceQuantification, view: EsqResolvedRecovery, rule: EsqRecoveryRule | undefined, record: EsqRecoveryRecord | undefined): EsqResolvedRecovery {
+  const source = recoverySourceOf(rule, record);
+  const expression = recoveryExpressionOf(esq, source, rule, record);
+  if (rule !== undefined) view.rule = rule;
+  if (source !== undefined) view.source = source;
+  if (source === "DA" && rule?.parameterId !== undefined) view.parameterId = rule.parameterId;
+  if (expression !== undefined) view.expression = expression;
+  return view;
+}
+
+function repairFeasibility(record: EsqRepairRecord): EsqActionFeasibility {
+  const access = record.access !== undefined && record.access.trim().length > 0;
+  return { procedure: false, training: false, cues: false, crew: false, time: record.timeMinutes !== undefined, access, equipment: false };
+}
+
+function repairScope(model: EsqModel, record: EsqRepairRecord): { groupIds: string[]; stateIds: string[] } {
+  const sequence = model.sequences.find((entry) => entry.id === record.sequenceId);
+  const tree = sequence === undefined ? undefined : model.trees.find((entry) => entry.id === sequence.treeId);
+  if (tree === undefined) return { groupIds: [], stateIds: [] };
+  return { groupIds: [tree.initiatorId], stateIds: tree.stateId === undefined ? [] : [tree.stateId] };
+}
+
+function repairName(model: EsqModel, record: EsqRepairRecord): string {
+  const equipment = record.equipment?.trim() ?? "";
+  if (equipment.length > 0) return `Repair of ${equipment}`;
+  const sequence = model.sequences.find((entry) => entry.id === record.sequenceId);
+  return `Repair in ${sequence?.code ?? record.sequenceId}`;
 }
 
 function resolvedRecoveries(esq: EventSequenceQuantification): EsqResolvedRecovery[] {
@@ -147,20 +276,20 @@ function resolvedRecoveries(esq: EventSequenceQuantification): EsqResolvedRecove
   if (model === undefined) return [];
   const rules = postWorkOf(esq).recoveries ?? [];
   const records = model.recoveries ?? [];
+  const repairs = (model.repairs ?? []).filter((repair) => !records.some((record) => record.id === repair.id));
   const fromHr = records.map((record): EsqResolvedRecovery => {
     const rule = rules.find((entry) => entry.id === record.id);
     const eventIds = rule?.eventIds ?? model.events.flatMap((event) => {
       const holder = holderOf(esq, model, event.id);
       return holder.heldBy === "HRA" && holder.holderId === record.hfeId ? [event.id] : [];
     });
-    const source = rule?.ofRecord ?? (record.hep !== undefined ? "HRA" : rule?.typed !== undefined ? "TYPED" : undefined);
-    const value = source === "HRA" ? record.hep : source === "TYPED" ? rule?.typed?.value : undefined;
     const feasibility = rule?.feasibility ?? record.feasibility;
-    const view: EsqResolvedRecovery = {
+    return withValueOf(esq, {
       id: record.id,
       name: record.name,
       record,
       manual: false,
+      repair: false,
       eventIds,
       groupIds: rule?.groupIds ?? [],
       stateIds: rule?.stateIds ?? [],
@@ -168,51 +297,69 @@ function resolvedRecoveries(esq: EventSequenceQuantification): EsqResolvedRecove
       feasibility,
       missing: feasibilityMissing(feasibility),
       eventId: esqRecoveryEventId(record.id),
-    };
-    if (rule !== undefined) view.rule = rule;
-    if (source !== undefined) view.source = source;
-    if (value !== undefined) view.value = value;
-    return view;
+    }, rule, record);
   });
-  const manual = rules.filter((rule) => rule.manual !== undefined && !records.some((record) => record.id === rule.id)).map((rule): EsqResolvedRecovery => {
+  const fromEs = repairs.map((repair): EsqResolvedRecovery => {
+    const rule = rules.find((entry) => entry.id === repair.id);
+    const feasibility = rule?.feasibility ?? repairFeasibility(repair);
+    const scope = rule ?? repairScope(model, repair);
+    return withValueOf(esq, {
+      id: repair.id,
+      name: repairName(model, repair),
+      repairRecord: repair,
+      manual: false,
+      repair: true,
+      eventIds: rule?.eventIds ?? [],
+      groupIds: scope.groupIds,
+      stateIds: scope.stateIds,
+      credited: rule?.credited ?? repair.credited,
+      feasibility,
+      missing: feasibilityMissing(feasibility, true),
+      eventId: esqRecoveryEventId(repair.id),
+    }, rule, undefined);
+  });
+  const known = new Set([...records.map((record) => record.id), ...repairs.map((repair) => repair.id)]);
+  const manual = rules.filter((rule) => rule.manual !== undefined && !known.has(rule.id)).map((rule): EsqResolvedRecovery => {
+    const repair = rule.manual?.repair === true;
     const view: EsqResolvedRecovery = {
       id: rule.id,
       name: rule.manual?.name ?? "",
-      rule,
       manual: true,
+      repair,
       eventIds: rule.eventIds ?? [],
       groupIds: rule.groupIds,
       stateIds: rule.stateIds,
       credited: rule.credited,
-      missing: feasibilityMissing(rule.feasibility),
+      missing: feasibilityMissing(rule.feasibility, repair),
       eventId: esqRecoveryEventId(rule.id),
     };
     if (rule.feasibility !== undefined) view.feasibility = rule.feasibility;
-    if (rule.typed !== undefined) {
-      view.source = "TYPED";
-      view.value = rule.typed.value;
-    }
-    return view;
+    return withValueOf(esq, view, rule, undefined);
   });
-  return [...fromHr, ...manual];
+  return [...fromHr, ...fromEs, ...manual];
+}
+
+function recoveryInputKey(recovery: Pick<EsqResolvedRecovery, "id" | "source" | "parameterId">): string {
+  return recovery.source === "DA" && recovery.parameterId !== undefined ? `PARAMETER:${recovery.parameterId}` : `RECOVERY:${recovery.id}`;
 }
 
 function activeRecoveries(esq: EventSequenceQuantification, tree: EsqTreeRecord): EsqResolvedRecovery[] {
-  return resolvedRecoveries(esq).filter((recovery) => recovery.credited && recovery.missing.length === 0 && recovery.value !== undefined && recovery.eventIds.length > 0 && scopeApplies(recovery.groupIds, recovery.stateIds, tree));
+  return resolvedRecoveries(esq).filter((recovery) => recovery.credited && recovery.missing.length === 0 && recovery.expression !== undefined && recovery.eventIds.length > 0 && scopeApplies(recovery.groupIds, recovery.stateIds, tree));
 }
 
-function memberOf(esq: EventSequenceQuantification, model: EsqModel, recoveries: readonly EsqResolvedRecovery[], eventId: string): EsqCombinationMember {
+function memberOf(esq: EventSequenceQuantification, model: EsqModel, recoveries: readonly EsqResolvedRecovery[], eventId: string, points?: EsqPoints): EsqCombinationMember {
   const recovery = recoveries.find((entry) => entry.eventId === eventId);
   if (recovery !== undefined) {
     const recovered = recovery.eventIds.map((id) => timingRankOf(esq, model, id));
     const member: EsqCombinationMember = { eventId, code: `NR-${recovery.id}`, recoveryId: recovery.id, rank: Math.max(2, ...recovered) + 0.5 };
-    if (recovery.value !== undefined) member.probability = recovery.value;
+    const probability = points?.get(recoveryInputKey(recovery));
+    if (probability !== undefined) member.probability = probability;
     return member;
   }
   const record = model.events.find((event) => event.id === eventId);
   const { heldBy, holderId } = holderOf(esq, model, eventId);
   const member: EsqCombinationMember = { eventId, code: record?.code ?? eventId, rank: timingRankOf(esq, model, eventId) };
-  const probability = eventProbabilityOf(esq, model, eventId);
+  const probability = eventProbabilityOf(esq, model, eventId, points);
   if (probability !== undefined) member.probability = probability;
   if (heldBy === "HRA" && holderId !== undefined) member.hfeId = holderId;
   return member;
@@ -247,25 +394,25 @@ function therpJoint(members: readonly EsqCombinationMember[], level: EsqDependen
   return joint;
 }
 
-function combinationMembers(esq: EventSequenceQuantification, eventIds: readonly string[]): EsqCombinationMember[] {
+function combinationMembers(esq: EventSequenceQuantification, eventIds: readonly string[], points?: EsqPoints): EsqCombinationMember[] {
   const model = esq.model;
   if (model === undefined) return [];
   const recoveries = resolvedRecoveries(esq);
-  return eventIds.map((eventId) => memberOf(esq, model, recoveries, eventId));
+  return eventIds.map((eventId) => memberOf(esq, model, recoveries, eventId, points));
 }
 
 function floorValueOf(esq: EventSequenceQuantification): number | undefined {
   return postWorkOf(esq).floor?.value ?? esq.model?.jointFloor?.value;
 }
 
-function resolvedCombinations(esq: EventSequenceQuantification): EsqResolvedCombination[] {
+function resolvedCombinations(esq: EventSequenceQuantification, points?: EsqPoints): EsqResolvedCombination[] {
   const model = esq.model;
   if (model === undefined) return [];
   const recoveries = resolvedRecoveries(esq);
   const dependencies = model.dependencies ?? [];
   const floor = floorValueOf(esq);
   return (postWorkOf(esq).combinations ?? []).map((combination): EsqResolvedCombination => {
-    const members = combination.eventIds.map((eventId) => memberOf(esq, model, recoveries, eventId));
+    const members = combination.eventIds.map((eventId) => memberOf(esq, model, recoveries, eventId, points));
     const tokens = tokensOf(members);
     const matches = dependencies.filter((record) => sameTokens(hrTokensOf(record, recoveries), tokens));
     const linked = combination.dependencyId === undefined ? matches.length === 1 ? matches[0] : undefined : dependencies.find((record) => record.id === combination.dependencyId);
@@ -282,7 +429,7 @@ function resolvedCombinations(esq: EventSequenceQuantification): EsqResolvedComb
       if (therp !== undefined) view.therp = therp;
     }
     if (combination.typed !== undefined) view.typed = combination.typed.joint;
-    const source = combination.ofRecord ?? (linked !== undefined ? "HRA" : undefined);
+    const source = combination.ofRecord ?? (linked !== undefined ? "HRA" : level !== undefined ? "THERP" : undefined);
     if (source !== undefined) view.source = source;
     const raw = source === "HRA" ? linked?.jointHep : source === "THERP" ? view.therp : source === "TYPED" ? view.typed : undefined;
     const judgedIndependent = source === "HRA" ? linked?.level === "ZERO" : source === "THERP" ? level === "ZERO" : false;
@@ -292,6 +439,7 @@ function resolvedCombinations(esq: EventSequenceQuantification): EsqResolvedComb
       view.joint = view.floorApplies && floor !== undefined ? Math.max(raw, floor) : raw;
     }
     const smallest = members.reduce((least, member) => Math.min(least, member.probability ?? Number.POSITIVE_INFINITY), Number.POSITIVE_INFINITY);
+    if (points === undefined) return view;
     if (members.some((member) => member.probability === undefined)) view.problem = "A member has no probability.";
     else if (view.joint !== undefined && view.joint > smallest) view.problem = `The joint HEP ${view.joint.toPrecision(3)} exceeds a member HEP of ${smallest.toPrecision(3)}.`;
     else if (view.joint !== undefined && view.independent !== undefined && view.joint < view.independent * (1 - 1e-12)) view.problem = `The joint HEP ${view.joint.toPrecision(3)} is below the independent product ${view.independent.toPrecision(3)}.`;
@@ -368,10 +516,12 @@ function solveJointEvents(probabilities: ReadonlyMap<string, number>, combinatio
 
 export {
   FEASIBILITY_REQUIRED,
+  REPAIR_REQUIRED,
   THERP_CONDITIONAL,
   activeRecoveries,
   combinationKey,
   combinationMembers,
+  esqEventReader,
   esqIndependentEventId,
   esqJointEventId,
   esqPostRunId,
@@ -380,10 +530,12 @@ export {
   floorValueOf,
   hfeEventIds,
   postWorkOf,
+  recoveryInputKey,
+  repairFeasibility,
   resolvedCombinations,
   resolvedRecoveries,
   scopeApplies,
   solveJointEvents,
   therpJoint,
 };
-export type { EsqCombinationMember, EsqFeasibilityKey, EsqJointSolution, EsqResolvedCombination, EsqResolvedRecovery };
+export type { EsqCombinationMember, EsqEventReader, EsqFeasibilityKey, EsqJointSolution, EsqPoints, EsqResolvedCombination, EsqResolvedRecovery };

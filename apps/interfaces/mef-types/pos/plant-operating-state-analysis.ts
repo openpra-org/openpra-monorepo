@@ -525,6 +525,10 @@ export interface PosDocumentation {
   implementsSrs: SRReference[];
 }
 
+export interface PosLinkedWorkbooks {
+  DA?: string;
+}
+
 export interface PlantOperatingStatesAnalysis
   extends TechnicalElement<TechnicalElementTypes.PLANT_OPERATING_STATES_ANALYSIS> {
   praScope: string;
@@ -532,6 +536,7 @@ export interface PlantOperatingStatesAnalysis
   includesAtPowerOperations: boolean;
   // Additional
   includesLPSDOperations?: boolean;
+  linkedWorkbooks?: PosLinkedWorkbooks;
 
   plantEvolutions: PlantEvolution[];
   plantOperatingStates: PlantOperatingState[];

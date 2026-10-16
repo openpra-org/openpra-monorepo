@@ -123,7 +123,6 @@ function UncertaintyScreen({ sysId, setSysId, openDrawer, onOpenSystems }: {
     <>
       <div className="poscard sy-model-card">
         <div className="poscard__head sy-model-card__head">
-          <WorkbookSectionHeading workbook="SY" title={system.name} cueKey="Uncertainty analysis" level={3} />
           <label className="sy-model-card__picker">
             <span className="posfield__label">System</span>
             <select className="posfield__select" aria-label="System" value={system.uuid} onChange={(event) => setSysId(event.target.value)}>
@@ -298,7 +297,7 @@ function PlantUncertainty({ openDrawer }: { openDrawer: (ctx: SyDrawerContext) =
   return (
     <div className="poscard">
       <div className="poscard__head">
-        <WorkbookSectionHeading workbook="SY" title="Plant-wide model uncertainty" level={3} />
+        <WorkbookSectionHeading title="Plant-wide model uncertainty" level={3} />
       </div>
       <div className="sy-review">
         {PLANT_SECTIONS.map((section) => {

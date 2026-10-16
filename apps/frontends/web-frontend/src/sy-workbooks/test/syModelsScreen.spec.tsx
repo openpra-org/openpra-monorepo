@@ -30,6 +30,7 @@ jest.mock("../../newly-developed-methods/fault-tree", () => ({
 }));
 
 jest.mock("interfaces-shared-types/newly-developed-methods/fault-tree", () => ({
+  ...jest.requireActual<typeof import("interfaces-shared-types/newly-developed-methods/fault-tree")>("interfaces-shared-types/newly-developed-methods/fault-tree"),
   validateFaultTreeModel: jest.fn(),
 }));
 
@@ -151,6 +152,8 @@ let mockWorkbookContext: {
     revision: number | null;
     saveStatus: "saving" | "saved" | "failed";
   };
+  controlledCcfVectors: [];
+  controlledCcfFactors: [];
   controlledParameters: Array<{
     workbookId: string;
     workbookName: string;
@@ -176,8 +179,9 @@ let mockWorkbookContext: {
     hfeTiming: "POST_INITIATOR";
     quantificationId: string;
     methodology: string;
+    hep: UncertainExpression;
     value: number;
-    valueKind: "MEAN";
+    valueText: string;
   }>;
 };
 
@@ -217,6 +221,8 @@ function setWorkbookContext({
     mutateSy: mockMutateSy,
     runtime: { workbookId, revision, saveStatus },
     controlledParameters,
+    controlledCcfVectors: [],
+    controlledCcfFactors: [],
     controlledLegacyParameters,
     controlledHumanFailures,
     shortOf: (id: string) => (id === SYSTEM_ID ? "RCS" : id),
@@ -474,8 +480,9 @@ describe("ModelsScreen canonical fault-tree host", () => {
         hfeTiming: "POST_INITIATOR",
         quantificationId: "hep-1",
         methodology: "THERP",
+        hep: { node: "VALUE" as const, value: { unit: "PROBABILITY" as const, law: { family: "POINT" as const, value: 0.037 } } },
         value: 0.037,
-        valueKind: "MEAN",
+        valueText: "3.7E-2",
       }],
     });
 
@@ -740,7 +747,7 @@ describe("ModelsScreen canonical fault-tree host", () => {
     setWorkbookContext({ revision: 8 });
     rerender(<ModelsScreen sysId={SYSTEM_ID} setSysId={jest.fn()} openDrawer={jest.fn()} />);
     expect(latestEditorProps().analysisResult).toEqual(result);
-    expect(latestEditorProps().resultIsStale).toBe(true);
+    expect(latestEditorProps().resultIsStale).toBe(false);
   });
 
   it("runs the selected fault trees through the batch workflow settings", async () => {
@@ -824,14 +831,41 @@ describe("ModelsScreen canonical fault-tree host", () => {
     expect(mockedGetSyFaultTreeResult).not.toHaveBeenCalled();
   });
 
-  it("marks an existing result stale while local changes are saving", async () => {
+  it("names the removed system mission time on a SIL result", async () => {
     const owner = { workbookId: "sy-workbook", modelId: MODEL_ID, workbookRevision: 7 };
+    const base = makeAnalysis();
+    const withMission = makeAnalysis({
+      systemDefinitions: [
+        { ...base.systemDefinitions[0]!, missionTime: { node: "VALUE", value: { unit: "HOURS", law: { family: "POINT", value: 72 } } } },
+      ],
+    });
     const result: FaultTreeAnalysisResult = {
       schemaVersion: "1.0.0",
       runId: RUN_ID,
       owner,
       topGateId: "gate-top",
       topEventProbability: 0.001,
+      calculationType: "SIL",
+      settings: {
+        algorithm: "BDD",
+        approximation: "EXACT",
+        variableOrder: "DFS",
+        reorderBudgetSeconds: 60,
+        expandCcf: false,
+        numTrials: 10_000,
+        seed: 847,
+        samplingMethod: "MONTE_CARLO",
+        missionTimeHours: 72,
+        earlyStop: false,
+        convergenceDelta: 0.1,
+        confidenceLevel: 0.95,
+        burnInTrials: 0,
+        varianceReduction: "NONE",
+        importanceSamplingBiasFactor: 10,
+        importanceSamplingMaxEvents: 32,
+        importanceSamplingMinimumProbability: 1e-12,
+        stratifyEvents: 4,
+      },
       validationIssues: [],
       completedAt: "2026-08-22T12:00:00.000Z",
     };
@@ -853,15 +887,19 @@ describe("ModelsScreen canonical fault-tree host", () => {
       },
     });
     mockedGetSyFaultTreeResult.mockResolvedValue(result);
+    setWorkbookContext({ sy: withMission });
     const { rerender } = render(<ModelsScreen sysId={SYSTEM_ID} setSysId={jest.fn()} openDrawer={jest.fn()} />);
+    await act(async () => { await settledWithPraxis(() => undefined); });
     openTab("Quantification");
-    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Run probability" })); });
-    openTab("Fault tree");
-    await waitFor(() => expect(latestEditorProps().analysisResult).toEqual(result));
+    fireEvent.click(screen.getByRole("radio", { name: "SIL" }));
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Run SIL" })); });
+    expect(screen.queryByText("The system mission time was removed.")).not.toBeInTheDocument();
 
-    setWorkbookContext({ saveStatus: "saving" });
+    setWorkbookContext({ sy: base, revision: 8 });
     rerender(<ModelsScreen sysId={SYSTEM_ID} setSysId={jest.fn()} openDrawer={jest.fn()} />);
 
+    expect(screen.getByText("The system mission time was removed.")).toBeInTheDocument();
+    openTab("Fault tree");
     expect(latestEditorProps().resultIsStale).toBe(true);
   });
 });
@@ -940,10 +978,9 @@ describe("ModelsScreen system tabs", () => {
 
     expect(screen.getByRole("tab", { name: "Description" })).toHaveAttribute("aria-selected", "true");
     expect(screen.getByText("Remove reactor heat")).toBeInTheDocument();
-    expect(screen.getByText("…")).toBeInTheDocument();
     await act(async () => { await settledWithPraxis(() => undefined); });
     expect(screen.getByText("72 h")).toBeInTheDocument();
-    expect(screen.getByText("Typed 72 hours")).toBeInTheDocument();
+    expect(screen.queryByText("Typed 72 hours")).not.toBeInTheDocument();
     expect(screen.getByText("Reactor vessel")).toBeInTheDocument();
     expect(screen.queryByText("Support systems")).not.toBeInTheDocument();
 
@@ -1112,7 +1149,7 @@ describe("ModelsScreen system tabs", () => {
     expect(latestEditorProps().defaultMissionTime).toBeUndefined();
     openTab("Quantification");
     fireEvent.click(screen.getByRole("radio", { name: "SIL" }));
-    expect(screen.getByText("SIL needs a system mission time. Set it in the system definition.")).toBeInTheDocument();
+    expect(screen.getByText("SIL needs a system mission time. Set it in Description › Definition › Mission time.")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Run SIL" })).toBeDisabled();
   });
 

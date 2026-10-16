@@ -28,15 +28,13 @@ import { LoadExampleModal, UnloadExampleModal } from "../workbooks/exampleWorkbo
 import { RiDocumentsCard } from "./riDocumentsCard";
 import { type RiLinkCode, type RiPersona } from "./riViewData";
 
-import { loadRiRiskSources, type RiRiskSources } from "../workbooks/riskWorkbookConnections";
-
 const STEP_SR_HINT: Record<string, string | undefined> = {
   application: "RI-A1",
   inputs: "RI-B1",
   integrate: "RI-B2",
   aggregate: "RI-B3",
   uncertainty: "RI-C1",
-  feedback: "RI-D1",
+  handoff: "RI-D1",
 };
 
 interface RiExampleResponse {
@@ -67,11 +65,6 @@ function RiWorkbookPage(): JSX.Element {
   const [hasPreviousMef, setHasPreviousMef] = useState(false);
   const [approvalRefresh, setApprovalRefresh] = useState(0);
   const [projectName, setProjectName] = useState<string>("");
-  const [riskSources, setRiskSources] = useState<RiRiskSources>({
-    eventSequenceFamilies: [],
-    familyQuantifications: [],
-    consequenceResults: [],
-  });
   const [linkOptions, setLinkOptions] = useState<Record<RiLinkCode, Workbook[]>>(EMPTY_UPSTREAM.options);
   const workbookName = data?.ri.name ?? "";
   const workbookVersion = data?.ri.version ?? "1";
@@ -85,6 +78,9 @@ function RiWorkbookPage(): JSX.Element {
     ])
       .then(async ([workbook, bundle]) => {
         if (cancelled) return;
+        const linkChoices = await listRiLinkOptions(workbook.projectId);
+        if (cancelled) return;
+        setLinkOptions(linkChoices);
         setData({
           ri: workbook.mef,
           cc: bundle.configurationControl.mef as PRAConfigurationControl,
@@ -103,14 +99,6 @@ function RiWorkbookPage(): JSX.Element {
           if (!cancelled) setProjectName(project.name);
         } catch {
           if (!cancelled) setProjectName("");
-        }
-        const options = await listRiLinkOptions(workbook.projectId);
-        if (!cancelled) setLinkOptions(options);
-        try {
-          const sources = await loadRiRiskSources(workbook.projectId);
-          if (!cancelled) setRiskSources(sources);
-        } catch {
-          if (!cancelled) setRiskSources({ eventSequenceFamilies: [], familyQuantifications: [], consequenceResults: [] });
         }
       })
       .catch((err: unknown) => {
@@ -196,7 +184,7 @@ function RiWorkbookPage(): JSX.Element {
   const canUnloadExample = canLoadExample && hasPreviousMef;
 
   return (
-    <RiWorkbookProvider data={data} editable={editable} mutateRi={mutateRi} riskSources={riskSources} upstream={upstream}>
+    <RiWorkbookProvider data={data} editable={editable} mutateRi={mutateRi} upstream={upstream}>
       <RiWorkbench
         data={data}
         persona={persona}
@@ -230,7 +218,7 @@ function RiWorkbookPage(): JSX.Element {
       )}
       {rolesOpen && <WorkbookRolesModal workbookId={id} onClose={() => setRolesOpen(false)} onChanged={(res) => setMyRoles(res.myRoles as RiWorkbookRoleName[])} />}
       {loadExOpen && (
-        <LoadExampleModal
+        <LoadExampleModal replacesLinks
           exampleName="RI"
           exampleOptions={exampleOptions}
           exampleNotices={{ "published-ri-inputs": "Every frequency and dose in this example comes from the Kemmerer Unit 1 PSAR Rev. 1 and the applicant's RCI response, entered by hand with its source. Where the PSAR gives only plant totals, the workbook records the gap instead of inventing a value." }}

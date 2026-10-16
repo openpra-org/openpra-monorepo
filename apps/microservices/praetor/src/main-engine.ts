@@ -19,6 +19,7 @@ async function bootstrap(): Promise<void> {
     });
     logger.debug('Starting consumer microservice...');
     await app.startAllMicroservices();
-    await app.listen(5555);
+    const port = Number(process.env['PRAETOR_ENGINE_PORT'] ?? 5555);
+    await app.listen(Number.isSafeInteger(port) && port >= 0 ? port : 5555);
 }
 void bootstrap();

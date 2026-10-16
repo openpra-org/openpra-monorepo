@@ -36,7 +36,9 @@ import {
   EsqUncertaintyCorrelationSchema,
   EventTreeCutSetSettingsSchema,
   EventTreeExecutionModeSchema,
+  EventTreeMonteCarloSettingsSchema,
   EventTreeSamplingMethodSchema,
+  EventTreeSuccessTreatmentSchema,
 } from "./event-tree-requests";
 import type { UncertainExpression, UncertainUnit } from "interfaces-mef-types/core/uncertainty";
 import { UncertainExpressionSchema, UncertainUnitSchema } from "interfaces-mef-types/zod/core/uncertainty";
@@ -47,7 +49,9 @@ import type {
   EsqUncertaintyCorrelation,
   EventTreeCutSetSettings,
   EventTreeExecutionMode,
+  EventTreeMonteCarloSettings,
   EventTreeSamplingMethod,
+  EventTreeSuccessTreatment,
 } from "./event-tree-requests";
 import {
   HclUncertaintySummarySchema,
@@ -126,6 +130,18 @@ interface EventTreeFamilyCutSets {
   items: EventTreeCutSet[];
 }
 
+interface EventTreeSequenceMonteCarlo {
+  successes: number;
+  trials: number;
+}
+
+interface EventTreeMonteCarloRun {
+  trials: number;
+  requestedTrials: number;
+  seed: number;
+  stoppedEarly: boolean;
+}
+
 interface EventTreeSequenceAnalysisResult {
   sequenceId: WorkbookEntityId;
   /** Source and destination sequences forming this complete transfer path. */
@@ -140,11 +156,14 @@ interface EventTreeSequenceAnalysisResult {
     annualFrequency: HclUncertaintySummary;
   };
   cutSets?: EventTreeSequenceCutSets;
+  monteCarlo?: EventTreeSequenceMonteCarlo;
 }
 
 interface EventTreeEndStateAggregate {
   endStateId: WorkbookEntityId;
   annualFrequency: number;
+  sequenceSum?: number;
+  sequencesOverlap?: boolean;
   uncertainty?: HclUncertaintySummary;
 }
 
@@ -205,6 +224,7 @@ interface EventTreeAnalysisResult {
   families?: EventTreeFamilyCutSets[];
   importance?: EventTreeImportanceResult;
   sampling?: EventTreeSamplingResult;
+  monteCarlo?: EventTreeMonteCarloRun;
   validationIssues: ValidationIssue[];
   completedAt: string;
 }
@@ -251,6 +271,39 @@ interface EsqUncertaintyFamily extends EsqUncertaintyStatistics {
   values: number[];
 }
 
+interface EsqUncertaintyTotal extends EsqUncertaintyStatistics {
+  values?: number[];
+}
+
+interface EsqUncertaintyHistogram {
+  low: number;
+  high: number;
+  counts: number[];
+  zeros: number;
+}
+
+interface EsqUncertaintySeries extends EsqUncertaintyStatistics {
+  histogram: EsqUncertaintyHistogram | null;
+  quantiles: number[];
+}
+
+interface EsqUncertaintySequence extends EsqUncertaintySeries {
+  treeId: string;
+  sequenceIds: string[];
+  paths: number;
+  familyId: string | null;
+  releaseCategoryId: string | null;
+  endState: string | null;
+}
+
+type EsqUncertaintyGroupKind = "FAMILY" | "RELEASE_CATEGORY" | "RELEASE_TOTAL";
+
+interface EsqUncertaintyGroup extends EsqUncertaintySeries {
+  treeId: string | null;
+  kind: EsqUncertaintyGroupKind;
+  key: string;
+}
+
 interface EsqUncertaintyKey {
   key: string;
   label: string;
@@ -274,12 +327,18 @@ interface EsqModelRunSweepPoint {
   annualFrequency: number;
 }
 
+interface EsqModelRunTreeFamily {
+  familyId: string;
+  annualFrequency: number;
+}
+
 interface EsqModelRunTree {
   treeId: string;
   runId: AnalysisRunId;
   status: EsqModelRunTreeStatus;
   initiatorFrequency: number | null;
   failure: string | null;
+  families?: EsqModelRunTreeFamily[];
 }
 
 interface EsqModelRunSequence {
@@ -317,6 +376,12 @@ interface EsqModelRunFamily {
 interface EsqModelRunEndState {
   endState: string;
   annualFrequency: number;
+}
+
+interface EsqModelRunHclResult {
+  workbookId: string;
+  modelId: string;
+  treeIds: string[];
 }
 
 interface EsqPostCombinationFinding {
@@ -360,6 +425,8 @@ interface EsqModelRunResult {
   calculation: EsqModelCalculation;
   logic: EsqEventTreeRunLogic;
   cutSets: EventTreeCutSetSettings | null;
+  successTreatment?: EventTreeSuccessTreatment;
+  monteCarlo?: EventTreeMonteCarloSettings;
   trees: EsqModelRunTree[];
   sequences: EsqModelRunSequence[];
   families: EsqModelRunFamily[];
@@ -367,6 +434,7 @@ interface EsqModelRunResult {
   eventCodes: Record<string, string>;
   peakProbability: number | null;
   caseId?: string;
+  hcl?: EsqModelRunHclResult;
 }
 
 interface EsqImportanceRunResult {
@@ -397,7 +465,9 @@ interface EsqUncertaintyRunResult {
   correlation: EsqUncertaintyCorrelation;
   trees: EsqModelRunTree[];
   families: EsqUncertaintyFamily[];
-  total: EsqUncertaintyStatistics | null;
+  total: EsqUncertaintyTotal | null;
+  sequences?: EsqUncertaintySequence[];
+  groups?: EsqUncertaintyGroup[];
   keys: EsqUncertaintyKey[];
   unsampled: EsqUncertaintyUnsampled[];
 }
@@ -501,6 +571,22 @@ const EventTreeFamilyCutSetsSchema = z
   })
   .strict();
 
+const EventTreeSequenceMonteCarloSchema = z
+  .object({
+    successes: z.number().int().nonnegative(),
+    trials: z.number().int().positive(),
+  })
+  .strict();
+
+const EventTreeMonteCarloRunSchema = z
+  .object({
+    trials: z.number().int().positive(),
+    requestedTrials: z.number().int().positive(),
+    seed: z.number().int().nonnegative(),
+    stoppedEarly: z.boolean(),
+  })
+  .strict();
+
 const EventTreeSequenceAnalysisResultSchema = z
   .object({
     sequenceId: WorkbookEntityIdSchema,
@@ -515,6 +601,7 @@ const EventTreeSequenceAnalysisResultSchema = z
       annualFrequency: HclUncertaintySummarySchema,
     }).strict().optional(),
     cutSets: EventTreeSequenceCutSetsSchema.optional(),
+    monteCarlo: EventTreeSequenceMonteCarloSchema.optional(),
   })
   .strict();
 
@@ -522,6 +609,8 @@ const EventTreeEndStateAggregateSchema = z
   .object({
     endStateId: WorkbookEntityIdSchema,
     annualFrequency: z.number().nonnegative("Annual frequency cannot be negative"),
+    sequenceSum: z.number().nonnegative("A sequence sum cannot be negative").optional(),
+    sequencesOverlap: z.boolean().optional(),
     uncertainty: HclUncertaintySummarySchema.optional(),
   })
   .strict();
@@ -577,6 +666,7 @@ const EventTreeAnalysisResultSchema = z
     families: z.array(EventTreeFamilyCutSetsSchema).optional(),
     importance: EventTreeImportanceResultSchema.optional(),
     sampling: EventTreeSamplingResultSchema.optional(),
+    monteCarlo: EventTreeMonteCarloRunSchema.optional(),
     validationIssues: z.array(ValidationIssueSchema),
     completedAt: z.string().datetime({ offset: true }),
   })
@@ -590,6 +680,13 @@ const EsqModelRunSweepPointSchema = z
   })
   .strict();
 
+const EsqModelRunTreeFamilySchema = z
+  .object({
+    familyId: z.string().min(1),
+    annualFrequency: FrequencySchema,
+  })
+  .strict();
+
 const EsqModelRunTreeSchema = z
   .object({
     treeId: z.string().min(1),
@@ -597,6 +694,7 @@ const EsqModelRunTreeSchema = z
     status: z.enum(["SUCCEEDED", "FAILED"]),
     initiatorFrequency: FrequencySchema.nullable(),
     failure: z.string().nullable(),
+    families: z.array(EsqModelRunTreeFamilySchema).optional(),
   })
   .strict();
 
@@ -644,6 +742,14 @@ const EsqModelRunEndStateSchema = z
   .object({
     endState: z.string().min(1),
     annualFrequency: FrequencySchema,
+  })
+  .strict();
+
+const EsqModelRunHclResultSchema = z
+  .object({
+    workbookId: z.string().min(1),
+    modelId: z.string().min(1),
+    treeIds: z.array(z.string().min(1)),
   })
   .strict();
 
@@ -695,6 +801,8 @@ const EsqModelRunResultSchema = z
     calculation: EsqModelCalculationSchema,
     logic: EsqEventTreeRunLogicSchema,
     cutSets: EventTreeCutSetSettingsSchema.nullable(),
+    successTreatment: EventTreeSuccessTreatmentSchema.optional(),
+    monteCarlo: EventTreeMonteCarloSettingsSchema.optional(),
     trees: z.array(EsqModelRunTreeSchema),
     sequences: z.array(EsqModelRunSequenceSchema),
     families: z.array(EsqModelRunFamilySchema),
@@ -702,6 +810,7 @@ const EsqModelRunResultSchema = z
     eventCodes: z.record(z.string(), z.string()),
     peakProbability: ProbabilitySchema.nullable(),
     caseId: z.string().min(1).optional(),
+    hcl: EsqModelRunHclResultSchema.optional(),
   })
   .strict();
 
@@ -745,6 +854,35 @@ const EsqUncertaintyStatisticsSchema = z
   })
   .strict();
 
+const EsqUncertaintyHistogramSchema = z
+  .object({
+    low: z.number().int(),
+    high: z.number().int(),
+    counts: z.array(z.number().int().nonnegative()),
+    zeros: z.number().int().nonnegative(),
+  })
+  .strict();
+
+const EsqUncertaintySeriesSchema = EsqUncertaintyStatisticsSchema.extend({
+  histogram: EsqUncertaintyHistogramSchema.nullable(),
+  quantiles: z.array(FrequencySchema),
+}).strict();
+
+const EsqUncertaintySequenceSchema = EsqUncertaintySeriesSchema.extend({
+  treeId: z.string().min(1),
+  sequenceIds: z.array(z.string().min(1)),
+  paths: z.number().int().positive(),
+  familyId: z.string().nullable(),
+  releaseCategoryId: z.string().nullable(),
+  endState: z.string().nullable(),
+}).strict();
+
+const EsqUncertaintyGroupSchema = EsqUncertaintySeriesSchema.extend({
+  treeId: z.string().min(1).nullable(),
+  kind: z.enum(["FAMILY", "RELEASE_CATEGORY", "RELEASE_TOTAL"]),
+  key: z.string(),
+}).strict();
+
 const EsqUncertaintyRunResultSchema = z
   .object({
     schemaVersion: WorkbookMethodSchemaVersionSchema,
@@ -766,7 +904,9 @@ const EsqUncertaintyRunResultSchema = z
         values: z.array(FrequencySchema),
       }).strict(),
     ),
-    total: EsqUncertaintyStatisticsSchema.nullable(),
+    total: EsqUncertaintyStatisticsSchema.extend({ values: z.array(FrequencySchema).optional() }).strict().nullable(),
+    sequences: z.array(EsqUncertaintySequenceSchema).optional(),
+    groups: z.array(EsqUncertaintyGroupSchema).optional(),
     keys: z.array(
       z
         .object({
@@ -847,12 +987,18 @@ export {
   EventTreeCutSetSchema,
   EventTreeSequenceCutSetsSchema,
   EventTreeFamilyCutSetsSchema,
+  EventTreeSequenceMonteCarloSchema,
+  EventTreeMonteCarloRunSchema,
   EsqModelRunResultSchema,
   EsqPostRunResultSchema,
   EventTreeImportanceResultSchema,
   EventTreeSamplingResultSchema,
   EsqImportanceRunResultSchema,
   EsqUncertaintyStatisticsSchema,
+  EsqUncertaintyHistogramSchema,
+  EsqUncertaintySeriesSchema,
+  EsqUncertaintySequenceSchema,
+  EsqUncertaintyGroupSchema,
   EsqUncertaintyRunResultSchema,
 };
 export type {
@@ -868,14 +1014,18 @@ export type {
   EventTreeCutSet,
   EventTreeSequenceCutSets,
   EventTreeFamilyCutSets,
+  EventTreeSequenceMonteCarlo,
+  EventTreeMonteCarloRun,
   EsqModelRunTreeStatus,
   EsqModelRunSweepPoint,
   EsqModelRunTree,
+  EsqModelRunTreeFamily,
   EsqModelRunSequence,
   EsqModelRunCutSet,
   EsqModelRunFamilyState,
   EsqModelRunFamily,
   EsqModelRunEndState,
+  EsqModelRunHclResult,
   EsqModelRunResult,
   EventTreeCutSetFocusItems,
   EsqPostCombinationFinding,
@@ -896,6 +1046,12 @@ export type {
   EsqImportanceRunResult,
   EsqUncertaintyStatistics,
   EsqUncertaintyFamily,
+  EsqUncertaintyTotal,
+  EsqUncertaintyHistogram,
+  EsqUncertaintySeries,
+  EsqUncertaintySequence,
+  EsqUncertaintyGroupKind,
+  EsqUncertaintyGroup,
   EsqUncertaintyKey,
   EsqUncertaintyUnsampled,
   EsqUncertaintyRunResult,

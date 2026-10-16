@@ -139,25 +139,25 @@ describe("Seismic PRA Step 11 annual risk", () => {
       cutset.basicEventRefs)).size).toBeGreaterThanOrEqual(10);
   });
 
-  it("uses question marks for sections and exclamation marks for entries", async () => {
+  it("uses exclamation marks for entries and no question marks for sections", async () => {
     const mef = renderAnnualRisk();
     const family =
       mef.seismicPlantResponseAnalysis.quantification
         .eventSequenceFamilyQuantifications[0]!;
 
     expect(screen.queryByRole("note")).not.toBeInTheDocument();
-    const sectionHelp = screen.getByRole("button", {
+    const heading = screen.getByRole("heading", {
+      name: "Hazard integration",
+    }).closest(".ssection__heading");
+    expect(heading).not.toBeNull();
+    expect(within(heading as HTMLElement).queryAllByRole("button"))
+      .toHaveLength(0);
+    expect(screen.queryByRole("button", {
       name: "About Hazard integration",
-    });
-    expect(sectionHelp).toHaveClass("sinfo__button--help");
-    expect(sectionHelp.querySelector(
+    })).not.toBeInTheDocument();
+    expect(document.querySelector(
       'path[d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3M12 17h.01"]',
-    )).toBeInTheDocument();
-    await userEvent.click(sectionHelp);
-    expect(screen.getByRole("note")).toHaveTextContent(
-      "The hazard curve is divided into non-overlapping ground-motion intervals",
-    );
-    expect(screen.getByRole("note")).toHaveTextContent("For example");
+    )).toBeNull();
 
     expect(screen.queryByText(family.quantificationMethod, { exact: false }))
       .not.toBeInTheDocument();

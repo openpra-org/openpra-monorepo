@@ -33,7 +33,7 @@ const RI_STEPS: RiStep[] = [
   { id: "integrate", num: "05", hlr: "B", hlrTone: "b", label: "Integrated Risk", sub: "Targets, shares and the curve", status: "idle" },
   { id: "aggregate", num: "06", hlr: "B", hlrTone: "b", label: "Contributors and SSCs", sub: "Breakdown, SSC groups and importance", status: "idle" },
   { id: "uncertainty", num: "07", hlr: "C", hlrTone: "c", label: "Uncertainty", sub: "Register, grouping and propagation", status: "idle" },
-  { id: "feedback", num: "08", hlr: "D", hlrTone: "d", label: "Hand-offs", sub: "Significance sent upstream", status: "idle" },
+  { id: "handoff", num: "08", hlr: "D", hlrTone: "d", label: "Technical Element Handoff", sub: "Exported sections", status: "idle" },
   { id: "draft", num: "09", label: "Draft", sub: "Produce RI report", status: "idle", terminal: true },
   { id: "review", num: "10", label: "Review", sub: "Reviewer comments", status: "idle", terminal: true },
   { id: "approval", num: "11", label: "Approval", sub: "Everyone signs", status: "idle", terminal: true },
@@ -131,13 +131,7 @@ const SITE_BASES: { id: RiSiteBasis; label: string }[] = [
 
 type RiLinkCode = keyof RiLinkedWorkbooks;
 
-const RI_LINK_TILES: { code: RiLinkCode; name: string; handoff: string }[] = [
-  { code: "POS", name: "Plant Operating States", handoff: "Provides · Operating states and sources" },
-  { code: "ES", name: "Event Sequence Analysis", handoff: "Provides · Families and sequences" },
-  { code: "ESQ", name: "Event Sequence Quantification", handoff: "Provides · Family frequencies" },
-  { code: "MS", name: "Mechanistic Source Term", handoff: "Provides · Source terms" },
-  { code: "RC", name: "Radiological Consequence", handoff: "Provides · Consequences" },
-];
+const RI_LINK_CODES: RiLinkCode[] = ["POS", "ES", "ESQ", "MS", "RC"];
 
 const EXAMPLE_VARIANT_LABELS: Record<string, string> = {
   htgr: "Generic HTGR",
@@ -447,15 +441,6 @@ const RI_UPSTREAM_LINKS: LinkSpec[] = [
 const SCOPE_POS_TEXT = "All modeled plant operating states, at-power and shutdown.";
 const SCOPE_NOTE = "The single-unit single-source scope keeps the multi-reactor and multi-source terms recorded but not driving.";
 
-const FC_META = {
-  xMin: 1e-7,
-  xMax: 1e0,
-  yMin: 1e-9,
-  yMax: 1e-4,
-  targetFrom: { dose: 1e-5, freq: 1e-4 },
-  targetTo: { dose: 1e0, freq: 1e-8 },
-};
-
 const CCDF_NOTE = "The curve shows the frequency of exceeding each dose level, drawn at CC-II.";
 
 const REGISTER_SIDE: Record<string, string> = {
@@ -553,7 +538,7 @@ export {
   APPLICATION_TYPES,
   LICENSING_ACTIONS,
   SITE_BASES,
-  RI_LINK_TILES,
+  RI_LINK_CODES,
   RI_HAZARD_GROUPS,
   RI_SCOPE_ASPECTS,
   exampleLinkVariant,
@@ -580,7 +565,6 @@ export {
   RI_UPSTREAM_LINKS,
   SCOPE_POS_TEXT,
   SCOPE_NOTE,
-  FC_META,
   CCDF_NOTE,
   REGISTER_SIDE,
   ELEMENT_CODE_BY_TYPE,

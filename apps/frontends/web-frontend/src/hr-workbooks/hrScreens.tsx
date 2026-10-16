@@ -1,8 +1,11 @@
 import { WorkbookSectionHeading } from "../workbooks/workbookSectionHeading";
 import { WorkbookInput } from "../workbooks/commitOnDeactivateFields";
-import { JSX, useState } from "react";
+import { JSX, useEffect, useId, useRef, useState } from "react";
+import { HANDOFF_ELEMENT_NAMES } from "interfaces-mef-types/technical-element-handoff";
+import { HandoffImports, readableId } from "../workbooks/workbookHandoff";
 import { HRIcon } from "./hrIcons";
 import { Badge, HRProvenanceChip, hepText } from "./hrShared";
+import { quantificationHepText } from "./hrDaLinks";
 import {
   CAPABILITY_CATEGORIES,
   ACTIVITY_TYPES,
@@ -14,6 +17,7 @@ import {
 } from "./hrViewData";
 import { ccScore } from "./hrSelectors";
 import { useHrWorkbook } from "./hrWorkbookContext";
+import { HR_LINK_CODES, type HrLinkActions, type HrLinkCode, type HrLinkOption } from "./hrLinks";
 
 interface HrDrawerContext {
   kind: "activity" | "contribution" | "prescreen" | "prehfe" | "prequant" | "precredit" | "respreview" | "respconfirm" | "posthfe" | "respquant" | "jointfloor" | "consistency" | "uncertsource" | "relatedassumption" | "reasonablealt" | "preopassum" | "sensitivity" | "efc" | "dependence" | "recovery";
@@ -34,29 +38,78 @@ function exposureLabel(hours: number | undefined): string {
   return `${hours} h`;
 }
 
-function ScopeScreen({ ccId, setCcId, stage, setStage }: {
+function HrInterfaces({ linkActions }: { linkActions?: HrLinkActions }): JSX.Element {
+  const { hr, editable } = useHrWorkbook();
+  const [selected, setSelected] = useState<HrLinkCode | null>("POS");
+  const [options, setOptions] = useState<Partial<Record<HrLinkCode, HrLinkOption[]>>>({});
+  const [error, setError] = useState<string | null>(null);
+  const requested = useRef(new Set<HrLinkCode>());
+  const selectId = useId();
+  const linkedId = selected === null ? null : hr.linkedWorkbooks?.[selected] ?? null;
+  const choices = selected === null ? undefined : options[selected];
+  const linked = choices?.find((option) => option.workbookId === linkedId);
+
+  useEffect(() => {
+    if (linkActions === undefined) return;
+    for (const code of HR_LINK_CODES) {
+      if (requested.current.has(code)) continue;
+      requested.current.add(code);
+      linkActions.available(code)
+        .then((found) => setOptions((current) => ({ ...current, [code]: found })))
+        .catch((failure: Error) => setError(failure.message));
+    }
+  }, [linkActions]);
+
+  return (
+    <>
+      <div className="poshandoff__grid hr-scope-tiles">
+        {HR_LINK_CODES.map((code) => (
+          <button
+            key={code}
+            type="button"
+            className={`poshandoff__tile${selected === code ? " poshandoff__tile--active" : ""}`}
+            aria-pressed={selected === code}
+            onClick={() => { setSelected(selected === code ? null : code); setError(null); }}
+          >
+            <span className="poshandoff__tile-code">{code}</span>
+            <span className="poshandoff__tile-name">{HANDOFF_ELEMENT_NAMES[code]}</span>
+          </button>
+        ))}
+      </div>
+      {selected !== null && (
+        <div className="hr-scope-lane">
+          <div className="hr-scope-link">
+            <label className="posfield__label" htmlFor={selectId}>Source workbook</label>
+            <select
+              id={selectId}
+              className="posfield__select"
+              value={linkedId ?? ""}
+              disabled={!editable || linkActions === undefined || choices === undefined}
+              onChange={(event) => linkActions?.setLink(selected, event.target.value.length === 0 ? null : event.target.value)}
+            >
+              <option value="">{choices !== undefined && choices.length === 0 && linkedId === null ? `No ${selected} workbooks in this project` : "Not linked"}</option>
+              {(choices ?? []).map((option) => <option key={option.workbookId} value={option.workbookId}>{option.name}</option>)}
+              {linkedId !== null && linked === undefined && <option value={linkedId}>{linkedId.startsWith("example") ? `Example ${selected} workbook` : choices === undefined ? "" : `${selected} workbook not in this project`}</option>}
+            </select>
+          </div>
+          <HandoffImports consumer="HRA" producer={selected} />
+          {error !== null && <p className="hr-scope-error" role="alert">{error}</p>}
+        </div>
+      )}
+    </>
+  );
+}
+
+function ScopeScreen({ ccId, setCcId, stage, setStage, linkActions }: {
   ccId: string;
   setCcId: (id: string) => void;
   stage: Stage;
   setStage: (s: Stage) => void;
   onAction: (msg: string) => void;
+  linkActions?: HrLinkActions;
 }): JSX.Element {
-  const { hr, links, editable, mutateHr } = useHrWorkbook();
+  const { hr, editable, mutateHr } = useHrWorkbook();
   const cc = CAPABILITY_CATEGORIES.find((c) => c.id === ccId) ?? CAPABILITY_CATEGORIES[0];
-  const [selectedTe, setSelectedTe] = useState<string | null>(null);
-  const nameOf = (hfeId: string): string => hr.humanFailureEvents.find((h) => h.uuid === hfeId)?.name ?? hfeId;
-  const ieName = (id: string | undefined): string => (id === undefined ? "—" : (links?.ieInitiators.find((i) => i.id === id)?.name ?? id));
-  const fmtHep = (v: number | undefined): string => (v !== undefined ? v.toExponential(1).toUpperCase() : "—");
-  const ifaceLanes: { key: string; code: string; element: string; role: string; direction: "in" | "out"; columns: string[]; rows: { id: string; name: string; values: string[] }[]; empty: string }[] = [
-    { key: "in-POS", code: "POS", element: "Plant Operating States", role: "Operating states", direction: "in", columns: ["Operating state", "Mode", "Duration (h)"], rows: (links?.posStates ?? []).map((x) => ({ id: x.id, name: `${x.id} · ${x.name}`, values: [x.mode, String(x.durationHours)] })), empty: "Load the example to pull the operating states a human failure event is defined per." },
-    { key: "in-IE", code: "IE", element: "Initiating Events", role: "Operator contributions", direction: "in", columns: ["System", "Initiating event it contributes to"], rows: (hr.supportSystemInitiatorOperatorContributions ?? []).map((x) => ({ id: x.uuid, name: x.systemReference, values: [ieName(x.faultTreeReference)] })), empty: "No operator contributions to support-system initiators." },
-    { key: "in-ES", code: "ES", element: "Event Sequence Analysis", role: "Operator actions", direction: "in", columns: ["Operator action", "Cue", "Window (min)"], rows: (links?.esActions ?? []).map((x) => ({ id: x.id, name: `${x.id} · ${x.action}`, values: [x.cue, x.window] })), empty: "Load the example to pull the operator actions Event Sequence names at the branch points." },
-    { key: "in-SC", code: "SC", element: "Success Criteria", role: "Time windows", direction: "in", columns: ["Human action", "Time available", "Success criterion"], rows: (links?.scWindows ?? []).map((x) => ({ id: x.id, name: `${x.id} · ${x.description}`, values: [x.timeAvailable, x.criteria] })), empty: "Load the example to pull the time available for each human action." },
-    { key: "in-SY", code: "SY", element: "Systems Analysis", role: "Placed events", direction: "in", columns: ["Human failure event", "System"], rows: (links?.syPlaced ?? []).map((x) => ({ id: x.id, name: `${x.id} · ${x.task}`, values: [x.system] })), empty: "Load the example to pull the human failure events Systems Analysis placed in its models." },
-    { key: "in-DA", code: "DA", element: "Data Analysis", role: "Parameters", direction: "in", columns: ["Parameter", "Basic event"], rows: (links?.daParams ?? []).map((x) => ({ id: x.id, name: x.id, values: [x.name] })), empty: "Load the example to pull the plant and generic parameters Data Analysis maintains." },
-    { key: "out-ESQ", code: "ESQ", element: "Event Sequence Quantification", role: "Human error probabilities", direction: "out", columns: ["Human action", "HEP"], rows: hr.hepQuantifications.map((q) => ({ id: q.uuid, name: nameOf(q.hfeId), values: [fmtHep(q.meanHep ?? q.pointEstimateHep)] })), empty: "No quantified events yet." },
-  ];
-  const selectedLane = ifaceLanes.find((l) => l.key === selectedTe);
   function onCcChange(newCcId: string): void {
     if (!editable) return;
     setCcId(newCcId);
@@ -71,48 +124,14 @@ function ScopeScreen({ ccId, setCcId, stage, setStage }: {
   return (
     <>
       <div className="poscard">
-        <div className="poscard__head"><WorkbookSectionHeading workbook="HR" title="Interfaces" level={3} /></div>
-        <p className="poscard__sub">Human Reliability reads the operating states, the operator actions and their time windows, and where the events sit, then hands the human error probabilities to Event Sequence Quantification. Select an element to see the data exchanged.</p>
-        <div className="poshandoff__grid">
-          {ifaceLanes.map((lane) => (
-            <button key={lane.key} type="button"
-              className={`poshandoff__tile${selectedTe === lane.key ? " poshandoff__tile--active" : ""}`}
-              onClick={() => setSelectedTe(selectedTe === lane.key ? null : lane.key)}>
-              <span className="poshandoff__tile-code">{lane.code}</span>
-              <span className="poshandoff__tile-name">{lane.element}</span>
-              <span className="poshandoff__tile-role">{lane.direction === "in" ? "Provides · " : "Consumes · "}{lane.role}</span>
-            </button>
-          ))}
-        </div>
-        {selectedLane !== undefined && (
-          <div style={{ marginTop: 16 }}>
-            <div className="possubtle" style={{ fontWeight: 700, color: "var(--color-text)", marginBottom: 8 }}>
-              {selectedLane.direction === "in"
-                ? `Human Reliability receives ${selectedLane.role.toLowerCase()} from ${selectedLane.element}`
-                : `${selectedLane.element} receives ${selectedLane.role.toLowerCase()} from Human Reliability`}
-            </div>
-            {selectedLane.rows.length > 0 ? (
-              <table className="postable postable--mid">
-                <thead><tr>{selectedLane.columns.map((c) => <th key={c}>{c}</th>)}</tr></thead>
-                <tbody>
-                  {selectedLane.rows.map((r) => (
-                    <tr key={r.id}>
-                      <td><div className="postable__name">{r.name}</div></td>
-                      {r.values.map((v, idx) => <td key={selectedLane.columns[idx + 1] ?? `c${idx}`} className="mono">{v}</td>)}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            ) : (
-              <p className="posmuted" style={{ margin: 0 }}>{selectedLane.empty}</p>
-            )}
-          </div>
-        )}
+        <div className="poscard__head"><WorkbookSectionHeading title="Interfaces" level={3} /></div>
+        <p className="poscard__sub">Links are optional. Linked workbooks supply the initiator choices, the DA HEPs, and the state, criterion and system names.</p>
+        <HrInterfaces linkActions={linkActions} />
       </div>
 
       <div className="poscard">
         <div className="poscard__head">
-          <WorkbookSectionHeading workbook="HR" title="Capability category" level={3} />
+          <WorkbookSectionHeading title="Capability category" level={3} />
           <Badge kind="progress">{cc.tag}</Badge>
         </div>
         <p className="poscard__sub">Conservative values where justified, or detailed assessments for risk-significant human failure events.</p>
@@ -136,7 +155,7 @@ function ScopeScreen({ ccId, setCcId, stage, setStage }: {
       </div>
 
       <div className="poscard">
-        <div className="poscard__head"><WorkbookSectionHeading workbook="HR" title="Plant stage" level={3} /></div>
+        <div className="poscard__head"><WorkbookSectionHeading title="Plant stage" level={3} /></div>
         <p className="poscard__sub">HR has the widest pre-operational fork, since it depends most on how crews run the plant with its procedures.</p>
         <div className="posrow posrow--wrap" style={{ gap: 12 }}>
           {([
@@ -190,7 +209,7 @@ function PreIdentifyScreen({ openDrawer }: { openDrawer: (ctx: HrDrawerContext) 
     <>
       <div className="poscard">
         <div className="poscard__head">
-          <WorkbookSectionHeading workbook="HR" title="Routine activities" level={3} />
+          <WorkbookSectionHeading title="Routine activities" level={3} />
           <div className="posrow" style={{ gap: 8, alignItems: "center" }}>
             <span className="possubtle">{hr.routineActivities.length} found · HR-A1, A3</span>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addActivity}><HRIcon.Plus /> Add activity</button>}
@@ -222,7 +241,7 @@ function PreIdentifyScreen({ openDrawer }: { openDrawer: (ctx: HrDrawerContext) 
 
       <div className="poscard">
         <div className="poscard__head">
-          <WorkbookSectionHeading workbook="HR" title="Multi-train work practices" level={3} />
+          <WorkbookSectionHeading title="Multi-train work practices" level={3} />
           <HRProvenanceChip>HR-A5</HRProvenanceChip>
         </div>
         <p className="poscard__sub">Flag the work that touches redundant trains or diverse systems at once, since it cannot be screened out later and must be carried as a defined event.</p>
@@ -242,7 +261,7 @@ function PreIdentifyScreen({ openDrawer }: { openDrawer: (ctx: HrDrawerContext) 
 
       <div className="poscard">
         <div className="poscard__head">
-          <WorkbookSectionHeading workbook="HR" title="Operator contributions to initiators" level={3} />
+          <WorkbookSectionHeading title="Operator contributions to initiators" level={3} />
           <div className="posrow" style={{ gap: 8, alignItems: "center" }}>
             <HRProvenanceChip>HR-A7</HRProvenanceChip>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addContribution}><HRIcon.Plus /> Add contribution</button>}
@@ -303,7 +322,7 @@ function PreDefineScreen({ openDrawer }: { openDrawer: (ctx: HrDrawerContext) =>
     <>
       <div className="poscard">
         <div className="poscard__head">
-          <WorkbookSectionHeading workbook="HR" title="Screening" level={3} />
+          <WorkbookSectionHeading title="Screening" level={3} />
           <div className="posrow" style={{ gap: 8, alignItems: "center" }}>
             <HRProvenanceChip>HR-B1 · HR-B3</HRProvenanceChip>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addScreening}><HRIcon.Plus /> Add screening</button>}
@@ -328,7 +347,7 @@ function PreDefineScreen({ openDrawer }: { openDrawer: (ctx: HrDrawerContext) =>
 
       <div className="poscard">
         <div className="poscard__head">
-          <WorkbookSectionHeading workbook="HR" title="Pre-initiator events" level={3} />
+          <WorkbookSectionHeading title="Pre-initiator events" level={3} />
           <div className="posrow" style={{ gap: 8, alignItems: "center" }}>
             <span className="possubtle">{preHfes.length} defined · HR-C1, C2, C4, C5</span>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addPreHfe}><HRIcon.Plus /> Add event</button>}
@@ -342,7 +361,7 @@ function PreDefineScreen({ openDrawer }: { openDrawer: (ctx: HrDrawerContext) =>
             return (
               <div key={h.uuid} className="hrhfe__card" onClick={() => openDrawer({ kind: "prehfe", id: h.uuid })}>
                 <div className="hrhfe__head">
-                  <span className="hrhfe__id posmono">{h.uuid}</span>
+                  {readableId(h.uuid) !== undefined && <span className="hrhfe__id posmono">{h.uuid}</span>}
                   {detail?.miscalibrationImpactIncluded === true && <span className="hrhfe__miscal">Miscalibration</span>}
                 </div>
                 <div className="hrhfe__name">{h.name}</div>
@@ -364,7 +383,7 @@ function PreDefineScreen({ openDrawer }: { openDrawer: (ctx: HrDrawerContext) =>
 }
 
 function PreQuantScreen({ openDrawer }: { openDrawer: (ctx: HrDrawerContext) => void }): JSX.Element {
-  const { hr, editable, mutateHr } = useHrWorkbook();
+  const { hr, editable, mutateHr, daHeps } = useHrWorkbook();
   const preHfes = hr.humanFailureEvents.filter((h) => h.hfeTiming === "PRE_INITIATOR");
   const preDeps = hr.dependencyAssessments.filter((d) => d.scope === "PRE_INITIATOR_SET");
   function quantOf(id: string) {
@@ -378,7 +397,7 @@ function PreQuantScreen({ openDrawer }: { openDrawer: (ctx: HrDrawerContext) => 
     const target = preHfes.find((h) => quantOf(h.uuid) === undefined);
     if (target === undefined) { if (preHfes[0] !== undefined) openDrawer({ kind: "prequant", id: preHfes[0].uuid }); return; }
     mutateHr((draft) => ({ ...draft, hepQuantifications: [...draft.hepQuantifications, {
-      uuid: crypto.randomUUID(), hfeId: target.uuid, methodology: "", assessmentType: "CONSERVATIVE_ESTIMATE" as const, isRiskSignificant: false, pointEstimateHep: 1.0e-2, plantSpecificInformationUsed: [], uncertaintyCharacterization: { riskSignificant: false, method: "", probabilisticRepresentationProvided: false }, implementsSrs: [{ sr: "HR-D1", hlr: "D" as const }],
+      uuid: crypto.randomUUID(), hfeId: target.uuid, methodology: "", assessmentType: "CONSERVATIVE_ESTIMATE" as const, isRiskSignificant: false, hep: { node: "VALUE" as const, value: { unit: "PROBABILITY" as const, law: { family: "POINT" as const, value: 1.0e-2 } } }, plantSpecificInformationUsed: [], uncertaintyCharacterization: { riskSignificant: false, method: "", probabilisticRepresentationProvided: false }, implementsSrs: [{ sr: "HR-D1", hlr: "D" as const }],
     }] }));
     openDrawer({ kind: "prequant", id: target.uuid });
   }
@@ -402,7 +421,7 @@ function PreQuantScreen({ openDrawer }: { openDrawer: (ctx: HrDrawerContext) => 
     <>
       <div className="poscard">
         <div className="poscard__head">
-          <WorkbookSectionHeading workbook="HR" title="Quantification" level={3} />
+          <WorkbookSectionHeading title="Quantification" level={3} />
           <div className="posrow" style={{ gap: 8, alignItems: "center" }}>
             <HRProvenanceChip>HR-D1 · HR-D2</HRProvenanceChip>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addQuant}><HRIcon.Plus /> Add quantification</button>}
@@ -415,14 +434,13 @@ function PreQuantScreen({ openDrawer }: { openDrawer: (ctx: HrDrawerContext) => 
             {preHfes.map((h) => {
               const q = quantOf(h.uuid);
               if (q === undefined) return null;
-              const value = q.meanHep ?? q.pointEstimateHep;
               return (
                 <tr key={h.uuid} className="postable__row--clickable" onClick={() => openDrawer({ kind: "prequant", id: h.uuid })} style={{ cursor: "pointer" }}>
                   <td style={{ fontWeight: 600 }}>{h.name}
                     <div className="possubtle" style={{ fontSize: 11.5, marginTop: 2, fontWeight: 400 }}>{q.methodology}</div>
                   </td>
                   <td>{q.assessmentType === "DETAILED_ASSESSMENT" ? <span className="hrmethod hrmethod--detailed">Detailed</span> : <span className="hrmethod hrmethod--conservative">Conservative</span>}</td>
-                  <td className="posmono hrhep">{hepText(value)}<span className="hrhep__kind">{q.meanHep !== undefined ? "mean" : "point"}</span></td>
+                  <td className="posmono hrhep">{quantificationHepText(q, daHeps)}</td>
                   <td>{q.isRiskSignificant ? <Badge kind="progress">Risk-significant</Badge> : <Badge>Screened value</Badge>}</td>
                 </tr>
               );
@@ -433,7 +451,7 @@ function PreQuantScreen({ openDrawer }: { openDrawer: (ctx: HrDrawerContext) => 
 
       <div className="poscard">
         <div className="poscard__head">
-          <WorkbookSectionHeading workbook="HR" title="Recovery credit" level={3} />
+          <WorkbookSectionHeading title="Recovery credit" level={3} />
           <div className="posrow" style={{ gap: 8, alignItems: "center" }}>
             <HRProvenanceChip>HR-D5 · HR-D6</HRProvenanceChip>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addCredit}><HRIcon.Plus /> Add recovery credit</button>}
@@ -453,7 +471,7 @@ function PreQuantScreen({ openDrawer }: { openDrawer: (ctx: HrDrawerContext) => 
 
       <div className="poscard">
         <div className="poscard__head">
-          <WorkbookSectionHeading workbook="HR" title="Same-crew dependence" level={3} />
+          <WorkbookSectionHeading title="Same-crew dependence" level={3} />
           <div className="posrow" style={{ gap: 8, alignItems: "center" }}>
             <HRProvenanceChip>HR-D7</HRProvenanceChip>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addDependence}><HRIcon.Plus /> Add dependence</button>}

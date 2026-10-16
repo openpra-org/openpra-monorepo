@@ -2,6 +2,7 @@ import {
   ESQ_PLAN_DEFAULTS,
   type EsqFlag,
   type EsqFunctionLink,
+  type EsqFunctionNodeLink,
   type EsqFunctionRecord,
   type EsqFunctionRule,
   type EsqFunctionTarget,
@@ -17,11 +18,13 @@ import {
   type EventSequenceQuantification,
 } from "./event-sequence-quantification";
 import type { UncertainExpression } from "../core/uncertainty";
+import { daCcfFactorParameters, daCcfVectorParameters, holdsEstimate, type DataAnalysis, type DataAnalysisParameter } from "../da/data-analysis";
 
 type EsqLinkOrigin = "RULE" | "ESQ" | "ES" | "NONE";
 
 interface EsqResolvedLink {
   target?: EsqFunctionTarget;
+  node?: EsqFunctionNodeLink;
   origin: EsqLinkOrigin;
   ruleId?: string;
 }
@@ -87,6 +90,30 @@ function esqStableId(seed: string): string {
   return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-5${hex.slice(13, 16)}-${variant}${hex.slice(17, 20)}-${hex.slice(20, 32)}`;
 }
 
+const HEX_DIGITS = "0123456789abcdefABCDEF";
+
+const UUID_DASHES: readonly number[] = [8, 13, 18, 23];
+
+function generatedId(id: string): boolean {
+  if (id.length !== 36) return false;
+  for (let index = 0; index < id.length; index += 1) {
+    const char = id.charAt(index);
+    if (UUID_DASHES.includes(index) ? char !== "-" : !HEX_DIGITS.includes(char)) return false;
+  }
+  return true;
+}
+
+function esqItemLabel(name: string | undefined, id: string, unnamed: string): string {
+  const shown = name === undefined || name.trim().length === 0 ? undefined : name;
+  if (generatedId(id)) return shown ?? unnamed;
+  return shown === undefined ? id : `${shown} (${id})`;
+}
+
+function esqItemCode(id: string, name: string | undefined, unnamed: string): string {
+  if (!generatedId(id)) return id;
+  return name === undefined || name.trim().length === 0 ? unnamed : name;
+}
+
 function uniqueTexts(items: readonly string[]): string[] {
   const out: string[] = [];
   for (const item of items) {
@@ -104,6 +131,39 @@ function daParameterExpression(esq: EventSequenceQuantification, parameterId: st
   const workbookId = esq.linkedWorkbooks?.DA;
   if (workbookId === undefined || workbookId.trim().length === 0) return undefined;
   return { node: "PARAMETER", reference: { referenceType: "WORKBOOK_PARAMETER", workbookId, entityId: parameterId } };
+}
+
+function esqParameterRecord(parameter: DataAnalysisParameter): EsqParameterRecord {
+  const record: EsqParameterRecord = { id: parameter.uuid, name: parameter.name.trim().length > 0 ? parameter.name : parameter.uuid, parameterType: parameter.parameterType };
+  if (parameter.quantificationModel !== undefined) record.quantificationModel = parameter.quantificationModel;
+  if (parameter.evidenceKind !== undefined) record.evidenceKind = parameter.evidenceKind;
+  if (holdsEstimate(parameter.quantificationModel)) {
+    if (parameter.estimate !== undefined) record.estimate = structuredClone(parameter.estimate);
+    return record;
+  }
+  record.valueType = parameter.valueType === "MEAN" ? "MEAN" : "POINT_ESTIMATE";
+  if (parameter.value !== undefined && Number.isFinite(parameter.value)) record.value = parameter.value;
+  if (parameter.missionTime !== undefined) record.missionTime = structuredClone(parameter.missionTime);
+  const distribution = parameter.uncertainty?.distribution;
+  if (distribution !== undefined) record.distribution = structuredClone(distribution);
+  return record;
+}
+
+function esqParameterLinks(da: Pick<DataAnalysis, "parameters">): EsqParameterRecord[] {
+  return da.parameters.map((parameter) => ({ id: parameter.uuid, name: parameter.name.trim().length > 0 ? parameter.name : parameter.uuid, parameterType: parameter.parameterType }));
+}
+
+function withLiveDa(model: EsqModel, da: DataAnalysis, workbookId: string): EsqModel {
+  const live = new Map(da.parameters.map((parameter) => [parameter.uuid, parameter]));
+  return {
+    ...model,
+    parameters: model.parameters.flatMap((record) => {
+      const parameter = live.get(record.id);
+      return parameter === undefined ? [] : [esqParameterRecord(parameter)];
+    }),
+    vectors: daCcfVectorParameters(da, workbookId),
+    ccfFactors: daCcfFactorParameters(da, workbookId),
+  };
 }
 
 function esqTreeRunId(treeId: string): string {
@@ -178,6 +238,8 @@ function initiatorChoiceOf(esq: EventSequenceQuantification, groupId: string): E
 }
 
 function ruleMatches(rule: EsqFunctionRule, tree: EsqTreeRecord): boolean {
+  const treeIds = rule.treeIds ?? [];
+  if (treeIds.length > 0) return treeIds.includes(tree.id);
   const stateId = tree.stateId;
   const groupMatch = rule.groupIds.length === 0 || rule.groupIds.some((id) => sameItem(id, tree.initiatorId));
   const stateMatch = rule.stateIds.length === 0 || (stateId !== undefined && rule.stateIds.some((id) => sameItem(id, stateId)));
@@ -190,6 +252,8 @@ function resolveLink(record: EsqFunctionRecord, link: EsqFunctionLink | undefine
   if (link?.target !== undefined) return { target: link.target, origin: "ESQ" };
   const es = record.esLinks.find((entry) => entry.treeId === tree.id);
   if (es !== undefined) return { target: { kind: "FAULT_TREE", top: es.top }, origin: "ES" };
+  const node = record.nodeLinks?.find((entry) => entry.treeId === tree.id);
+  if (node !== undefined) return { node, origin: "ES" };
   return { origin: "NONE" };
 }
 
@@ -197,17 +261,17 @@ function stateWeightingOf(esq: EventSequenceQuantification): EsqStateWeighting {
   return esq.quantificationPlan?.stateWeighting?.value ?? ESQ_PLAN_DEFAULTS.stateWeighting;
 }
 
-function moduleFactorFor(esq: EventSequenceQuantification, unit: string | undefined): number {
-  const plan = esq.quantificationPlan;
-  const modules = plan?.modulesPerPlant?.value ?? 1;
+function criticalFraction(model: EsqModel, stateIds: readonly string[]): number | undefined {
+  const year = model.states.reduce((sum, state) => sum + (state.hours ?? 0), 0);
+  const critical = model.states.filter((state) => stateIds.some((stateId) => sameItem(stateId, state.id))).reduce((sum, state) => sum + (state.hours ?? 0), 0);
+  return year > 0 && critical > 0 ? Math.min(1, critical / year) : undefined;
+}
+
+function unitFactorFor(esq: EventSequenceQuantification, model: EsqModel, unit: string | undefined, stateIds: readonly string[]): number | undefined {
+  if (unit === "per-critical-year") return criticalFraction(model, stateIds);
+  const modules = esq.quantificationPlan?.modulesPerPlant?.value ?? 1;
   if (!(modules > 1)) return 1;
-  const basis = plan?.frequencyBasis?.value ?? ESQ_PLAN_DEFAULTS.frequencyBasis;
-  const counting = plan?.moduleCounting?.value ?? ESQ_PLAN_DEFAULTS.moduleCounting;
-  const perReactor = unit === "per-reactor-year";
-  const perPlant = unit === undefined || unit === "per-plant-year" || unit === "per-calendar-year";
-  if (basis === "PER_PLANT_YEAR" && perReactor) return counting === "EACH_MODULE" ? modules : 1;
-  if (basis === "PER_REACTOR_YEAR" && perPlant) return 1 / modules;
-  return 1;
+  return unit === undefined || unit === "per-plant-year" || unit === "per-calendar-year" ? 1 / modules : 1;
 }
 
 function groupIdsOf(trees: readonly EsqTreeRecord[]): string[] {
@@ -240,13 +304,17 @@ function groupFrequency(esq: EventSequenceQuantification, model: EsqModel, group
     const given = parameter?.estimate === undefined ? undefined : daParameterExpression(esq, parameter.id);
     if (given !== undefined) view.given = given;
     view.unit = "per-plant-year";
-  } else if (choice?.expression !== undefined) {
-    view.given = choice.expression;
+  } else {
+    if (choice?.expression !== undefined) view.given = choice.expression;
+    view.unit = choice?.unit ?? "per-reactor-year";
   }
-  view.factor = source === "TYPED" ? 1 : moduleFactorFor(esq, view.unit);
-  if (view.given !== undefined) view.expression = scaledBy(view.given, view.factor, "FACTOR");
   const treeStates = allTrees.flatMap((tree) => (tree.stateId === undefined ? [] : [tree.stateId]));
   const applicable = record !== undefined && record.stateIds.length > 0 ? record.stateIds : uniqueTexts(treeStates);
+  const factor = unitFactorFor(esq, model, view.unit, applicable);
+  if (factor !== undefined) {
+    view.factor = factor;
+    if (view.given !== undefined) view.expression = scaledBy(view.given, factor, "FACTOR");
+  }
   const stateIds = uniqueTexts([...applicable, ...treeStates]);
   const hoursTotal = applicable.reduce((sum, stateId) => sum + (stateById.get(stateId)?.hours ?? 0), 0);
   if (weighting === "POS_HOURS" && hoursTotal > 0) view.hours = hoursTotal;
@@ -396,7 +464,11 @@ export {
   sameItem,
   hash32,
   daParameterExpression,
+  esqParameterRecord,
+  esqParameterLinks,
   esqStableId,
+  esqItemCode,
+  esqItemLabel,
   esqTreeRunId,
   esqFunctionRunId,
   esqSequenceRunId,
@@ -409,7 +481,7 @@ export {
   ruleMatches,
   resolveLink,
   stateWeightingOf,
-  moduleFactorFor,
+  unitFactorFor,
   groupIdsOf,
   groupFrequency,
   treeFrequency,
@@ -419,5 +491,6 @@ export {
   flagTargetKey,
   transferEdges,
   transferLoops,
+  withLiveDa,
 };
 export type { EsqLinkOrigin, EsqResolvedLink, EsqGroupState, EsqGroupFrequency, EsqTransferLoop };

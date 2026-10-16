@@ -5,7 +5,8 @@ import type { HclBindingEditorProps, HclEditorBatchRunResult } from "./hclBindin
 import { PagedResults, ResultCsvButton, ResultWarnings } from "../shared/resultPresentation";
 import { hclResultRecords, hclBatchResultRecords } from "../shared/probabilityResultExport";
 import { HclResultMetric, HclUncertaintyResults, formatScientific, formatPercentage } from "./hclResultMetrics";
-import { HclEventTreeResults, endStateFrequency } from "./hclEventTreeResults";
+import { HclEventTreeResults, endStateFrequency, eventTreeSampleColumn } from "./hclEventTreeResults";
+import { HclSampleCsvButton } from "./hclSampleOutputs";
 import {
   HclHazardSummary,
   HclEventTreeHazardResults,
@@ -69,9 +70,10 @@ export function HclResults({
   calculationType = "PROBABILITY",
   eventTreeOptions,
   faultTreeOptions,
+  analysisHost,
 }: Pick<
   HclBindingEditorProps,
-  "runResult" | "batchRunResult" | "workflow" | "calculationType" | "eventTreeOptions" | "faultTreeOptions"
+  "runResult" | "batchRunResult" | "workflow" | "calculationType" | "eventTreeOptions" | "faultTreeOptions" | "analysisHost"
 >) {
   const [selectedEndState, setSelectedEndState] = useState("");
   const selectionId = useId();
@@ -144,7 +146,7 @@ export function HclResults({
       {workflow === "MANUAL" && runResult?.kind === "FAULT_TREE" && (
         <div
           className="hcleditor__analysis-result"
-          aria-label="HCL fault-tree result"
+          aria-label="Dependency fault tree result"
         >
           <div className="analysis-results__toolbar">
             <strong>
@@ -158,6 +160,15 @@ export function HclResults({
               filename={`hcl-${runResult.result.runId}.csv`}
               records={() => hclResultRecords(runResult, labels.sequenceName)}
             />
+            {calculationType === "UNCERTAINTY" && analysisHost !== undefined && (
+              <HclSampleCsvButton
+                host={analysisHost}
+                workbookId={runResult.result.owner.workbookId}
+                runId={runResult.result.runId}
+                filename={`hcl-${runResult.result.runId}-samples.csv`}
+                columnName={() => "Top event probability"}
+              />
+            )}
           </div>
           <ResultWarnings issues={runResult.result.validationIssues} />
           {calculationType === "PROBABILITY" ?
@@ -177,7 +188,7 @@ export function HclResults({
       {workflow === "MANUAL" && runResult?.kind === "EVENT_TREE" && (
         <div
           className="hcleditor__batch-result"
-          aria-label="HCL event-tree result"
+          aria-label="Dependency event tree result"
         >
           <div className="hcleditor__batch-heading">
             <strong>Event-tree results</strong>
@@ -185,6 +196,15 @@ export function HclResults({
               filename={`hcl-${runResult.result.runId}.csv`}
               records={() => hclResultRecords(runResult, labels.sequenceName)}
             />
+            {calculationType === "UNCERTAINTY" && analysisHost !== undefined && (
+              <HclSampleCsvButton
+                host={analysisHost}
+                workbookId={runResult.result.owner.workbookId}
+                runId={runResult.result.runId}
+                filename={`hcl-${runResult.result.runId}-samples.csv`}
+                columnName={eventTreeSampleColumn(runResult.result, labels)}
+              />
+            )}
             <span>{runResult.result.sequences.length} sequences calculated</span>
           </div>
           <ResultWarnings issues={runResult.result.validationIssues} />
@@ -200,7 +220,7 @@ export function HclResults({
       {workflow === "BATCH" && batchRunResult !== null && (
         <div
           className="hcleditor__batch-result"
-          aria-label="HCL scenario batch result"
+          aria-label="Dependency scenario batch result"
         >
           <div className="hcleditor__batch-heading">
             <strong>{hazard === undefined ? "Scenario results" : "Hazard convolution"}</strong>
@@ -226,7 +246,7 @@ export function HclResults({
           )}
           <PagedResults
             items={batchRunResult.scenarios}
-            label="HCL scenarios"
+            label="Dependency scenarios"
             resetKey={`${batchKey}:${selected}`}
           >
             {(page) => (
@@ -313,6 +333,15 @@ export function HclResults({
                       <div className="hcleditor__scenario-result-body">
                         {scenario.failure !== null && <p className="bneditor__error">{scenario.failure}</p>}
                         {result !== null && <ResultWarnings issues={result.result.validationIssues} />}
+                        {result !== null && calculationType === "UNCERTAINTY" && analysisHost !== undefined && (
+                          <HclSampleCsvButton
+                            host={analysisHost}
+                            workbookId={result.result.owner.workbookId}
+                            runId={result.result.runId}
+                            filename={`hcl-${scenario.scenarioCode}-${result.result.runId}-samples.csv`}
+                            columnName={result.kind === "EVENT_TREE" ? eventTreeSampleColumn(result.result, labels) : () => "Top event probability"}
+                          />
+                        )}
                         {result?.kind === "FAULT_TREE" && calculationType === "UNCERTAINTY" && (
                           <HclUncertaintyResults
                             summary={result.result.uncertainty}

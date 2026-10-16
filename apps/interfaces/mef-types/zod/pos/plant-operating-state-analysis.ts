@@ -541,6 +541,10 @@ export const PosDocumentationSchema = z.object({
   implementsSrs: z.array(SRReferenceSchema),
 });
 
+export const PosLinkedWorkbooksSchema = z.object({
+  DA: z.string().optional(),
+});
+
 export const PlantOperatingStatesAnalysisSchema = z.object({
   ...technicalElementSchema(TechnicalElementTypes.PLANT_OPERATING_STATES_ANALYSIS).shape,
   praScope: z.string(),
@@ -548,6 +552,7 @@ export const PlantOperatingStatesAnalysisSchema = z.object({
   includesAtPowerOperations: z.boolean(),
   // Additional
   includesLPSDOperations: z.boolean().optional(),
+  linkedWorkbooks: PosLinkedWorkbooksSchema.optional(),
   plantEvolutions: z.array(PlantEvolutionSchema),
   plantOperatingStates: z.array(PlantOperatingStateSchema),
   evidenceRegister: z.array(PosEvidenceRecordSchema).optional(),

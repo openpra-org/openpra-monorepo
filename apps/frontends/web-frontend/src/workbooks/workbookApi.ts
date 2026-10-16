@@ -1,9 +1,12 @@
 import { stringifyJson } from "interfaces-shared-types/json";
 import {
+  type CreateProjectWorkbooksRequest,
   type CreateWorkbookRequest,
+  type ProjectWorkbooksResult,
   type UpdateWorkbookRequest,
   type Workbook,
   type WorkbookListResponse,
+  ProjectWorkbooksResultSchema,
   WorkbookSchema,
   WorkbookListResponseSchema,
 } from "interfaces-shared-types";
@@ -49,6 +52,11 @@ async function createWorkbook(projectId: string, payload: CreateWorkbookRequest)
   return WorkbookSchema.parse(await response.json());
 }
 
+async function createProjectWorkbooks(projectId: string, payload: CreateProjectWorkbooksRequest): Promise<ProjectWorkbooksResult> {
+  const response = await request("POST", `/${projectId}/workbooks/common`, payload);
+  return ProjectWorkbooksResultSchema.parse(await response.json());
+}
+
 async function updateWorkbook(projectId: string, id: string, payload: UpdateWorkbookRequest): Promise<Workbook> {
   const response = await request("PATCH", `/${projectId}/workbooks/${id}`, payload);
   return WorkbookSchema.parse(await response.json());
@@ -61,6 +69,8 @@ async function deleteWorkbook(projectId: string, id: string): Promise<void> {
 interface ProjectExampleOption {
   id: string;
   label: string;
+  partial: boolean;
+  elements: string[];
 }
 
 interface ProjectExampleInfo {
@@ -94,6 +104,7 @@ async function generateProjectExamples(projectId: string, exampleId?: string): P
 export {
   listWorkbooks,
   createWorkbook,
+  createProjectWorkbooks,
   updateWorkbook,
   deleteWorkbook,
   getProjectExampleInfo,

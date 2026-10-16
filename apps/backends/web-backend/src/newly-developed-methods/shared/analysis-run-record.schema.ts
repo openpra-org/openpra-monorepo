@@ -12,6 +12,8 @@ import {
   type AnalysisRunWorkbookSnapshot,
   type AnalysisRunTarget,
   type AnalysisRunContribution,
+  type AnalysisRunProgress,
+  type HclSampleVector,
   AnalysisRunStatusSchema,
   MethodTypeSchema,
 } from "interfaces-shared-types/newly-developed-methods";
@@ -79,6 +81,18 @@ class AnalysisRunRecord {
 
   @Prop({ type: Object, default: null })
   result!: unknown | null;
+
+  @Prop({ type: [Object], default: null, select: false })
+  sampleVectors!: HclSampleVector[] | null;
+
+  @Prop({ type: [String], default: [] })
+  praetorJobs!: string[];
+
+  @Prop({ type: Date, default: null, index: true })
+  trackedAt!: Date | null;
+
+  @Prop({ type: Object, default: null })
+  progress!: AnalysisRunProgress | null;
 }
 
 const AnalysisRunRecordSchema = SchemaFactory.createForClass(AnalysisRunRecord);
@@ -90,6 +104,7 @@ modelPayloadSchema(AnalysisRunRecordSchema, {
   target: () => ({}),
   contributions: () => [],
   result: () => ({}),
+  sampleVectors: () => [],
 });
 
 AnalysisRunRecordSchema.index({ "owner.workbookId": 1, "owner.modelId": 1, requestedAt: -1 });

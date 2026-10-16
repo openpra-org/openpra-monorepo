@@ -15,7 +15,6 @@ import {
 } from "react";
 import type {
   BayesianNetworkCptRow,
-  BayesianNetworkEvidenceConfiguration,
   HclEvidenceScenario,
   BayesianNetworkModuleTemplate,
   BayesianNetworkNode,
@@ -267,6 +266,7 @@ function BayesianNetworkEditor(props: BayesianNetworkEditorProps): JSX.Element {
     showQueryAnalysis = true,
     showHclAnalysis = true,
     hclScope = "BOTH",
+    analysisHost,
     evidence,
     queryNodeId,
     validation,
@@ -1870,6 +1870,7 @@ function BayesianNetworkEditor(props: BayesianNetworkEditorProps): JSX.Element {
                 evidenceEditor={evidenceOpen ? renderEvidenceEditor() : null}
                 calculationType={calculationType}
                 workflow={quantificationWorkflow}
+                analysisHost={analysisHost}
                 onEditEvidence={() => setEvidenceOpen((open) => !open)}
                 onChange={onHclConfigurationsChange}
                 onGenerateScenarios={onGenerateHclScenarios}

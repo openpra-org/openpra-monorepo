@@ -1,4 +1,5 @@
 use praxis::analysis::uncertainty::UncertaintyAnalysis;
+use praxis::core::ccf::{impact_vector, map_down, map_up, Multiplicity};
 use praxis::core::distribution::{
     EvidenceTerm, Law, Likelihood, MixtureComponent, QuantilePoint, UncertainExpression, UncertainParameter,
     UncertainUnit, UncertainValue,
@@ -69,6 +70,21 @@ enum Operation {
         times: Vec<f64>,
         start: f64,
         end: f64,
+    },
+    CcfImpactVector {
+        group_size: usize,
+        multiplicities: Vec<Multiplicity>,
+    },
+    CcfMapDown {
+        counts: Vec<f64>,
+        target_size: usize,
+    },
+    CcfMapUp {
+        independent: f64,
+        non_lethal: Vec<f64>,
+        lethal: f64,
+        rho: f64,
+        target_size: usize,
     },
 }
 
@@ -237,6 +253,18 @@ fn operation_summary(query: &OperationQuery) -> Result<Value> {
         Operation::PriorPredictive { law, term } => serialized(prior_predictive(law, term)?)?,
         Operation::Homogeneity { terms } => serialized(homogeneity(terms)?)?,
         Operation::LaplaceTrend { times, start, end } => serialized(laplace_trend(times, *start, *end)?)?,
+        Operation::CcfImpactVector {
+            group_size,
+            multiplicities,
+        } => serialized(impact_vector(*group_size, multiplicities)?)?,
+        Operation::CcfMapDown { counts, target_size } => serialized(map_down(counts, *target_size)?)?,
+        Operation::CcfMapUp {
+            independent,
+            non_lethal,
+            lethal,
+            rho,
+            target_size,
+        } => serialized(map_up(*independent, non_lethal, *lethal, *rho, *target_size)?)?,
     };
     summary["id"] = json!(query.id);
     Ok(summary)
@@ -459,6 +487,117 @@ mod tests {
         assert_eq!(operations[1]["law"]["family"], "LOGNORMAL");
         assert!(operations[2]["probability"].as_f64().unwrap() > 0.0);
         assert!(operations[3]["error"].is_string());
+    }
+
+    #[test]
+    fn maps_common_cause_counts_between_group_sizes() {
+        let result = run(json!({
+            "schemaVersion": "1.0.0",
+            "methodType": "UNCERTAINTY",
+            "operations": [
+                { "id": "rows", "operation": { "kind": "CCF_IMPACT_VECTOR", "groupSize": 4, "multiplicities": [
+                    { "failed": 2, "events": 3.0 }, { "failed": 4, "events": 1.0 }, { "failed": 2, "events": 0.5 }
+                ] } },
+                { "id": "down", "operation": { "kind": "CCF_MAP_DOWN", "counts": [1.0, 2.0, 3.0, 4.0], "targetSize": 2 } },
+                { "id": "up", "operation": { "kind": "CCF_MAP_UP", "independent": 0.0, "nonLethal": [0.5, 0.5], "lethal": 0.0, "rho": 0.1, "targetSize": 4 } },
+                { "id": "both", "operation": { "kind": "CCF_MAP_UP", "independent": 3.0, "nonLethal": [0.0, 0.0, 0.0], "lethal": 2.0, "rho": 0.4, "targetSize": 4 } },
+                { "id": "wrong", "operation": { "kind": "CCF_MAP_DOWN", "counts": [1.0, 2.0], "targetSize": 2 } },
+                { "id": "rho", "operation": { "kind": "CCF_MAP_UP", "independent": 0.0, "nonLethal": [1.0], "lethal": 0.0, "rho": 1.5, "targetSize": 2 } }
+            ]
+        }));
+        let operations = result["operations"].as_array().unwrap();
+        assert_eq!(operations[0], json!({ "id": "rows", "groupSize": 4, "counts": [0.0, 3.5, 0.0, 1.0] }));
+        let counts = |index: usize| -> Vec<f64> {
+            operations[index]["counts"].as_array().unwrap().iter().map(|value| value.as_f64().unwrap()).collect()
+        };
+        let near = |actual: Vec<f64>, expected: &[f64]| {
+            assert_eq!(actual.len(), expected.len());
+            for (left, right) in actual.iter().zip(expected) {
+                assert!((left - right).abs() < 1e-12, "{actual:?} against {expected:?}");
+            }
+        };
+        near(counts(1), &[0.5 + 4.0 / 3.0 + 1.5, 2.0 / 6.0 + 1.5 + 4.0]);
+        assert!((operations[1]["noImpact"].as_f64().unwrap() - (0.5 + 2.0 / 6.0)).abs() < 1e-15);
+        assert_eq!(operations[1]["groupSize"], 2);
+        near(counts(2), &[0.81, 0.5175, 0.095, 0.005]);
+        near(counts(3), &[4.0, 0.0, 0.0, 2.0]);
+        assert!(operations[4]["error"].as_str().unwrap().contains("target size"));
+        assert!(operations[5]["error"].as_str().unwrap().contains("rho"));
+    }
+
+    #[test]
+    fn converts_a_lognormal_ebr_beta_factor_to_the_standard_beta_factor() {
+        let reference = json!({ "referenceType": "WORKBOOK_PARAMETER", "workbookId": "da", "entityId": "ebr-beta" });
+        let parameter = json!({ "node": "PARAMETER", "reference": reference });
+        let one = json!({ "node": "VALUE", "value": { "unit": "FACTOR", "law": { "family": "POINT", "value": 1.0 } } });
+        let sampling = json!({ "method": "MONTE_CARLO", "trials": 100_000, "seed": 21 });
+        let result = run(json!({
+            "schemaVersion": "1.0.0",
+            "methodType": "UNCERTAINTY",
+            "parameters": [{ "reference": reference, "expression": { "node": "VALUE", "value": {
+                "unit": "FACTOR", "law": { "family": "LOGNORMAL", "mean": 0.05, "errorFactor": 3.0, "level": 0.95 } } } }],
+            "expressions": [{
+                "id": "standard",
+                "unit": "FRACTION",
+                "expression": { "node": "OPERATION", "operation": "DIVIDE", "operands": [
+                    parameter,
+                    { "node": "OPERATION", "operation": "ADD", "operands": [one, parameter] }
+                ] },
+                "sampling": sampling
+            }, {
+                "id": "ebr",
+                "unit": "FACTOR",
+                "expression": parameter,
+                "sampling": sampling
+            }]
+        }));
+        let standard = &result["expressions"][0];
+        let ebr = &result["expressions"][1];
+        assert!((standard["point"].as_f64().unwrap() - 0.05 / 1.05).abs() < 1e-16);
+        let converted = standard["sampled"]["samples"].as_array().unwrap();
+        let drawn = ebr["sampled"]["samples"].as_array().unwrap();
+        assert_eq!(converted.len(), 100_000);
+        for (left, right) in converted.iter().zip(drawn) {
+            let b = right.as_f64().unwrap();
+            assert!((left.as_f64().unwrap() - b / (1.0 + b)).abs() <= 1e-16, "{left} from {b}");
+        }
+        let mean = standard["sampled"]["mean"].as_f64().unwrap();
+        let error = standard["sampled"]["standardError"].as_f64().unwrap();
+        assert!((mean - 0.04649943768158654).abs() <= 5.0 * error, "mean {mean} with standard error {error}");
+    }
+
+    #[test]
+    fn summarizes_and_samples_the_updated_families() {
+        let duration = json!({ "family": "DURATION", "model": "WEIBULL", "times": [2.0, 3.5, 6.0, 11.0, 4.0], "censored": [12.0],
+            "priors": [], "output": { "kind": "EXCEEDANCE", "time": 8.0 } });
+        let curve: Vec<f64> = (1..20).map(|index| f64::from(index) / 20.0).collect();
+        let result = run(json!({
+            "schemaVersion": "1.0.0",
+            "methodType": "UNCERTAINTY",
+            "laws": [
+                { "id": "duration", "value": { "unit": "PROBABILITY", "law": duration }, "probabilities": [0.05, 0.95], "curveProbabilities": curve },
+                { "id": "fit", "value": { "unit": "PER_HOUR", "law": { "family": "EMPIRICAL_BAYES", "target": null, "evidence": [
+                    { "likelihood": "POISSON", "failures": 0.0, "exposure": 1e4 },
+                    { "likelihood": "POISSON", "failures": 3.0, "exposure": 2e4 },
+                    { "likelihood": "POISSON", "failures": 10.0, "exposure": 1.5e4 }
+                ] } }, "curveProbabilities": curve },
+                { "id": "hours", "value": { "unit": "HOURS", "law": duration } }
+            ],
+            "expressions": [{
+                "id": "sampled",
+                "unit": "PROBABILITY",
+                "expression": { "node": "VALUE", "value": { "unit": "PROBABILITY", "law": duration } },
+                "sampling": { "method": "LATIN_HYPERCUBE", "trials": 2000, "seed": 5 }
+            }]
+        }));
+        let law = &result["laws"][0];
+        assert_eq!(law["support"]["upper"], 1.0);
+        assert!(law["curve"].as_array().unwrap().iter().all(|point| point["density"].as_f64().is_some_and(|density| density >= 0.0)));
+        assert!(result["laws"][1]["curve"][10]["density"].as_f64().unwrap() > 0.0);
+        assert!(result["laws"][2]["error"].as_str().unwrap().contains("probability"));
+        let sampled = &result["expressions"][0];
+        let error = sampled["sampled"]["standardError"].as_f64().unwrap();
+        assert!((sampled["sampled"]["mean"].as_f64().unwrap() - sampled["point"].as_f64().unwrap()).abs() < 5.0 * error);
     }
 
     #[test]

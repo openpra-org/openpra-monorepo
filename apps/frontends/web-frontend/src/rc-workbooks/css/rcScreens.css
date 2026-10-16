@@ -113,6 +113,14 @@
 .rc-link-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-top: 4px; }
 .rc-link-lane .rcscope__title { margin: 4px 0 0; }
 .rc-link-actions { display: flex; align-items: center; gap: 8px; }
+.rc-rifeedback__text { margin: 8px 0 0; font-size: 12.5px; line-height: 1.5; }
+.rc-rifeedback__table { margin-top: 10px; }
+.rc-rifeedback__record { margin-top: 18px; }
+.rc-rifeedback__summary { display: flex; flex-direction: column; gap: 8px; }
+.rc-rifeedback__summary .rc-rifeedback__text { margin: 0; }
+.rc-rifeedback__label { font-weight: 700; }
+.rc-rifeedback__chips { gap: 6px; }
+.rc-rifeedback__actions { gap: 10px; }
 .rc-bounding-table th:nth-child(1) { width: 18%; }
 .rc-bounding-table th:nth-child(2) { width: 30%; }
 .rc-handoff__scope > .posfield__textarea { box-sizing: border-box; width: 100%; min-height: 76px; }

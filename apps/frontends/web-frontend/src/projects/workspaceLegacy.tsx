@@ -4,7 +4,6 @@ import { ArrowLeftIcon, ClockIcon, FolderIcon, SettingsIcon } from "../welcome/i
 import { formatRelative } from "../welcome/formatRelative";
 import { LegacyElementPane } from "../workbooks/legacyElementPane";
 import { KebabMenu } from "./kebabMenu";
-import { elementVisualStatus } from "./elementRow";
 
 interface ActiveElement {
   code: string;
@@ -24,6 +23,8 @@ function WorkspaceLegacy({
   onShare,
   onToggleArchive,
   onDelete,
+  onGenerateExamples,
+  generation,
 }: {
   project: Project;
   onBack: () => void;
@@ -37,6 +38,8 @@ function WorkspaceLegacy({
   onShare: () => void;
   onToggleArchive: () => void;
   onDelete: () => void;
+  onGenerateExamples?: () => void;
+  generation: number;
 }): JSX.Element {
   const elements = useMemo(() => elementsForMode(project.mode), [project.mode]);
   const readOnly = project.myRole === "viewer";
@@ -56,7 +59,6 @@ function WorkspaceLegacy({
         </div>
         <nav className="lgl__nav">
           {elements.map((el) => {
-            const vstatus = elementVisualStatus(project.status[el.code]);
             const isActive = active !== null && active.code === el.code;
             return (
               <button
@@ -65,7 +67,7 @@ function WorkspaceLegacy({
                 className={`lgl__elhead${isActive ? " lgl__elhead--active" : ""}`}
                 onClick={() => { setActive({ code: el.code, name: el.name }); }}
               >
-                <span className={`lgl__elhead-code lgl__elhead-code--${vstatus}`}>{el.code}</span>
+                <span className="lgl__elhead-code">{el.code}</span>
                 <span className="lgl__elhead-name">{el.name}</span>
               </button>
             );
@@ -90,6 +92,9 @@ function WorkspaceLegacy({
               </div>
             </div>
             <div className="phead__actions">
+              {onGenerateExamples !== undefined && (
+                <button type="button" className="wfilters__gen" onClick={onGenerateExamples}>Generate example</button>
+              )}
               <button type="button" className="btn btn--ghost btn--sm phead__history-btn" onClick={onOpenHistory}>
                 <ClockIcon /> History
               </button>
@@ -112,6 +117,7 @@ function WorkspaceLegacy({
 
         {active !== null ? (
           <LegacyElementPane
+            key={`${active.code}:${String(generation)}`}
             projectId={project.id}
             element={active}
             readOnly={readOnly}

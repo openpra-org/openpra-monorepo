@@ -1,5 +1,6 @@
 import { WorkbookSectionHeading } from "../workbooks/workbookSectionHeading";
 import { WorkbookInput, WorkbookTextarea } from "../workbooks/commitOnDeactivateFields";
+import { HandoffImports } from "../workbooks/workbookHandoff";
 import { Fragment, JSX, useId, useState } from "react";
 import type {
   ComponentBoundary,
@@ -97,12 +98,6 @@ interface DaDrawerContext {
   id: string;
 }
 
-const WORKBOOK_STATUS_LABEL: Record<string, string> = {
-  draft: "Draft",
-  "in-progress": "In progress",
-  complete: "Complete",
-};
-
 const PLANT_STAGES: { id: Stage; title: string; body: string }[] = [
   { id: "pre_operational", title: "Pre-operational", body: "Generic sources, technology experience and planned schedules stand in for plant records. Every borrowing needs a reason." },
   { id: "operational", title: "Operational", body: "The plant's own failures, demands, hours and outages inside the data window update the generic estimates." },
@@ -118,7 +113,7 @@ function DaInterfaces(): JSX.Element {
   const linkedId = tile === undefined ? undefined : links[tile.code];
   const linked = options.find((workbook) => workbook.id === linkedId);
   const exampleLabel = linkedId === undefined ? undefined : exampleLinkLabel(linkedId);
-  const nothingToLink = options.length === 0 && exampleLabel === undefined;
+  const nothingToLink = options.length === 0 && linkedId === undefined;
 
   function onLink(code: DaLinkCode, id: string): void {
     if (!editable) return;
@@ -146,7 +141,6 @@ function DaInterfaces(): JSX.Element {
           >
             <span className="poshandoff__tile-code">{candidate.label}</span>
             <span className="poshandoff__tile-name">{candidate.name}</span>
-            <span className="poshandoff__tile-role">{candidate.handoff}</span>
           </button>
         ))}
       </div>
@@ -164,39 +158,10 @@ function DaInterfaces(): JSX.Element {
               <option value="">{nothingToLink ? `No ${tile.label} workbooks in this project` : "Not linked"}</option>
               {exampleLabel !== undefined && linkedId !== undefined && <option value={linkedId}>{exampleLabel}</option>}
               {options.map((workbook) => <option key={workbook.id} value={workbook.id}>{workbook.name}</option>)}
+              {linkedId !== undefined && linked === undefined && exampleLabel === undefined && <option value={linkedId}>{`${tile.label} workbook not in this project`}</option>}
             </select>
           </div>
-          {linkedId !== undefined && linked === undefined && exampleLabel === undefined && (
-            <p className="posmuted da-scope-note">The linked workbook is not in this project.</p>
-          )}
-          {exampleLabel !== undefined && (
-            <table className="postable postable--mid" aria-label={`Linked ${tile.label} workbook`}>
-              <thead><tr><th>Workbook</th><th>Status</th><th>Version</th><th>Owner</th><th>Updated</th></tr></thead>
-              <tbody>
-                <tr>
-                  <td><div className="postable__name">{exampleLabel}</div></td>
-                  <td>Example</td>
-                  <td className="posmono">—</td>
-                  <td>OpenPRA</td>
-                  <td className="posmono">—</td>
-                </tr>
-              </tbody>
-            </table>
-          )}
-          {linked !== undefined && (
-            <table className="postable postable--mid" aria-label={`Linked ${tile.label} workbook`}>
-              <thead><tr><th>Workbook</th><th>Status</th><th>Version</th><th>Owner</th><th>Updated</th></tr></thead>
-              <tbody>
-                <tr>
-                  <td><div className="postable__name">{linked.name}</div></td>
-                  <td>{WORKBOOK_STATUS_LABEL[linked.status] ?? linked.status}</td>
-                  <td className="posmono">v{linked.version}</td>
-                  <td>{linked.ownerFullName}</td>
-                  <td className="posmono">{linked.updatedAt.slice(0, 10)}</td>
-                </tr>
-              </tbody>
-            </table>
-          )}
+          <HandoffImports consumer="DA" producer={tile.code} />
         </div>
       )}
     </>
@@ -326,7 +291,7 @@ function DaDataPlanCard(): JSX.Element {
   return (
     <div className="poscard">
       <div className="poscard__head">
-        <WorkbookSectionHeading workbook="DA" title="Data plan" level={3} />
+        <WorkbookSectionHeading title="Data plan" level={3} />
         <DaProvenanceChip>DA-C3 · DA-E1 · IE-C</DaProvenanceChip>
       </div>
       <div className="da-form da-form--card">
@@ -406,13 +371,13 @@ function ScopeScreen({ ccId, setCcId, stage, setStage, documents }: {
   return (
     <div className="da-step">
       <div className="poscard">
-        <div className="poscard__head"><WorkbookSectionHeading workbook="DA" title="Interfaces" level={3} /></div>
+        <div className="poscard__head"><WorkbookSectionHeading title="Interfaces" level={3} /></div>
         <DaInterfaces />
       </div>
 
       <div className="poscard">
         <div className="poscard__head">
-          <WorkbookSectionHeading workbook="DA" title="PRA scope" level={3} />
+          <WorkbookSectionHeading title="PRA scope" level={3} />
           <DaProvenanceChip>DA-A1</DaProvenanceChip>
         </div>
         <WorkbookTextarea
@@ -431,7 +396,7 @@ function ScopeScreen({ ccId, setCcId, stage, setStage, documents }: {
 
       <div className="poscard">
         <div className="poscard__head">
-          <WorkbookSectionHeading workbook="DA" title="Capability category" level={3} />
+          <WorkbookSectionHeading title="Capability category" level={3} />
           <Badge kind="progress">{cc.tag}</Badge>
         </div>
         <div className="da-scope-choices">
@@ -451,7 +416,7 @@ function ScopeScreen({ ccId, setCcId, stage, setStage, documents }: {
       </div>
 
       <div className="poscard">
-        <div className="poscard__head"><WorkbookSectionHeading workbook="DA" title="Plant stage" level={3} /></div>
+        <div className="poscard__head"><WorkbookSectionHeading title="Plant stage" level={3} /></div>
         <div className="da-scope-choices">
           {PLANT_STAGES.map((option) => (
             <label key={option.id} className={`da-scope-choice${stage === option.id ? " da-scope-choice--active" : ""}`}>
@@ -695,7 +660,7 @@ function NeedSourcesCard(): JSX.Element {
   return (
     <div className="poscard">
       <div className="poscard__head">
-        <WorkbookSectionHeading workbook="DA" title="Source workbooks" level={3} />
+        <WorkbookSectionHeading title="Source workbooks" level={3} />
         <div className="da-card-actions">
           <DaProvenanceChip>DA-A1</DaProvenanceChip>
           {editable && linked.length > 0 && (
@@ -1083,7 +1048,7 @@ function DataNeedsScreen({ openDrawer }: { openDrawer: (ctx: DaDrawerContext) =>
       <div role="tabpanel" id={`${tabId}-panel`} aria-labelledby={`${tabId}-${tab}`} tabIndex={0}>
         <div className="poscard">
           <div className="poscard__head">
-            <WorkbookSectionHeading workbook="DA" title={head.title} level={3} />
+            <WorkbookSectionHeading title={head.title} level={3} />
             <div className="da-card-actions">
               <DaProvenanceChip>{head.sr}</DaProvenanceChip>
               {editable && head.add !== undefined && (
@@ -1867,7 +1832,7 @@ function ParametersScreen({ openDrawer }: { openDrawer: (ctx: DaDrawerContext) =
       <div role="tabpanel" id={`${tabId}-panel`} aria-labelledby={`${tabId}-${tab}`} tabIndex={0}>
         <div className="poscard">
           <div className="poscard__head">
-            <WorkbookSectionHeading workbook="DA" title={head.title} level={3} />
+            <WorkbookSectionHeading title={head.title} level={3} />
             <div className="da-card-actions">
               <DaProvenanceChip>{head.sr}</DaProvenanceChip>
               {editable && tab === "map" && (

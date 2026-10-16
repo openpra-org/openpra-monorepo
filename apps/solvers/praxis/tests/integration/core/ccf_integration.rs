@@ -13,7 +13,7 @@ fn beta(id: &str, members: &[&str], factor: f64, total: f64) -> CcfGroup {
         id,
         members.iter().map(|member| member.to_string()).collect(),
         CcfModel::BetaFactor(Expr::Constant(factor)),
-        Expr::Constant(total),
+        Some(Expr::Constant(total)),
     )
     .unwrap()
 }
@@ -88,7 +88,7 @@ fn test_alpha_factor_three_components() {
                 testing: CcfTesting::NonStaggered,
                 alphas: fixed_components(&alphas_key("Components"), vec![0.7, 0.2, 0.1]).unwrap(),
             },
-            Expr::Constant(0.1),
+            Some(Expr::Constant(0.1)),
         )
         .unwrap(),
     )
@@ -167,7 +167,7 @@ fn test_mgl_four_components() {
                 Expr::Constant(0.3),
                 Expr::Constant(0.5),
             ]),
-            Expr::Constant(0.1),
+            Some(Expr::Constant(0.1)),
         )
         .unwrap(),
     )
@@ -307,7 +307,7 @@ fn test_sampled_beta_factor_outside_zero_to_one_names_the_group_and_trial() {
                 mean: 0.5,
                 standard_deviation: 0.4,
             })),
-            Expr::Constant(0.1),
+            Some(Expr::Constant(0.1)),
         )
         .unwrap(),
     )

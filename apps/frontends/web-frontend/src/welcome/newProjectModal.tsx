@@ -3,14 +3,15 @@ import {
   type CreateProjectRequest,
   type PageLayout,
   type Project,
-  type RiskMode,
   CreateProjectRequestSchema,
-  RISK_MODES,
+  CreateProjectWorkbooksRequestSchema,
   elementsForMode,
 } from "interfaces-shared-types";
 import { ArrowRightIcon, CloseIcon } from "./icons";
 import { createProject } from "../projects/projectApi";
+import { createProjectWorkbooks } from "../workbooks/workbookApi";
 import { LayoutPicker } from "../projects/layoutPicker";
+import type { CreationNotice } from "../projects/projectCreation";
 import "./css/newProjectModal.css";
 
 function NewProjectModal({
@@ -19,13 +20,14 @@ function NewProjectModal({
   onError,
 }: {
   onClose: () => void;
-  onCreated: (project: Project) => void;
+  onCreated: (project: Project, notice: CreationNotice) => void;
   onError: (message: string) => void;
 }): JSX.Element {
   const [name, setName] = useState("");
-  const [mode, setMode] = useState<RiskMode>("internal-events");
+  const [workbookName, setWorkbookName] = useState("");
   const [pageLayout, setPageLayout] = useState<PageLayout>("modern");
   const [nameErr, setNameErr] = useState("");
+  const [workbookErr, setWorkbookErr] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const nameRef = useRef<HTMLInputElement | null>(null);
 
@@ -44,19 +46,35 @@ function NewProjectModal({
 
   function submit(e: FormEvent<HTMLFormElement>): void {
     e.preventDefault();
-    const candidate: CreateProjectRequest = { name: name.trim(), mode, pageLayout };
+    const candidate: CreateProjectRequest = { name: name.trim(), pageLayout };
     const parsed = CreateProjectRequestSchema.safeParse(candidate);
+    const workbook = CreateProjectWorkbooksRequestSchema.safeParse({ name: workbookName });
     if (!parsed.success) {
       const issue = parsed.error.issues.find((i) => i.path[0] === "name");
       setNameErr(issue?.message ?? "Invalid name");
-      return;
     }
+    if (!workbook.success) setWorkbookErr(workbook.error.issues[0]?.message ?? "Workbook name is required");
+    if (!parsed.success || !workbook.success) return;
+    const projectRequest = parsed.data;
+    const workbookRequest = workbook.data;
     setSubmitting(true);
-    createProject(parsed.data)
-      .then((project) => { onCreated(project); })
-      .catch((err: unknown) => {
-        const message = (err as { message?: string }).message ?? "Could not create project";
-        onError(message);
+    createProject(projectRequest)
+      .then(async (project) => {
+        const notice = await createProjectWorkbooks(project.id, workbookRequest)
+          .then((result): CreationNotice => ({
+            workbookName: workbookRequest.name,
+            failed: result.failed.map((entry) => entry.elementCode),
+            unlinked: result.unlinked.map((entry) => entry.elementCode),
+          }))
+          .catch((): CreationNotice => ({
+            workbookName: workbookRequest.name,
+            failed: elementsForMode(project.mode).map((element) => element.code),
+            unlinked: [],
+          }));
+        onCreated(project, notice);
+      })
+      .catch((err: Error) => {
+        onError(err.message.length > 0 ? err.message : "Could not create project");
       })
       .finally(() => { setSubmitting(false); });
   }
@@ -94,38 +112,19 @@ function NewProjectModal({
             </div>
 
             <div className="field">
-              <label className="field__label">Risk mode</label>
-              <div className="field__hint">Determines which ASME-ANS-RA-S-1.4 technical elements are included.</div>
-              <div className="modes" role="radiogroup" aria-label="Risk mode">
-                {RISK_MODES.map((m) => {
-                  const checked = m.id === mode;
-                  const count = elementsForMode(m.id).length;
-                  return (
-                    <label
-                      key={m.id}
-                      className={`mode${checked ? " mode--checked" : ""}`}
-                      htmlFor={`np-mode-${m.id}`}
-                    >
-                      <input
-                        id={`np-mode-${m.id}`}
-                        className="mode__radio-input"
-                        type="radio"
-                        name="risk-mode"
-                        value={m.id}
-                        checked={checked}
-                        onChange={() => { setMode(m.id); }}
-                      />
-                      <span className="mode__radio" aria-hidden="true" />
-                      <span className="mode__body">
-                        <span className="mode__head">
-                          <span className="mode__name">{m.name}</span>
-                          <span className="mode__count">{count} elements</span>
-                        </span>
-                      </span>
-                    </label>
-                  );
-                })}
-              </div>
+              <label className="field__label" htmlFor="np-workbook">Workbook name</label>
+              <div className="field__hint">Every technical element gets a workbook with this name, linked to each other.</div>
+              <input
+                id="np-workbook"
+                type="text"
+                value={workbookName}
+                onChange={(e) => { setWorkbookName(e.target.value); if (workbookErr) setWorkbookErr(""); }}
+                className={`field__input${workbookErr ? " field__input--error" : ""}`}
+                placeholder="Plant baseline"
+                autoComplete="off"
+                aria-required="true"
+              />
+              {workbookErr && <div className="field__error">{workbookErr}</div>}
             </div>
 
             <div className="field">

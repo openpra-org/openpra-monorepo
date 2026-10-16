@@ -1,5 +1,6 @@
 import type {
   CanvasLayoutMetadata,
+  CanvasViewport,
   FaultTreeBasicEvent,
   FaultTreeBasicEventCatalogueDefinition,
   FaultTreeDefinition,
@@ -12,6 +13,7 @@ import type { UncertainExpression, UncertainParameter } from "interfaces-mef-typ
 import type { FaultTreeAnalysisResult } from "interfaces-shared-types/newly-developed-methods/fault-tree";
 import type { ValidationIssue } from "interfaces-shared-types/newly-developed-methods/shared";
 import type { ParameterOption } from "../shared/uncertainEditor";
+import type { TransferBreadcrumb } from "../shared/transferTrail";
 
 /**
  * The normalized, controlled model consumed by every fault-tree host.
@@ -144,6 +146,9 @@ interface FaultTreeEditorProps {
   onOperation: (operation: FaultTreeOperation) => void;
   onSelectionChange: (selection: FaultTreeSelection) => void;
   onOpenReference: (request: FaultTreeOpenReferenceRequest) => void;
+  initialViewport?: CanvasViewport;
+  onViewportChange?: (viewport: CanvasViewport) => void;
+  breadcrumb?: TransferBreadcrumb;
   /** The host supplies workbook identity/revision when it turns this intent into an API request. */
   onRun: () => void;
 }

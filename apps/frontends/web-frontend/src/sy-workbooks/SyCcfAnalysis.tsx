@@ -1,3 +1,5 @@
+import type { AnalysisRunMetadata } from "interfaces-shared-types/newly-developed-methods";
+import { runProgressText } from "../newly-developed-methods/shared/analysisRunWait";
 import { useEffect, useMemo, useState, type JSX } from "react";
 import type {
   FaultTreeAlgorithm,
@@ -10,7 +12,8 @@ import { analysisSaveBlock } from "../newly-developed-methods/shared/useAnalysis
 import { useAnalysisSourceGuard } from "../newly-developed-methods/shared/useAnalysisSourceGuard";
 import { PagedResults } from "../newly-developed-methods/shared/resultPresentation";
 import { ccfGroupsForModel } from "./syCcf";
-import { FAULT_TREE_ALGORITHM_LABELS } from "./SyFaultTreeAnalysis";
+import { FAULT_TREE_ALGORITHM_LABELS, FaultTreeResultPicker } from "./SyFaultTreeAnalysis";
+import { OPTIONAL_TEXT_VIEW, useWorkbookView } from "../workbooks/workbookViewMemory";
 import { isSystemLevelModel } from "./sySelectors";
 import { getSyFaultTreeResult, runSyFaultTree, validateSyFaultTree } from "./syWorkbookApi";
 import { useSyWorkbook } from "./syWorkbookContext";
@@ -88,8 +91,12 @@ export function SyCcfAnalysis({ currentModelId }: { currentModelId: string }): J
   const [settings, setSettings] = useState<FaultTreeAnalysisSettings>(DEFAULT_SETTINGS);
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [running, setRunning] = useState(false);
+  const [live, setLive] = useState<AnalysisRunMetadata | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [results, setResults] = useState<CcfComparisonResult[]>([]);
+  const [shownTree, setShownTree] = useWorkbookView<string | null>("ccf.batch.tree", null, OPTIONAL_TEXT_VIEW);
+  const shownResult = results.find((result) => result.modelId === shownTree) ?? results[0];
+  const shownResults = workflow === "BATCH" && results.length > 0 ? [shownResult] : results;
 
   useEffect(() => {
     setBatchModelIds((current) => {
@@ -150,7 +157,7 @@ export function SyCcfAnalysis({ currentModelId }: { currentModelId: string }): J
       calculationType,
       workflow,
       settings: { ...settings, expandCcf },
-    });
+    }, setLive);
     if (execution.run.status !== "SUCCEEDED") throw resultError(execution.run.status, execution.run.failure?.message);
     return getSyFaultTreeResult(runtime.workbookId, model.id, execution.run.id);
   }
@@ -298,13 +305,17 @@ export function SyCcfAnalysis({ currentModelId }: { currentModelId: string }): J
       {workflow === "MANUAL" && !currentReady && <p className="syft-analysis__notice" role="status">No ready group has all its member events in this fault tree. Complete a group above before running PRAXIS.</p>}
       {workflow === "BATCH" && modelOptions.length === 0 && <p className="syft-analysis__notice" role="status">Complete a group with two component basic events before running PRAXIS.</p>}
       {saveBlockedReason !== null && <p className="syft-analysis__notice" role="status">{saveBlockedReason}</p>}
+      {running && live !== null && <p className="possubtle" role="status">{runProgressText(live)}</p>}
       {(error ?? sourceWarning) !== null && <p className="syft-analysis__error" role="alert">{error ?? sourceWarning}</p>}
       {stale && <p className="syft-analysis__notice" role="status">These results use an earlier workbook revision.</p>}
 
       {results.length > 0 && (
         <section className="syccf-analysis__results" aria-label="Common cause comparison results">
           <h3>{workflow === "BATCH" ? "Comparison results" : "Comparison result"}</h3>
-          {results.map((result) => {
+          {workflow === "BATCH" && (
+            <FaultTreeResultPicker options={results.map((result) => ({ id: result.modelId, label: result.modelLabel }))} value={shownResult.modelId} onChange={setShownTree} />
+          )}
+          {shownResults.map((result) => {
             const baseline = result.withoutCcf.topEventProbability;
             const expanded = result.withCcf.topEventProbability;
             const difference = expanded - baseline;

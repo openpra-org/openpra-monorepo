@@ -281,8 +281,8 @@ function baseLawXml(law: BaseLaw, code: string): string {
 }
 
 function lawXml(law: Law, code: string): string {
-  if (law.family === "TRUNCATED" || law.family === "MIXTURE" || law.family === "POSTERIOR" || law.family === "POPULATION") {
-    throw unsupportedValue(code, `a ${law.family.toLocaleLowerCase("en-US")} law inside a model`);
+  if (law.family === "TRUNCATED" || law.family === "MIXTURE" || law.family === "POSTERIOR" || law.family === "POPULATION" || law.family === "EMPIRICAL_BAYES" || law.family === "DURATION" || law.family === "TREND" || law.family === "PRODUCT") {
+    throw unsupportedValue(code, `a ${law.family.toLocaleLowerCase("en-US")} law`);
   }
   return baseLawXml(law, code);
 }
@@ -308,7 +308,7 @@ function basicEventValueXml(basicEvent: FaultTreeBasicEvent): { xml: string; met
   if (expression === undefined) return { xml: floatXml(basicEvent.probability.value), metadata: {} };
   if (expression.node === "VALUE" && expression.value.law.family === "TRUNCATED") {
     const truncated = expression.value.law;
-    if (expression.value.unit !== "PROBABILITY" || truncated.law.family === "MIXTURE") throw unsupportedValue(basicEvent.code, "a truncated mixture");
+    if (expression.value.unit !== "PROBABILITY" || truncated.law.family === "MIXTURE" || truncated.law.family === "PRODUCT") throw unsupportedValue(basicEvent.code, `a truncated ${truncated.law.family.toLocaleLowerCase("en-US")}`);
     return {
       xml: baseLawXml(truncated.law, basicEvent.code),
       metadata: {
@@ -745,7 +745,7 @@ function basicEventExpression(element: Element, metadata: ReadonlyMap<string, st
   if (lower === null && upper === null) return expression;
   if (expression.node !== "VALUE") throw new OpenPsaImportError("INVALID_MODEL", `Basic event ${name} truncates a model, which the fault-tree editor cannot hold`);
   const law = expression.value.law;
-  if (law.family === "TRUNCATED" || law.family === "MIXTURE" || law.family === "POSTERIOR" || law.family === "POPULATION") {
+  if (law.family === "TRUNCATED" || law.family === "MIXTURE" || law.family === "POSTERIOR" || law.family === "POPULATION" || law.family === "EMPIRICAL_BAYES" || law.family === "DURATION" || law.family === "TREND") {
     throw new OpenPsaImportError("INVALID_MODEL", `Basic event ${name} truncates a law that cannot be truncated here`);
   }
   return { node: "VALUE", value: { unit: "PROBABILITY", law: { family: "TRUNCATED", law, lower, upper } } };

@@ -3,14 +3,12 @@ import { NotRecorded, ReviewLines, ReviewTitle } from "./syShared";
 import { SySystemDiagrams } from "./SySystemDiagrams";
 import { useSyWorkbook } from "./syWorkbookContext";
 import type { SyDrawerContext } from "./syScreens";
-import { useSyValueSources, useSystemHours } from "./syMissionTimes";
+import { useSystemHours } from "./syMissionTimes";
 import { hoursText } from "../sc-workbooks/scMissionTimePoints";
-import { expressionText } from "../newly-developed-methods/shared/uncertainText";
 
 function SySystemDescription({ systemId, openDrawer }: { systemId: string; openDrawer: (ctx: SyDrawerContext) => void }): JSX.Element | null {
   const { sy, links, editable, mutateSy } = useSyWorkbook();
   const def = sy.systemDefinitions.find((candidate) => candidate.uuid === systemId);
-  const values = useSyValueSources();
   const missionHours = useSystemHours(def === undefined ? [] : [def]).get(systemId);
   if (def === undefined) return null;
   const system = def;
@@ -66,48 +64,20 @@ function SySystemDescription({ systemId, openDrawer }: { systemId: string; openD
         </ReviewTitle>
         <table className="sy-review-table" aria-label="System definition">
           <tbody>
-            <tr><th scope="row">SC criterion</th><td>{scId === undefined ? "Typed" : scNames.get(scId) ?? scId}</td></tr>
             <tr><th scope="row">Top event</th><td>{system.description ?? <NotRecorded />}</td></tr>
-            <tr><th scope="row">Success criterion</th><td>{system.successCriterion ?? <NotRecorded />}</td></tr>
             <tr>
               <th scope="row">Mission time</th>
               <td>
-                {system.missionTime === undefined ? <NotRecorded /> : (
-                  <>
-                    <span className="posmono">{hoursText(missionHours)}</span>
-                    <span className="sy-review-sub">{system.missionTime.node === "PARAMETER" ? `SC ${expressionText(system.missionTime, values.label)}` : `Typed ${expressionText(system.missionTime, values.label)}`}</span>
-                  </>
-                )}
+                {system.missionTime === undefined ? <NotRecorded /> : <span className="posmono">{hoursText(missionHours)}</span>}
               </td>
             </tr>
+            <tr><th scope="row">SC record</th><td>{scId === undefined ? "Typed" : scNames.get(scId) ?? scId}</td></tr>
+            <tr><th scope="row">Success criterion</th><td>{system.successCriterion ?? <NotRecorded />}</td></tr>
           </tbody>
         </table>
       </section>
 
-      <section className="sy-review-section" aria-label="Success criterion by operating state">
-        <ReviewTitle title="Success criterion by operating state" sr="SY-A15">
-          {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addVariant}>Add variant</button>}
-        </ReviewTitle>
-        {variants.length === 0 ? <p className="sy-review-empty">The criterion above applies in every operating state.</p> : (
-          <table className="sy-review-table" aria-label="Success criterion by operating state">
-            <tbody>
-              {variants.map((criterion) => (
-                <tr key={criterion.uuid}>
-                  <th scope="row">
-                    <span>{criterion.plantOperatingStateId ?? "Any state"}</span>
-                    {criterion.plantOperatingStateId !== undefined && posNames.has(criterion.plantOperatingStateId) && <span className="sy-review-sub">{posNames.get(criterion.plantOperatingStateId)}</span>}
-                  </th>
-                  <td>
-                    {criterion.basis.length > 0 ? <span>{criterion.basis}</span> : <NotRecorded />}
-                    {criterion.scenarioCondition !== undefined && <span className="sy-review-sub">{criterion.scenarioCondition}</span>}
-                  </td>
-                  <td className="sy-review-edit"><button type="button" className="posnav__btn posnav__btn--sm" aria-label={`${actionLabel} variant ${criterion.plantOperatingStateId ?? "any state"}`} onClick={() => openDrawer({ kind: "variant", id: criterion.uuid })}>{actionLabel}</button></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </section>
+      <SySystemDiagrams systemId={system.uuid} openDrawer={openDrawer} />
 
       <section className="sy-review-section" aria-label="Model boundary">
         <ReviewTitle title="Model boundary" sr="SY-A8">
@@ -117,8 +87,6 @@ function SySystemDescription({ systemId, openDrawer }: { systemId: string; openD
           <tbody><tr><th scope="row">Included</th><td><ReviewLines items={system.boundaries} /></td></tr></tbody>
         </table>
       </section>
-
-      <SySystemDiagrams systemId={system.uuid} openDrawer={openDrawer} />
 
       <section className="sy-review-section" aria-label="Alignments">
         <ReviewTitle title="Alignments" sr="SY-A7">
@@ -159,6 +127,30 @@ function SySystemDescription({ systemId, openDrawer }: { systemId: string; openD
             </tr>
           </tbody>
         </table>
+      </section>
+
+      <section className="sy-review-section" aria-label="Success criterion by operating state">
+        <ReviewTitle title="Success criterion by operating state" sr="SY-A15">
+          {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addVariant}>Add variant</button>}
+        </ReviewTitle>
+        {variants.length === 0 ? <p className="sy-review-empty">The criterion above applies in every operating state.</p> : (
+          <table className="sy-review-table" aria-label="Success criterion by operating state">
+            <tbody>
+              {variants.map((criterion) => (
+                <tr key={criterion.uuid}>
+                  <th scope="row">
+                    <span>{criterion.plantOperatingStateId === undefined ? "Any state" : posNames.has(criterion.plantOperatingStateId) ? `${posNames.get(criterion.plantOperatingStateId) ?? ""} (${criterion.plantOperatingStateId})` : criterion.plantOperatingStateId}</span>
+                  </th>
+                  <td>
+                    {criterion.basis.length > 0 ? <span>{criterion.basis}</span> : <NotRecorded />}
+                    {criterion.scenarioCondition !== undefined && <span className="sy-review-sub">{criterion.scenarioCondition}</span>}
+                  </td>
+                  <td className="sy-review-edit"><button type="button" className="posnav__btn posnav__btn--sm" aria-label={`${actionLabel} variant ${criterion.plantOperatingStateId ?? "any state"}`} onClick={() => openDrawer({ kind: "variant", id: criterion.uuid })}>{actionLabel}</button></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
       </section>
 
       <section className="sy-review-section" aria-label="Operation and maintenance">

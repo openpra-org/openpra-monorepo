@@ -54,7 +54,7 @@ import { type RcPersona } from "./rcViewData";
 import { NO_RC_LINKS, listRcLinkOptions, loadRcLinkedWorkbooks, type RcLinkedWorkbookData, type RcLinks } from "./rcLinks";
 
 const STEP_SR_HINT: Record<string, string | undefined> = {
-  handoff: "RCRE-A1",
+  scope: "RCRE-A1",
   protective: "RCPA-A1",
   weather: "RCME-A1",
   dispersion: "RCAD-A1",
@@ -62,6 +62,7 @@ const STEP_SR_HINT: Record<string, string | undefined> = {
   health: "RCHE-A1",
   economics: "RCEC-A1",
   quantify: "RCQ-A3",
+  handoff: "RCQ-D3",
 };
 
 interface RcExampleResponse {
@@ -106,6 +107,9 @@ function RcWorkbookPage(): JSX.Element {
     ])
       .then(async ([workbook, bundle]) => {
         if (cancelled) return;
+        const linkChoices = await listRcLinkOptions(workbook.projectId);
+        if (cancelled) return;
+        setLinkOptions(linkChoices);
         setData({
           rc: workbook.mef,
           cc: bundle.configurationControl.mef as PRAConfigurationControl,
@@ -125,8 +129,6 @@ function RcWorkbookPage(): JSX.Element {
         } catch {
           if (!cancelled) setProjectName("");
         }
-        const options = await listRcLinkOptions(workbook.projectId);
-        if (!cancelled) setLinkOptions(options);
       })
       .catch((err: unknown) => {
         if (cancelled) return;
@@ -350,7 +352,7 @@ function RcWorkbookPage(): JSX.Element {
       )}
       {rolesOpen && <WorkbookRolesModal workbookId={id} onClose={() => setRolesOpen(false)} onChanged={(res) => setMyRoles(res.myRoles as RcWorkbookRoleName[])} />}
       {loadExOpen && (
-        <LoadExampleModal
+        <LoadExampleModal replacesLinks
           exampleName="RC"
           exampleOptions={exampleOptions}
           choiceLabel="Example"

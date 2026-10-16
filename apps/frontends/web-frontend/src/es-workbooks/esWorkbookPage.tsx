@@ -1,10 +1,11 @@
 import { JSX, useCallback, useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 import { type EventSequenceAnalysis } from "interfaces-mef-types/es/event-sequence-analysis";
-import { expressionReferences } from "interfaces-mef-types/core/uncertainty";
-import { type PRAConfigurationControl } from "interfaces-mef-types/cross-cutting/pra-configuration-control";
-import { type NewlyDevelopedMethod } from "interfaces-mef-types/cross-cutting/newly-developed-methods";
-import { fetchJson } from "../api/client";
+import { type EsLinkedWorkbooks } from "interfaces-mef-types/es/event-sequence-analysis";
+import { listWorkbooks } from "../workbooks/workbookApi";
+import { getScWorkbook } from "../sc-workbooks/scWorkbookApi";
+import { getSyWorkbook } from "../sy-workbooks/syWorkbookApi";
+import { getHrWorkbook } from "../hr-workbooks/hrWorkbookApi";
 import { getProject } from "../projects/projectApi";
 import { WorkbookRolesModal } from "../workbooks/workbookRolesModal";
 import { WorkbookApprovalTable } from "../workbooks/workbookApprovalTable";
@@ -18,6 +19,10 @@ import {
   getEsIeLink,
   linkPosWorkbook,
   linkIeWorkbook,
+  unlinkPosWorkbook,
+  unlinkIeWorkbook,
+  getAvailablePosWorkbooks,
+  getAvailableIeWorkbooks,
   getEsExampleOptions,
   loadEsExample,
   unloadEsExample,
@@ -30,34 +35,25 @@ import {
 import { EsWorkbench, type EsWorkbenchActions } from "./esWorkbench";
 import { EsWorkbookProvider, type EsWorkbookData } from "./esWorkbookContext";
 import { useEsMefPatch } from "./useEsMefPatch";
-import { EsPosLinkModal } from "./esPosLinkModal";
-import { EsIeLinkModal } from "./esIeLinkModal";
+import { type EsLinkActions } from "./EsScope";
 import { LoadExampleModal, UnloadExampleModal } from "../workbooks/exampleWorkbookModal";
 import { EsDocumentsCard } from "./esDocumentsCard";
-import { loadDaFrequencies } from "../ie-workbooks/ieDaLinks";
 import { type EsPersona } from "./esViewData";
 
 const STEP_SR_HINT: Record<string, string | undefined> = {
   scope: "ES-A2",
   sequences: "ES-A1",
-  deps: "ES-B1",
   timing: "ES-A6",
-  endstates: "ES-C1",
-  families: "ES-C8",
-  quant: "ES-C8",
+  dynamic: "ES-A5",
+  uncertainty: "ES-A14",
+  handoff: "ES-C8",
 };
 
-interface EsExampleResponse {
-  slug: string;
-  kind: string;
-  mef: unknown;
-  updatedAt: string;
-}
-
-interface EsBundleResponse {
-  es: EsExampleResponse;
-  configurationControl: EsExampleResponse;
-  newlyDevelopedMethods: EsExampleResponse[];
+function withLink(links: EsLinkedWorkbooks | undefined, code: keyof EsLinkedWorkbooks, workbookId: string | null): EsLinkedWorkbooks {
+  const next: EsLinkedWorkbooks = { ...links };
+  delete next[code];
+  if (workbookId !== null) next[code] = workbookId;
+  return next;
 }
 
 function EsWorkbookPage(): JSX.Element {
@@ -69,9 +65,8 @@ function EsWorkbookPage(): JSX.Element {
   const [myRoles, setMyRoles] = useState<EsWorkbookRoleName[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [upstreamError, setUpstreamError] = useState<string | null>(null);
   const [rolesOpen, setRolesOpen] = useState(false);
-  const [posLinkOpen, setPosLinkOpen] = useState(false);
-  const [ieLinkOpen, setIeLinkOpen] = useState(false);
   const [loadExOpen, setLoadExOpen] = useState(false);
   const [unloadExOpen, setUnloadExOpen] = useState(false);
   const [exampleOptions, setExampleOptions] = useState<EsExampleOption[]>([]);
@@ -86,26 +81,19 @@ function EsWorkbookPage(): JSX.Element {
     let cancelled = false;
     Promise.all([
       getEsWorkbook(id),
-      fetchJson<EsBundleResponse>("/api/example-workbooks/es-bundle"),
       getEsPosLink(id).catch((): EsPosLinkStatus => ({ linkedPosWorkbookId: null, linkedName: null, states: [], sources: [] })),
-      getEsIeLink(id).catch((): EsIeLinkStatus => ({ linkedIeWorkbookId: null, linkedName: null, initiators: [] })),
+      getEsIeLink(id).catch((): EsIeLinkStatus => ({ linkedIeWorkbookId: null, linkedName: null, groups: [] })),
     ])
-      .then(async ([workbook, bundle, posLink, ieLink]) => {
+      .then(async ([workbook, posLink, ieLink]) => {
         if (cancelled) return;
         setData({
           projectId: workbook.projectId,
           es: workbook.mef,
-          cc: bundle.configurationControl.mef as PRAConfigurationControl,
-          nms: bundle.newlyDevelopedMethods.map((nm) => nm.mef as NewlyDevelopedMethod),
           posLink,
           ieLink,
         });
         setMyRoles(workbook.myRoles);
         setRevision(workbook.revision);
-        const linkedDa = (workbook.mef.eventTrees ?? []).flatMap((tree) => (tree.initiatingEventFrequency === undefined ? [] : expressionReferences(tree.initiatingEventFrequency.expression).map((reference) => reference.workbookId)));
-        void loadDaFrequencies(workbook.projectId, linkedDa).then((daFrequencies) => {
-          if (!cancelled) setData((prev) => (prev === null ? prev : { ...prev, daFrequencies }));
-        });
         setHasPreviousMef(workbook.hasPreviousMef);
         try {
           const project = await getProject(workbook.projectId);
@@ -197,6 +185,71 @@ function EsWorkbookPage(): JSX.Element {
     return out;
   }, [myRoles]);
 
+  const linkRoles = myRoles.includes("preparer") || myRoles.includes("co_preparer");
+  const projectId = data?.projectId;
+  const links = useMemo<EsLinkActions | undefined>(() => {
+    if (id === undefined || projectId === undefined || !linkRoles) return undefined;
+    const reload = async (): Promise<void> => {
+      const wb = await getEsWorkbook(id);
+      updateEs(wb.mef);
+      setRevision(wb.revision);
+    };
+    return {
+      available: async (code) => {
+        if (code === "POS") return (await getAvailablePosWorkbooks(id)).map((workbook) => ({ workbookId: workbook.workbookId, name: workbook.name }));
+        if (code === "IE") return (await getAvailableIeWorkbooks(id)).map((workbook) => ({ workbookId: workbook.workbookId, name: workbook.name }));
+        return (await listWorkbooks(projectId, code)).workbooks.map((workbook) => ({ workbookId: workbook.id, name: workbook.name }));
+      },
+      link: async (code, workbookId) => {
+        if (code === "POS") {
+          const posLink = await linkPosWorkbook(id, workbookId);
+          setData((prev) => (prev === null ? prev : { ...prev, posLink }));
+          await reload();
+          return;
+        }
+        if (code === "IE") {
+          const ieLink = await linkIeWorkbook(id, workbookId);
+          setData((prev) => (prev === null ? prev : { ...prev, ieLink }));
+          await reload();
+          return;
+        }
+        mutateEs((draft) => ({ ...draft, linkedWorkbooks: withLink(draft.linkedWorkbooks, code, workbookId) }));
+      },
+      unlink: async (code) => {
+        if (code === "POS") {
+          const posLink = await unlinkPosWorkbook(id);
+          setData((prev) => (prev === null ? prev : { ...prev, posLink }));
+          await reload();
+          return;
+        }
+        if (code === "IE") {
+          const ieLink = await unlinkIeWorkbook(id);
+          setData((prev) => (prev === null ? prev : { ...prev, ieLink }));
+          await reload();
+          return;
+        }
+        mutateEs((draft) => ({ ...draft, linkedWorkbooks: withLink(draft.linkedWorkbooks, code, null) }));
+      },
+    };
+  }, [id, projectId, linkRoles, updateEs, mutateEs]);
+
+  const linkedSc = data?.es.linkedWorkbooks?.SC;
+  const linkedSy = data?.es.linkedWorkbooks?.SY;
+  const linkedHr = data?.es.linkedWorkbooks?.HRA;
+  useEffect(() => {
+    let cancelled = false;
+    Promise.all([
+      linkedSc === undefined ? Promise.resolve(undefined) : getScWorkbook(linkedSc).then((workbook) => workbook.mef),
+      linkedSy === undefined ? Promise.resolve(undefined) : getSyWorkbook(linkedSy).then((workbook) => workbook.mef),
+      linkedHr === undefined ? Promise.resolve(undefined) : getHrWorkbook(linkedHr).then((workbook) => workbook.mef),
+    ])
+      .then(([sc, sy, hr]) => {
+        if (!cancelled) setData((prev) => (prev === null ? prev : { ...prev, upstream: { ...(sc === undefined ? {} : { sc }), ...(sy === undefined ? {} : { sy }), ...(hr === undefined ? {} : { hr }) } }));
+      })
+      .catch((failure: Error) => { if (!cancelled) setUpstreamError(`Could not load a linked workbook: ${failure.message}`); });
+    return () => { cancelled = true; };
+  }, [linkedSc, linkedSy, linkedHr]);
+
   const [persona, setPersona] = useState<EsPersona>("preparer");
   useEffect(() => {
     if (availablePersonas.length === 0) return;
@@ -242,8 +295,7 @@ function EsWorkbookPage(): JSX.Element {
         showPersonaPicker={availablePersonas.length > 1}
         availablePersonas={availablePersonas}
         onOpenRoles={() => setRolesOpen(true)}
-        onOpenPosLink={canLink ? () => setPosLinkOpen(true) : undefined}
-        onOpenIeLink={canLink ? () => setIeLinkOpen(true) : undefined}
+        links={links}
         onLoadExample={canLoadExample ? () => setLoadExOpen(true) : undefined}
         onUnloadExample={canUnloadExample ? () => setUnloadExOpen(true) : undefined}
         actions={actions}
@@ -267,6 +319,12 @@ function EsWorkbookPage(): JSX.Element {
         renderRoster={() => <WorkbookRoster workbookId={id} refreshSignal={approvalRefresh} />}
         renderDocuments={() => <EsDocumentsCard workbookId={id} canEdit={canLink} />}
       />
+      {upstreamError !== null && (
+        <div className="ie-savebar" role="alert">
+          <span>{upstreamError}</span>
+          <button type="button" className="ie-savebar__dismiss" onClick={() => setUpstreamError(null)}>Dismiss</button>
+        </div>
+      )}
       {saveError !== null && (
         <div className="ie-savebar" role="alert">
           <span>Could not save changes: {saveError}</span>
@@ -274,38 +332,8 @@ function EsWorkbookPage(): JSX.Element {
         </div>
       )}
       {rolesOpen && <WorkbookRolesModal workbookId={id} onClose={() => setRolesOpen(false)} onChanged={(res) => setMyRoles(res.myRoles as EsWorkbookRoleName[])} />}
-      {posLinkOpen && (
-        <EsPosLinkModal
-          workbookId={id}
-          currentLinkedId={data.posLink.linkedPosWorkbookId}
-          onClose={() => setPosLinkOpen(false)}
-          onConfirm={async (posWorkbookId) => {
-            const posLink = await linkPosWorkbook(id, posWorkbookId);
-            setData((prev) => (prev === null ? prev : { ...prev, posLink }));
-            const wb = await getEsWorkbook(id);
-            updateEs(wb.mef);
-            setRevision(wb.revision);
-            setPosLinkOpen(false);
-          }}
-        />
-      )}
-      {ieLinkOpen && (
-        <EsIeLinkModal
-          workbookId={id}
-          currentLinkedId={data.ieLink.linkedIeWorkbookId}
-          onClose={() => setIeLinkOpen(false)}
-          onConfirm={async (ieWorkbookId) => {
-            const ieLink = await linkIeWorkbook(id, ieWorkbookId);
-            setData((prev) => (prev === null ? prev : { ...prev, ieLink }));
-            const wb = await getEsWorkbook(id);
-            updateEs(wb.mef);
-            setRevision(wb.revision);
-            setIeLinkOpen(false);
-          }}
-        />
-      )}
       {loadExOpen && (
-        <LoadExampleModal
+        <LoadExampleModal replacesLinks
           exampleName="ES"
           exampleOptions={exampleOptions}
           onCancel={() => setLoadExOpen(false)}

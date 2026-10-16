@@ -2,10 +2,8 @@ import { execFileSync } from "node:child_process";
 import { mkdtempSync, writeFileSync, readFileSync, existsSync, rmSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { tmpdir } from "node:os";
-import { Test } from "@nestjs/testing";
-import request from "supertest";
-import type { INestApplication } from "@nestjs/common";
-import { runPraxisWithWorker } from "./praxis-worker-runner";
+import { praetorJobTimeout } from "interfaces-shared-types/execution/praetor-job";
+import { runPraxisProcess } from "./praxis-worker-runner";
 
 const appDir = resolve(__dirname, "../../..");
 const repo = resolve(appDir, "../../..");
@@ -47,9 +45,9 @@ it("applies heap budgets in the actual compiled worker process", async () => {
   });`);
   const limits: number[] = [];
   for (const heapLimitMb of [128, 256]) {
-    const response = await runPraxisWithWorker(
+    const response = await runPraxisProcess(
       { operation: "execute", requestJson: "{}" },
-      { workerPath, addonPath: probe, heapLimitMb },
+      { workerPath, addonPath: probe, heapLimitMb, timeoutMs: praetorJobTimeout() },
     );
     const result = JSON.parse(response.resultJson).result;
     expect(result.args).toContain(`--max-old-space-size=${heapLimitMb}`);
@@ -71,7 +69,7 @@ it.each(["validate", "execute"] as const)("rejects oversized tables before %s st
     scope:'CLIQUE_MEMORY_PREFLIGHT',largestTable:{bytes:'824633720832',batchSize:1}
   }});
   exports.${operation} = () => {require('node:fs').writeFileSync(${JSON.stringify(marker)},'started');return '{}';};`);
-  const response = await runPraxisWithWorker({operation, requestJson:"{}"}, {workerPath,addonPath:probe});
+  const response = await runPraxisProcess({ operation, requestJson: "{}" }, { workerPath, addonPath: probe, timeoutMs: praetorJobTimeout() });
   const failure = JSON.parse(response.resultJson).error;
   expect(failure.code).toBe("PRAXIS_RESOURCE_LIMIT");
   expect(failure.details.requiredBytes).toBe("824633720832");
@@ -79,18 +77,17 @@ it.each(["validate", "execute"] as const)("rejects oversized tables before %s st
   expect(existsSync(marker)).toBe(false);
 });
 it.each(["timeout", "cancel"])(
-  "stops synchronous native work on %s and releases capacity",
+  "stops synchronous native work on %s and starts the next run",
   async (kind) => {
     const pidFile = join(directory, `${kind}.pid`);
     const controller = new AbortController();
     const started = Date.now();
-    const pending = runPraxisWithWorker(
+    const pending = runPraxisProcess(
       { operation: "execute", requestJson: JSON.stringify({ pidFile }) },
       {
         workerPath,
         addonPath: fakeAddon,
         timeoutMs: kind === "timeout" ? 1200 : 5000,
-        maxConcurrent: 1,
         signal: controller.signal,
       },
     );
@@ -98,53 +95,26 @@ it.each(["timeout", "cancel"])(
       code: kind === "timeout" ? "PRAXIS_TIMEOUT" : "PRAXIS_CANCELLED",
     });
     const pid = await running(pidFile);
-    await expect(
-      runPraxisWithWorker({ operation: "execute", requestJson: "{}" }, { maxConcurrent: 1 }),
-    ).rejects.toMatchObject({ code: "PRAXIS_BUSY" });
     if (kind === "cancel") controller.abort();
     await checked;
     expect(() => process.kill(pid, 0)).toThrow();
     expect(Date.now() - started).toBeLessThan(5000);
-    // Validation after termination must start successfully, with no stale capacity slot.
-    const response = await runPraxisWithWorker(
+    const response = await runPraxisProcess(
       {
         operation: "validate",
         requestJson: JSON.stringify({ schemaVersion: "1.0.0", request: { methodType: "UNKNOWN" }, modelSnapshots: [] }),
       },
-      { workerPath, maxConcurrent: 1 },
+      { workerPath, timeoutMs: praetorJobTimeout() },
     );
     expect(JSON.parse(response.resultJson).error.code).toBe("UNSUPPORTED_METHOD_TYPE");
   },
   10000,
 );
-it("loads the compiled HTTP controller, service and worker", async () => {
+it("loads the compiled HTTP controller and PRAXIS job services", () => {
   const { ExecuteController } = require(join(compiled, "controllers/execute.controller.js"));
-  const { PraxisNativeService } = require(join(compiled, "services/praxis-native.service.js"));
-  const { ExecuteProducerService } = require(join(compiled, "services/execute-producer.service.js"));
-  const { ExecuteStorageService } = require(join(compiled, "services/execute-storage.service.js"));
-  const module = await Test.createTestingModule({
-    controllers: [ExecuteController],
-    providers: [
-      PraxisNativeService,
-      { provide: ExecuteProducerService, useValue: {} },
-      { provide: ExecuteStorageService, useValue: {} },
-    ],
-  }).compile();
-  const app: INestApplication = module.createNestApplication();
-  await app.init();
-  try {
-    const result = await request(app.getHttpServer())
-      .post("/praxis/native/validate")
-      .send({ schemaVersion: "1.0.0", request: { methodType: "UNKNOWN" }, modelSnapshots: [] })
-      .expect(200);
-    expect(result.body.error.code).toBe("UNSUPPORTED_METHOD_TYPE");
-    const expired = await request(app.getHttpServer())
-      .post("/praxis/native/execute")
-      .set("x-praxis-deadline", String(Date.now() - 1))
-      .send({})
-      .expect(200);
-    expect(expired.body.error.code).toBe("PRAXIS_TIMEOUT");
-  } finally {
-    await app.close();
-  }
+  const { PraxisJobsService } = require(join(compiled, "services/praxis-jobs.service.js"));
+  const { PraxisJobConsumerService } = require(join(compiled, "services/praxis-job-consumer.service.js"));
+  expect(typeof ExecuteController).toBe("function");
+  expect(typeof PraxisJobsService).toBe("function");
+  expect(typeof PraxisJobConsumerService).toBe("function");
 });

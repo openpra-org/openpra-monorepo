@@ -10,6 +10,7 @@ import { NewProjectModal } from "./newProjectModal";
 import { SharedProjectCard } from "./sharedProjectCard";
 import { EmptyState } from "./emptyState";
 import { PosAwaitingMeSection } from "./posAwaitingMeSection";
+import type { CreationNotice } from "../projects/projectCreation";
 import "./css/welcomePage.css";
 
 function WelcomePage(): JSX.Element {
@@ -39,10 +40,11 @@ function WelcomePage(): JSX.Element {
   }, []);
 
 
-  function handleCreated(project: Project): void {
+  function handleCreated(project: Project, notice: CreationNotice): void {
     setRecent(project);
     setModalOpen(false);
     addToast({ id: crypto.randomUUID(), type: "success", message: `Project "${project.name}" created` });
+    navigate(`/projects/${project.id}`, { state: notice });
   }
 
   function handleCreateError(message: string): void {
@@ -51,6 +53,7 @@ function WelcomePage(): JSX.Element {
 
   const isEmpty = !loading && recent === null && shared.length === 0;
   const hasShared = shared.length > 0;
+  const hasProjects = recent !== null || hasShared;
 
   return (
     <div className="wp wp--compact">
@@ -61,7 +64,16 @@ function WelcomePage(): JSX.Element {
           <h1 className="wp__intro-line">
             {isEmpty ? "Let's start your first analysis." : "Pick up where you left off."}
           </h1>
-          {!isEmpty && <p className="wp__intro-sub">Or start a new analysis.</p>}
+          {!isEmpty && (
+            <div className="wp__intro-row">
+              <p className="wp__intro-sub">Or start a new analysis.</p>
+              {hasProjects && (
+                <button type="button" className="btn btn--link" onClick={() => { navigate("/projects"); }}>
+                  View all projects
+                </button>
+              )}
+            </div>
+          )}
         </div>
 
         {loadError && <p className="wp__load-error">{loadError}</p>}
@@ -76,7 +88,6 @@ function WelcomePage(): JSX.Element {
                   <RecentProjectCard
                     project={recent}
                     onContinue={() => { navigate(`/projects/${recent.id}`); }}
-                    onViewAll={() => { navigate("/projects"); }}
                   />
                 )}
                 <NewProjectCard onClick={() => { setModalOpen(true); }} />

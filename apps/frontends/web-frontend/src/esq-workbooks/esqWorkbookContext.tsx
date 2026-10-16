@@ -6,7 +6,7 @@ import { type UncertainExpression, type UncertainParameter } from "interfaces-me
 import { syLinkRoots } from "../sy-workbooks/syLinks";
 import { useLinkedScSources } from "../sc-workbooks/scMissionTimeSources";
 import { type LinkRoot } from "../newly-developed-methods/shared/uncertaintyLinks";
-import { missionTimeSourcesOf, parameterTableOf } from "./esqModel";
+import { liveEsqOf, missionTimeSourcesOf, parameterTableOf } from "./esqModel";
 import { type EsqDaLink } from "./esqDaLinks";
 import {
   EMPTY_UPSTREAM,
@@ -73,6 +73,7 @@ function esqLinkRoots(esq: EventSequenceQuantification): LinkRoot[] {
     ...model.events.flatMap((event) => [...root(event.expression, false), ...root(event.missionTime, true)]),
     ...model.parameters.flatMap((parameter) => [...root(parameter.estimate, false), ...root(parameter.missionTime, true)]),
     ...model.ccfGroups.flatMap((group) => root(group.total, false)),
+    ...(esq.modelDecisions?.valueBindings ?? []).flatMap((binding) => root(binding.expression, false)),
   ];
 }
 
@@ -80,17 +81,20 @@ function useEsqUpstream(esq: EventSequenceQuantification | undefined, options: R
   const links = esq?.linkedWorkbooks;
   const es = useLinkedMef(links?.ES, loadLinkedEs);
   const sy = useLinkedMef(links?.SY, loadLinkedSy);
-  const da = useLinkedMef(links?.DA, loadLinkedDa);
+  const linkedDa = useLinkedMef(links?.DA, loadLinkedDa);
+  const da = linkedDa?.mef;
+  const daRevision = linkedDa?.revision;
   const hr = useLinkedMef(links?.HRA, loadLinkedHr);
   const ie = useLinkedMef(links?.IE, loadLinkedIe);
   const pos = useLinkedMef(links?.POS, loadLinkedPos);
   const sc = useLinkedMef(links?.SC, loadLinkedSc);
   const ri = useLinkedMef(links?.RI, loadLinkedRi);
   const hs = useLinkedMef(links?.HS, loadLinkedHs);
-  const scRoots = useMemo(() => [...(esq === undefined ? [] : esqLinkRoots(esq)), ...(sy === undefined ? [] : syLinkRoots(sy))], [esq, sy]);
-  const scBaseTable = useMemo(() => (esq === undefined ? new Map<string, UncertainParameter>() : parameterTableOf(esq, missionTimeSourcesOf(esq, { sc, scReferenced: [] }))), [esq, sc]);
+  const live = useMemo(() => (esq === undefined ? undefined : liveEsqOf(esq, da)), [esq, da]);
+  const scRoots = useMemo(() => [...(live === undefined ? [] : esqLinkRoots(live)), ...(sy === undefined ? [] : syLinkRoots(sy))], [live, sy]);
+  const scBaseTable = useMemo(() => (live === undefined ? new Map<string, UncertainParameter>() : parameterTableOf(live, missionTimeSourcesOf(live, { sc, scReferenced: [] }))), [live, sc]);
   const scReferenced = useLinkedScSources(scRoots, scBaseTable);
-  return useMemo<EsqUpstream>(() => ({ options, es, sy, da, hr, ie, pos, sc, ri, hs, scReferenced }), [options, es, sy, da, hr, ie, pos, sc, ri, hs, scReferenced]);
+  return useMemo<EsqUpstream>(() => ({ options, es, sy, da, daRevision, hr, ie, pos, sc, ri, hs, scReferenced }), [options, es, sy, da, daRevision, hr, ie, pos, sc, ri, hs, scReferenced]);
 }
 
 function EsqWorkbookProvider({ data, editable, runtime, mutateEsq, upstream = EMPTY_UPSTREAM, children }: {
@@ -104,6 +108,7 @@ function EsqWorkbookProvider({ data, editable, runtime, mutateEsq, upstream = EM
   const value = useMemo<EsqWorkbookContextValue>(
     () => ({
       ...data,
+      esq: liveEsqOf(data.esq, upstream.da),
       editable,
       runtime: runtime ?? { workbookId: null, projectId: null, revision: null, saveStatus: "saved" },
       mutateEsq,

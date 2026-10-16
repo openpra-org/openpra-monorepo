@@ -23,6 +23,8 @@ type DaHandoffElement = "SY" | "IE" | "HRA" | "POS" | "ESQ";
 
 type DaHandoffStatus = "IN_STEP" | "CHANGED" | "TYPED" | "UNITS" | "MISSING" | "NOT_IMPORTED";
 
+type DaHandoffSection = "parameters" | "common-cause" | "outages" | "uncertainty";
+
 interface DaHandoffRow {
   element: DaHandoffElement;
   id: string;
@@ -176,9 +178,9 @@ function buildRows(da: DataAnalysis, upstream: DaUpstream): DaHandoffRow[] {
   const hr = upstream.hr;
   if (hr !== undefined) {
     for (const quantification of hr.hepQuantifications) {
-      const cached = quantification.meanHep ?? quantification.pointEstimateHep;
-      const base = { element: "HRA" as const, id: quantification.uuid, code: quantification.uuid, name: quantification.hfeId, consumerValue: cached, unit: "probability" };
-      const link = quantification.controlledDataSource;
+      const hep = quantification.hep;
+      const base = { element: "HRA" as const, id: quantification.uuid, code: quantification.uuid, name: quantification.hfeId, ...(hep === undefined ? {} : { consumerExpression: hep }), unit: "probability" };
+      const link = hep?.node === "PARAMETER" ? hep.reference : undefined;
       if (link === undefined) {
         rows.push({ ...base, holder: "TYPED", status: "TYPED" });
         continue;
@@ -186,7 +188,7 @@ function buildRows(da: DataAnalysis, upstream: DaUpstream): DaHandoffRow[] {
       const parameter = da.parameters.find((candidate) => candidate.uuid === link.entityId);
       if (parameter === undefined) rows.push({ ...base, holder: "DA", target: link.entityId, status: "MISSING", detail: `${link.entityId} is not in this workbook.` });
       else if (!PROBABILITY_TYPES.has(parameter.parameterType)) rows.push({ ...base, holder: "DA", target: parameter.uuid, daValue: parameter.value, status: "UNITS", detail: "HR imports a parameter that is not a probability." });
-      else rows.push({ ...base, holder: "DA", target: parameter.uuid, daValue: parameter.value, status: same(parameter.value, cached) ? "IN_STEP" : "CHANGED" });
+      else rows.push({ ...base, holder: "DA", target: parameter.uuid, daValue: parameter.value, ...(parameter.estimate === undefined ? {} : { daExpression: parameter.estimate }), status: "IN_STEP" });
     }
   }
   const pos = upstream.pos;
@@ -299,6 +301,19 @@ function targetOf(row: DaHandoffRow): { kind: "daParameter" | "daCcfFactors" | "
   return { kind: "daParameter", id: row.target };
 }
 
+function handoffSectionOf(row: DaHandoffRow): DaHandoffSection {
+  if (row.element === "POS") return "outages";
+  if (row.element === "ESQ") return "uncertainty";
+  return row.element === "SY" && row.unit === "factors" ? "common-cause" : "parameters";
+}
+
+function ranked(findings: readonly DaNeedFinding[]): DaNeedFinding[] {
+  return findings
+    .map((finding, index) => ({ finding, index }))
+    .sort((a, b) => RANK[a.finding.severity] - RANK[b.finding.severity] || a.index - b.index)
+    .map(({ finding }) => finding);
+}
+
 function handoffFindings(da: DataAnalysis, upstream: DaUpstream): DaNeedFinding[] {
   let byUpstream = findingCache.get(da);
   if (byUpstream === undefined) {
@@ -309,10 +324,7 @@ function handoffFindings(da: DataAnalysis, upstream: DaUpstream): DaNeedFinding[
   const cached = byUpstream.get(upstream);
   if (cached !== undefined && cached.version === version) return cached.findings;
   const findings: DaNeedFinding[] = [];
-  const view = handoffView(da, upstream);
-  const ccTwo = da.capabilityCategory !== "CC-I";
-  const operating = da.plantStage === "OPERATIONAL";
-  for (const row of view.rows) {
+  for (const row of handoffView(da, upstream).rows) {
     const item = `${row.element} ${row.code}`;
     const target = targetOf(row);
     if (row.status === "UNITS") findings.push({ severity: "error", check: "Units differ", item, detail: row.detail ?? "The units do not match.", target });
@@ -320,18 +332,22 @@ function handoffFindings(da: DataAnalysis, upstream: DaUpstream): DaNeedFinding[
     else if (row.status === "CHANGED") findings.push({ severity: "warning", check: "Out of step", item, detail: `${row.detail ?? "The DA value changed."} Apply the DA value in ${row.element === "HRA" ? "HR" : row.element}.`, target });
     else if (row.status === "NOT_IMPORTED") findings.push({ severity: "note", check: "Not imported", item, detail: row.detail ?? "Not imported.", target });
   }
-  for (const row of view.importance) {
+  const sorted = ranked(findings);
+  byUpstream.set(upstream, { version, findings: sorted });
+  return sorted;
+}
+
+function importanceFindings(da: DataAnalysis, upstream: DaUpstream): DaNeedFinding[] {
+  const findings: DaNeedFinding[] = [];
+  const ccTwo = da.capabilityCategory !== "CC-I";
+  const operating = da.plantStage === "OPERATIONAL";
+  for (const row of handoffView(da, upstream).importance) {
     const target = { kind: "daImportance" as const, id: row.id };
     if (row.esqSignificant && !row.daSignificant) findings.push({ severity: "warning", check: "Significant in ESQ", item: row.id, detail: `ESQ ranks ${row.id} risk significant (FV above ${FV_SIGNIFICANT} or RAW above ${RAW_SIGNIFICANT}), but DA does not mark it.`, target });
     if (!row.esqSignificant && row.daSignificant && row.entries.length > 0) findings.push({ severity: "note", check: "Not significant in ESQ", item: row.id, detail: `DA marks ${row.id} risk significant, but ESQ ranks it below FV ${FV_SIGNIFICANT} and RAW ${RAW_SIGNIFICANT}.`, target });
     if (ccTwo && row.esqSignificant && row.generic) findings.push({ severity: operating ? "warning" : "note", check: "Generic data", item: row.id, detail: `${row.id} is risk significant but rests on generic data. ${operating ? "Give it a realistic plant estimate in Step 05 (DA-D1)." : "Update it with plant experience once the plant operates (DA-D1)."}`, target });
   }
-  const sorted = findings
-    .map((finding, index) => ({ finding, index }))
-    .sort((a, b) => RANK[a.finding.severity] - RANK[b.finding.severity] || a.index - b.index)
-    .map(({ finding }) => finding);
-  byUpstream.set(upstream, { version, findings: sorted });
-  return sorted;
+  return ranked(findings);
 }
 
 function handoffsComplete(da: DataAnalysis, upstream: DaUpstream): boolean {
@@ -359,12 +375,14 @@ export {
   FV_SIGNIFICANT,
   RAW_SIGNIFICANT,
   handoffFindings,
+  handoffSectionOf,
   handoffView,
   handoffsComplete,
+  importanceFindings,
   significant,
   withImportanceFromEsq,
   type DaHandoffElement,
   type DaHandoffRow,
+  type DaHandoffSection,
   type DaHandoffStatus,
-  type DaImportanceRow,
 };

@@ -2,6 +2,10 @@ import assert from "node:assert/strict";
 import type { EventTreeAnalysisResult } from "interfaces-shared-types/newly-developed-methods/event-tree";
 import type { SystemsAnalysis } from "interfaces-mef-types/sy/systems-analysis";
 import type { EventSequenceAnalysis, EventTree } from "interfaces-mef-types/es/event-sequence-analysis";
+import type { EsqModel, EsqTreeRecord } from "interfaces-mef-types/esq/event-sequence-quantification";
+import { EsqModelSchema } from "interfaces-mef-types/zod/esq/event-sequence-quantification";
+import { esqEndStateRunId, esqSequenceRunId, esqTreeRunId } from "interfaces-mef-types/esq/esq-run-inputs";
+import { FrequencyUnit } from "interfaces-mef-types/core/events";
 import type { DataAnalysis } from "interfaces-mef-types/da/data-analysis";
 import { DataAnalysisSchema } from "interfaces-mef-types/zod/da/data-analysis";
 import type { UncertainExpression } from "interfaces-mef-types/core/uncertainty";
@@ -265,7 +269,7 @@ export class WorkbookOracle {
     assert.ok(event, `Missing original event ${id}`);
     const ref = event.controlledDataSource;
     let value = event.expression === undefined ? event.probability : this.pointOf(event.expression);
-    assert.ok(event.expression === undefined || value !== undefined, "This oracle reads only point probabilities and DA point estimates");
+    assert.ok(event.expression === undefined || value !== undefined, "This oracle reads only point and mean-only probabilities");
     if (ref?.referenceType === "WORKBOOK_PARAMETER") {
       const parameter = (this.mef(ref.workbookId) as unknown as DataAnalysis).parameters.find(
         (row) => row.uuid === ref.entityId,
@@ -279,7 +283,7 @@ export class WorkbookOracle {
       const quantification = (this.mef(ref.workbookId) as unknown as HumanReliabilityAnalysis).hepQuantifications.find(
         (row) => row.uuid === ref.quantificationId && row.hfeId === ref.entityId,
       )!;
-      value = quantification.meanHep ?? quantification.pointEstimateHep;
+      value = quantification.hep === undefined ? undefined : this.pointOf(quantification.hep);
     }
     assert.ok(typeof value === "number" && value >= 0 && value <= 1, "Invalid oracle event probability");
     return value;
@@ -293,18 +297,62 @@ export class WorkbookOracle {
   private pointOf(expression: UncertainExpression): number | undefined {
     const resolved = this.resolved(expression);
     if (resolved?.node !== "VALUE") return undefined;
-    return resolved.value.law.family === "POINT" ? resolved.value.law.value : undefined;
+    const law = resolved.value.law;
+    if (law.family === "POINT") return law.value;
+    return law.family === "CONSTRAINED_NONINFORMATIVE" ? law.mean : undefined;
   }
-  private annualFrequency(tree: EventTree): number {
-    const frequency = tree.initiatingEventFrequency;
-    assert.ok(frequency, "Missing source initiating-event frequency");
-    const resolved = this.resolved(frequency.expression);
+  private pointFrequency(expression: UncertainExpression): number {
+    const resolved = this.resolved(expression);
     assert.ok(resolved?.node === "VALUE" && resolved.value.unit === "PER_YEAR", "This oracle reads only frequencies per year");
     const value = this.pointOf(resolved);
     assert.ok(value !== undefined && value >= 0, "This oracle reads only point frequencies");
     return value;
   }
+  private annualFrequency(tree: EventTree): number {
+    const frequency = tree.initiatingEventFrequency;
+    assert.ok(frequency, "Missing source initiating-event frequency");
+    return this.pointFrequency(frequency.expression);
+  }
+  private initiatorFrequency(model: EsqModel, tree: EsqTreeRecord): number {
+    const initiator = model.initiators.find((row) => row.id === tree.initiatorId);
+    assert.ok(initiator?.frequency, "Missing source initiator frequency");
+    assert.equal(initiator.frequency.basis, FrequencyUnit.PER_PLANT_YEAR, "This oracle reads only per-plant-year frequencies");
+    assert.ok(initiator.stateIds.length <= 1, "This oracle reads only single-state initiators");
+    return this.pointFrequency(initiator.frequency.expression);
+  }
+  private modelSequences(reference: WorkbookModelAddress, model: EsqModel): OracleSequence[] {
+    const root = model.trees.find((row) => esqTreeRunId(row.id) === reference.modelId);
+    assert.ok(root, `Missing source event tree ${reference.modelId}`);
+    const initiatingFrequency = this.initiatorFrequency(model, root);
+    const walk = (tree: EsqTreeRecord, chain: OracleSequence["chain"], conditions: Condition[]): OracleSequence[] => {
+      const modelId = esqTreeRunId(tree.id);
+      assert.ok(!chain.some((row) => row.modelId === modelId), "Cycle in source ET transfers");
+      return model.sequences.filter((sequence) => sequence.treeId === tree.id).flatMap((sequence) => {
+        const next = [...chain, { modelId, entityId: esqSequenceRunId(tree.id, sequence.id) }];
+        const combined = [
+          ...conditions,
+          ...tree.functionIds.flatMap((functionId): Condition[] => {
+            const state = sequence.path[functionId];
+            if (state !== "SUCCESS" && state !== "FAILURE") return [];
+            const link = model.functions.find((row) => row.id === functionId)?.esLinks.find((row) => row.treeId === tree.id);
+            assert.ok(link, `Missing source fault-tree link for ${functionId}`);
+            return [{ top: { workbookId: link.top.workbookId, modelId: link.top.modelId, entityId: link.top.gateId }, failure: state === "FAILURE" }];
+          }),
+        ];
+        if (sequence.transferTreeId !== undefined) {
+          const target = model.trees.find((row) => row.id === sequence.transferTreeId);
+          assert.ok(target, `Missing transfer target ${sequence.transferTreeId}`);
+          return walk(target, next, combined);
+        }
+        assert.ok(sequence.endState, `Missing end state of ${sequence.code}`);
+        return [{ chain: next, conditions: combined, endStateId: esqEndStateRunId(sequence.endState), initiatingFrequency }];
+      });
+    };
+    return walk(root, [], []);
+  }
   sequences(reference: WorkbookModelAddress): OracleSequence[] {
+    const model = this.mef(reference.workbookId)["model"];
+    if (model !== undefined) return this.modelSequences(reference, EsqModelSchema.parse(stripNulls(model)));
     const trees = (this.mef(reference.workbookId) as unknown as EventSequenceAnalysis).eventTrees ?? [];
     const root = trees.find((row) => row.uuid === reference.modelId)!;
     assert.ok(root);

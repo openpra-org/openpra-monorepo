@@ -26,10 +26,15 @@ import type {
 } from "interfaces-mef-types/es/event-sequence-analysis";
 import type { EventSequenceQuantification } from "interfaces-mef-types/esq/event-sequence-quantification";
 import type { WorkbookModelAddress } from "interfaces-shared-types/newly-developed-methods";
-import type { WorkbookParameterReference } from "interfaces-mef-types/modeling/references";
-import type { FaultTreeControlledDataSourceReference } from "interfaces-mef-types/modeling/fault-tree";
+import type { HumanFailureEventReference, WorkbookParameterReference } from "interfaces-mef-types/modeling/references";
 import type { BayesianNetworkEvidenceConfiguration } from "interfaces-mef-types/modeling/bayesian-network";
-import type { HclCptGenerator, HclSampler, HclUncertaintySettings } from "interfaces-mef-types/modeling/hybrid-causal-logic";
+import type {
+  HclCptGenerator,
+  HclParameterDraws,
+  HclSampler,
+  HclUncertaintySettings,
+  HclZeroProbabilityContexts,
+} from "interfaces-mef-types/modeling/hybrid-causal-logic";
 import type { WorkbookBayesianNetwork, WorkbookHclConfiguration } from "interfaces-mef-types/modeling/workbook-models";
 import { createHash } from "crypto";
 
@@ -54,7 +59,7 @@ interface CatalogueCcfGroup {
   id: string;
   members: string[];
   factors: CcfFactorModel;
-  total: UncertainExpression;
+  total?: UncertainExpression;
 }
 
 interface UncertaintyTables {
@@ -81,11 +86,11 @@ interface FaultTreeBasicEventCatalogue extends UncertaintyTables {
 interface AdaptedFaultTreeSnapshot extends UncertaintyReferences {
   modelSnapshot: PraxisModelSnapshot;
   basicEventCatalogue: FaultTreeBasicEventCatalogue;
-  legacyReferences: FaultTreeControlledDataSourceReference[];
+  humanFailureReferences: HumanFailureEventReference[];
 }
 
 interface SyFaultTreeAdapterOptions extends UncertaintySources {
-  legacyValues?: ReadonlyMap<string, number>;
+  humanFailureEvents?: ReadonlyMap<string, UncertainExpression>;
   collectOnly?: boolean;
 }
 
@@ -96,8 +101,13 @@ interface NativeEntityReference {
 
 interface HclNativeUncertainty extends UncertaintyTables {
   sampleCount: number;
-  seed: number;
+  seed?: number;
   sampler: HclSampler;
+  cptSampler?: HclSampler;
+  correlation?: HclParameterDraws;
+  clipProbabilities?: boolean;
+  cptClipEpsilon?: number;
+  zeroProbabilityContexts?: HclZeroProbabilityContexts;
   basicEvents: { faultTreeBasicEvent: { entityId: string }; expression: UncertainExpression }[];
   cptRows: { bayesianNetworkNode: NativeEntityReference; cptRowId: string; row: UncertainVector }[];
   cptGenerators: Array<HclCptGenerator & { bayesianNetworkNode: NativeEntityReference }>;
@@ -120,7 +130,7 @@ interface LoadCapacitySnapshotInput {
 
 const NO_REFERENCES: UncertaintyReferences = { parameterReferences: [], vectorReferences: [] };
 
-const legacyEdgeValue = (value: number): UncertainExpression => legacyExpression("PROBABILITY", value);
+const typedProbability = (value: number): UncertainExpression => legacyExpression("PROBABILITY", value);
 
 const uniqueReferences = (references: WorkbookParameterReference[]): WorkbookParameterReference[] => {
   const unique = new Map<string, WorkbookParameterReference>();
@@ -146,14 +156,9 @@ const ccfFactorReferences = (factors: CcfFactorModel): UncertaintyReferences => 
   return referencesOf(ccfFactorExpressions(factors), vector === undefined ? [] : [vector]);
 };
 
-const faultTreeControlledDataSourceKey = (
-  reference: FaultTreeControlledDataSourceReference,
-): string => JSON.stringify([
-  reference.referenceType,
-  reference.workbookId,
-  reference.entityId,
-  reference.referenceType === "HUMAN_FAILURE_EVENT" ? reference.quantificationId : null,
-]);
+const humanFailureEventKey = (
+  reference: HumanFailureEventReference,
+): string => JSON.stringify([reference.workbookId, reference.entityId, reference.quantificationId]);
 
 type WorkbookPraxisAdapterErrorCode =
   | "WORKBOOK_PRAXIS_ADAPTER_ERROR"
@@ -269,11 +274,12 @@ const adaptSyCcfGroup = (group: SystemsAnalysis["commonCauseFailureGroups"][numb
       { groupId: group.uuid },
     );
   }
-  return [{ id: group.uuid, members, factors: group.factors, total: group.total }];
+  const total = group.total;
+  return [{ id: group.uuid, members, factors: group.factors, ...(total === undefined ? {} : { total }) }];
 };
 
 const ccfGroupReferences = (group: CatalogueCcfGroup): UncertaintyReferences =>
-  joinReferences(ccfFactorReferences(group.factors), referencesOf([group.total]));
+  joinReferences(ccfFactorReferences(group.factors), referencesOf(group.total === undefined ? [] : [group.total]));
 
 const adaptSyFaultTreeSnapshot = (
   source: WorkbookMefSnapshot<SystemsAnalysis>,
@@ -587,7 +593,7 @@ const adaptSyFaultTreeSnapshot = (
     }
   }
 
-  const legacyReferences = new Map<string, FaultTreeControlledDataSourceReference>();
+  const humanFailureReferences = new Map<string, HumanFailureEventReference>();
   const expressionOf = (basicEventId: string): UncertainExpression | undefined => {
     const event = findByUuid(source.mef.systemBasicEvents, basicEventId, "SY basic event");
     if (carriesUncertainExpression(event.failureMode)) {
@@ -602,19 +608,23 @@ const adaptSyFaultTreeSnapshot = (
       return event.expression;
     }
     const controlled = event.controlledDataSource;
+    if (controlled?.referenceType === "WORKBOOK_PARAMETER") {
+      return { node: "PARAMETER", reference: { referenceType: "WORKBOOK_PARAMETER", workbookId: controlled.workbookId, entityId: controlled.entityId } };
+    }
     if (controlled !== undefined) {
-      const key = faultTreeControlledDataSourceKey(controlled);
-      legacyReferences.set(key, { ...controlled });
+      const key = humanFailureEventKey(controlled);
+      humanFailureReferences.set(key, { ...controlled });
       if (options.collectOnly === true) return undefined;
-      const value = options.legacyValues?.get(key);
-      if (value === undefined) {
+      const expression = options.humanFailureEvents?.get(key);
+      if (expression === undefined) {
         throw new WorkbookPraxisAdapterError(
-          `SY basic event '${event.code}' could not resolve controlled ${controlled.referenceType === "HUMAN_FAILURE_EVENT" ? "HRA quantification" : "DA parameter"} '${controlled.workbookId}:${controlled.entityId}'`,
+          `SY basic event '${event.code}' could not resolve HRA quantification '${controlled.workbookId}:${controlled.quantificationId}'`,
         );
       }
-      return legacyEdgeValue(value);
+      return expression;
     }
-    if (event.probability !== undefined && Number.isFinite(event.probability)) return legacyEdgeValue(event.probability);
+    if (event.expression !== undefined) return event.expression;
+    if (event.probability !== undefined && Number.isFinite(event.probability)) return typedProbability(event.probability);
     if (options.collectOnly === true) return undefined;
     throw new WorkbookPraxisAdapterError(
       `SY basic event '${event.code}' has no value`,
@@ -665,16 +675,16 @@ const adaptSyFaultTreeSnapshot = (
     },
     parameterReferences: tables.parameterReferences,
     vectorReferences: tables.vectorReferences,
-    legacyReferences: [...legacyReferences.values()],
+    humanFailureReferences: [...humanFailureReferences.values()],
   };
 };
 
 const collectSyFaultTreeReferences = (
   source: WorkbookMefSnapshot<SystemsAnalysis>,
   modelId: string,
-): Pick<AdaptedFaultTreeSnapshot, "parameterReferences" | "vectorReferences" | "legacyReferences"> => {
-  const { parameterReferences, vectorReferences, legacyReferences } = adaptSyFaultTreeSnapshot(source, modelId, { collectOnly: true });
-  return { parameterReferences, vectorReferences, legacyReferences };
+): Pick<AdaptedFaultTreeSnapshot, "parameterReferences" | "vectorReferences" | "humanFailureReferences"> => {
+  const { parameterReferences, vectorReferences, humanFailureReferences } = adaptSyFaultTreeSnapshot(source, modelId, { collectOnly: true });
+  return { parameterReferences, vectorReferences, humanFailureReferences };
 };
 
 const adaptEsqBayesianNetworkSnapshot = (
@@ -728,12 +738,15 @@ const adaptEsEventTreeSnapshot = (
   source: WorkbookMefSnapshot<EventSequenceAnalysis>,
   modelId: string,
   hclConfiguration?: WorkbookModelAddress,
+  initiatingEventFrequency?: UncertainExpression,
 ): PraxisModelSnapshot => {
   const tree = findByUuid(source.mef.eventTrees ?? [], modelId, "ES event tree");
-  const frequency = tree.initiatingEventFrequency;
-  if (frequency === undefined) {
+  const stored = tree.initiatingEventFrequency;
+  const expression = initiatingEventFrequency ?? stored?.expression;
+  if (expression === undefined) {
     throw new WorkbookPraxisAdapterError(`ES event tree '${modelId}' has no initiating-event frequency`);
   }
+  const annualization = initiatingEventFrequency === undefined ? stored?.annualization : undefined;
   const functionalEvents = orderedFunctionalEvents(tree).map((event, order) => ({
     id: event.uuid,
     name: event.name,
@@ -776,7 +789,9 @@ const adaptEsEventTreeSnapshot = (
         const outcome = states[event.id];
         if (outcome !== "SUCCESS" && outcome !== "FAILURE" && outcome !== "BYPASSED") {
           throw new WorkbookPraxisAdapterError(
-            `ES sequence '${sequence.uuid}' is missing a success, failure, or bypassed outcome for '${event.id}'`,
+            outcome === undefined
+              ? `ES sequence '${sequence.uuid}' is missing a success, failure, or bypassed outcome for '${event.id}'`
+              : `ES functional event '${event.id}' has more than two branches, which a Boolean run cannot quantify yet`,
           );
         }
         return { functionalEventId: event.id, outcome };
@@ -808,8 +823,8 @@ const adaptEsEventTreeSnapshot = (
       target: { modelId: source.workbookId, entityId: tree.initiatingEventId },
     },
     initiatingEventFrequency: {
-      expression: frequency.expression,
-      ...(frequency.annualization === undefined ? {} : { annualization: { ...frequency.annualization } }),
+      expression,
+      ...(annualization === undefined ? {} : { annualization: { ...annualization } }),
     },
     functionalEvents,
     functionalEventFaultTreeLinks: links,
@@ -888,8 +903,13 @@ const adaptHclSolverSettings = (
     ...point,
     uncertainty: {
       sampleCount: settings.sampleCount,
-      seed: settings.seed,
+      ...(settings.seed === undefined ? {} : { seed: settings.seed }),
       sampler: settings.sampler,
+      ...(settings.cptSampler === undefined ? {} : { cptSampler: settings.cptSampler }),
+      ...(settings.correlation === undefined ? {} : { correlation: settings.correlation }),
+      ...(settings.clipProbabilities === undefined ? {} : { clipProbabilities: settings.clipProbabilities }),
+      ...(settings.cptClipEpsilon === undefined ? {} : { cptClipEpsilon: settings.cptClipEpsilon }),
+      ...(settings.zeroProbabilityContexts === undefined ? {} : { zeroProbabilityContexts: settings.zeroProbabilityContexts }),
       basicEvents: settings.basicEvents.map((entry) => ({
         faultTreeBasicEvent: { entityId: entry.faultTreeBasicEvent.entityId },
         expression: entry.expression,
@@ -1030,11 +1050,12 @@ const adaptLoadCapacitySnapshot = (
 
 export {
   WorkbookPraxisAdapterError,
+  referencesOf,
   collectSyFaultTreeReferences,
   collectEsEventTreeReferences,
   collectHclUncertaintyReferences,
   collectLoadCapacityReferences,
-  faultTreeControlledDataSourceKey,
+  humanFailureEventKey,
   resolveUncertaintyTables,
   adaptSyFaultTreeSnapshot,
   adaptSyCcfGroup,

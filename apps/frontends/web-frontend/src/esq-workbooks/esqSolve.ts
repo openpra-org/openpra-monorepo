@@ -15,9 +15,11 @@ import {
   type SequenceFrequencyEstimate,
 } from "interfaces-mef-types/esq/event-sequence-quantification";
 import type { EventSequenceAnalysis } from "interfaces-mef-types/es/event-sequence-analysis";
-import { solveInputsKey, solveWorkOf } from "interfaces-mef-types/esq/esq-solve-inputs";
+import { solveInputsChange, solveInputsKey, solveWorkOf } from "interfaces-mef-types/esq/esq-solve-inputs";
+import { treesInScope } from "interfaces-mef-types/esq/esq-run-inputs";
 import type { EsqModelRunResult } from "interfaces-shared-types/newly-developed-methods/event-tree";
 import { modelViewOf, type EsqFamilyView, type EsqFindingSeverity } from "./esqModel";
+import { rulesLeftOut } from "./esqLogic";
 
 type EsqSolveWindowKind = "esqSolveFamily" | "esqSolveRun";
 
@@ -60,6 +62,7 @@ interface EsqSolveView {
   work: EsqSolveWork;
   run?: EsqSolveRun;
   stale: boolean;
+  change?: string;
   stepPercent: number;
   families: EsqSolveFamilyView[];
   findings: EsqSolveFinding[];
@@ -85,6 +88,22 @@ const QUANTIFIER_LABELS: Record<EsqCutSetQuantifier, string> = { MCUB: "Upper bo
 const BASIS_LABELS: Record<EsqCutOffBasis, string> = { FREQUENCY: "Frequency per year", PROBABILITY: "Probability" };
 
 const SOURCE_LABELS: Record<EsqFamilyValueSource, string> = { RUN: "PRAXIS run", TYPED: "Typed", IMPORTED: "Imported from ES" };
+
+const QUANTIFIER_CUES: Record<EsqCutSetQuantifier, string> = { MCUB: "the min cut upper bound", EXACT: "the exact union", RARE_EVENT: "the rare event sum" };
+
+function cutOffText(cutOff: number): string {
+  const exponent = Math.round(Math.log10(cutOff));
+  return Math.abs(cutOff - 10 ** exponent) <= 1e-9 * cutOff ? `1E${String(exponent)}` : cutOff.toExponential(1).toUpperCase();
+}
+
+function runQuantityText(run: EsqSolveRun): string {
+  const cutOffs = run.cutOffs ?? [];
+  const cutOff = cutOffs[cutOffs.length - 1];
+  if (run.calculation !== "CUT_SETS" || cutOff === undefined) return "the exact sequence diagrams";
+  const unit = run.basis === "PROBABILITY" ? "" : " per year";
+  const order = run.limitOrder === undefined ? "" : ` up to order ${String(run.limitOrder)}`;
+  return `the minimal cut sets above ${cutOffText(cutOff)}${unit}${order}, summed with ${QUANTIFIER_CUES[run.quantifier ?? "MCUB"]}`;
+}
 
 function blank(text: string | undefined): boolean {
   return text === undefined || text.trim().length === 0;
@@ -165,7 +184,11 @@ function solveFindings(view: Omit<EsqSolveView, "findings">): EsqSolveFinding[] 
   const findings: EsqSolveFinding[] = [];
   const run = view.run;
   if (run !== undefined && view.stale) {
-    findings.push({ severity: "error", check: "Result older than its inputs", item: "Run of record", detail: "The model, logic or values changed after the run of record. Run the model again and use the new run.", target: { kind: "esqSolveRun", id: "run" } });
+    findings.push({ severity: "error", check: "Result older than its inputs", item: "Run of record", detail: view.change ?? "", target: { kind: "esqSolveRun", id: "run" } });
+  }
+  const leftOut = run === undefined ? [] : rulesLeftOut(run.logic);
+  if (leftOut.length > 0) {
+    findings.push({ severity: "error", check: "Run of record leaves rules out", item: "Run of record", detail: `The run of record runs without ${leftOut.join(" and ")}. Run the model again and use the new run.`, target: { kind: "esqSolveRun", id: "run" } });
   }
   if (run?.quantifier === "RARE_EVENT" && (run.peakProbability ?? 0) > RARE_EVENT_LIMIT && blank(view.work.rareEventReason)) {
     findings.push({ severity: "error", check: "Rare event above 0.1 without a reason", item: "Run of record", detail: `A sequence reaches ${(run.peakProbability ?? 0).toPrecision(3)} given its initiator. Record why the rare event sum is acceptable (ESQ-N-5), or use the upper bound or exact.`, target: { kind: "esqSolveRun", id: "run" } });
@@ -204,7 +227,7 @@ function solveFindings(view: Omit<EsqSolveView, "findings">): EsqSolveFinding[] 
     }
   }
   if (run !== undefined && !view.families.some((family) => family.solve?.typed !== undefined || family.solve?.imported !== undefined)) {
-    findings.push({ severity: "note", check: "No independent comparison", item: "Verification", detail: "No family has a typed or imported value beside its PRAXIS value (ESQ-B1)." });
+    findings.push({ severity: "note", check: "No independent comparison", item: "Families", detail: "No family has a typed or imported value beside its PRAXIS value (ESQ-B1)." });
   }
   return [...findings].sort((a, b) => FINDING_RANK[a.severity] - FINDING_RANK[b.severity]);
 }
@@ -246,6 +269,14 @@ function solveViewOf(esq: EventSequenceQuantification, es?: EventSequenceAnalysi
   };
   const withRun = work.run === undefined ? base : { ...base, run: work.run };
   return { ...withRun, findings: solveFindings(withRun) };
+}
+
+function withRunChange(view: EsqSolveView, esq: EventSequenceQuantification, saved: EventSequenceQuantification): EsqSolveView {
+  const change = view.stale ? solveInputsChange(saved, esq) : undefined;
+  if (change === undefined) return view;
+  const { findings: _old, ...rest } = view;
+  const next: Omit<EsqSolveView, "findings"> = { ...rest, change };
+  return { ...next, findings: solveFindings(next) };
 }
 
 function runConvergenceOf(summary: EsqModelRunResult, view: EsqSolveView): EsqRunConvergence[] {
@@ -332,8 +363,11 @@ function runOfRecord(summary: EsqModelRunResult): EsqSolveRun {
     run.cutOffs = [...settings.cutOffs];
     if (settings.limitOrder !== undefined) run.limitOrder = settings.limitOrder;
   }
+  if (summary.successTreatment !== undefined) run.successTreatment = summary.successTreatment;
+  if (summary.monteCarlo !== undefined) run.monteCarlo = { ...summary.monteCarlo };
   if (summary.peakProbability !== null) run.peakProbability = summary.peakProbability;
   if (peakInitiator > 0) run.peakInitiatorFrequency = peakInitiator;
+  if (summary.hcl !== undefined) run.hcl = { workbookId: summary.hcl.workbookId, modelId: summary.hcl.modelId, treeIds: [...summary.hcl.treeIds] };
   return run;
 }
 
@@ -381,11 +415,18 @@ function runValueOf(family: EsqModelRunResult["families"][number]): EsqFamilyRun
   return value;
 }
 
-function summaryProblem(summary: EsqModelRunResult, esq: EventSequenceQuantification): string | undefined {
+function treesCovered(summary: EsqModelRunResult, esq: EventSequenceQuantification): { covered: number; total: number } {
+  const roots = esq.model === undefined ? [] : treesInScope(esq, esq.model).filter((tree) => !tree.transferEntry);
+  return { covered: roots.filter((tree) => summary.trees.some((entry) => entry.treeId === tree.id)).length, total: roots.length };
+}
+
+function summaryStale(summary: EsqModelRunResult, esq: EventSequenceQuantification): boolean {
+  return summary.inputs !== solveInputsKey(esq);
+}
+
+function summaryProblem(summary: EsqModelRunResult, change: string | undefined): string | undefined {
   const failed = summary.trees.filter((tree) => tree.status === "FAILED").length;
-  if (failed > 0) return `${failed} of ${summary.trees.length} event trees failed in this run. Fix them and run again before using it.`;
-  if (summary.inputs !== solveInputsKey(esq)) return "The model, logic or values changed after this run. Run again before using it.";
-  return undefined;
+  return failed > 0 ? `${failed} of ${summary.trees.length} event trees failed in this run.` : change;
 }
 
 export {
@@ -400,11 +441,15 @@ export {
   lastChange,
   pctText,
   runConvergenceOf,
+  runQuantityText,
   solveComplete,
   solveViewOf,
   summaryProblem,
+  summaryStale,
+  treesCovered,
   withFamilySolve,
   withRareEventReason,
+  withRunChange,
   withRunOfRecord,
   type EsqConvergence,
   type EsqRunConvergence,

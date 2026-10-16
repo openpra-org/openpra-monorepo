@@ -4,7 +4,7 @@ import { MemoryRouter } from "react-router-dom";
 import { createBlankRc } from "../../../../../backends/web-backend/src/rc-workbooks/blank-rc";
 import type { RadiologicalConsequenceAnalysis } from "interfaces-mef-types/rc/radiological-consequence-analysis";
 import { RadiologicalConsequenceAnalysisSchema } from "interfaces-mef-types/zod/rc/radiological-consequence-analysis";
-import { HandoffScreen } from "../rcScreens";
+import { ScopeScreen } from "../rcScreens";
 import { stepsFromMef } from "../rcSelectors";
 import { RcWorkbookProvider, type RcWorkbookData } from "../rcWorkbookContext";
 import { RcWorkbench } from "../rcWorkbench";
@@ -27,7 +27,7 @@ it("uses later step data for treatment and saves explicit scope decisions", () =
       current = change(previous);
       return current;
     })}>
-      <HandoffScreen ccId="cc-ii" setCcId={jest.fn()} site="actual_site" setSite={jest.fn()} openDrawer={jest.fn()} />
+      <ScopeScreen ccId="cc-ii" setCcId={jest.fn()} site="actual_site" setSite={jest.fn()} openDrawer={jest.fn()} />
       <button type="button" onClick={() => setRc((previous) => ({
         ...previous,
         protectiveActionParameters: {
@@ -74,7 +74,7 @@ it("lets the metrics decide the required aspects and default the rest to exclude
       current = change(previous);
       return current;
     })}>
-      <HandoffScreen ccId="cc-ii" setCcId={jest.fn()} site="actual_site" setSite={jest.fn()} openDrawer={jest.fn()} />
+      <ScopeScreen ccId="cc-ii" setCcId={jest.fn()} site="actual_site" setSite={jest.fn()} openDrawer={jest.fn()} />
     </RcWorkbookProvider>;
   }
   render(<Harness />);

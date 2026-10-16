@@ -13,7 +13,6 @@ import { postWorkbookComment, patchWorkbookComment, submitWorkbookForReview, req
 import { useAuth } from "../auth/AuthContext";
 import {
   getHrWorkbook,
-  fetchHrLinkedInputs,
   getHrExampleOptions,
   loadHrExample,
   unloadHrExample,
@@ -28,6 +27,7 @@ import { LoadExampleModal, UnloadExampleModal } from "../workbooks/exampleWorkbo
 import { HrDocumentsCard } from "./hrDocumentsCard";
 import { type HrPersona } from "./hrViewData";
 import { loadHrDaHeps } from "./hrDaLinks";
+import { listHrLinkOptions, loadHrLinkedInputs, withLink, type HrLinkActions } from "./hrLinks";
 
 const STEP_SR_HINT: Record<string, string | undefined> = {
   scope: "HR-A1",
@@ -39,6 +39,7 @@ const STEP_SR_HINT: Record<string, string | undefined> = {
   respquant: "HR-G1",
   recovery: "HR-H1",
   uncert: "HR-G15",
+  handoff: "HR-I1",
 };
 
 interface HrExampleResponse {
@@ -63,6 +64,8 @@ function HrWorkbookPage(): JSX.Element {
   const [myRoles, setMyRoles] = useState<HrWorkbookRoleName[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [linkError, setLinkError] = useState<string | null>(null);
+  const [projectId, setProjectId] = useState<string | null>(null);
   const [rolesOpen, setRolesOpen] = useState(false);
   const [loadExOpen, setLoadExOpen] = useState(false);
   const [unloadExOpen, setUnloadExOpen] = useState(false);
@@ -91,9 +94,7 @@ function HrWorkbookPage(): JSX.Element {
         setMyRoles(workbook.myRoles);
         setRevision(workbook.revision);
         setHasPreviousMef(workbook.hasPreviousMef);
-        void loadHrDaHeps(workbook.projectId, workbook.mef).then((daHeps) => {
-          if (!cancelled) setData((prev) => (prev === null ? prev : { ...prev, daHeps }));
-        });
+        setProjectId(workbook.projectId);
         try {
           const project = await getProject(workbook.projectId);
           if (!cancelled) setProjectName(project.name);
@@ -116,16 +117,30 @@ function HrWorkbookPage(): JSX.Element {
     return () => { cancelled = true; };
   }, []);
 
-  const hrUuid = data?.hr.uuid ?? "";
+  const linkedPos = data?.hr.linkedWorkbooks?.POS;
+  const linkedIe = data?.hr.linkedWorkbooks?.IE;
+  const linkedSc = data?.hr.linkedWorkbooks?.SC;
+  const linkedSy = data?.hr.linkedWorkbooks?.SY;
+  const linkedDa = data?.hr.linkedWorkbooks?.DA;
   useEffect(() => {
-    const variant = hrUuid === "hr-generic-1" ? "sfr" : hrUuid === "hr-generic-2" ? "htgr" : null;
-    if (variant === null) return;
     let cancelled = false;
-    fetchHrLinkedInputs(variant)
-      .then((links) => { if (!cancelled) setData((prev) => (prev === null ? prev : { ...prev, links })); })
-      .catch(() => { if (!cancelled) setData((prev) => (prev === null ? prev : { ...prev, links: null })); });
+    loadHrLinkedInputs({ POS: linkedPos, IE: linkedIe, SC: linkedSc, SY: linkedSy })
+      .then((links) => {
+        if (cancelled) return;
+        setData((prev) => (prev === null ? prev : { ...prev, links }));
+        setLinkError(null);
+      })
+      .catch((failure: Error) => { if (!cancelled) setLinkError(`Could not load a linked workbook: ${failure.message}`); });
     return () => { cancelled = true; };
-  }, [hrUuid]);
+  }, [linkedPos, linkedIe, linkedSc, linkedSy]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void loadHrDaHeps(linkedDa).then((daHeps) => {
+      if (!cancelled) setData((prev) => (prev === null ? prev : { ...prev, daHeps }));
+    });
+    return () => { cancelled = true; };
+  }, [linkedDa]);
 
   const updateHr = useCallback((hr: HumanReliabilityAnalysis): void => {
     setData((prev) => (prev === null ? prev : { ...prev, hr }));
@@ -177,6 +192,14 @@ function HrWorkbookPage(): JSX.Element {
     };
   }, [id, updateHr]);
 
+  const linkActions = useMemo<HrLinkActions | undefined>(() => {
+    if (projectId === null) return undefined;
+    return {
+      available: (code) => listHrLinkOptions(projectId, code),
+      setLink: (code, workbookId) => { mutateHr((draft) => ({ ...draft, linkedWorkbooks: withLink(draft.linkedWorkbooks, code, workbookId) })); },
+    };
+  }, [projectId, mutateHr]);
+
   const availablePersonas = useMemo<HrPersona[]>(() => {
     const out: HrPersona[] = [];
     if (myRoles.includes("preparer") || myRoles.includes("co_preparer")) out.push("preparer");
@@ -225,6 +248,7 @@ function HrWorkbookPage(): JSX.Element {
         showPersonaPicker={availablePersonas.length > 1}
         availablePersonas={availablePersonas}
         onOpenRoles={() => setRolesOpen(true)}
+        linkActions={linkActions}
         onLoadExample={canLoadExample ? () => setLoadExOpen(true) : undefined}
         onUnloadExample={canUnloadExample ? () => setUnloadExOpen(true) : undefined}
         actions={actions}
@@ -243,6 +267,12 @@ function HrWorkbookPage(): JSX.Element {
         renderRoster={() => <WorkbookRoster workbookId={id} refreshSignal={approvalRefresh} />}
         renderDocuments={() => <HrDocumentsCard workbookId={id} canEdit={canEdit} />}
       />
+      {linkError !== null && (
+        <div className="ie-savebar" role="alert">
+          <span>{linkError}</span>
+          <button type="button" className="ie-savebar__dismiss" onClick={() => setLinkError(null)}>Dismiss</button>
+        </div>
+      )}
       {saveError !== null && (
         <div className="ie-savebar" role="alert">
           <span>Could not save changes: {saveError}</span>
@@ -251,7 +281,7 @@ function HrWorkbookPage(): JSX.Element {
       )}
       {rolesOpen && <WorkbookRolesModal workbookId={id} onClose={() => setRolesOpen(false)} onChanged={(res) => setMyRoles(res.myRoles as HrWorkbookRoleName[])} />}
       {loadExOpen && (
-        <LoadExampleModal
+        <LoadExampleModal replacesLinks
           exampleName="HRA"
           exampleOptions={exampleOptions}
           onCancel={() => setLoadExOpen(false)}

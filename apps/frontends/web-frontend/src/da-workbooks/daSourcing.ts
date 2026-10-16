@@ -7,6 +7,7 @@ import type {
   DaElicitation,
   DaEstimateQuantity,
   DaEvidenceKind,
+  DaPriorPart,
   DaQuantificationModel,
   DaSource,
   DaSourceEntry,
@@ -18,10 +19,10 @@ import type { UncertaintyOperation } from "interfaces-shared-types/newly-develop
 import { uncertaintyVersion } from "../newly-developed-methods/shared/useUncertainty";
 import { lawParameter, lawSummary, operationLaw, quantityUnit, sourceUseLaw } from "./daLaws";
 import { DaSourceEntrySchema } from "interfaces-mef-types/zod/da/data-analysis";
-import { DA_SOURCE_CATALOG } from "interfaces-mef-types/da/generic-sources";
+import { DA_SOURCE_CATALOG, sourceEntryEstimate } from "interfaces-mef-types/da/generic-sources";
 import { distributionMean, distributionQuantile, judgmentComponent, lognormalFromMean, poolJudgments, scaleDistribution, validDistribution, type LogComponent, type PooledJudgment } from "./daDistributions";
 import type { DaFindingSeverity, DaNeedFinding } from "./daSelectors";
-import { templateEntryIds } from "./daCcf";
+import { rowIdsFor } from "./daCcfRows";
 
 const EVIDENCE_ORDER: DaEvidenceKind[] = ["PLANT_RECORDS", "TECHNOLOGY", "GENERIC_NUCLEAR", "ANALOGOUS_INDUSTRY", "ENGINEERING_MODEL", "EXPERT_JUDGMENT"];
 
@@ -160,6 +161,31 @@ function priorUse(parameter: DataAnalysisParameter): DaSourceUse | undefined {
   return id === undefined ? undefined : (parameter.sourceUses ?? []).find((use) => use.id === id);
 }
 
+interface DaWeightedUse {
+  use: DaSourceUse;
+  weight: number;
+}
+
+function weightedUses(uses: readonly DaSourceUse[], primaryId: string | undefined, parts: readonly DaPriorPart[] | undefined): DaWeightedUse[] {
+  const found = (parts ?? []).flatMap((part) => {
+    const use = uses.find((candidate) => candidate.id === part.useId);
+    return use === undefined || !(part.weight > 0) ? [] : [{ use, weight: part.weight }];
+  });
+  if (found.length >= 2 && found.some((part) => part.use.id === primaryId)) return found;
+  const primary = primaryId === undefined ? undefined : uses.find((use) => use.id === primaryId);
+  return primary === undefined ? [] : [{ use: primary, weight: 1 }];
+}
+
+function priorParts(parameter: DataAnalysisParameter): DaWeightedUse[] {
+  return weightedUses(parameter.sourceUses ?? [], parameter.priorUseId, parameter.priorParts);
+}
+
+function keptParts(parts: readonly DaPriorPart[] | undefined, kept: readonly DaSourceUse[]): DaPriorPart[] | undefined {
+  if (parts === undefined) return undefined;
+  const next = parts.filter((part) => kept.some((use) => use.id === part.useId));
+  return next.length >= 2 ? next : undefined;
+}
+
 function parameterPrior(da: DataAnalysis, parameter: DataAnalysisParameter): DaUseResult | undefined {
   const use = priorUse(parameter);
   return use === undefined ? undefined : sourceUseResult(da, use);
@@ -188,20 +214,30 @@ function needsStandbyHours(da: DataAnalysis, use: DaSourceUse, model: DaQuantifi
   return !QUANTITIES_FOR_MODEL[model].includes("PER_HOUR") && QUANTITIES_FOR_MODEL[model].includes("PER_DEMAND");
 }
 
-function templateUses(estimate: CcfParameterEstimation, sourceId: string, entryId?: string): boolean {
+function templateUses(da: DataAnalysis, estimate: CcfParameterEstimation, sourceId: string, entryId?: string): boolean {
   if (estimate.priorSourceId !== sourceId || estimate.priorTemplate === undefined) return false;
   if (entryId === undefined) return true;
-  return estimate.groupSize !== undefined && templateEntryIds(estimate.priorTemplate, estimate.groupSize).includes(entryId);
+  const source = (da.sources ?? []).find((candidate) => candidate.id === sourceId);
+  if (source === undefined || estimate.groupSize === undefined) return false;
+  return rowIdsFor(estimate.priorKind ?? "ALPHA_DIRICHLET", estimate.priorTemplate, estimate.groupSize, source.entries).includes(entryId);
+}
+
+function evidenceUses(estimate: CcfParameterEstimation, sourceId: string, entryId?: string): boolean {
+  return (estimate.evidence ?? []).some((evidence) => evidence.imported?.sourceId === sourceId && (entryId === undefined || evidence.imported.rowIds.includes(entryId)));
+}
+
+function ccfUses(da: DataAnalysis, estimate: CcfParameterEstimation, sourceId: string, entryId?: string): boolean {
+  return templateUses(da, estimate, sourceId, entryId) || evidenceUses(estimate, sourceId, entryId);
 }
 
 function sourceUsers(da: DataAnalysis, sourceId: string): string[] {
   const parameters = da.parameters.filter((parameter) => (parameter.sourceUses ?? []).some((use) => use.sourceId === sourceId)).map((parameter) => parameter.uuid);
-  return [...parameters, ...(da.ccfParameterEstimations ?? []).filter((estimate) => templateUses(estimate, sourceId)).map((estimate) => estimate.uuid)];
+  return [...parameters, ...(da.ccfParameterEstimations ?? []).filter((estimate) => ccfUses(da, estimate, sourceId)).map((estimate) => estimate.uuid)];
 }
 
 function entryUsers(da: DataAnalysis, sourceId: string, entryId: string): string[] {
   const parameters = da.parameters.filter((parameter) => (parameter.sourceUses ?? []).some((use) => use.sourceId === sourceId && use.entryId === entryId)).map((parameter) => parameter.uuid);
-  return [...parameters, ...(da.ccfParameterEstimations ?? []).filter((estimate) => templateUses(estimate, sourceId, entryId)).map((estimate) => estimate.uuid)];
+  return [...parameters, ...(da.ccfParameterEstimations ?? []).filter((estimate) => ccfUses(da, estimate, sourceId, entryId)).map((estimate) => estimate.uuid)];
 }
 
 function elicitationUsers(da: DataAnalysis, elicitationId: string): string[] {
@@ -217,7 +253,9 @@ function needsSourcing(parameter: DataAnalysisParameter): boolean {
 }
 
 function needsPrior(parameter: DataAnalysisParameter): boolean {
-  return needsSourcing(parameter) && parameter.quantificationModel !== "NON_RECOVERY" && parameter.quantificationModel !== "FREQUENCY";
+  const method = parameter.estimateMethod;
+  const priorFree = parameter.priorForm === "JEFFREYS" || method === "POPULATION" || method === "EMPIRICAL_BAYES" || method === "TREND";
+  return needsSourcing(parameter) && parameter.quantificationModel !== "NON_RECOVERY" && parameter.quantificationModel !== "FREQUENCY" && !(priorFree && parameter.valueMode === "CALCULATED");
 }
 
 interface DaSourceCheck {
@@ -302,7 +340,7 @@ function sourceCheck(da: DataAnalysis): DaSourceCheck {
     const prior = priorUse(parameter);
     if (prior === undefined) {
       if (needsPrior(parameter)) findings.push({ severity: "error", check: "No prior", item, detail: "Choose the source the estimate starts from.", target });
-    } else if (prior.verdict === "REJECTED") findings.push({ severity: "error", check: "Rejected prior", item, detail: "The prior comes from a source marked as not applying.", target });
+    } else if (priorParts(parameter).some((part) => part.use.verdict === "REJECTED")) findings.push({ severity: "error", check: "Rejected prior", item, detail: "The prior comes from a source marked as not applying.", target });
     const usedKinds: DaEvidenceKind[] = [];
     for (const use of uses) {
       const base = sourceUseBase(da, use);
@@ -353,9 +391,10 @@ function sourceCheck(da: DataAnalysis): DaSourceCheck {
     if (blankText(elicitation.objective)) findings.push({ severity: "error", check: "No objective", item, detail: "State the objective and how the result will be used (4.2.1).", target });
     if (evaluators.length === 0) findings.push({ severity: "error", check: "No evaluator", item, detail: "Name at least one evaluator expert (4.2.5).", target });
     if (elicitation.structure === "PANEL" && evaluators.length < 2) findings.push({ severity: "warning", check: "Panel too small", item, detail: "A panel needs at least two evaluators (4.2.4).", target });
+    const bounded = elicitation.quantity === "PER_DEMAND" || elicitation.quantity === "PROBABILITY" || elicitation.quantity === "FRACTION";
     for (const expert of evaluators) {
-      const valid = expert.p05 !== undefined && expert.median !== undefined && expert.p95 !== undefined && judgmentComponent(expert.p05, expert.median, expert.p95, 1) !== undefined;
-      if (!valid) findings.push({ severity: "error", check: "Judgment incomplete", item, detail: `${expert.name.trim().length > 0 ? expert.name : expert.id} needs a 5th, 50th and 95th percentile in rising order.`, target });
+      const valid = expert.p05 !== undefined && expert.median !== undefined && expert.p95 !== undefined && judgmentComponent(expert.p05, expert.median, expert.p95, 1) !== undefined && (!bounded || expert.p95 < 1);
+      if (!valid) findings.push({ severity: "error", check: "Judgment incomplete", item, detail: `${expert.name.trim().length > 0 ? expert.name : expert.id} needs a 5th, 50th and 95th percentile in rising order${bounded ? ", all below one" : ""}.`, target });
       if (!expert.acceptsResponsibility) findings.push({ severity: "warning", check: "Responsibility", item, detail: `${expert.name.trim().length > 0 ? expert.name : expert.id} has not accepted responsibility for the judgment (4.2.7).`, target });
     }
     if (elicitation.pooling === "LINEAR" && evaluators.some((expert) => expert.weight !== undefined) && evaluators.every((expert) => (expert.weight ?? 0) <= 0)) findings.push({ severity: "error", check: "Weights", item, detail: "At least one evaluator needs a positive weight.", target });
@@ -532,7 +571,7 @@ function lawFromCells(cells: DaLawCells, quantity: DaEstimateQuantity): DaCellLa
   if (!lognormal) return undefined;
   if (median !== undefined && p95 !== undefined && median > 0 && p95 > median) return { operation: fitOperation(undefined, median, [{ probability: 0.95, value: p95 }]) };
   if (mean !== undefined && p05 !== undefined && p95 !== undefined && mean > 0 && p05 > 0 && p95 > p05) return { operation: fitOperation(mean, undefined, [{ probability: 0.05, value: p05 }, { probability: 0.95, value: p95 }]) };
-  if (failures !== undefined && exposure !== undefined && failures >= 0 && exposure > 0 && quantity !== "FACTOR") {
+  if (failures !== undefined && exposure !== undefined && failures >= 0 && exposure > 0 && quantity !== "FACTOR" && quantity !== "HOURS") {
     const binomial = quantity === "PER_DEMAND" || quantity === "PROBABILITY" || quantity === "FRACTION";
     if (!binomial || failures <= exposure) return { law: { family: "POSTERIOR", prior: null, evidence: [{ likelihood: binomial ? "BINOMIAL" : "POISSON", failures, exposure }] } };
   }
@@ -598,7 +637,7 @@ function entriesFromRows(rows: readonly string[][], mapping: Partial<Record<DaIm
     let id = cell(row, "id") ?? "";
     if (id.length === 0 || ids.has(id)) id = nextCode("E", [...ids], 3);
     ids.add(id);
-    const entry: DaSourceEntry = { id, component, failureMode, quantity };
+    const entry: DaSourceEntry = { id, component, failureMode, quantity, ...sourceEntryEstimate(law, distribution) };
     if (law !== undefined) entry.law = law;
     if (distribution !== undefined) entry.distribution = distribution;
     if (mean !== undefined) entry.mean = mean;
@@ -676,11 +715,18 @@ function withoutSource(da: DataAnalysis, sourceId: string, entryId?: string): Da
       const uses = parameter.sourceUses ?? [];
       if (!uses.some(matches)) return parameter;
       const kept = uses.filter((use) => !matches(use));
-      const next: DataAnalysisParameter = { ...parameter, sourceUses: kept };
+      const next: DataAnalysisParameter = { ...parameter, sourceUses: kept, priorParts: keptParts(parameter.priorParts, kept) };
       if (parameter.priorUseId !== undefined && !kept.some((use) => use.id === parameter.priorUseId)) next.priorUseId = undefined;
       return next;
     }),
-    ccfParameterEstimations: da.ccfParameterEstimations?.map((estimate) => (templateUses(estimate, sourceId, entryId) ? { ...estimate, priorSourceId: undefined, priorTemplate: undefined } : estimate)),
+    ccfParameterEstimations: da.ccfParameterEstimations?.map((estimate) => {
+      const prior = templateUses(da, estimate, sourceId, entryId);
+      const evidence = evidenceUses(estimate, sourceId, entryId);
+      if (!prior && !evidence) return estimate;
+      const next: CcfParameterEstimation = prior ? { ...estimate, priorSourceId: undefined, priorKind: undefined, priorTemplate: undefined, imported: undefined } : { ...estimate };
+      if (evidence) next.evidence = (estimate.evidence ?? []).map((item) => (item.imported?.sourceId === sourceId && (entryId === undefined || item.imported.rowIds.includes(entryId)) ? { ...item, imported: undefined } : item));
+      return next;
+    }),
   };
 }
 
@@ -692,7 +738,7 @@ function withoutElicitation(da: DataAnalysis, elicitationId: string): DataAnalys
       const uses = parameter.sourceUses ?? [];
       if (!uses.some((use) => use.elicitationId === elicitationId)) return parameter;
       const kept = uses.filter((use) => use.elicitationId !== elicitationId);
-      const next: DataAnalysisParameter = { ...parameter, sourceUses: kept };
+      const next: DataAnalysisParameter = { ...parameter, sourceUses: kept, priorParts: keptParts(parameter.priorParts, kept) };
       if (parameter.priorUseId !== undefined && !kept.some((use) => use.id === parameter.priorUseId)) next.priorUseId = undefined;
       return next;
     }),
@@ -721,6 +767,7 @@ export {
   nextCode,
   parameterPrior,
   parseDelimited,
+  priorParts,
   priorUse,
   sourceFindings,
   sourceUsers,
@@ -731,9 +778,11 @@ export {
   withStoredEntry,
   withoutElicitation,
   withoutSource,
+  weightedUses,
   type DaFactorPick,
   type DaFitBasis,
   type DaImportField,
   type DaUseBase,
   type DaUseResult,
+  type DaWeightedUse,
 };

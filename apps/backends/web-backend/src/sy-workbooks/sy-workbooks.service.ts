@@ -18,6 +18,7 @@ import type {
 import { ProjectsService } from "../projects/projects.service";
 import { ExampleWorkbooksService } from "../example-workbooks/example-workbooks.service";
 import { WorkbookRolesService, type WorkbookRoleName } from "../workbooks/workbook-roles.service";
+import { recordWorkbookStatus } from "../workbooks/workbook-status";
 import { WorkbookSignoff, type WorkbookSignoffDocument } from "../workbooks/workbook-signoff.schema";
 import { SyWorkbook, type SyWorkbookDocument } from "./sy-workbook.schema";
 import { SyDocumentsService } from "./sy-documents.service";
@@ -284,7 +285,7 @@ export class SyWorkbooksService {
         createWorkbookRevisionFilter(workbookId, expectedRevision),
         {
           $set: {
-            previousMefJson: stringifyJson(doc.mef),
+            ...(typeof doc.previousMefJson === "string" && doc.previousMefJson.length > 0 ? {} : { previousMefJson: stringifyJson(stripNulls(doc.mef)) }),
             mef: cleaned,
             revision: expectedRevision + 1,
           },
@@ -295,6 +296,7 @@ export class SyWorkbooksService {
     if (!updatedDoc) throw workbookRevisionConflict(expectedRevision);
     await this.signoffModel.deleteMany({ workbookId }).exec();
     await this.syDocumentsService.removeAllForWorkbook(workbookId);
+    await recordWorkbookStatus(this.syWorkbookModel.db, workbookId, (updatedDoc.mef as { workflowState?: string }).workflowState);
     return toResponse(updatedDoc, myRoles);
   }
 
@@ -332,6 +334,7 @@ export class SyWorkbooksService {
       )
       .exec();
     if (!updatedDoc) throw workbookRevisionConflict(expectedRevision);
+    await recordWorkbookStatus(this.syWorkbookModel.db, workbookId, (updatedDoc.mef as { workflowState?: string }).workflowState);
     return toResponse(updatedDoc, myRoles);
   }
 }

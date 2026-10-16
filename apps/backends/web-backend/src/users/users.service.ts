@@ -39,7 +39,6 @@ interface ExportedProject {
   mode: string;
   pinned: boolean;
   state: string;
-  status: Record<string, string>;
   sharedUsers: { username: string; role: string }[];
   sharedTeams: { teamId: string; role: string }[];
   createdAt: string | null;
@@ -249,7 +248,6 @@ export class UsersService {
           mode: p.mode,
           pinned: p.pinned,
           state: p.state,
-          status: p.status,
           sharedUsers: p.sharedUsers.map((s) => ({ username: s.username, role: s.role })),
           sharedTeams: p.sharedTeams.map((s) => ({ teamId: s.teamId, role: s.role })),
           createdAt: isoOrNull(stamped.createdAt),

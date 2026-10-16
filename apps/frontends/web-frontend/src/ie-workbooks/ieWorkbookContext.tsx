@@ -11,6 +11,7 @@ interface IeWorkbookData {
   nms: NewlyDevelopedMethod[];
   posLink: IePosLinkStatus;
   daFrequencies?: IeDaFrequencyOption[];
+  projectId?: string;
 }
 
 type IeMutator = (ie: InitiatingEventsAnalysis) => InitiatingEventsAnalysis;

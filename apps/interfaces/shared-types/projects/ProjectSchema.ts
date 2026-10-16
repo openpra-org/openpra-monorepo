@@ -1,8 +1,5 @@
 import { z } from "zod";
-import { ProjectStateSchema, ProjectStatusSchema, RiskModeSchema } from "./RiskMode";
-
-const ProjectStatusMapSchema = z.record(z.string(), ProjectStatusSchema);
-type ProjectStatusMap = z.infer<typeof ProjectStatusMapSchema>;
+import { ProjectStateSchema, RiskModeSchema } from "./RiskMode";
 
 const ProjectShareRoleSchema = z.enum(["viewer", "editor"]);
 type ProjectShareRole = z.infer<typeof ProjectShareRoleSchema>;
@@ -39,8 +36,6 @@ const ProjectSchema = z.object({
   myRole: ProjectAccessRoleSchema,
   sharedTeams: z.array(ProjectTeamShareSchema),
   sharedUsers: z.array(ProjectUserShareSchema),
-  status: ProjectStatusMapSchema,
-  progress: z.number().min(0).max(1),
   pinned: z.boolean(),
   state: ProjectStateSchema,
   pageLayout: PageLayoutSchema,
@@ -51,7 +46,6 @@ type Project = z.infer<typeof ProjectSchema>;
 
 const CreateProjectRequestSchema = z.object({
   name: z.string().trim().min(3, "Project name must be at least 3 characters"),
-  mode: RiskModeSchema,
   pageLayout: PageLayoutSchema.optional(),
 });
 type CreateProjectRequest = z.infer<typeof CreateProjectRequestSchema>;
@@ -106,7 +100,6 @@ const SharedProjectsResponseSchema = z.object({
 type SharedProjectsResponse = z.infer<typeof SharedProjectsResponseSchema>;
 
 export {
-  ProjectStatusMapSchema,
   ProjectShareRoleSchema,
   ProjectAccessRoleSchema,
   PageLayoutSchema,
@@ -123,7 +116,6 @@ export {
   SharedProjectsResponseSchema,
 };
 export type {
-  ProjectStatusMap,
   ProjectShareRole,
   ProjectAccessRole,
   PageLayout,

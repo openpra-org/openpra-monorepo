@@ -346,10 +346,16 @@ export interface IeSearchMethod {
   implementsSrs: SRReference[];
 }
 
+export interface IeLinkedWorkbooks {
+  POS?: string;
+  DA?: string;
+}
+
 export interface InitiatingEventsAnalysis
   extends TechnicalElement<TechnicalElementTypes.INITIATING_EVENT_ANALYSIS> {
   praScope: string;
   includesNonInternalHazardGroups: boolean;
+  linkedWorkbooks?: IeLinkedWorkbooks;
   applicablePlantOperatingStates: PlantOperatingStateReference[];
   searchMethods?: IeSearchMethod[];
   masterLogicDiagrams?: MasterLogicDiagram[];

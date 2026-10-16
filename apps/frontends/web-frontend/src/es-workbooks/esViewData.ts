@@ -15,14 +15,13 @@ interface EsStep {
 const ES_STEPS: EsStep[] = [
   { id: "scope", num: "01", label: "Scope", sub: "IEs · POS · barriers · key safety functions", status: "idle" },
   { id: "sequences", num: "02", label: "Event Sequences", sub: "Lay out sequences per IE", status: "idle" },
-  { id: "deps", num: "03", label: "Dependencies", sub: "Functional · human · phenomena", status: "idle" },
-  { id: "timing", num: "04", label: "Timing & Phenomena", sub: "Mission times · time windows", status: "idle" },
-  { id: "endstates", num: "05", label: "End States & Releases", sub: "Safe state · release categories", status: "idle" },
-  { id: "families", num: "06", label: "Families & Screening", sub: "Group for ESQ · retain by default", status: "idle" },
-  { id: "quant", num: "07", label: "ESQ", sub: "Package for ESQ", status: "idle" },
-  { id: "draft", num: "08", label: "Draft", sub: "Produce ES report", status: "idle", terminal: true },
-  { id: "review", num: "09", label: "Review", sub: "Reviewer comments", status: "idle", terminal: true },
-  { id: "approval", num: "10", label: "Approval", sub: "Everyone signs", status: "idle", terminal: true },
+  { id: "timing", num: "03", label: "Timing, Phenomena & Repair", sub: "Timelines · windows · phenomena · repair", status: "idle" },
+  { id: "dynamic", num: "04", label: "Dynamic PRA", sub: "Dynamic event trees · milestones", status: "idle" },
+  { id: "uncertainty", num: "05", label: "Uncertainty", sub: "Register · cases · pre-operational", status: "idle" },
+  { id: "handoff", num: "06", label: "Technical Element Handoff", sub: "Exported sections", status: "idle" },
+  { id: "draft", num: "07", label: "Draft", sub: "Produce ES report", status: "idle", terminal: true },
+  { id: "review", num: "08", label: "Review", sub: "Reviewer comments", status: "idle", terminal: true },
+  { id: "approval", num: "09", label: "Approval", sub: "Everyone signs", status: "idle", terminal: true },
 ];
 
 type EsPersona = "preparer" | "reviewer" | "approver";
@@ -69,18 +68,6 @@ interface UpstreamMeta {
 const ES_UPSTREAM_META: Record<"ie" | "pos", UpstreamMeta> = {
   ie: { element: "Initiating Event Analysis", short: "IE", icon: "Bolt", delivers: "Initiating-event groups plus single events kept on their own" },
   pos: { element: "Plant Operating States", short: "POS", icon: "Layers", delivers: "Operating states with time fractions" },
-};
-
-const ES_POS_NAMES: Record<string, string> = {
-  "POS-01": "Full power, normal alignment",
-  "POS-02": "Load-follow (reduced power)",
-  "POS-03": "Hot standby",
-  "POS-04": "Cooled, head intact",
-  "POS-05": "Head off, cavity dry",
-  "POS-06": "Fuel-handling mode",
-  "POS-07": "Post-trip cooldown (DRACS)",
-  "POS-08": "IHX loop drained, primary hot",
-  "POS-09": "Cover-gas adjustment",
 };
 
 interface SourceSpec {
@@ -347,7 +334,6 @@ export {
   ES_RELEASE_CATEGORIES,
   FEASIBILITY_CRITERIA,
   ES_UPSTREAM_META,
-  ES_POS_NAMES,
   ES_SOURCE_CATALOG,
   ES_SAFETY_FUNCTION_CATALOG,
   ES_FE_SC_MAP,

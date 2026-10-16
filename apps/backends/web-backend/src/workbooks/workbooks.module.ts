@@ -15,9 +15,11 @@ import { WorkbookCommentsService } from "./workbook-comments.service";
 import { WorkbookElementRegistry } from "./workbook-element-registry";
 import { WorkbookModelAccessService } from "./workbook-model-access.service";
 import { UncertaintyMigrationService } from "./uncertainty-migration.service";
+import { EsNetworkMigrationService } from "./es-network-migration.service";
 import { SyWorkbook, SyWorkbookSchema } from "../sy-workbooks/sy-workbook.schema";
 import { DaWorkbook, DaWorkbookSchema } from "../da-workbooks/da-workbook.schema";
 import { EsqWorkbook, EsqWorkbookSchema } from "../esq-workbooks/esq-workbook.schema";
+import { HrWorkbook, HrWorkbookSchema } from "../hr-workbooks/hr-workbook.schema";
 import { IeWorkbook, IeWorkbookSchema } from "../ie-workbooks/ie-workbook.schema";
 import { EsWorkbook, EsWorkbookSchema } from "../es-workbooks/es-workbook.schema";
 import { SeismicPraWorkbook, SeismicPraWorkbookSchema } from "../seismic-pra-workbooks/seismic-pra-workbook.schema";
@@ -41,6 +43,7 @@ import { UncertaintyService } from "../newly-developed-methods/shared/uncertaint
       { name: SyWorkbook.name, schema: SyWorkbookSchema },
       { name: DaWorkbook.name, schema: DaWorkbookSchema },
       { name: EsqWorkbook.name, schema: EsqWorkbookSchema },
+      { name: HrWorkbook.name, schema: HrWorkbookSchema },
       { name: IeWorkbook.name, schema: IeWorkbookSchema },
       { name: EsWorkbook.name, schema: EsWorkbookSchema },
       { name: SeismicPraWorkbook.name, schema: SeismicPraWorkbookSchema },
@@ -64,6 +67,7 @@ import { UncertaintyService } from "../newly-developed-methods/shared/uncertaint
     PraetorAnalysisClient,
     UncertaintyService,
     UncertaintyMigrationService,
+    EsNetworkMigrationService,
   ],
   exports: [
     MongooseModule,

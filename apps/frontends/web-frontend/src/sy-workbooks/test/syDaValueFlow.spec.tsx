@@ -26,7 +26,7 @@ import { SY_ANALYSIS_HTGR } from "../../../../../backends/web-backend/src/exampl
 jest.mock("../../api/client", () => ({ ...jest.requireActual<typeof import("../../api/client")>("../../api/client"), fetchJson: jest.fn() }));
 jest.mock("../../newly-developed-methods/shared/uncertaintyApi", () => ({ evaluateUncertainty: jest.fn() }));
 jest.mock("../../newly-developed-methods/fault-tree/faultTreeImage", () => ({ renderFaultTreePng: jest.fn() }));
-jest.mock("../../newly-developed-methods/shared/useAnalysisSourceGuard", () => ({ useAnalysisSourceGuard: () => ({ sourceWarning: null }) }));
+jest.mock("../../newly-developed-methods/shared/useAnalysisSourceGuard", () => ({ useAnalysisSourceGuard: () => ({ sourceEpoch: 0, sourceWarning: null, sourceChanges: new Map() }) }));
 jest.mock("../syWorkbookApi", () => ({ getSyFaultTreeResult: jest.fn(), runSyFaultTree: jest.fn(), validateSyFaultTree: jest.fn() }));
 
 interface PraxisNative {

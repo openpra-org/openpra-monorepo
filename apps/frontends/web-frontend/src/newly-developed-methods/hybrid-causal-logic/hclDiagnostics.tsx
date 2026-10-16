@@ -106,9 +106,9 @@ export function HclSolverDiagnostics({
                   </PagedResults>
                 </>
               }
-              <h5>HCL bridge — this scenario</h5>
+              <h5>Dependency bridge for this scenario</h5>
               {diagnostics.bridge === null ?
-                <p>HCL bridge not used for this sequence.</p>
+                <p>This sequence does not use the dependency bridge.</p>
               : <>
                   <DiagnosticCounts
                     values={[

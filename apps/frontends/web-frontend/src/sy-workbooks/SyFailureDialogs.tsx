@@ -311,7 +311,7 @@ function HumanEventDialog({ id, onClose }: { id: string; onClose: () => void }):
         if (picked === undefined) return { ...candidate, controlledDataSource: undefined };
         return {
           ...candidate,
-          probability: picked.value,
+          ...(picked.value === undefined ? {} : { probability: picked.value }),
           quantificationBasis: { kind: "PROBABILITY" as const },
           controlledDataSource: { referenceType: "HUMAN_FAILURE_EVENT" as const, workbookId: picked.workbookId, entityId: picked.humanFailureEventId, quantificationId: picked.quantificationId },
           dataAnalysisBasicEventRef: undefined,
@@ -356,10 +356,10 @@ function HumanEventDialog({ id, onClose }: { id: string; onClose: () => void }):
                 <option value="">Not linked</option>
                 {controlledHumanFailures.map((candidate) => {
                   const key = humanFailureKey(candidate.workbookId, candidate.humanFailureEventId, candidate.quantificationId);
-                  return <option key={key} value={key}>{candidate.workbookName} · {candidate.humanFailureEventName} · {toExp(candidate.value)}</option>;
+                  return <option key={key} value={key}>{candidate.workbookName} · {candidate.humanFailureEventName} · {candidate.valueText}</option>;
                 })}
               </select>
-            ) : <div>{option === undefined ? reference ?? "Not linked" : `${option.workbookName} · ${option.humanFailureEventName} · ${toExp(option.value)}`}</div>}
+            ) : <div>{option === undefined ? reference ?? "Not linked" : `${option.workbookName} · ${option.humanFailureEventName} · ${option.valueText}`}</div>}
           </div>
           <div className="posfield"><label className="posfield__label">Type</label>
             {editable ? (

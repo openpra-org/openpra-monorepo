@@ -55,6 +55,8 @@
 .sy-dialog-list{gap:8px}
 .sy-dialog-list__row{display:flex;align-items:center;gap:8px}
 .sy-dialog-list__row .posfield__input{box-sizing:border-box;min-width:0;flex:1}
+.sy-details-modal .sy-dialog-list__row .posnav__btn{align-self:stretch;justify-content:center}
+.sy-details-modal .sy-dialog-list__row .sy-icon-btn{align-self:center}
 .sy-dialog-checks{display:flex;flex-wrap:wrap;gap:8px}
 .sy-dialog-check{display:inline-flex;align-items:center;gap:8px;padding:6px 10px;border:1px solid var(--color-border);border-radius:8px;background:var(--color-surface);font-size:13px;color:var(--color-text);cursor:pointer}
 .sy-dialog-check input{margin:0;accent-color:var(--color-primary)}
@@ -84,6 +86,7 @@
 .sy-review-sub{display:block;margin-top:3px;font-size:12px;color:var(--color-text-muted)}
 .sy-review-none{color:var(--color-text-muted)}
 .sy-review-empty{margin:0 0 6px;padding:12px 0;font-size:13px;color:var(--color-text-muted)}
+.sy-review .analysis-results__pagination{margin-top:8px;font-size:13px}
 .sy-inline-link{color:var(--color-primary);font-weight:600;text-decoration:underline;text-underline-offset:2px;cursor:pointer}
 .sy-inline-link:hover{text-decoration-thickness:2px}
 .sy-inline-link:focus-visible{outline:2px solid var(--color-primary);outline-offset:2px;border-radius:2px}

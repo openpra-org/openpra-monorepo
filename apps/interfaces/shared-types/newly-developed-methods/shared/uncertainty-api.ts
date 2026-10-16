@@ -54,7 +54,15 @@ type UncertaintyOperation =
   | { kind: "POOL"; pooling: UncertaintyPooling; components: MixtureComponent[] }
   | { kind: "PRIOR_PREDICTIVE"; law: Law; term: EvidenceTerm }
   | { kind: "HOMOGENEITY"; terms: EvidenceTerm[] }
-  | { kind: "LAPLACE_TREND"; times: number[]; start: number; end: number };
+  | { kind: "LAPLACE_TREND"; times: number[]; start: number; end: number }
+  | { kind: "CCF_IMPACT_VECTOR"; groupSize: number; multiplicities: UncertaintyMultiplicity[] }
+  | { kind: "CCF_MAP_DOWN"; counts: number[]; targetSize: number }
+  | { kind: "CCF_MAP_UP"; independent: number; nonLethal: number[]; lethal: number; rho: number; targetSize: number };
+
+interface UncertaintyMultiplicity {
+  failed: number;
+  events: number;
+}
 
 interface UncertaintyOperationQuery {
   id: string;
@@ -147,11 +155,26 @@ interface UncertaintyTrendResult {
   probability: number;
 }
 
+interface UncertaintyImpactCountsResult {
+  id: string;
+  groupSize: number;
+  counts: number[];
+}
+
+interface UncertaintyMappedDownResult {
+  id: string;
+  groupSize: number;
+  counts: number[];
+  noImpact: number;
+}
+
 type UncertaintyOperationResult =
   | UncertaintyLawResult
   | UncertaintyPredictiveResult
   | UncertaintyHomogeneityResult
   | UncertaintyTrendResult
+  | UncertaintyImpactCountsResult
+  | UncertaintyMappedDownResult
   | UncertaintyFailure;
 
 interface UncertaintyResponse {
@@ -187,6 +210,14 @@ const UncertaintyExpressionQuerySchema = z.strictObject({
   sampling: UncertaintySamplingSchema.optional(),
 });
 
+const GroupSizeSchema = z.number().int().min(1);
+
+const EventCountSchema = z.number().nonnegative();
+
+const EventCountsSchema = z.array(EventCountSchema).min(1);
+
+const UncertaintyMultiplicitySchema = z.strictObject({ failed: GroupSizeSchema, events: EventCountSchema });
+
 const UncertaintyOperationSchema = z.discriminatedUnion("kind", [
   z.strictObject({ kind: z.literal("SCALE"), law: LawSchema, factor: z.number().positive() }),
   z.strictObject({ kind: z.literal("CONSTRAINED_NONINFORMATIVE"), law: LawSchema, likelihood: LikelihoodSchema }),
@@ -200,6 +231,16 @@ const UncertaintyOperationSchema = z.discriminatedUnion("kind", [
   z.strictObject({ kind: z.literal("PRIOR_PREDICTIVE"), law: LawSchema, term: EvidenceTermSchema }),
   z.strictObject({ kind: z.literal("HOMOGENEITY"), terms: z.array(EvidenceTermSchema).min(2) }),
   z.strictObject({ kind: z.literal("LAPLACE_TREND"), times: z.array(z.number()).min(3), start: z.number(), end: z.number() }),
+  z.strictObject({ kind: z.literal("CCF_IMPACT_VECTOR"), groupSize: GroupSizeSchema, multiplicities: z.array(UncertaintyMultiplicitySchema) }),
+  z.strictObject({ kind: z.literal("CCF_MAP_DOWN"), counts: EventCountsSchema, targetSize: GroupSizeSchema }),
+  z.strictObject({
+    kind: z.literal("CCF_MAP_UP"),
+    independent: EventCountSchema,
+    nonLethal: EventCountsSchema,
+    lethal: EventCountSchema,
+    rho: z.number().min(0).max(1),
+    targetSize: GroupSizeSchema,
+  }),
 ]);
 
 const UncertaintyOperationQuerySchema = z.strictObject({
@@ -258,6 +299,8 @@ const UncertaintyOperationResultSchema = z.union([
     smallExpected: z.boolean(),
   }),
   z.strictObject({ id: z.string(), statistic: z.number(), probability: z.number() }),
+  z.strictObject({ id: z.string(), groupSize: z.number(), counts: z.array(z.number()) }),
+  z.strictObject({ id: z.string(), groupSize: z.number(), counts: z.array(z.number()), noImpact: z.number() }),
   UncertaintyFailureSchema,
 ]);
 
@@ -290,9 +333,12 @@ export type {
   UncertaintyExpressionSummary,
   UncertaintyFailure,
   UncertaintyHomogeneityResult,
+  UncertaintyImpactCountsResult,
   UncertaintyLawQuery,
   UncertaintyLawResult,
   UncertaintyLawSummary,
+  UncertaintyMappedDownResult,
+  UncertaintyMultiplicity,
   UncertaintyOperation,
   UncertaintyOperationQuery,
   UncertaintyOperationResult,

@@ -62,7 +62,7 @@ function MsDocumentsCard({ workbookId, canEdit }: { workbookId?: string; canEdit
   return (
     <div className="poscard">
       <div className="poscard__head">
-        <WorkbookSectionHeading workbook="MS" title="Supporting documents" level={3} />
+        <WorkbookSectionHeading title="Supporting documents" level={3} />
         {canEdit && workbookId !== undefined && (
           <label className="posnav__btn posnav__btn--sm posnav__btn--primary" style={{ cursor: busy ? "wait" : "pointer" }}>
             <MSIcon.Plus /> {busy ? "Uploading…" : "Upload"}

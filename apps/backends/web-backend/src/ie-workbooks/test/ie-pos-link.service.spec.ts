@@ -54,7 +54,7 @@ describe("IePosLinkService", () => {
   });
 
   it("returns an unlinked status when nothing is linked", async () => {
-    ieModel.findOne.mockReturnValue(query({ workbookId: "ie-1", projectId: "p-1", linkedPosWorkbookId: null }));
+    ieModel.findOne.mockReturnValue(query({ workbookId: "ie-1", projectId: "p-1", mef: {}, linkedPosWorkbookId: null }));
     const status = await service.status("ie-1", { username: "alice" });
     expect(status.linkedPosWorkbookId).toBeNull();
     expect(status.states).toHaveLength(0);
@@ -62,13 +62,15 @@ describe("IePosLinkService", () => {
 
   it("links a POS workbook and imports its operating-state ids into the IE mef", async () => {
     const save = jest.fn().mockResolvedValue(undefined);
-    const ieDoc = { workbookId: "ie-1", projectId: "p-1", mef: { applicablePlantOperatingStates: [] }, linkedPosWorkbookId: null, save };
+    const ieDoc = { workbookId: "ie-1", projectId: "p-1", mef: { applicablePlantOperatingStates: [] }, linkedPosWorkbookId: null, save, markModified: jest.fn() };
     ieModel.findOne.mockReturnValue(query(ieDoc));
     posModel.findOne.mockReturnValue(query({ workbookId: "pos-1", projectId: "p-1", mef: POS_MEF, updatedAt: new Date() }));
     workbookModel.findById.mockReturnValue(query({ id: "pos-1", name: "POS Workbook Example" }));
 
     const status = await service.link("ie-1", "pos-1", { username: "alice" });
-    expect(ieDoc.linkedPosWorkbookId).toBe("pos-1");
+    expect(ieDoc.linkedPosWorkbookId).toBeNull();
+    expect((ieDoc.mef as { applicablePlantOperatingStates: string[]; linkedWorkbooks?: { POS?: string } }).linkedWorkbooks?.POS).toBe("pos-1");
+    expect(status.linkedPosWorkbookId).toBe("pos-1");
     expect((ieDoc.mef as { applicablePlantOperatingStates: string[] }).applicablePlantOperatingStates).toEqual(["POS-01", "POS-02"]);
     expect(status.states).toHaveLength(2);
     expect(status.sources).toHaveLength(1);

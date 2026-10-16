@@ -58,7 +58,7 @@ export function RcEconomicsPanel({ openEditor }: { openEditor: (kind: "costcateg
     openEditor("costcategory", String(ec.costCategories.length));
   };
   const table = (label: string, headers: string[], rows: ReactNode[][]) => <div className="re-table-wrap"><table aria-label={label}><thead><tr>{headers.map(header => <th scope="col" key={header}>{header}</th>)}</tr></thead><tbody>{rows.map((row, index) => <tr key={index}>{row.map((cell, col) => <td key={col}>{cell}</td>)}</tr>)}</tbody></table></div>;
-  return <div className="poscard re-card"><div className="poscard__head"><WorkbookSectionHeading workbook="RC" title="Economic factors" level={3} /></div><section className="re" aria-label="Economic factors">
+  return <div className="poscard re-card"><div className="poscard__head"><WorkbookSectionHeading title="Economic factors" level={3} /></div><section className="re" aria-label="Economic factors">
     <div className="re-tabs" role="tablist" aria-label="Economic factor sections" ref={tabs} onKeyDown={event => {
       if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
       event.preventDefault(); const order: Tab[] = ["site", "costs", "review"];

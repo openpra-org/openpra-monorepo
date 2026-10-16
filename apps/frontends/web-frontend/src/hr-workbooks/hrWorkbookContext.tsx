@@ -5,13 +5,10 @@ import { type NewlyDevelopedMethod } from "interfaces-mef-types/cross-cutting/ne
 import { type HrDaHepOption } from "./hrDaLinks";
 
 interface HrLinkedInputs {
-  posStates: { id: string; name: string; mode: string; durationHours: number }[];
-  esActions: { id: string; action: string; cue: string; window: string }[];
-  scWindows: { id: string; description: string; timeAvailable: string; criteria: string }[];
-  syPlaced: { id: string; task: string; system: string }[];
-  syDefs: { id: string; name: string }[];
-  daParams: { id: string; name: string }[];
+  posStates: { id: string; name: string }[];
   ieInitiators: { id: string; name: string }[];
+  scOperatorCriteria: { id: string; description: string; timeAvailable: string }[];
+  sySystems: { id: string; name: string }[];
 }
 
 interface HrWorkbookData {

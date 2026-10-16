@@ -32,7 +32,7 @@ describe("result presentation", () => {
     );
   });
 
-  it("changes pages, resets for a new run, changes page size and clamps shrinking results", () => {
+  it("shows ten rows per page, resets for a new run and clamps shrinking results", () => {
     const rows = Array.from({ length: 63 }, (_, index) => index + 1);
     const view = (items: number[], key: string) => (
       <PagedResults
@@ -50,18 +50,17 @@ describe("result presentation", () => {
       </PagedResults>
     );
     const { rerender } = render(view(rows, "run-1"));
-    expect(screen.getAllByRole("listitem")).toHaveLength(25);
+    expect(screen.getAllByRole("listitem")).toHaveLength(10);
     const nav = within(screen.getByRole("navigation", { name: "Examples pagination" }));
     expect(nav.getByRole("button", { name: "Previous" })).toBeDisabled();
     fireEvent.click(nav.getByRole("button", { name: "Next" }));
-    expect(screen.getByText("Result 26")).toBeInTheDocument();
+    expect(screen.getByText("Result 11")).toBeInTheDocument();
     fireEvent.click(nav.getByRole("button", { name: "Last" }));
-    expect(screen.getAllByRole("listitem")).toHaveLength(13);
+    expect(screen.getAllByRole("listitem")).toHaveLength(3);
     expect(nav.getByRole("button", { name: "Next" })).toBeDisabled();
     rerender(view(rows, "run-2"));
     expect(screen.getByText("Result 1")).toBeInTheDocument();
-    fireEvent.change(nav.getByLabelText("Rows per page"), { target: { value: "50" } });
-    expect(screen.getAllByRole("listitem")).toHaveLength(50);
+    expect(nav.queryByLabelText("Rows per page")).not.toBeInTheDocument();
     fireEvent.click(nav.getByRole("button", { name: "Next" }));
     rerender(view(rows.slice(0, 3), "run-2"));
     expect(screen.getAllByRole("listitem")).toHaveLength(3);

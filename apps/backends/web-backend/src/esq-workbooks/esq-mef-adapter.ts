@@ -45,7 +45,7 @@ export class EsqMefAdapter implements WorkbookElementAdapter, OnModuleInit {
     return {
       projectId: doc.projectId,
       ownerUsername: doc.ownerUsername,
-      mef: doc.mef,
+      mef: normalizeEsqMef(doc.mef),
       revision: readWorkbookRevision(doc),
     };
   }

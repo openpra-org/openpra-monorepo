@@ -213,7 +213,7 @@ describe("generic workbook mutation revision plumbing", () => {
     };
     const registry = { get: jest.fn().mockReturnValue(adapter) };
     const service = new WorkbookWorkflowService(
-      { findById: jest.fn().mockReturnValue(query({ id: workbookId, projectId: "project-1", elementCode: "SY" })) } as never,
+      { findById: jest.fn().mockReturnValue(query({ id: workbookId, projectId: "project-1", elementCode: "SY" })), updateOne: jest.fn().mockReturnValue(query(undefined)) } as never,
       {
         deleteMany: jest.fn().mockReturnValue(query(undefined)),
       } as never,
@@ -268,7 +268,7 @@ describe("generic workbook mutation revision plumbing", () => {
           ),
       };
       const service = new WorkbookWorkflowService(
-        { findById: jest.fn().mockReturnValue(query({ id: workbookId, projectId: "project-1", elementCode: "SY" })) } as never,
+        { findById: jest.fn().mockReturnValue(query({ id: workbookId, projectId: "project-1", elementCode: "SY" })), updateOne: jest.fn().mockReturnValue(query(undefined)) } as never,
         signoffs as never,
         { resolveAccess: jest.fn().mockResolvedValue({ role: "member" }) } as never,
         roles as never,

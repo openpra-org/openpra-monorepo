@@ -1,6 +1,5 @@
 import { JSX } from "react";
 import type { SystemBasicEvent } from "interfaces-mef-types/sy/systems-analysis";
-import { WorkbookSectionHeading } from "../workbooks/workbookSectionHeading";
 import { NoSystemsCard, NotRecorded, ReviewLines, ReviewTitle } from "./syShared";
 import { SCREENING_CRITERIA, toExp } from "./syViewData";
 import { TREATMENT_LABELS, humanFailureOption, integrationFor, systemOutages, systemTree } from "./syFailureRecords";
@@ -113,7 +112,7 @@ function FailureModesScreen({ sysId, setSysId, openDrawer, onOpenSystems }: {
           {option !== undefined ? (
             <>
               <span>{option.humanFailureEventName}</span>
-              <span className="sy-review-sub">{option.workbookName} · {toExp(option.value)}</span>
+              <span className="sy-review-sub">{option.workbookName} · {option.valueText}</span>
             </>
           ) : reference !== undefined ? (
             <>
@@ -133,7 +132,6 @@ function FailureModesScreen({ sysId, setSysId, openDrawer, onOpenSystems }: {
   return (
     <div className="poscard sy-model-card">
       <div className="poscard__head sy-model-card__head">
-        <WorkbookSectionHeading workbook="SY" title={system.name} cueKey="Failure modes" level={3} />
         <label className="sy-model-card__picker">
           <span className="posfield__label">System</span>
           <select className="posfield__select" aria-label="System" value={system.uuid} onChange={(event) => setSysId(event.target.value)}>

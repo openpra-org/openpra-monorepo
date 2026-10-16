@@ -18,7 +18,6 @@ function ProjectTable({
       <div className="ap__tr ap__tr--head" role="row">
         <div className="ap__th ap__th--name" role="columnheader">Project</div>
         <div className="ap__th" role="columnheader">Risk mode</div>
-        <div className="ap__th" role="columnheader">Progress</div>
         <div className="ap__th" role="columnheader">Collaborators</div>
         <div className="ap__th" role="columnheader">Last edited</div>
         <div className="ap__th ap__th--actions" role="columnheader" aria-label="Actions" />

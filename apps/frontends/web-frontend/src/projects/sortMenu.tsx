@@ -6,17 +6,13 @@ type SortKey =
   | "edited-desc"
   | "edited-asc"
   | "name-asc"
-  | "name-desc"
-  | "progress-desc"
-  | "progress-asc";
+  | "name-desc";
 
 const OPTIONS: { id: SortKey; label: string }[] = [
   { id: "edited-desc", label: "Last edited (newest)" },
   { id: "edited-asc", label: "Last edited (oldest)" },
   { id: "name-asc", label: "Name (A–Z)" },
   { id: "name-desc", label: "Name (Z–A)" },
-  { id: "progress-desc", label: "Progress (high → low)" },
-  { id: "progress-asc", label: "Progress (low → high)" },
 ];
 
 function SortMenu({ sort, setSort }: { sort: SortKey; setSort: (s: SortKey) => void }): JSX.Element {

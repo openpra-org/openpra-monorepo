@@ -33,10 +33,21 @@ import {
 import { BayesianNetworkResults, BayesianNetworkBatchResults } from "../bayesian-network/bayesianNetworkResults";
 import { HclResults } from "../hybrid-causal-logic/hclResults";
 import { FaultTreeResults } from "../fault-tree";
+import { enumText } from "./resultPresentation";
 import type { HclEditorRunResult, HclEventTreeOption } from "../hybrid-causal-logic/hclBindingTypes";
 import { fetchJson } from "../../api/client";
+import { FLAG_VIEW, OPTIONAL_TEXT_VIEW, useWorkbookView } from "../../workbooks/workbookViewMemory";
 import { ANALYSIS_RUN_CHANGED, type AnalysisRunChanged } from "./analysisRunEvents";
+import type { AnalysisHost } from "./analysisRunWait";
 import "./css/analysisRunHistory.css";
+
+const METHOD_TEXT: Readonly<Record<AnalysisRunMetadata["methodType"], string>> = {
+  FAULT_TREE: "Fault tree",
+  EVENT_TREE: "Event tree",
+  BAYESIAN_NETWORK: "Bayesian network",
+  HYBRID_CAUSAL_LOGIC: "Dependencies",
+  LOAD_CAPACITY: "Load capacity",
+};
 
 const HistoricalEventTreeLabelsSchema = EventTreeSchema.pick({
   uuid: true,
@@ -147,7 +158,7 @@ function EsqUncertaintyRunSaved({ result }: { result: EsqUncertaintyRunResult })
   );
 }
 
-export function SavedAnalysisResult({ details }: { details: AnalysisRunDetails }) {
+export function SavedAnalysisResult({ details, host }: { details: AnalysisRunDetails; host?: AnalysisHost }) {
   const eventTreeOptions: HclEventTreeOption[] = details.workbookSnapshots.flatMap((source) => {
     const trees = source.mef["eventTrees"];
     if (source.hostType !== "ES" || !Array.isArray(trees)) return [];
@@ -187,6 +198,7 @@ export function SavedAnalysisResult({ details }: { details: AnalysisRunDetails }
         runResult={null}
         faultTreeOptions={[]}
         eventTreeOptions={eventTreeOptions}
+        analysisHost={host}
         batchRunResult={{
           kind: details.run.methodType === "EVENT_TREE" ? "EVENT_TREE" : "FAULT_TREE",
           compilationReuse: batch.compilationReuse,
@@ -270,6 +282,7 @@ export function SavedAnalysisResult({ details }: { details: AnalysisRunDetails }
       calculationType={details.request["calculationType"] === "UNCERTAINTY" ? "UNCERTAINTY" : "PROBABILITY"}
       faultTreeOptions={[]}
       eventTreeOptions={eventTreeOptions}
+      analysisHost={host}
     />
   );
 }
@@ -294,14 +307,24 @@ export function AnalysisRunHistory({
   calculationType?: string;
   modelId?: string;
 }) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useWorkbookView<boolean>(
+    `history.open:${host}:${modelId === undefined ? "workbook" : "model"}:${calculationType ?? "all"}`,
+    false,
+    FLAG_VIEW,
+  );
+  const [selectedRun, setSelectedRun] = useWorkbookView<string | null>(
+    `history.run:${host}:${workbookId ?? ""}:${modelId ?? "workbook"}:${calculationType ?? "all"}`,
+    null,
+    OPTIONAL_TEXT_VIEW,
+  );
   const [rows, setRows] = useState<AnalysisRunProvenance[]>([]);
   const [cursor, setCursor] = useState<string | null>(null);
   const [details, setDetails] = useState<AnalysisRunDetails | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const request = useRef(0);
-  const selected = useRef<string | null>(null);
+  const selected = useRef<string | null>(selectedRun);
+  selected.current = selectedRun;
   const page = useRef<string | undefined>(undefined);
   const base = `/api/${host}-workbooks/${encodeURIComponent(workbookId ?? "")}/analysis-runs`;
   async function load(next?: string) {
@@ -335,6 +358,7 @@ export function AnalysisRunHistory({
         setRows([]);
         setDetails(null);
         selected.current = null;
+        setSelectedRun(null);
         setError(caught instanceof Error ? caught.message : "Could not read saved runs.");
       }
     } finally {
@@ -344,6 +368,7 @@ export function AnalysisRunHistory({
   async function inspect(id: string) {
     const current = ++request.current;
     selected.current = id;
+    setSelectedRun(id);
     setLoading(true);
     setDetails(null);
     setError(null);
@@ -359,7 +384,6 @@ export function AnalysisRunHistory({
   }
   useEffect(() => {
     request.current++;
-    selected.current = null;
     setDetails(null);
     setRows([]);
     setCursor(null);
@@ -420,10 +444,10 @@ export function AnalysisRunHistory({
                 aria-pressed={details?.run.id === row.run.id}
                 onClick={() => void inspect(row.run.id)}
               >
-                <span className="analysis-history__run-name">{row.run.methodType.replace(/_/g, " ")}{row.run.scope === "BATCH" ? " batch" : ""}</span>
-                <span className={`analysis-history__status analysis-history__status--${row.run.status.toLowerCase()}`}>{row.run.status}</span>
+                <span className="analysis-history__run-name">{METHOD_TEXT[row.run.methodType]}{row.run.scope === "BATCH" ? " batch" : ""}</span>
+                <span className={`analysis-history__status analysis-history__status--${row.run.status.toLowerCase()}`}>{enumText(row.run.status)}</span>
                 <time>{new Date(row.run.requestedAt).toLocaleString()}</time>
-                <span className="analysis-history__freshness">{row.run.freshness?.status ?? "UNKNOWN"}</span>
+                <span className="analysis-history__freshness">{enumText(row.run.freshness?.status ?? "UNKNOWN")}</span>
               </button>
             ))}
           </div>
@@ -432,9 +456,9 @@ export function AnalysisRunHistory({
           )}
           {details && (
             <section aria-label="Saved run details">
-              <div className="analysis-history__result-head"><div><span>Selected run</span><h3>Result</h3></div><span className="analysis-history__status">{details.run.status}</span></div>
-              {details.run.freshness?.status !== "CURRENT" && (
-                <p role="status" className="analysis-history__state">Historical result: sources have changed, are missing, or could not be compared.</p>
+              <div className="analysis-history__result-head"><div><span>Selected run</span><h3>Result</h3></div><span className="analysis-history__status">{enumText(details.run.status)}</span></div>
+              {details.run.freshness?.status === "STALE" && (
+                <p role="status" className="analysis-history__state">{details.run.freshness.change ?? "A source of this result changed."}</p>
               )}
               <p className="analysis-history__byline">Requested by {details.run.requestedBy} · {new Date(details.run.requestedAt).toLocaleString()}</p>
               <ul className="analysis-history__sources">
@@ -445,7 +469,7 @@ export function AnalysisRunHistory({
                   </li>
                 ))}
               </ul>
-              <SavedAnalysisResult details={details} />
+              <SavedAnalysisResult details={details} host={host} />
               <details className="analysis-history__record">
                 <summary>Run identity and recorded inputs</summary>
                 <p>Run: {details.run.id}</p>

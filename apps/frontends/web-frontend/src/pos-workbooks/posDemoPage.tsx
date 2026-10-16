@@ -14,7 +14,6 @@ import {
   type PosStep,
 } from "./posViewData";
 import {
-  stepIndexById,
   filterConformance,
   groupBySection,
   ccScore,
@@ -44,8 +43,9 @@ import { InternalReviewScreen, ReviewerCommentDock } from "./posReview";
 import { Drawer } from "./posDrawer";
 import { generatePosReport } from "./posDocx";
 import { PosWorkbookProvider, type PosWorkbookData } from "./posWorkbookContext";
-import { loadPosDaOutages } from "./posDaLinks";
-import { PosHelpButton, PosSectionHeading } from "./posHelp";
+import { EXAMPLE_PREFIX, loadPosDaOutages } from "./posDaLinks";
+import { PosHandoffScreen } from "./posHandoff";
+import { PosSectionHeading } from "./posSectionHeading";
 import { useAuth } from "../auth/AuthContext";
 import { WorkbookDemoSignCard } from "../workbooks/workbookDemoSignCard";
 import "../workbooks/css/workbookWorkspace.css";
@@ -53,39 +53,22 @@ import "../workbooks/css/workbookWorkspace.css";
 interface StepHeader {
   eyebrow: string;
   title: string;
-  sub?: string;
 }
 
-const CONFORMANCE_SECTION_HELP: Record<string, string> = {
-  "Operating-state definition (HLR-POS-A)": "Checks whether the plant evolutions and mutually exclusive operating states are complete, technically defined, supported by evidence, and suitable for all in-scope PRA hazard groups.",
-  "Screening & grouping (HLR-POS-B)": "Checks whether every removed or grouped state has a documented, conservative basis that preserves differences and risk-significant contributors.",
-  "Frequencies & duration (HLR-POS-C)": "Checks the state durations, entry frequencies, time-after-shutdown values, group roll-ups, and decay-heat characterization used by downstream PRA calculations.",
-  "Documentation (HLR-POS-D)": "Checks whether inputs, methods, results, assumptions, limitations, and supporting-requirement traceability are preserved in the controlled POS record.",
-};
-
-function headersFor(stepId: string, isApprover: boolean): StepHeader {
+function headersFor(stepId: string): StepHeader {
   switch (stepId) {
-    case "setup": return { eyebrow: "Step 01", title: "Scope", sub: "Identify the plant, the analysis stage, and the capability category the analysis must meet, then bring in the design documents that describe how the plant is configured and operated." };
+    case "setup": return { eyebrow: "Step 01", title: "Scope" };
     case "evolutions": return { eyebrow: "Step 02", title: "Plant evolutions" };
-    case "states": return { eyebrow: "Step 03", title: "Operating states", sub: "Define the slices of each evolution where the plant's response to a given event is essentially uniform." };
-    case "interviews": return { eyebrow: "Step 04", title: "Interviews & walkdowns", sub: "Log interviews or walkdowns that informed the operating-state definitions." };
-    case "screening": return { eyebrow: "Step 05", title: "Screening", sub: "By default every state is carried forward. Screen one out only with a written justification." };
-    case "grouping": return { eyebrow: "Step 06", title: "Grouping", sub: "Combine similar states only when one member's response bounds the rest, without masking any risk-significant contributor." };
-    case "frequency": return { eyebrow: "Step 07", title: "Frequencies & duration", sub: "Mean time spent in each state, mean entry frequency, and basis. Pre-operational durations come from the assumed cycle plan." };
-    case "decayheat": return { eyebrow: "Step 08", title: "Decay heat", sub: "For every low-power and shutdown state, characterise the decay heat." };
-    case "draft": return { eyebrow: "Step 09 · Draft", title: "Produce the draft", sub: "Generate the Word report from everything entered so far. Submitting the draft advances the workbook to internal technical review." };
-    case "review": return {
-      eyebrow: "Step 10 · Review",
-      title: "Internal technical review",
-      sub: "Reviewers and the approver post comments. The workbook advances to internal approval once every assigned reviewer has signed.",
-    };
-    case "approval": return {
-      eyebrow: "Step 11 · Approval",
-      title: "Internal approval",
-      sub: isApprover
-        ? "All earlier steps are locked. Review the comment record, leave any closing remarks, then sign and approve."
-        : "Awaiting the approver's signature. All role-holders see the collected signatures here.",
-    };
+    case "states": return { eyebrow: "Step 03", title: "Operating states" };
+    case "interviews": return { eyebrow: "Step 04", title: "Interviews & walkdowns" };
+    case "screening": return { eyebrow: "Step 05", title: "Screening" };
+    case "grouping": return { eyebrow: "Step 06", title: "Grouping" };
+    case "frequency": return { eyebrow: "Step 07", title: "Frequencies & duration" };
+    case "decayheat": return { eyebrow: "Step 08", title: "Decay heat" };
+    case "handoff": return { eyebrow: "Step 09", title: "Technical Element Handoff" };
+    case "draft": return { eyebrow: "Step 10 · Draft", title: "Produce the draft" };
+    case "review": return { eyebrow: "Step 11 · Review", title: "Internal technical review" };
+    case "approval": return { eyebrow: "Step 12 · Approval", title: "Internal approval" };
     default: return { eyebrow: "", title: "" };
   }
 }
@@ -112,7 +95,6 @@ interface HeaderMeta {
   projectName: string;
   workbookName: string;
   workbookVersion: string;
-  plantIdentity?: { name: string; type: string; power: string; vendor: string };
 }
 
 function WorkspaceHeader({
@@ -170,17 +152,6 @@ function WorkspaceHeader({
           </span>
         )}
       </div>
-
-      <div className="poshd__spacer" />
-
-      {headerMeta.plantIdentity !== undefined && (
-        <div className="poshd__identity">
-          <div className="poshd__identity-title">{headerMeta.plantIdentity.name}</div>
-          <div className="poshd__identity-meta">
-            {headerMeta.plantIdentity.type} <span className="poshd__identity-sep">·</span> {headerMeta.plantIdentity.power} <span className="poshd__identity-sep">·</span> {headerMeta.plantIdentity.vendor}
-          </div>
-        </div>
-      )}
 
       <div className="poshd__spacer" />
 
@@ -329,7 +300,6 @@ function ConformanceDock({
         <div className="posdock__title-row">
           <PosSectionHeading
             title="Conformance"
-            description="Track each applicable POS supporting requirement against the selected capability-category target and plant stage, including ready, attention, blocked, and not-applicable results."
             level={2}
             className="posdock__title"
           />
@@ -367,12 +337,7 @@ function ConformanceDock({
         {sections.map(([sectionName, sectionItems]) => (
           <div key={sectionName}>
             <div className="posdock__section-head">
-              <span className="posdock__section-label">
-                {sectionName}
-                <PosHelpButton label={`About ${sectionName}`}>
-                  {CONFORMANCE_SECTION_HELP[sectionName] ?? "This group collects related POS supporting requirements for conformance review."}
-                </PosHelpButton>
-              </span>
+              <span className="posdock__section-label">{sectionName}</span>
               <span className="posdock__section-head-count">
                 {sectionItems.filter((it) => it.status === "ok").length} / {sectionItems.length}
               </span>
@@ -590,7 +555,7 @@ function PosWorkbench({ data, persona, setPersona, showPersonaPicker, availableP
   const next = visibleSteps[idx + 1];
   const cc = CAPABILITY_CATEGORIES.find((c) => c.id === ccId) ?? CAPABILITY_CATEGORIES[0];
   const scores = ccScore(data.pos, ccId, stage);
-  const h = headersFor(stepId, isApprover);
+  const h = headersFor(stepId);
 
   const canEdit = isPreparer && (workflowState === "DRAFT" || workflowState === "REVISION_REQUIRED");
   function addEvolution(): void {
@@ -640,6 +605,7 @@ function PosWorkbench({ data, persona, setPersona, showPersonaPicker, availableP
       case "grouping": return <GroupingScreen {...screenProps} />;
       case "frequency": return <FrequencyScreen {...screenProps} />;
       case "decayheat": return <DecayHeatScreen {...screenProps} />;
+      case "handoff": return <PosHandoffScreen />;
       case "draft": return <DraftScreen cc={cc} scores={scores} stage={stage} onGenerate={handleGenerate} onSubmitDraft={(ready) => {
         if (actions !== undefined) {
           actions.submitForReview()
@@ -701,7 +667,6 @@ function PosWorkbench({ data, persona, setPersona, showPersonaPicker, availableP
               <div className="posmain__eyebrow">{h.eyebrow}</div>
               <PosSectionHeading
                 title={h.title}
-                description={h.sub ?? "This step records the technical basis needed at this point in the POS workflow."}
                 level={1}
                 className="posmain__title"
                 main
@@ -811,13 +776,14 @@ function PosDemoPage(): JSX.Element {
       fetchJson<PosBundleResponse>(`/api/example-workbooks/pos-bundle?example=${encodeURIComponent(selected)}`)
         .then((res) => {
           if (cancelled) return;
-          const pos = res.pos.mef as PlantOperatingStatesAnalysis;
+          const example = res.pos.mef as PlantOperatingStatesAnalysis;
+          const pos = example.linkedWorkbooks?.DA === undefined ? { ...example, linkedWorkbooks: { ...example.linkedWorkbooks, DA: `${EXAMPLE_PREFIX}${selected}` } } : example;
           setData({
             pos,
             cc: res.configurationControl.mef as PRAConfigurationControl,
             nms: res.newlyDevelopedMethods.map((nm) => nm.mef as NewlyDevelopedMethod),
           });
-          void loadPosDaOutages(null, pos, selected).then((daOutages) => {
+          void loadPosDaOutages(pos.linkedWorkbooks?.DA).then((daOutages) => {
             if (!cancelled) setData((prev) => (prev === null ? prev : { ...prev, daOutages }));
           });
         })
@@ -842,9 +808,6 @@ function PosDemoPage(): JSX.Element {
     projectName: identity !== undefined ? `${identity.name} ${stageLabel} PRA` : POS_PROJECT.projectName,
     workbookName: data.pos.name,
     workbookVersion: String(data.pos.version),
-    plantIdentity: identity !== undefined
-      ? { name: identity.name, type: identity.reactorType, power: identity.thermalPower, vendor: identity.vendor }
-      : undefined,
   };
 
   return (

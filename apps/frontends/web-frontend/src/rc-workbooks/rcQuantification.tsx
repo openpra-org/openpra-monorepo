@@ -10,7 +10,7 @@ import { useRcWorkbook, type RcResultDraft } from "./rcWorkbookContext";
 import { RCIcon } from "./rcIcons";
 import "./css/rcQuantification.css";
 
-const steps = { source: "handoff", site: "protective", weather: "weather", transport: "dispersion", dose: "dose", health: "health", economy: "economics" };
+const steps = { source: "scope", site: "protective", weather: "weather", transport: "dispersion", dose: "dose", health: "health", economy: "economics" };
 const tabs = ["checks", "prepared", "results"] as const;
 type CaseTab = typeof tabs[number];
 const tabNames = { checks: "Case & checks", prepared: "Prepared inputs", results: "Results" };
@@ -109,7 +109,7 @@ export function RcQuantificationPanel({ onOpenStep, initialTab = "checks" }: { o
   const valueIssue = filled && !resultValid.success ? resultValid.error.issues.find(issue => issue.path[0] === "statistics")?.message : undefined;
   const canSaveResult = Boolean(snapshot && metric && statistics && resultValid.success && preview?.file === draft.file && !previewError);
   const previewLines = preview?.text.split(/\r\n|\n|\r/);
-  return <div className="poscard rc-case-input-card"><div className="poscard__head"><WorkbookSectionHeading workbook="RC" title="Case inputs and results" level={3} /></div>
+  return <div className="poscard rc-case-input-card"><div className="poscard__head"><WorkbookSectionHeading title="Case inputs and results" level={3} /></div>
     <section className="rc-quantification" aria-label="Case inputs and results">
       <label className="q-category">Release category<select className="posfield__select" aria-label="Case release category" value={categoryKey} disabled={busy || !categories.length} onChange={e => { setCategoryId(e.target.value); setInspectId(""); setChecked(false); }}>{!categories.length && <option value="">No release category yet</option>}{categories.map(c => <option key={c.releaseCategory}>{c.releaseCategory}</option>)}</select></label>
       <div className="q-tabs" role="tablist" aria-label="Case records" ref={tablist} onKeyDown={e => {

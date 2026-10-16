@@ -244,7 +244,7 @@ function HclSeismicGeneratorControls({ model, reference, settings, disabled, onC
             </select>
           </label>
           <StateSelect label="Generator node" value={selected?.id ?? ""} states={options} disabled={options.length === 0} onChange={setNodeId} />
-          <button type="button" disabled={selected === undefined} onClick={add}>Add generator</button>
+          <button type="button" className="posnav__btn posnav__btn--sm" disabled={selected === undefined} onClick={add}>Add generator</button>
         </div>
       )}
       {generators.map((definition, index) => {

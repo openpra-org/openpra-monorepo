@@ -1,3 +1,4 @@
+import { useState } from "react";
 import type { EventTreeSequenceAnalysisResult } from "interfaces-shared-types/newly-developed-methods/event-tree";
 import type {
   HclEventTreeHazardConvolutionResult,
@@ -8,6 +9,7 @@ import { displayedSequenceName } from "./hclEventTreeResults";
 import { sequenceEndState } from "./hclResultLabels";
 import { formatScientific, formatPercentage, HclResultMetric } from "./hclResultMetrics";
 import { PagedResults, ResultNumber, formatResultNumber } from "../shared/resultPresentation";
+import { HclHazardExceedance } from "./hclSampleOutputs";
 
 export type HazardSequenceLookup = ReadonlyMap<string, { sequence: EventTreeSequenceAnalysisResult; modelId: string }>;
 
@@ -32,46 +34,51 @@ function sequenceIdentity(id: string, sequences: HazardSequenceLookup, labels: H
 
 export function HclHazardSummary({ hazard }: { hazard: HclHazardConvolutionResult }) {
   return (
-    <div
-      className="hcleditor__convolution-summary"
-      aria-label="Hazard convolution summary"
-    >
-      <HclResultMetric
-        label="Grid"
-        value={hazard.gridName}
-      />
-      <HclResultMetric
-        label="Covered probability"
-        value={formatPercentage(hazard.rawWeightSum)}
-        exactValue={hazard.rawWeightSum}
-        ratio={hazard.rawWeightSum}
-      />
-      <HclResultMetric
-        label="Annual scale"
-        value={`${formatScientific(hazard.annualizedFrequencyScale)}/yr`}
-        exactValue={hazard.annualizedFrequencyScale}
-      />
-      <HclResultMetric
-        label="Weights"
-        value={hazard.normalizeWeights ? "Normalized" : "Raw"}
-        detail={`Applied weight sum ${String(hazard.convolutionWeightSum)}`}
-      />
-      {hazard.targetKind === "FAULT_TREE" && (
-        <>
-          <HclResultMetric
-            label="Convolved probability"
-            value={formatPercentage(hazard.convolvedProbability)}
-            exactValue={hazard.convolvedProbability}
-            ratio={hazard.convolvedProbability}
-          />
-          <HclResultMetric
-            label="Integrated frequency"
-            value={`${formatScientific(hazard.integratedAnnualFrequency)}/yr`}
-            exactValue={hazard.integratedAnnualFrequency}
-          />
-        </>
+    <>
+      <div
+        className="hcleditor__convolution-summary"
+        aria-label="Hazard convolution summary"
+      >
+        <HclResultMetric
+          label="Grid"
+          value={hazard.gridName}
+        />
+        <HclResultMetric
+          label="Covered probability"
+          value={formatPercentage(hazard.rawWeightSum)}
+          exactValue={hazard.rawWeightSum}
+          ratio={hazard.rawWeightSum}
+        />
+        <HclResultMetric
+          label="Annual scale"
+          value={`${formatScientific(hazard.annualizedFrequencyScale)}/yr`}
+          exactValue={hazard.annualizedFrequencyScale}
+        />
+        <HclResultMetric
+          label="Weights"
+          value={hazard.normalizeWeights ? "Normalized" : "Raw"}
+          detail={`Applied weight sum ${String(hazard.convolutionWeightSum)}`}
+        />
+        {hazard.targetKind === "FAULT_TREE" && (
+          <>
+            <HclResultMetric
+              label="Convolved probability"
+              value={formatPercentage(hazard.convolvedProbability)}
+              exactValue={hazard.convolvedProbability}
+              ratio={hazard.convolvedProbability}
+            />
+            <HclResultMetric
+              label="Integrated frequency"
+              value={`${formatScientific(hazard.integratedAnnualFrequency)}/yr`}
+              exactValue={hazard.integratedAnnualFrequency}
+            />
+          </>
+        )}
+      </div>
+      {hazard.targetKind === "FAULT_TREE" && hazard.exceedance !== undefined && (
+        <HclHazardExceedance points={hazard.exceedance} label="Top event" />
       )}
-    </div>
+    </>
   );
 }
 
@@ -98,6 +105,12 @@ export function HclEventTreeHazardResults({
     selectedEndState !== "" &&
     hazard.sequences.some((row) => sequenceEndStateIfKnown(row.sequenceId, sequences) === undefined);
   const pageKey = `${resetKey}:${selectedEndState}`;
+  const curves = hazard.endStateAggregates.filter((state) => (state.exceedance ?? []).length > 0);
+  const [curveChoice, setCurveChoice] = useState("");
+  const curveId = curves.some((state) => state.endStateId === selectedEndState) ? selectedEndState
+    : curves.some((state) => state.endStateId === curveChoice) ? curveChoice
+    : curves[0]?.endStateId ?? "";
+  const curve = curves.find((state) => state.endStateId === curveId);
   const totalFrequency = states.reduce((sum, state) => sum + state.integratedAnnualFrequency, 0);
   const totalProbability = states.reduce((sum, state) => sum + state.convolvedProbability, 0);
   return (
@@ -144,6 +157,19 @@ export function HclEventTreeHazardResults({
             </div>
           )}
         </PagedResults>
+        {curve !== undefined && (
+          <>
+            {selectedEndState === "" && curves.length > 1 && (
+              <label className="hclsamples__choice">
+                Exceedance curve{" "}
+                <select value={curveId} onChange={(event) => setCurveChoice(event.target.value)}>
+                  {curves.map((state) => <option key={state.endStateId} value={state.endStateId}>{labels.endStateName(state.endStateId)}</option>)}
+                </select>
+              </label>
+            )}
+            <HclHazardExceedance points={curve.exceedance ?? []} label={labels.endStateName(curve.endStateId)} />
+          </>
+        )}
       </section>
       <section aria-label="Integrated sequence results">
         <h4>

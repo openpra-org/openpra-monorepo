@@ -103,7 +103,7 @@ function BasicEventDialog({ id, onClose }: { id: string; onClose: () => void }):
   const linkedHumanFailure = controlledHumanFailures.find((option) => humanFailureKey(option.workbookId, option.humanFailureEventId, option.quantificationId) === sourceKey);
   const sourceKnown = isHuman ? linkedHumanFailure !== undefined : linkedParameter !== undefined;
   const heldDiffers = isHuman
-    ? linkedHumanFailure !== undefined && heldValueDiffers(be, linkedHumanFailure.value)
+    ? linkedHumanFailure?.value !== undefined && heldValueDiffers(be, linkedHumanFailure.value)
     : linkedParameter !== undefined && heldValueDiffers(be, linkedParameter.value, linkedParameter.rateUnit);
   const liveValue = isHuman ? linkedHumanFailure?.value : linkedParameter?.value;
   const liveUnit = isHuman ? undefined : linkedParameter?.rateUnit;
@@ -183,7 +183,7 @@ function BasicEventDialog({ id, onClose }: { id: string; onClose: () => void }):
         return;
       }
       patch({
-        probability: option.value,
+        ...(option.value === undefined ? {} : { probability: option.value }),
         quantificationBasis: { kind: "PROBABILITY" },
         controlledDataSource: { referenceType: "HUMAN_FAILURE_EVENT", workbookId: option.workbookId, entityId: option.humanFailureEventId, quantificationId: option.quantificationId },
         dataAnalysisBasicEventRef: undefined,
@@ -261,7 +261,7 @@ function BasicEventDialog({ id, onClose }: { id: string; onClose: () => void }):
               {isHuman
                 ? controlledHumanFailures.map((option) => {
                     const key = humanFailureKey(option.workbookId, option.humanFailureEventId, option.quantificationId);
-                    return <option key={key} value={key}>{option.workbookName} · {option.humanFailureEventName} · {option.methodology} · {toExp(option.value)}</option>;
+                    return <option key={key} value={key}>{option.workbookName} · {option.humanFailureEventName} · {option.methodology} · {option.valueText}</option>;
                   })
                 : parameterOptions.map((option) => {
                     const key = parameterKey(option.workbookId, option.parameterId);

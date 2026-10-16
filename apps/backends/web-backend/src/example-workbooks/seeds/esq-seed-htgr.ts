@@ -3,12 +3,7 @@ import {
   type EventSequenceFamilyQuantification,
   type ModelIntegration,
   type QuantificationMethods,
-  type CircularLogicResolution,
-  type MutuallyExclusiveEventRule,
-  type FlagEventSetting,
   type ModuleUsageRecord,
-  type MultiHfeCutsetIdentification,
-  type HfeDependencyApplication,
   type LinkingTransferRecord,
   type PhenomenaDependencyAssessment,
   type RadionuclideBarrierQuantification,
@@ -34,7 +29,6 @@ import {
   type EsqRegisterDecision,
   type EsqReviewWork,
   type EsqSensitivityWork,
-  type EsqUncertaintyWork,
   DependencyType,
   TruncationMethod,
   QuantificationApproach,
@@ -337,68 +331,6 @@ const dependencyTreatment: DependencyTreatment = {
   implementsSrs: srs("ESQ-C1", "ESQ-C2"),
 };
 
-const circularLogicResolutions: CircularLogicResolution[] = [];
-
-const mutuallyExclusiveEventRules: MutuallyExclusiveEventRule[] = [
-  {
-    uuid: "MX-1",
-    description: "Two cavity-cooling duct groups in staggered surveillance at once",
-    eventIds: ["HE-RCC-DUCT1-MAINT", "HE-RCC-DUCT2-MAINT"],
-    basis: "The surveillance plan staggers the duct groups so two are never out together.",
-    identifiedInResults: true,
-    treatment: "LOGIC_ELIMINATION",
-    implementsSrs: srs("ESQ-B7", "ESQ-B8"),
-  },
-  {
-    uuid: "MX-2",
-    description: "Refueling alignment with at-power initiator",
-    eventIds: ["HE-REFUEL", "IE-14"],
-    basis: "The refuelling alignment cannot coexist with the at-power circulator-trip initiator.",
-    identifiedInResults: true,
-    treatment: "CUTSET_DELETION",
-    implementsSrs: srs("ESQ-B7", "ESQ-B8"),
-  },
-];
-
-const flagEventSettings: FlagEventSetting[] = [
-  {
-    uuid: "FL-1",
-    name: "Shutdown-cooling train A maintenance alignment",
-    purpose: "Selects the train-A-out configuration for the family",
-    state: false,
-    effect: "Removes the train-A shutdown-cooling failure logic from this family's model.",
-    basis: "The maintenance alignment is a configuration choice, so the flag restructures the logic rather than carrying a probability.",
-    isTemporary: false,
-    applicableFamilyRefs: ["EFQ-1"],
-    setPriorToCutsetGeneration: true,
-    implementsSrs: srs("ESQ-B9"),
-  },
-  {
-    uuid: "FL-2",
-    name: "Passive cavity-cooling path",
-    purpose: "Enables the passive cavity cooling path credited as the backstop",
-    state: true,
-    effect: "Includes the passive reactor-cavity cooling path in the family model.",
-    basis: "The passive cavity cooling is always aligned, so the flag selects the conduction-cooldown logic per state.",
-    isTemporary: false,
-    applicableFamilyRefs: ["EFQ-1"],
-    setPriorToCutsetGeneration: true,
-    implementsSrs: srs("ESQ-B9"),
-  },
-  {
-    uuid: "FL-3",
-    name: "At-power circulator logic",
-    purpose: "Selects the at-power forced-circulation logic",
-    state: true,
-    effect: "Includes the main-circulator forced-flow logic in the at-power model.",
-    basis: "The forced circulation applies only at power, so the flag selects the at-power logic.",
-    isTemporary: false,
-    applicableFamilyRefs: ["EFQ-2"],
-    setPriorToCutsetGeneration: true,
-    implementsSrs: srs("ESQ-B9"),
-  },
-];
-
 const moduleUsageRecords: ModuleUsageRecord[] = [
   {
     uuid: "MOD-1",
@@ -408,40 +340,6 @@ const moduleUsageRecords: ModuleUsageRecord[] = [
     trueIndependenceVerified: true,
     perEventInterpretabilityMaintained: true,
     implementsSrs: srs("ESQ-B10"),
-  },
-];
-
-const multiHfeCutsetIdentifications: MultiHfeCutsetIdentification[] = [
-  {
-    uuid: "MH-1",
-    cutsetDescription: "CS-SCS-0142, three human failure events appear together in a loss-of-forced-cooling cutset.",
-    hfeRefs: ["HR-POST-018", "HR-POST-020", "REC-1"],
-    potentialRiskImpact: "The cutset is risk-significant, so the joint dependency is assessed per HR and the joint floor binds the product.",
-    implementsSrs: srs("ESQ-C1", "ESQ-C2"),
-  },
-  {
-    uuid: "MH-2",
-    cutsetDescription: "CS-MOIST-0033, two human failure events appear together in a moisture-ingress cutset.",
-    hfeRefs: ["HR-POST-022", "HR-POST-032"],
-    potentialRiskImpact: "The cutset is risk-significant, and the two actions share the same crew and timeline, so the dependence is not negligible.",
-    implementsSrs: srs("ESQ-C1", "ESQ-C2"),
-  },
-];
-
-const hfeDependencyApplications: HfeDependencyApplication[] = [
-  {
-    uuid: "HD-1",
-    hrDependencyAssessmentRef: "DEP-3",
-    cutsetContext: "CS-SCS-0142",
-    appliedJointHep: 3.5e-4,
-    implementsSrs: srs("ESQ-C2"),
-  },
-  {
-    uuid: "HD-2",
-    hrDependencyAssessmentRef: "DEP-5",
-    cutsetContext: "CS-MOIST-0033",
-    appliedJointHep: 4.5e-4,
-    implementsSrs: srs("ESQ-C2"),
   },
 ];
 
@@ -791,7 +689,7 @@ const modelUncertaintySourceAssessments: ModelUncertaintySourceAssessment[] = [
   { uuid: "UF-11", sourceElementCode: "DA", uncertaintySource: "Planned demand, exposure and maintenance counts", relatedAssumptions: ["The planned surveillance and maintenance schedule stands in for operating records."], evaluationType: "QUANTITATIVE", evaluationScope: "INDIVIDUAL", effectOnFamilyFrequencies: "Demands, run hours and maintenance hours come from the planned schedule until operating records exist. Each train unavailability moves in proportion to its maintenance hours.", dataAnalysisSourceRef: { workbookId: "example-da-htgr", sourceId: "MU-3" }, implementsSrs: srs("ESQ-E1") },
   { uuid: "UF-12", sourceElementCode: "DA", uncertaintySource: "Coincident-maintenance assumption", relatedAssumptions: [], evaluationType: "QUANTITATIVE", evaluationScope: "INDIVIDUAL", effectOnFamilyFrequencies: "The joint equalizing charge takes both battery banks out together for 22 h a year. The value is assumed until plant experience confirms it.", dataAnalysisSourceRef: { workbookId: "example-da-htgr", sourceId: "MU-4" }, implementsSrs: srs("ESQ-E1") },
   { uuid: "UF-13", sourceElementCode: "DA", uncertaintySource: "Initiating-event frequencies for a design with no operating history", relatedAssumptions: [], evaluationType: "QUANTITATIVE", evaluationScope: "INDIVIDUAL", effectOnFamilyFrequencies: "Twenty-one group frequencies rest on IE fault trees, generic data and design-based estimates. At the 2020 industry rates loss of offsite power would drop 2.8 times.", dataAnalysisSourceRef: { workbookId: "example-da-htgr", sourceId: "MU-5" }, implementsSrs: srs("ESQ-E1") },
-  { uuid: "UF-14", sourceElementCode: "DA", uncertaintySource: "Common cause factors from the CCF 2020 data", relatedAssumptions: [], evaluationType: "QUANTITATIVE", evaluationScope: "INDIVIDUAL", effectOnFamilyFrequencies: "Each group takes generic factors for its size, and its testing scheme decides what Systems Analysis receives. Testing the shutdown-cooling trains on one day would make both failing together 2.0 times more likely.", dataAnalysisSourceRef: { workbookId: "example-da-htgr", sourceId: "MU-6" }, implementsSrs: srs("ESQ-E1") },
+  { uuid: "UF-14", sourceElementCode: "DA", uncertaintySource: "Common cause factors from the CCF 2020, NUREG/CR-4550 and WSRC data", relatedAssumptions: [], evaluationType: "QUANTITATIVE", evaluationScope: "INDIVIDUAL", effectOnFamilyFrequencies: "Each group takes generic factors for its size, and its testing scheme decides what Systems Analysis receives. Testing the shutdown-cooling trains on one day would make both failing together 2.0 times more likely.", dataAnalysisSourceRef: { workbookId: "example-da-htgr", sourceId: "MU-6" }, implementsSrs: srs("ESQ-E1") },
 ];
 
 const uncertaintyPropagation: UncertaintyPropagation = {
@@ -826,12 +724,12 @@ const sensitivityStudies: SensitivityStudy[] = [
   { uuid: "SS-1", name: "Truncation sensitivity", description: "Sweep of the truncation cutoff below the chosen value.", variedParameters: ["Truncation cutoff"], parameterRanges: { "Truncation cutoff": [1e-14, 1e-12] }, results: "The family frequencies hold within a few percent below the chosen cutoff." },
   { uuid: "SS-2", name: "State-of-knowledge correlation sweep", description: "Sweep of the correlation handling between shared estimates.", variedParameters: ["Correlation"], parameterRanges: { Correlation: [0, 1] }, results: "Ignoring the correlation would understate the loss-of-forced-cooling mean by about a third." },
   { uuid: "SS-3", name: "Barrier-capacity sweep", description: "Sweep of the functional-containment capacity range.", variedParameters: ["Capacity factor"], parameterRanges: { "Capacity factor": [0.5, 2] }, results: "The early-release family stays below the threshold across the capacity range." },
-  { uuid: "DA-SS-1", name: "Similar-equipment sweep", description: "The moisture monitors rest on nonnuclear moisture analyzers. Their sampling factor goes to its bounds of 0.5 and 3.", variedParameters: ["DA-BE-249"], parameterRanges: { "DA-BE-249": [0.001799877471427639, 0.010739690083886403] }, results: "The monitor probability runs from 1.80E-3 to 1.07E-2 per demand, against 3.60E-3 for the nominal factor.", dataAnalysisCaseRef: { workbookId: "example-da-htgr", caseId: "SS-1" }, implementsSrs: srs("ESQ-E2") },
-  { uuid: "DA-SS-2", name: "Prior-form comparison", description: "The circulator update repeated with the published compressor prior in place of the constrained noninformative one.", variedParameters: ["DA-BE-205"], parameterRanges: { "DA-BE-205": [0.00023233029579251133, 0.002134622783285125] }, results: "With the published prior the 24 h circulator probability is 2.13E-3, 9.2 times the 2.32E-4 of the base case. The published prior conflicts with the Fort St. Vrain counts, so it stays a sensitivity case.", dataAnalysisCaseRef: { workbookId: "example-da-htgr", caseId: "SS-2" }, implementsSrs: srs("ESQ-E2") },
+  { uuid: "DA-SS-1", name: "Similar-equipment sweep", description: "The moisture monitors rest on nonnuclear moisture analyzers. Their sampling factor goes to its bounds of 0.5 and 3.", variedParameters: ["DA-BE-249"], parameterRanges: { "DA-BE-249": [0.001799877471427639, 0.010739690083886403] }, results: "The monitor probability runs from 1.80E-3 to 1.07E-2 per demand, against 4.67E-3 for the factor law.", dataAnalysisCaseRef: { workbookId: "example-da-htgr", caseId: "SS-1" }, implementsSrs: srs("ESQ-E2") },
+  { uuid: "DA-SS-2", name: "Prior-form comparison", description: "The circulator update repeated with the published compressor prior in place of the constrained noninformative one.", variedParameters: ["DA-BE-205"], parameterRanges: { "DA-BE-205": [0.00023297844873037974, 0.0005974621254863907] }, results: "With the published prior the 24 h circulator probability is 5.97E-4, 2.6 times the 2.33E-4 of the base case. The published prior conflicts with the Fort St. Vrain counts, so it stays a sensitivity case.", dataAnalysisCaseRef: { workbookId: "example-da-htgr", caseId: "SS-2" }, implementsSrs: srs("ESQ-E2") },
   { uuid: "DA-SS-3", name: "Train maintenance sweep", description: "Shutdown-cooling train maintenance between half and twice the planned 35 h a year.", variedParameters: ["DA-UA-11"], parameterRanges: { "DA-UA-11": [0.001997716894977169, 0.007990867579908675] }, results: "The train unavailability runs from 2.00E-3 to 7.99E-3, against 4.00E-3 for the plan.", dataAnalysisCaseRef: { workbookId: "example-da-htgr", caseId: "SS-3" }, implementsSrs: srs("ESQ-E2") },
   { uuid: "DA-SS-4", name: "Coincident-maintenance sweep", description: "The joint battery equalization unavailability from none to 5.0E-3.", variedParameters: ["DA-UA-16"], parameterRanges: { "DA-UA-16": [0, 0.005] }, results: "The planned joint charge gives 2.51E-3, inside the swept range.", dataAnalysisCaseRef: { workbookId: "example-da-htgr", caseId: "SS-4" }, implementsSrs: srs("ESQ-E2") },
   { uuid: "DA-SS-5", name: "Offsite power at the 2020 rates", description: "Loss of offsite power at the 2020 industry rates, power and shutdown, against the IE group that also holds loss of normal AC.", variedParameters: ["DA-IE-03"], parameterRanges: { "DA-IE-03": [0.034228276390151025, 0.0975] }, results: "The 2020 rates give 3.42E-2 per year over the group's states, 2.8 times below the IE group frequency of 9.75E-2.", dataAnalysisCaseRef: { workbookId: "example-da-htgr", caseId: "SS-5" }, implementsSrs: srs("ESQ-E2") },
-  { uuid: "DA-SS-6", name: "Shutdown-cooling testing scheme", description: "The two shutdown-cooling trains tested on one day instead of staggered.", variedParameters: ["DA-CCF-08"], parameterRanges: { "DA-CCF-08": [0.0000016882749759740017, 0.0000033521905826454723] }, results: "Both trains failing together rises from 1.69E-6 to 3.35E-6, 2.0 times the staggered value.", dataAnalysisCaseRef: { workbookId: "example-da-htgr", caseId: "SS-6" }, implementsSrs: srs("ESQ-E2") },
+  { uuid: "DA-SS-6", name: "Shutdown-cooling testing scheme", description: "The two shutdown-cooling trains tested on one day instead of staggered.", variedParameters: ["DA-CCF-08"], parameterRanges: { "DA-CCF-08": [0.0000016929849100868758, 0.000003361542493325158] }, results: "Both trains failing together rises from 1.69E-6 to 3.36E-6, 2.0 times the staggered value.", dataAnalysisCaseRef: { workbookId: "example-da-htgr", caseId: "SS-6" }, implementsSrs: srs("ESQ-E2") },
 ];
 
 const preOperationalAssumptions = [
@@ -905,7 +803,7 @@ const modelDecisions: EsqModelDecisions = {
   familyChoices: [
     { familyId: "ESF-OK", groupingReason: "Every member ends in a safe stable state with no release. The operating state changes only how often a sequence occurs, and each sequence keeps its own state frequency." },
     { familyId: "ESF-LEAK", groupingReason: "Every member releases circulating activity into an intact, filtered reactor building, so the release path and RC-3 are the same in each state. The state sets the decay heat and the timing, which MS takes per sequence." },
-    { familyId: "ESF-LATE", groupingReason: "Every member loses forced and passive heat removal with the building intact, giving the delayed filtered release of RC-2. Step 04 carries the heat-up window as a timing attribute." },
+    { familyId: "ESF-LATE", groupingReason: "Every member loses forced and passive heat removal with the building intact, giving the delayed filtered release of RC-2. Step 03 carries the heat-up window as a timing attribute." },
     { familyId: "ESF-EARLY", groupingReason: "Every member reaches a reactor building whose isolation or filtration has failed, so the release is unfiltered (RC-1) in each state. The state changes the source inventory, not the release path." },
     { familyId: "ESF-ATWS", groupingReason: "Every member is a failure to trip at full power, load follow or hot standby. Negative temperature feedback caps the power in each of these states, so the response and the release path are the same." },
   ],
@@ -964,12 +862,12 @@ const barrierWork: EsqBarrierWork = {
     { id: "PH-1", barrierId: "TRISO coating", modeIds: ["FM-1"], kind: "PHENOMENON", name: "Conduction cooldown with both cooling paths lost", familyIds: ["ESF-LATE"], basis: "SC heat-up runs at full power: the fuel reaches the 1600 C limit 25.8 to 42.8 h after cooling is lost (5th to 95th percentile, TF-CALC-H01)." },
     { id: "PH-2", barrierId: "Primary boundary", modeIds: ["FM-4"], kind: "PHENOMENON", name: "Pressure spike from a large water ingress with relief lift", familyIds: ["ESF-LATE"], basis: "SC load EHU-2 drives the primary pressure to the relief setpoint. The relief train lifts and limits the pressure below the design pressure (ST-CALC-H01)." },
     { id: "PH-3", barrierId: "Containment", modeIds: ["FM-5"], kind: "PHENOMENON", name: "Blowdown pressure and dust load from a large depressurization", familyIds: ["ESF-EARLY"], basis: "SC load EHG-2 pressurizes the building and loads the filters with graphite dust. SY carries the damper failure in that environment as a dependent failure (SPC-3)." },
-    { id: "PH-4", barrierId: "TRISO coating", modeIds: ["FM-2"], kind: "DEGRADATION", name: "Fast-fluence damage beyond the design limit", familyIds: [], screening: { criterion: "SCR-3", basis: "The core design holds the fast fluence below the coating limit, so the damage mechanism cannot occur in service." }, basis: "" },
-    { id: "PH-5", barrierId: "Containment", modeIds: ["FM-5"], kind: "PHENOMENON", name: "Building overpressure beyond its design", familyIds: [], screening: { criterion: "SCR-3", basis: "The largest blowdown stays below the building design pressure, so an overpressure failure needs a load the plant cannot produce." }, basis: "" },
+    { id: "PH-4", barrierId: "TRISO coating", modeIds: ["FM-2"], kind: "DEGRADATION", name: "Fast-fluence damage beyond the design limit", familyIds: [], basis: "" },
+    { id: "PH-5", barrierId: "Containment", modeIds: ["FM-5"], kind: "PHENOMENON", name: "Building overpressure beyond its design", familyIds: [], basis: "" },
   ],
   phenomenaLogic: {
     included: true,
-    basis: "The fuel heat-up, the relief lift and the building blowdown enter the families through the ES branches and the Step 04 cells.",
+    basis: "The fuel heat-up, the relief lift and the building blowdown enter the families through the ES branches and the Step 03 cells.",
     scrubbing: { credited: true, basis: "Aerosol plateout on the primary-circuit surfaces is credited at CC-II from the source term analysis." },
     beneficial: { credited: true, basis: "An early relief lift that limits the primary pressure is kept, since dropping it would distort the boundary-leak family." },
   },
@@ -1002,6 +900,30 @@ const barrierWork: EsqBarrierWork = {
         calculation: "Core heat-up calculation for the design-stage core loading (TF-CALC-H01).",
         closure: "Repeat with the as-built core loading and measured graphite properties before operation.",
       },
+    },
+    { id: "BC-2", barrierId: "Primary boundary", modeId: "FM-4", familyId: "ESF-LATE", mechanismIds: ["PH-2"], variable: "Boundary pressure", unit: "", basis: "REALISTIC", use: "END_STATE_ATTRIBUTE" },
+    { id: "BC-3", barrierId: "Containment", modeId: "FM-5", familyId: "ESF-EARLY", mechanismIds: ["PH-3"], variable: "Building leak rate and isolation", unit: "", basis: "CONSERVATIVE", use: "END_STATE_ATTRIBUTE" },
+    {
+      id: "BC-4",
+      barrierId: "TRISO coating",
+      modeId: "FM-2",
+      mechanismIds: ["PH-4"],
+      variable: "",
+      unit: "",
+      basis: "REALISTIC",
+      use: "END_STATE_ATTRIBUTE",
+      screening: { criterion: "SCR-3", basis: "The core design holds the fast fluence below the coating limit, so the damage mechanism cannot occur in service." },
+    },
+    {
+      id: "BC-5",
+      barrierId: "Containment",
+      modeId: "FM-5",
+      mechanismIds: ["PH-5"],
+      variable: "",
+      unit: "",
+      basis: "CONSERVATIVE",
+      use: "END_STATE_ATTRIBUTE",
+      screening: { criterion: "SCR-3", basis: "The largest blowdown stays below the building design pressure, so an overpressure failure needs a load the plant cannot produce." },
     },
   ],
   credits: [
@@ -1056,37 +978,17 @@ const review: EsqReviewWork = {
   ],
 };
 
-const HR_ERROR_FACTORS: [string, number][] = [
-  ["HFE:HR-PRE-014", 5],
-  ["HFE:HR-PRE-018", 6],
-  ["HFE:HR-PRE-031", 6],
-  ["HFE:HR-PRE-041", 5],
-  ["HFE:HR-POST-018", 4],
-  ["HFE:HR-POST-022", 5],
-  ["HFE:HR-POST-025", 5],
-  ["HFE:HR-POST-026", 5],
-  ["RECOVERY:REC-1", 4],
-];
-
-const uncertaintyWork: EsqUncertaintyWork = {
-  spreads: HR_ERROR_FACTORS.map(([key, errorFactor]) => ({
-    key,
-    errorFactor,
-    source: `HR quantification of ${key.split(":")[1] ?? key}: lognormal with an error factor of ${errorFactor}, given in its uncertainty note.`,
-  })),
-};
-
 const HS_REASON = "Concerns the hazard groups that Step 01 leaves to their own PRA workbooks, so it moves no internal-events family.";
 
 const decisions: EsqRegisterDecision[] = [
   { id: "DA:SOURCE:MU-2", familyIds: ["ESF-LEAK", "ESF-LATE"], key: true, caseIds: ["SS-2-HIGH"], reason: "" },
   { id: "DA:SOURCE:MU-3", familyIds: ["ESF-LEAK", "ESF-LATE"], caseIds: ["SS-3-LOW", "SS-3-HIGH"], reason: "" },
-  { id: "DA:SOURCE:MU-5", familyIds: RELEASE_FAMILIES, key: true, caseIds: [], reason: "The group frequencies enter from IE, and each scales its own sequences in proportion, so Step 07 reads the effect from the initiator shares. A case on one DA frequency parameter would leave the run unchanged." },
+  { id: "DA:SOURCE:MU-5", familyIds: RELEASE_FAMILIES, key: true, caseIds: [], reason: "The group frequencies enter from IE, and each scales its own sequences in proportion, so Step 06 reads the effect from the initiator shares. A case on one DA frequency parameter would leave the run unchanged." },
   { id: "DA:SOURCE:MU-6", familyIds: ["ESF-LEAK", "ESF-LATE"], key: true, caseIds: ["SS-6-HIGH"], reason: "" },
   { id: "SY:SOURCE:MU-RCC-2", familyIds: RELEASE_FAMILIES, key: true, caseIds: ["SC-1", "SC-5"], reason: "" },
   { id: registerEntryId("HR", "SOURCE", "Borrowed nonnuclear human-performance data"), familyIds: RELEASE_FAMILIES, key: true, caseIds: ["SC-4"], reason: "" },
   { id: registerEntryId("ESQ", "SOURCE", "Cavity-cooling duct blockage mode"), familyIds: RELEASE_FAMILIES, key: true, caseIds: ["SC-5"], reason: "" },
-  { id: registerEntryId("ESQ", "SOURCE", "State-of-knowledge correlation handling"), familyIds: RELEASE_FAMILIES, key: false, caseIds: [], reason: "Step 08 samples with shared draws and repeats the sampling with independent draws to show the effect." },
+  { id: registerEntryId("ESQ", "SOURCE", "State-of-knowledge correlation handling"), familyIds: RELEASE_FAMILIES, key: false, caseIds: [], reason: "Step 07 samples with shared draws and repeats the sampling with independent draws to show the effect." },
   { id: "HS:SOURCE:HS-UNC-001", familyIds: [], caseIds: [], reason: HS_REASON },
   { id: "HS:SOURCE:HS-UNC-002", familyIds: [], caseIds: [], reason: HS_REASON },
   { id: "HS:SOURCE:HS-UNC-003", familyIds: [], caseIds: [], reason: HS_REASON },
@@ -1099,10 +1001,10 @@ const sensitivityWork: EsqSensitivityWork = {
   decisions,
   cases: [
     { id: "SC-1", name: "Stack blockage at ten times its estimate", kind: "PARAMETER", target: "DA-BE-211", factor: 10, basis: "SY takes duct and stack blockage from gas-cooled test facility experience (MU-RCC-2). Ten times the estimate spans the spread of that experience." },
-    { id: "SS-2-HIGH", name: "Prior-form comparison · high", kind: "PARAMETER", target: "DA-BE-205", value: 2.13e-3, basis: "The circulator update repeated with the published compressor prior in place of the constrained noninformative one.", daCaseRef: { workbookId: DA_LINK, caseId: "SS-2" } },
+    { id: "SS-2-HIGH", name: "Prior-form comparison · high", kind: "PARAMETER", target: "DA-BE-205", value: 5.97e-4, basis: "The circulator update repeated with the published compressor prior in place of the constrained noninformative one.", daCaseRef: { workbookId: DA_LINK, caseId: "SS-2" } },
     { id: "SS-3-LOW", name: "Train maintenance sweep · low", kind: "PARAMETER", target: "DA-UA-11", value: 0.001997716894977169, basis: "Shutdown-cooling train maintenance between half and twice the planned 35 h a year.", daCaseRef: { workbookId: DA_LINK, caseId: "SS-3" } },
     { id: "SS-3-HIGH", name: "Train maintenance sweep · high", kind: "PARAMETER", target: "DA-UA-11", value: 0.007990867579908675, basis: "Shutdown-cooling train maintenance between half and twice the planned 35 h a year.", daCaseRef: { workbookId: DA_LINK, caseId: "SS-3" } },
-    { id: "SS-6-HIGH", name: "Shutdown-cooling testing scheme · high", kind: "CCF_TOTAL", target: "CCF-SCS-TRAIN", factor: 3.35e-6 / 1.69e-6, basis: "The two shutdown-cooling trains tested on one day instead of staggered. The group total scales by DA's all-members ratio.", daCaseRef: { workbookId: DA_LINK, caseId: "SS-6" } },
+    { id: "SS-6-HIGH", name: "Shutdown-cooling testing scheme · high", kind: "CCF_TOTAL", target: "CCF-SCS-TRAIN", factor: 3.36e-6 / 1.69e-6, basis: "The two shutdown-cooling trains tested on one day instead of staggered. The group total scales by DA's all-members ratio.", daCaseRef: { workbookId: DA_LINK, caseId: "SS-6" } },
     { id: "SC-4", name: "Every HEP at its 95th percentile", kind: "HEP_95TH", basis: "HR borrows nonnuclear performance data for a crew that does not yet exist. The 95th percentile of each HEP bounds that applicability gap." },
     { id: "SC-5", name: "Cavity cooling duct groups failed", kind: "GROUP_FAILED", target: "CCF_GROUP:CCF-RCCS-DUCT", basis: "Bounds the shared-riser failure that SY has not yet modeled (SY-B8) by failing all four duct groups together." },
     { id: "SC-6", name: "No recovery and no HFE dependency", kind: "LOGIC", logic: { recovery: false, dependency: false }, basis: "Shows what the remote-panel restart credit and the joint HEPs change, the dependency treatment that ESQ-C16 asks to be tested." },
@@ -1112,15 +1014,15 @@ const sensitivityWork: EsqSensitivityWork = {
 const handoffWork: EsqHandoffWork = {
   responses: [
     { id: "FAMILY:ESF-EARLY", kind: "FAMILY", ref: "ESF-EARLY", response: "The linked run puts ESF-EARLY at 3.77E-5 per year. The joint battery equalization (DA-UA-16, FV 0.55) and the equalization error (HR-PRE-041, FV 0.44) set almost all of it through the shutdown water ingress trees (IEG-16), while the building damper group has an FV of 9.3E-5. SY decides how the building isolation responds to a loss of DC.", status: "IN_PROGRESS", sentTo: "SY" },
-    { id: "FAMILY:ESF-ATWS", kind: "FAMILY", ref: "ESF-ATWS", response: "The family now comes from the linked trees at 1.27E-4 per year, and Step 08 samples it (mean 1.27E-4, 95th 4.08E-4). SY's bound that a loss of DC fails the trip (MU-RPS-2) sets about 80% of it and the RPS miscalibration (HR-PRE-031) about 19%. The dedicated failure-to-trip tree goes to SY with that bound.", status: "IN_PROGRESS", sentTo: "SY" },
-    { id: "FAMILY:ESF-LATE", kind: "FAMILY", ref: "ESF-LATE", response: "One linked run now gives the family, 2.65E-4 per year over the 96 trees, with its sequences and cut sets in Step 05 and the -5.86% of the recovery and HFE rules in Step 06. The common stack blockage (DA-BE-211, FV 0.66) and the cavity-cooling damper misalignment (HR-PRE-018, FV 0.32) lead it.", status: "COMPLETED" },
+    { id: "FAMILY:ESF-ATWS", kind: "FAMILY", ref: "ESF-ATWS", response: "The family now comes from the linked trees at 1.27E-4 per year, and Step 07 samples it (mean 1.27E-4, 95th 4.08E-4). SY's bound that a loss of DC fails the trip (MU-RPS-2) sets about 80% of it and the RPS miscalibration (HR-PRE-031) about 19%. The dedicated failure-to-trip tree goes to SY with that bound.", status: "IN_PROGRESS", sentTo: "SY" },
+    { id: "FAMILY:ESF-LATE", kind: "FAMILY", ref: "ESF-LATE", response: "One linked run now gives the family, 2.65E-4 per year over the 96 trees, with its sequences and cut sets in Step 05 and the -5.86% of the recovery and HFE rules in Step 04. The common stack blockage (DA-BE-211, FV 0.66) and the cavity-cooling damper misalignment (HR-PRE-018, FV 0.32) lead it.", status: "COMPLETED" },
     { id: "FAMILY:ESF-LEAK", kind: "FAMILY", ref: "ESF-LEAK", response: "Kept under review. The linked run makes ESF-LEAK the largest release family at 9.28E-4 per year, led by the helium make-up action (HR-POST-026, 19%) and the steam generator isolation action (HR-POST-022, 12%). Its grouping reason stays in Step 02, and the building leak-rate data goes to MS.", status: "IN_PROGRESS", sentTo: "MS" },
     { id: "CONTRIBUTOR:Reactor trip divisions fail (CCF-RPS-DIV)", kind: "CONTRIBUTOR", ref: "Reactor trip divisions fail (CCF-RPS-DIV)", response: "The linked run gives the division group an FV of 2.2E-3 and a RAW of 177 on ESF-ATWS, far below the DC bound and the miscalibration HFE. Held against DA-CCF-04 with the generic demand factors and staggered testing until the CC-II software model is set.", status: "IN_PROGRESS", sentTo: "DA" },
     { id: "CONTRIBUTOR:Building isolation damper common-cause failure (CCF-RB-DMP)", kind: "CONTRIBUTOR", ref: "Building isolation damper common-cause failure (CCF-RB-DMP)", response: "The linked run gives the damper group an FV of 9.3E-5 and a RAW of 29 on ESF-EARLY, since a loss of DC fails the isolation first. Held against DA-CCF-30, with the coupling factors under review.", status: "IN_PROGRESS", sentTo: "DA" },
     { id: "CONTRIBUTOR:Control rods fail to insert (CCF-RPS-ROD)", kind: "CONTRIBUTOR", ref: "Control rods fail to insert (CCF-RPS-ROD)", response: "The linked run gives the rod group an FV of 5.2E-3 and a RAW of 177 on ESF-ATWS. It goes to SY with the failure-to-trip tree, behind the DC bound and the miscalibration HFE that outrank it.", status: "IN_PROGRESS", sentTo: "SY" },
     { id: "CONTRIBUTOR:Operator fails to start the standby filtration train (HR-POST-028)", kind: "CONTRIBUTOR", ref: "Operator fails to start the standby filtration train (HR-POST-028)", response: "The linked run puts it at 0.1% of ESF-EARLY (FV 1.0E-3, RAW 1.07), since a loss of DC fails the building isolation first. HR keeps it queued for detailed treatment, and the screening value stays until then.", status: "IN_PROGRESS", sentTo: "HR" },
-    { id: "CONTRIBUTOR:Cavity-cooling duct group common-cause failure (CCF-RCCS-DUCT)", kind: "CONTRIBUTOR", ref: "Cavity-cooling duct group common-cause failure (CCF-RCCS-DUCT)", response: "The duct group has an FV of 0.023 and a RAW of 214 on ESF-LATE. Step 09 case SC-5 fails all four duct groups together and raises the release total from 1.36E-3 to 1.14E-1 per year. The common stack blockage (DA-BE-211, FV 0.66 on ESF-LATE) matters more, so both go to DA.", status: "IN_PROGRESS", sentTo: "DA" },
-    { id: "CONTRIBUTOR:Shutdown-cooling train common-cause failure (CCF-SCS-TRAIN)", kind: "CONTRIBUTOR", ref: "Shutdown-cooling train common-cause failure (CCF-SCS-TRAIN)", response: "Held against DA-CCF-08. The group has an FV of 0.025 and a RAW of 54 on ESF-LATE, and Step 09 case SS-6-HIGH (both trains tested on one day) leaves the release total at 1.36E-3 per year.", status: "COMPLETED", sentTo: "DA" },
+    { id: "CONTRIBUTOR:Cavity-cooling duct group common-cause failure (CCF-RCCS-DUCT)", kind: "CONTRIBUTOR", ref: "Cavity-cooling duct group common-cause failure (CCF-RCCS-DUCT)", response: "The duct group has an FV of 0.023 and a RAW of 214 on ESF-LATE. Step 08 case SC-5 fails all four duct groups together and raises the release total from 1.36E-3 to 1.14E-1 per year. The common stack blockage (DA-BE-211, FV 0.66 on ESF-LATE) matters more, so both go to DA.", status: "IN_PROGRESS", sentTo: "DA" },
+    { id: "CONTRIBUTOR:Shutdown-cooling train common-cause failure (CCF-SCS-TRAIN)", kind: "CONTRIBUTOR", ref: "Shutdown-cooling train common-cause failure (CCF-SCS-TRAIN)", response: "Held against DA-CCF-08. The group has an FV of 0.025 and a RAW of 54 on ESF-LATE, and Step 08 case SS-6-HIGH (both trains tested on one day) leaves the release total at 1.36E-3 per year.", status: "COMPLETED", sentTo: "DA" },
     { id: "CONTRIBUTOR:Operator fails to start the second shutdown-cooling train (HR-POST-018)", kind: "CONTRIBUTOR", ref: "Operator fails to start the second shutdown-cooling train (HR-POST-018)", response: "Kept at detailed treatment. The linked run gives it an FV of 5.4E-3 and a RAW of 5.2 on ESF-LATE.", status: "COMPLETED", sentTo: "HR" },
     { id: "GENERAL", kind: "GENERAL", ref: "GENERAL", response: "The linked quantification changes the ranking RI used. The release total is 1.36E-3 per year (95th 3.36E-3), led by the joint battery equalization, the common stack blockage and the RPS miscalibration, and ESF-LEAK is the largest release family. The DC and RPS decisions are open in SY, and RI recomputes from this package once they close.", status: "IN_PROGRESS", sentTo: "SY" },
   ],
@@ -1174,10 +1076,12 @@ export const ESQ_ANALYSIS_HTGR: EventSequenceQuantification = {
   barrierWork,
   postWork,
   review,
-  uncertaintyWork,
   sensitivityWork,
   handoffWork,
-  quantificationPlan: { modulesPerPlant: { value: 1, link: { element: "IE", workbookId: "example-ie-htgr", field: "numberOfModules" } } },
+  quantificationPlan: {
+    modulesPerPlant: { value: 1, link: { element: "IE", workbookId: "example-ie-htgr", field: "numberOfModules" } },
+    reportingFloorPerYear: { value: 1e-7, link: { element: "RI", workbookId: "example-ri-htgr", field: "minimumReportingFrequencyPerPlantYear" } },
+  },
   bayesianNetworks: [createExampleDependencyNetwork()],
   hclConfigurations: [createExampleHclConfiguration()],
   familyQuantifications,
@@ -1210,18 +1114,6 @@ export const ESQ_ANALYSIS_HTGR: EventSequenceQuantification = {
       implementsSrs: srs("ESQ-A9"),
     },
   ],
-  recoveryActionApplications: [
-    {
-      uuid: "RA-1",
-      recoveryActionRef: "REC-1",
-      appliedAtLevel: "SEQUENCE",
-      applicableFamilyRefs: ["EFQ-1"],
-      hrFeasibilityRequirementsSatisfied: true,
-      hrDependencyRequirementsSatisfied: true,
-      implementsSrs: srs("ESQ-A7"),
-    },
-  ],
-  circularLogicResolutions,
   systemSuccessTreatment: {
     treatmentMethod: "The success branches of modeled events are kept, not only the failure branches.",
     systemsWithSuccessModeled: ["SYS-SCS", "SYS-RPS"],
@@ -1229,12 +1121,8 @@ export const ESQ_ANALYSIS_HTGR: EventSequenceQuantification = {
     modelingExamples: ["The shutdown-cooling success path is retained in the loss-of-forced-cooling sequences, consistent with the demonstrated passive-cooldown transients (ESQ-DOC-02)."],
     implementsSrs: srs("ESQ-B6"),
   },
-  mutuallyExclusiveEventRules,
-  flagEventSettings,
   moduleUsageRecords,
   dependencyTreatment,
-  multiHfeCutsetIdentifications,
-  hfeDependencyApplications,
   linkingTransferRecords,
   phenomenaDependencyAssessments,
   barrierQuantifications,

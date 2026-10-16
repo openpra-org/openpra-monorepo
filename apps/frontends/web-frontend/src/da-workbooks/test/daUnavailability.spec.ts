@@ -1,11 +1,10 @@
-import { DistributionType } from "interfaces-mef-types/core/events";
 import type { DataAnalysis, DataAnalysisParameter, DaRestorationPart, DaSource, DaSourceEntry, DaSourceUse } from "interfaces-mef-types/da/data-analysis";
 import { DA_ANALYSIS_HTGR } from "../../../../../backends/web-backend/src/example-workbooks/seeds/da-seed-htgr";
 import { DA_ANALYSIS } from "../../../../../backends/web-backend/src/example-workbooks/seeds/da-seed";
 import { evaluateUncertainty } from "../../newly-developed-methods/shared/uncertaintyApi";
 import { praxisUncertainty, settledWithPraxis } from "../../newly-developed-methods/shared/test/praxisUncertainty";
 import { parameterPoint, pointState, readyNumber } from "../daLaws";
-import { maintenanceEstimate, maintenanceSpread, restorationEstimate, survivalCurve, unavailabilityComplete, unavailabilityFindings, withUnavailability, type DaMaintenanceEstimate } from "../daUnavailability";
+import { maintenanceEstimate, maintenanceSpread, restorationEstimate, unavailabilityComplete, unavailabilityFindings, withUnavailability, type DaMaintenanceEstimate } from "../daUnavailability";
 
 jest.mock("../../newly-developed-methods/shared/uncertaintyApi", () => ({ evaluateUncertainty: jest.fn() }));
 
@@ -45,19 +44,19 @@ function restoration(id: string, next: Partial<DataAnalysisParameter>): DataAnal
 
 const ENTRIES: DaSourceEntry[] = [
   { id: "CTG", component: "Combustion turbine generator", failureMode: "Test or maintenance", quantity: "FRACTION", law: { family: "BETA", alpha: 0.5, beta: 9.5, lower: 0, upper: 1 } },
-  { id: "PC", component: "Plant-centered LOOP", failureMode: "Recovery time", quantity: "HOURS", distribution: { type: DistributionType.LOGNORMAL, median: 1.69893, errorFactor: 36.6799 } },
-  { id: "SC", component: "Switchyard-centered LOOP", failureMode: "Recovery time", quantity: "HOURS", distribution: { type: DistributionType.LOGNORMAL, median: 1.39097, errorFactor: 16.1158 } },
-  { id: "GR", component: "Grid-related LOOP", failureMode: "Recovery time", quantity: "HOURS", distribution: { type: DistributionType.LOGNORMAL, median: 1.41907, errorFactor: 9.3652 } },
-  { id: "WR", component: "Weather-related LOOP", failureMode: "Recovery time", quantity: "HOURS", distribution: { type: DistributionType.LOGNORMAL, median: 6.23389, errorFactor: 26.3972 } },
-  { id: "PC-6890", component: "Plant-centered LOOP", failureMode: "Recovery time", quantity: "HOURS", distribution: { type: DistributionType.LOGNORMAL, median: 0.467666, errorFactor: 8.30557 } },
-  { id: "SC-6890", component: "Switchyard-centered LOOP", failureMode: "Recovery time", quantity: "HOURS", distribution: { type: DistributionType.LOGNORMAL, median: 0.67638, errorFactor: 7.89268 } },
-  { id: "GR-6890", component: "Grid-related LOOP", failureMode: "Recovery time", quantity: "HOURS", distribution: { type: DistributionType.LOGNORMAL, median: 1.34986, errorFactor: 5.75532 } },
-  { id: "WR-6890", component: "Weather-related LOOP", failureMode: "Recovery time", quantity: "HOURS", distribution: { type: DistributionType.LOGNORMAL, median: 2.21002, errorFactor: 26.0521 } },
+  { id: "PC", component: "Plant-centered LOOP", failureMode: "Recovery time", quantity: "HOURS", law: { family: "LOGNORMAL", mean: 18.691108812822744, errorFactor: 36.6799, level: 0.95 } },
+  { id: "SC", component: "Switchyard-centered LOOP", failureMode: "Recovery time", quantity: "HOURS", law: { family: "LOGNORMAL", mean: 5.801107254676589, errorFactor: 16.1158, level: 0.95 } },
+  { id: "GR", component: "Grid-related LOOP", failureMode: "Recovery time", quantity: "HOURS", law: { family: "LOGNORMAL", mean: 3.577991209689045, errorFactor: 9.3652, level: 0.95 } },
+  { id: "WR", component: "Weather-related LOOP", failureMode: "Recovery time", quantity: "HOURS", law: { family: "LOGNORMAL", mean: 45.152678381581914, errorFactor: 26.3972, level: 0.95 } },
+  { id: "PC-6890", component: "Plant-centered LOOP", failureMode: "Recovery time", quantity: "HOURS", law: { family: "LOGNORMAL", mean: 1.0705616273649288, errorFactor: 8.30557, level: 0.95 } },
+  { id: "SC-6890", component: "Switchyard-centered LOOP", failureMode: "Recovery time", quantity: "HOURS", law: { family: "LOGNORMAL", mean: 1.4884978512561002, errorFactor: 7.89268, level: 0.95 } },
+  { id: "GR-6890", component: "Grid-related LOOP", failureMode: "Recovery time", quantity: "HOURS", law: { family: "LOGNORMAL", mean: 2.377499089934259, errorFactor: 5.75532, level: 0.95 } },
+  { id: "WR-6890", component: "Weather-related LOOP", failureMode: "Recovery time", quantity: "HOURS", law: { family: "LOGNORMAL", mean: 15.755062566285455, errorFactor: 26.0521, level: 0.95 } },
   { id: "F-PC", component: "Plant-centered LOOP", failureMode: "Frequency", quantity: "PER_YEAR", law: { family: "GAMMA", shape: 6.5, rate: 1362.25 } },
   { id: "F-SC", component: "Switchyard-centered LOOP", failureMode: "Frequency", quantity: "PER_YEAR", law: { family: "GAMMA", shape: 9.5, rate: 1362.25 } },
   { id: "F-GR", component: "Grid-related LOOP", failureMode: "Frequency", quantity: "PER_YEAR", law: { family: "GAMMA", shape: 7.5, rate: 1362.25 } },
   { id: "F-WR", component: "Weather-related LOOP", failureMode: "Frequency", quantity: "PER_YEAR", law: { family: "GAMMA", shape: 0.62, rate: 83.54 } },
-  { id: "EDG-REPAIR", component: "Emergency diesel generator repair", failureMode: "Repair time", quantity: "HOURS", distribution: { type: DistributionType.WEIBULL, shape: 0.745, scale: 6.14, location: 0 } },
+  { id: "EDG-REPAIR", component: "Emergency diesel generator repair", failureMode: "Repair time", quantity: "HOURS", law: { family: "WEIBULL", scale: 6.14, shape: 0.745, location: 0 } },
 ];
 
 const SOURCE: DaSource = { id: "SRC-T", name: "Test source", kind: "GENERIC_NUCLEAR", origin: "OTHER_NUCLEAR", covers: "Test", boundaryConvention: "Test", failureCounting: "Test", quality: "Test", reference: "Test", entries: ENTRIES };
@@ -90,8 +89,9 @@ function parameterOf(da: DataAnalysis, id: string): DataAnalysisParameter {
 }
 
 describe("examples", () => {
-  it("keeps both examples in step with their Step 06 inputs, with notes only", async () => {
-    for (const da of [DA_ANALYSIS_HTGR, DA_ANALYSIS]) {
+  it("keeps both examples in step with their Step 06 maintenance inputs, with notes only", async () => {
+    for (const seed of [DA_ANALYSIS_HTGR, DA_ANALYSIS]) {
+      const da = { ...seed, parameters: seed.parameters.filter((parameter) => parameter.quantificationModel !== "NON_RECOVERY") };
       expect(await settledWithPraxis(() => withUnavailability(da))).toBe(da);
       expect((await settledWithPraxis(() => unavailabilityFindings(da))).filter((finding) => finding.severity !== "note")).toEqual([]);
       expect(await settledWithPraxis(() => unavailabilityComplete(da))).toBe(true);
@@ -99,12 +99,7 @@ describe("examples", () => {
     expect(parameterOf(DA_ANALYSIS_HTGR, "DA-UA-11").estimate).toEqual(constrained(35 / 8760));
     close(await settledWithPraxis(() => readyNumber(parameterPoint(parameterOf(DA_ANALYSIS_HTGR, "DA-UA-11")))), 35 / 8760, 1e-12);
     close(await settledWithPraxis(() => readyNumber(parameterPoint(parameterOf(DA_ANALYSIS_HTGR, "DA-UA-12")))), 0.09966468583610884);
-    close(parameterOf(DA_ANALYSIS_HTGR, "DA-RC-01").value, 0.09241960076698737, 1e-6);
-    close(parameterOf(DA_ANALYSIS_HTGR, "DA-RP-01").value, 0.03018779498017003, 1e-9);
-    close(await settledWithPraxis(() => readyNumber(parameterPoint(parameterOf(DA_ANALYSIS, "DA-UA-03")))), 26 / 8760, 1e-12);
-    close(parameterOf(DA_ANALYSIS, "DA-RC-01").value, 0.37170596564318836, 1e-6);
-    close(restorationEstimate(DA_ANALYSIS_HTGR, parameterOf(DA_ANALYSIS_HTGR, "DA-RC-01")).comparisonMean, 0.028910486980040565, 1e-5);
-    close(restorationEstimate(DA_ANALYSIS, parameterOf(DA_ANALYSIS, "DA-RC-01")).comparisonMean, 0.18494491078722655, 1e-5);
+    close(await settledWithPraxis(() => readyNumber(parameterPoint(parameterOf(DA_ANALYSIS, "DA-UA-01")))), 35 / 8760, 1e-12);
   });
 });
 
@@ -166,13 +161,31 @@ describe("test and maintenance unavailability", () => {
     expect(await checks(analysis([parameter]))).toContain("note:Cut at one:DA-UA-1");
   });
 
-  it("counts records over the data window", async () => {
+  it("builds q = f d / (1 + f d) from the outage frequency over the required hours and the mean outage duration", async () => {
     const parameter = maintenance("DA-UA-1", { maintenance: { kind: "TRAIN", method: "RECORDS", requiredHoursPerYear: 8760, requiredReason: "All year", records: [{ id: "R-1", activity: "Pump overhaul", hours: 30, disablesFunction: true }, { id: "R-2", activity: "Seal leak", hours: 12, disablesFunction: true }, { id: "R-3", activity: "Breaker work", hours: 9, disablesFunction: true, chargedTo: "SYS-AC" }] } });
     const da = analysis([parameter], { plantStage: "OPERATIONAL", dataPlan: { ...DA_ANALYSIS_HTGR.dataPlan, dataWindowStart: "2020-01-01", dataWindowEnd: "2022-01-01" } });
-    close(await pointOf(await estimated(da, parameter)), 0.002395620561062909, 1e-12);
+    const estimate = await estimated(da, parameter);
+    const one = { node: "VALUE", value: { unit: "FACTOR", law: { family: "POINT", value: 1 } } };
+    const frequency = { node: "VALUE", value: { unit: "PER_HOUR", law: { family: "POSTERIOR", prior: null, evidence: [{ likelihood: "POISSON", failures: 2, exposure: estimate.requiredHours }] } } };
+    const duration = { node: "VALUE", value: { unit: "HOURS", law: { family: "DURATION", model: "EXPONENTIAL", times: [30, 12], censored: [], priors: [], output: { kind: "MEAN" } } } };
+    close(estimate.requiredHours, 17531.991786447637, 1e-12);
+    expect(estimate.estimate).toEqual({ node: "OPERATION", operation: "SUBTRACT", operands: [one, { node: "OPERATION", operation: "DIVIDE", operands: [one, { node: "OPERATION", operation: "ADD", operands: [one, { node: "OPERATION", operation: "MULTIPLY", operands: [frequency, duration] }] }] }] });
     expect(await checks(da)).toContain("warning:Support outage not carried:DA-UA-1");
     const noWindow = analysis([parameter], { plantStage: "OPERATIONAL", dataPlan: { ...DA_ANALYSIS_HTGR.dataPlan, dataWindowStart: undefined, dataWindowEnd: undefined } });
     expect((await estimated(noWindow, parameter)).problem).toBe("Records are counted over the data window. Set it in Step 01.");
+  });
+
+  it("updates the published fraction with the records, one trial per mean outage", async () => {
+    const parameter = maintenance("DA-UA-1", { sourceUses: [use("U-1", "CTG")], priorUseId: "U-1", maintenance: { kind: "TRAIN", method: "BAYES", requiredHoursPerYear: 8760, requiredReason: "All year", basis: "Same class of machine", records: [{ id: "R-1", activity: "Overhaul", hours: 30, disablesFunction: true }, { id: "R-2", activity: "Seal leak", hours: 12, disablesFunction: true }] } });
+    const da = analysis([parameter], { plantStage: "OPERATIONAL", dataPlan: { ...DA_ANALYSIS_HTGR.dataPlan, dataWindowStart: "2020-01-01", dataWindowEnd: "2022-01-01" } });
+    const estimate = await estimated(da, parameter);
+    const law = estimate.estimate?.node === "VALUE" ? estimate.estimate.value.law : undefined;
+    if (law?.family !== "POSTERIOR") throw new Error("A posterior is expected.");
+    const [term] = law.evidence;
+    if (term?.likelihood !== "BINOMIAL") throw new Error("A binomial term is expected.");
+    close(term.failures, 2, 1e-12);
+    close(term.exposure, 834.8567517356017, 1e-12);
+    close(await pointOf(estimate), 0.0029590815186884794, 1e-6);
   });
 
   it("asks for the required hours, the method and a range on risk-significant activities", async () => {
@@ -186,47 +199,34 @@ describe("test and maintenance unavailability", () => {
 });
 
 describe("repair and recovery", () => {
-  it("weights the four LOOP categories by their PRAXIS mean frequency and carries the median uncertainty into a beta", async () => {
-    const parameter = loopParameter(true, true);
-    const da = analysis([parameter]);
+  it("gives the restoration times to PRAXIS as a duration law with the open times censored", async () => {
+    const parameter = restoration("DA-RC-02", { restoration: { kind: "RECOVERY", subject: "Cooling", from: "RECORDS", model: "WEIBULL", times: [{ id: "T-1", hours: 1 }, { id: "T-2", hours: 4 }, { id: "T-3", hours: 6, censored: true }], windowHours: 10, windowReason: "Test", sequence: "Test" } });
+    const estimate = await settledWithPraxis(() => restorationEstimate(analysis([parameter], { plantStage: "OPERATIONAL" }), parameter));
+    expect(estimate.estimate).toEqual({ node: "VALUE", value: { unit: "PROBABILITY", law: { family: "DURATION", model: "WEIBULL", times: [1, 4], censored: [6], priors: [], output: { kind: "EXCEEDANCE", time: 10 } } } });
+  });
+
+  it("turns a published lognormal with its event count into a prior on the log median that plant times update", async () => {
+    const parameter = restoration("DA-RC-01", { sourceUses: [use("U-1", "PC")], restoration: { kind: "RECOVERY", subject: "Offsite power", from: "SOURCES", parts: [{ useId: "U-1", sampleSize: 16 }], times: [{ id: "T-1", hours: 2 }, { id: "T-2", hours: 5, censored: true }], windowHours: 33, windowReason: "Test", sequence: "Test" } });
+    const estimate = await settledWithPraxis(() => restorationEstimate(analysis([parameter], { plantStage: "OPERATIONAL" }), parameter));
+    const law = estimate.estimate?.node === "VALUE" ? estimate.estimate.value.law : undefined;
+    if (law?.family !== "DURATION") throw new Error("A duration law is expected.");
+    expect([law.model, law.times, law.censored, law.output]).toEqual(["LOGNORMAL", [2], [5], { kind: "EXCEEDANCE", time: 33 }]);
+    const [mu, sigma] = law.priors;
+    if (mu?.law.family !== "NORMAL" || sigma?.law.family !== "POINT") throw new Error("A normal prior on MU and a fixed SIGMA are expected.");
+    close(mu.law.mean, Math.log(1.69893), 1e-6);
+    close(sigma.law.value, 2.189999682694849, 1e-6);
+    close(mu.law.standardDeviation, 2.189999682694849 / 4, 1e-6);
+  });
+
+  it("splits a published mixture of recovery time models into weighted duration parts", async () => {
+    const mixture: DaSourceEntry = { id: "MIX", component: "Plant-centered LOSP", failureMode: "Time to recovery", quantity: "HOURS", law: { family: "MIXTURE", components: [{ weight: 0.0004, law: { family: "GAMMA", shape: 1, rate: 1.53506 } }, { weight: 0.041, law: { family: "LOGNORMAL", mean: 1.22728, errorFactor: 23.1632, level: 0.95 } }, { weight: 0.466, law: { family: "GAMMA", shape: 0.5197, rate: 0.7977 } }, { weight: 0.492, law: { family: "WEIBULL", scale: 0.473373, shape: 0.6544, location: 0 } }] } };
+    const parameter = restoration("DA-RC-01", { sourceUses: [use("U-1", "MIX")], restoration: { kind: "RECOVERY", subject: "Offsite power", from: "SOURCES", parts: [{ useId: "U-1" }], windowHours: 2, windowReason: "Test", sequence: "Test" } });
+    const da = analysis([parameter], { sources: [{ ...SOURCE, entries: [...ENTRIES, mixture] }] });
     const estimate = await settledWithPraxis(() => restorationEstimate(da, parameter));
-    close(estimate.output?.mean, 0.09241960076698737, 1e-5);
-    expect(estimate.output?.fit).toBe("MOMENTS");
-    const distribution = estimate.output?.distribution;
-    if (distribution?.type !== DistributionType.BETA) throw new Error("beta expected");
-    close(distribution.alpha, 17.549559945718944, 1e-4);
-    close(distribution.betaParam, 172.34046121944186, 1e-4);
-    close(estimate.comparisonMean, 0.028910486980040565, 1e-5);
-    close(estimate.parts.reduce((total, part) => total + (part.weight ?? 0) * (part.survival ?? 0), 0), 0.08841505822115561, 1e-5);
-  });
-
-  it("falls back to a constrained noninformative beta when no part gives its event count", async () => {
-    const parameter = loopParameter(false, false);
-    const da = analysis([parameter]);
-    const output = (await settledWithPraxis(() => restorationEstimate(da, parameter))).output;
-    close(output?.mean, 0.08841505822115561, 1e-5);
-    expect(output?.fit).toBe("CONSTRAINED");
-    expect(await checks(da)).toContain("note:Assumed spread:DA-RC-01");
-    const curves = await settledWithPraxis(() => survivalCurve(da, parameter, [1, 33, 100]));
-    expect(curves.map((curve) => curve.key)).toEqual(["WEIGHTED", "PART-0", "PART-1", "PART-2", "PART-3"]);
-    close(curves[0]?.values[1], 0.08841505822115561, 1e-5);
-  });
-
-  it("reads a Weibull repair curve at the window", () => {
-    const parameter = restoration("DA-RP-01", { sourceUses: [use("U-1", "EDG-REPAIR")], restoration: { kind: "REPAIR", subject: "Generator", from: "SOURCES", parts: [{ useId: "U-1" }], windowHours: 33, windowReason: "Test", sequence: "Test" } });
-    close(restorationEstimate(analysis([parameter]), parameter).output?.mean, 0.03018779498017003, 1e-9);
-  });
-
-  it("fits a lognormal to restoration times and carries the uncertainty of its median", () => {
-    const parameter = restoration("DA-RC-02", { restoration: { kind: "RECOVERY", subject: "Cooling", from: "RECORDS", times: [1, 2, 4, 8].map((hours, index) => ({ id: `T-${index + 1}`, hours })), windowHours: 10, windowReason: "Test", sequence: "Test" } });
-    const estimate = restorationEstimate(analysis([parameter], { plantStage: "OPERATIONAL" }), parameter);
-    close(estimate.fit?.median, 2.82842712474619, 1e-12);
-    close(estimate.fit?.sigma, 0.8948491622597644, 1e-12);
-    close(estimate.output?.mean, 0.10342603772409636, 1e-5);
-    const distribution = estimate.output?.distribution;
-    if (distribution?.type !== DistributionType.BETA) throw new Error("beta expected");
-    close(distribution.alpha, 1.1712632372977887, 1e-4);
-    close(distribution.betaParam, 10.153382500580129, 1e-4);
+    const expression = estimate.estimate;
+    if (expression?.node !== "OPERATION") throw new Error("A weighted sum of duration parts is expected.");
+    expect(expression.operands).toHaveLength(4);
+    close(await settledWithPraxis(() => readyNumber(pointState(expression, "PROBABILITY"))), 0.078880415813339, 1e-6);
   });
 
   it("asks for a window, refuses mixed weights and flags records before operation", async () => {

@@ -41,6 +41,8 @@ jest.mock("../syWorkbookContext", () => ({
     mutateSy: jest.fn(),
     shortOf: () => "CLG",
     controlledParameters: [],
+    controlledCcfVectors: [],
+    controlledCcfFactors: [],
     links: null,
     runtime: { workbookId: "sy-1", projectId: "project-1", revision: 4, saveStatus: "saved" },
   }),
@@ -104,7 +106,7 @@ async function openSavedRun(): Promise<HTMLElement> {
   await act(async () => { await settledWithPraxis(() => undefined); });
   const history = screen.getByRole("region", { name: "Uncertainty history" });
   fireEvent.click(within(history).getByRole("button", { name: "Review saved runs" }));
-  fireEvent.click(await within(history).findByRole("button", { name: (name) => name.startsWith("FAULT TREE") }));
+  fireEvent.click(await within(history).findByRole("button", { name: (name) => name.startsWith("Fault tree") }));
   return within(history).findByRole("region", { name: "Saved run details" });
 }
 

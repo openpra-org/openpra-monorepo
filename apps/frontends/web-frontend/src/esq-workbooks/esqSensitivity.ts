@@ -14,6 +14,7 @@ import type {
 import type { BaseModelUncertaintyDocumentation, PreOperationalAssumption } from "interfaces-mef-types/core/documentation";
 import type { ImportanceLevel } from "interfaces-mef-types/core/shared-patterns";
 import { importanceGroupsOf, parameterUnit } from "interfaces-mef-types/esq/esq-measure-inputs";
+import { esqItemLabel } from "interfaces-mef-types/esq/esq-run-inputs";
 import type { UncertainExpression, UncertainUnit } from "interfaces-mef-types/core/uncertainty";
 import { isComponentModel } from "interfaces-mef-types/da/data-analysis";
 import { carriesUncertainExpression } from "interfaces-mef-types/sy/systems-analysis";
@@ -254,15 +255,15 @@ function caseTargetLabel(esq: EventSequenceQuantification, entry: EsqSensitivity
   switch (entry.kind) {
     case "PARAMETER": {
       const parameter = model.parameters.find((candidate) => candidate.id === target);
-      return parameter === undefined ? target : `${parameter.name} (${target})`;
+      return esqItemLabel(parameter?.name, target, "Unresolved parameter");
     }
     case "CCF_TOTAL": {
       const group = model.ccfGroups.find((candidate) => candidate.id === target);
-      return group === undefined ? target : `${group.name} (${target})`;
+      return esqItemLabel(group?.name, target, "Unresolved common cause group");
     }
     case "HEP": {
       const human = model.humanEvents.find((candidate) => candidate.id === target);
-      return human === undefined ? target : `${human.name} (${target})`;
+      return esqItemLabel(human?.name, target, "Unresolved human failure event");
     }
     case "EVENT": {
       const event = model.events.find((candidate) => candidate.id === target);

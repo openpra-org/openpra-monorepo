@@ -1,4 +1,3 @@
-import { AnalysisRunHistory } from "../newly-developed-methods/shared/analysisRunHistory";
 import { WorkbookSectionHeading } from "../workbooks/workbookSectionHeading";
 import { JSX, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -11,8 +10,13 @@ import {
   type Stage,
 } from "./esViewData";
 import { ccScore, commentsView, filterConformance, groupBySection, stepsFromMef, type CommentView } from "./esSelectors";
-import { EsScopeScreen, SequencesScreen, DependenciesScreen, TimingScreen, EndStatesScreen, FamiliesScreen, ScreeningScreen, QuantScreen, DraftScreen, PlaceholderScreen } from "./esScreens";
+import { SequencesScreen, DraftScreen, PlaceholderScreen, type SequenceTab } from "./esScreens";
+import { EsTimingScreen } from "./EsTiming";
+import { EsDynamicPraScreen } from "./EsDynamicPra";
+import { EsUncertaintyScreen } from "./EsUncertainty";
+import { EsHandoffScreen } from "./EsHandoff";
 import { InternalReviewScreen, ReviewerCommentDock } from "./esReview";
+import { EsScopeScreen, type EsLinkActions } from "./EsScope";
 import { useEsWorkbook, type EsWorkbookData } from "./esWorkbookContext";
 import { useAuth } from "../auth/AuthContext";
 import { WorkbookDemoSignCard } from "../workbooks/workbookDemoSignCard";
@@ -25,21 +29,19 @@ import "./css/esScreens.css";
 interface StepHeader {
   eyebrow: string;
   title: string;
-  sub?: string;
 }
 
 function headersFor(stepId: string): StepHeader {
   switch (stepId) {
-    case "scope": return { eyebrow: "Step 01", title: "Scope", sub: "See the sources, barriers, and key safety functions every scenario is built around, all coming in from IE and POS (ES-A1, A2, A3)." };
-    case "sequences": return { eyebrow: "Step 02", title: "Event sequences", sub: "Lay out each scenario from its initiating event to one end state, a safe stable state or a release (ES-A5, A7)." };
-    case "deps": return { eyebrow: "Step 03", title: "Dependencies", sub: "A dependency links the success or failure of one function, system or operator action to another (ES-B1, ES-B2, ES-B3)." };
-    case "timing": return { eyebrow: "Step 04", title: "Timing & phenomena", sub: "Order functional events, assign operator-action windows, and identify sequence-induced phenomenological conditions (ES-A6, B3)." };
-    case "endstates": return { eyebrow: "Step 05", title: "End states & release categories", sub: "Assign each sequence a safe stable state or a release category; release categories are handed to Mechanistic Source Term (HLR-ES-C)." };
-    case "families": return { eyebrow: "Step 06", title: "Families & screening", sub: "Group sequences by shared end state, release category and plant response (ES-C8); every sequence is kept by default and may only be dropped under SCR-3 (ES-A7)." };
-    case "quant": return { eyebrow: "Step 07", title: "ESQ Interface", sub: "ES transmits the structured scenario model to ESQ and receives sequence frequencies, uncertainty bounds, and dominant cut sets in return (ES-A1c)." };
-    case "draft": return { eyebrow: "Step 08 · Draft", title: "Produce the draft", sub: "Build the ES report from everything you entered; sending it moves the workbook to internal technical review." };
-    case "review": return { eyebrow: "Step 09 · Review", title: "Internal technical review", sub: "Reviewers and the approver leave comments and the preparer replies, with the workbook moving to Approval once every comment is resolved." };
-    case "approval": return { eyebrow: "Step 10 · Approval", title: "Approval & sign-off", sub: "Everyone on the workbook signs, with the approver signing last and only after all comments are resolved." };
+    case "scope": return { eyebrow: "Step 01 · ES-A", title: "Scope" };
+    case "sequences": return { eyebrow: "Step 02 · ES-A", title: "Event Sequences" };
+    case "timing": return { eyebrow: "Step 03", title: "Timing, phenomena & repair" };
+    case "dynamic": return { eyebrow: "Step 04", title: "Dynamic PRA" };
+    case "uncertainty": return { eyebrow: "Step 05", title: "Uncertainty" };
+    case "handoff": return { eyebrow: "Step 06", title: "Technical Element Handoff" };
+    case "draft": return { eyebrow: "Step 07 · Draft", title: "Produce the draft" };
+    case "review": return { eyebrow: "Step 08 · Review", title: "Internal technical review" };
+    case "approval": return { eyebrow: "Step 09 · Approval", title: "Approval & sign-off" };
     default: return { eyebrow: "", title: "" };
   }
 }
@@ -49,7 +51,6 @@ interface HeaderMeta {
   workbookName: string;
   workbookVersion: string;
   saveStatus?: RevisionedSaveStatus;
-  plantIdentity?: { name: string; type: string; power: string; vendor: string };
 }
 
 function WorkspaceHeader({
@@ -100,17 +101,6 @@ function WorkspaceHeader({
 
       <div className="poshd__spacer" />
 
-      {headerMeta.plantIdentity !== undefined && (
-        <div className="poshd__identity">
-          <div className="poshd__identity-title">{headerMeta.plantIdentity.name}</div>
-          <div className="poshd__identity-meta">
-            {headerMeta.plantIdentity.type} <span className="poshd__identity-sep">·</span> {headerMeta.plantIdentity.power} <span className="poshd__identity-sep">·</span> {headerMeta.plantIdentity.vendor}
-          </div>
-        </div>
-      )}
-
-      <div className="poshd__spacer" />
-
       <div className="poshd__actions">
         {showPersonaPicker && availablePersonas.length > 1 && (
           <label className="poshd__perspective" title="Switch perspective">
@@ -141,12 +131,13 @@ function WorkspaceHeader({
   );
 }
 
-function StepRail({ stepId, setStepId, persona, visibleSteps, mobileOpen }: {
+function StepRail({ stepId, setStepId, persona, visibleSteps, mobileOpen, onClose }: {
   stepId: string;
   setStepId: (id: string) => void;
   persona: EsPersona;
   visibleSteps: EsStep[];
   mobileOpen: boolean;
+  onClose: () => void;
 }): JSX.Element {
   const idx = Math.max(0, visibleSteps.findIndex((s) => s.id === stepId));
   const pct = ((idx + 1) / visibleSteps.length) * 100;
@@ -154,7 +145,10 @@ function StepRail({ stepId, setStepId, persona, visibleSteps, mobileOpen }: {
   return (
     <aside className={`posw__rail${mobileOpen ? " posw__rail--mobile-open" : ""}`} aria-label="ES analysis steps">
       <div className="posrail__head">
-        <span className="posrail__eyebrow">{eyebrow}</span>
+        <div className="posrail__head-top">
+          <span className="posrail__eyebrow">{eyebrow}</span>
+          <button type="button" className="posdock__close" onClick={onClose} aria-label="Hide steps" title="Hide steps"><ESIcon.Close /></button>
+        </div>
         <div className="posrail__progress">
           <span className="posrail__progress-num">{idx + 1}</span>
           <span className="posrail__progress-total">/ {visibleSteps.length} steps</span>
@@ -257,7 +251,7 @@ interface EsWorkbenchActions {
 const DEFAULT_PERSONAS: EsPersona[] = ["preparer", "reviewer", "approver"];
 
 function EsWorkbench({
-  data, persona, setPersona, showPersonaPicker, availablePersonas = DEFAULT_PERSONAS, onOpenRoles, onLoadExample, onUnloadExample, onOpenPosLink, onOpenIeLink, onStageChange, actions, headerMeta, renderApprovalTable, renderSignCard, renderRoster, renderDocuments,
+  data, persona, setPersona, showPersonaPicker, availablePersonas = DEFAULT_PERSONAS, onOpenRoles, onLoadExample, onUnloadExample, links, onStageChange, actions, headerMeta, renderApprovalTable, renderSignCard, renderRoster, renderDocuments,
 }: {
   data: EsWorkbookData;
   persona: EsPersona;
@@ -267,8 +261,7 @@ function EsWorkbench({
   onOpenRoles?: () => void;
   onLoadExample?: () => void;
   onUnloadExample?: () => void;
-  onOpenPosLink?: () => void;
-  onOpenIeLink?: () => void;
+  links?: EsLinkActions;
   onStageChange?: (s: Stage) => void;
   actions?: EsWorkbenchActions;
   headerMeta: HeaderMeta;
@@ -295,7 +288,10 @@ function EsWorkbench({
   }
 
   const [stepId, setStepIdState] = useState<string>(visibleSteps[0]?.id ?? "scope");
+  const [treeId, setTreeId] = useState<string>("");
+  const [sequenceTab, setSequenceTab] = useState<SequenceTab>("coverage");
   const [dockOpen, setDockOpen] = useState(false);
+  const [railOpen, setRailOpen] = useState(true);
   const [railMobileOpen, setRailMobileOpen] = useState(false);
   const [dockMobileOpen, setDockMobileOpen] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
@@ -370,21 +366,18 @@ function EsWorkbench({
             <EsScopeScreen
               ccId={ccId}
               setCcId={setCcId}
-              onAction={flash}
               stage={stage}
               setStage={setStage}
-              onOpenPosLink={() => onOpenPosLink?.()}
-              onOpenIeLink={() => onOpenIeLink?.()}
+              links={links}
             />
             {renderDocuments?.()}
           </>
         );
-      case "sequences": return <SequencesScreen />;
-      case "deps": return <DependenciesScreen />;
-      case "timing": return <TimingScreen />;
-      case "endstates": return <EndStatesScreen />;
-      case "families": return <><FamiliesScreen /><ScreeningScreen /></>;
-      case "quant": return <QuantScreen />;
+      case "sequences": return <SequencesScreen treeId={treeId} setTreeId={setTreeId} tab={sequenceTab} setTab={setSequenceTab} />;
+      case "timing": return <EsTimingScreen treeId={treeId} setTreeId={setTreeId} />;
+      case "dynamic": return <EsDynamicPraScreen treeId={treeId} />;
+      case "uncertainty": return <EsUncertaintyScreen />;
+      case "handoff": return <EsHandoffScreen />;
       case "draft": return <DraftScreen cc={cc} scores={scores} stage={stage} onSubmitDraft={() => { handleSubmitToApproval(); setStepId("review"); }} canSubmit={isPreparer} />;
       case "review":
       case "approval": return (
@@ -420,21 +413,31 @@ function EsWorkbench({
   }
 
   return (
-    <div className={`posw${isReviewer ? " posw--external posw--reviewer" : ""}${isApprover ? " posw--approver" : ""}`} data-screen-label={`ES — ${step.label}`}>
+    <div className={`posw es-workspace${isReviewer ? " posw--external posw--reviewer" : ""}${isApprover ? " posw--approver" : ""}`} data-screen-label={`ES — ${step.label}`}>
       {isReviewer && <div className="poshd__extbar" />}
       {isApprover && <div className="poshd__apprbar" />}
       <WorkspaceHeader persona={persona} setPersona={setPersona} workflowState={data.es.workflowState} showPersonaPicker={showPersonaPicker} availablePersonas={availablePersonas} onOpenRoles={onOpenRoles} onLoadExample={onLoadExample} onUnloadExample={onUnloadExample} headerMeta={headerMeta} onToggleRail={() => setRailMobileOpen((v) => !v)} onToggleDock={() => { setDockOpen(true); setDockMobileOpen((v) => !v); }} />
 
-      <div className={`posw__shell${dockOpen ? "" : " posw__shell--dock-closed"}`}>
-        <StepRail stepId={stepId} setStepId={(id) => { setStepId(id); setRailMobileOpen(false); }} persona={persona} visibleSteps={visibleSteps} mobileOpen={railMobileOpen} />
+      <div className={`posw__shell${railOpen ? "" : " posw__shell--rail-closed"}${dockOpen ? "" : " posw__shell--dock-closed"}`}>
+        {(railOpen || railMobileOpen) && (
+          <StepRail
+            stepId={stepId}
+            setStepId={(id) => { setStepId(id); setRailMobileOpen(false); }}
+            persona={persona}
+            visibleSteps={visibleSteps}
+            mobileOpen={railMobileOpen}
+            onClose={() => { if (railMobileOpen) setRailMobileOpen(false); else setRailOpen(false); }}
+          />
+        )}
 
         <main className="posmain" aria-label="Step content">
           <div className="posmain__head">
             <div className="posmain__title-block">
               <div className="posmain__eyebrow">{h.eyebrow}</div>
-              <WorkbookSectionHeading workbook="ES" title={h.title} description={h.sub} level={1} className="posmain__title" />
+              <WorkbookSectionHeading title={h.title} level={1} className="posmain__title" />
             </div>
             <div className="posmain__actions">
+              {!railOpen && <button type="button" className="posnav__btn posnav__btn--sm es-show-steps" onClick={() => setRailOpen(true)}><ESIcon.Layers /> Show steps</button>}
               {!dockOpen && (
                 <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => { setDockOpen(true); setDockMobileOpen(true); }}><ESIcon.Eye /> Show conformance</button>
               )}
@@ -442,7 +445,6 @@ function EsWorkbench({
           </div>
 
           {renderScreen()}
-          {["sequences", "quant"].includes(stepId) && <EsAnalysisHistory />}
 
           <div className="posnav">
             {prev ? (
@@ -486,8 +488,3 @@ function EsWorkbench({
 }
 
 export { EsWorkbench, type HeaderMeta, type EsWorkbenchActions };
-
-function EsAnalysisHistory() {
-  const {runtime} = useEsWorkbook();
-  return <AnalysisRunHistory host="es" workbookId={runtime.workbookId}/>;
-}

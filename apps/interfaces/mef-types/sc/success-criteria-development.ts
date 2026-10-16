@@ -338,9 +338,16 @@ export interface ScDocumentation {
   implementsSrs: SRReference[];
 }
 
+export interface ScLinkedWorkbooks {
+  POS?: string;
+  IE?: string;
+  ES?: string;
+}
+
 export interface SuccessCriteriaDevelopment
   extends TechnicalElement<TechnicalElementTypes.SUCCESS_CRITERIA_DEVELOPMENT> {
   praScope: string;
+  linkedWorkbooks?: ScLinkedWorkbooks;
 
   safeStableStateDefinition: SafeStableStateDefinition;
   endStateDefinitions: EndStateDefinition[];

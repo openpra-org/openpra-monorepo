@@ -10,10 +10,11 @@ import {
 } from "./rcViewData";
 import { ccScore, commentsView, filterConformance, groupBySection, siteFromMef, stepsFromMef, type CommentView, type RcStepChecks } from "./rcSelectors";
 import { rcSubElementChecks } from "interfaces-shared-types/rc-workbooks/step-checks";
-import { HandoffScreen, ProtectiveScreen, WeatherScreen, type RcDrawerContext } from "./rcScreens";
+import { ScopeScreen, ProtectiveScreen, WeatherScreen, type RcDrawerContext } from "./rcScreens";
 import { DispersionScreen, DosimetryScreen, HealthEffectsScreen, EconomicsScreen } from "./rcScreens2";
 import { QuantifyScreen, DraftScreen, DrawerContent, PlaceholderScreen } from "./rcScreens3";
 import { InternalReviewScreen, ReviewerCommentDock } from "./rcReview";
+import { RcHandoffScreen } from "./rcHandoff";
 import { useRcWorkbook, type RcWorkbookData } from "./rcWorkbookContext";
 import { useAuth } from "../auth/AuthContext";
 import { WorkbookDemoSignCard } from "../workbooks/workbookDemoSignCard";
@@ -25,22 +26,22 @@ import "../welcome/css/newProjectModal.css";
 interface StepHeader {
   eyebrow: string;
   title: string;
-  sub?: string;
 }
 
 function headersFor(stepId: string): StepHeader {
   switch (stepId) {
-    case "handoff": return { eyebrow: "Step 01 · RCRE", title: "Scope", sub: "The site fork, the nine inputs per category and the scoping declaration." };
-    case "protective": return { eyebrow: "Step 02 · RCPA", title: "Site, Population & Response", sub: "Receptor positions, population groups and response timing." };
-    case "weather": return { eyebrow: "Step 03 · RCME", title: "Meteorology", sub: "The representative weather year and its data quality." };
-    case "dispersion": return { eyebrow: "Step 04 · RCAD", title: "Atmospheric Dispersion", sub: "The plume model, the weather sampling, the credit fence and the deposition." };
-    case "dose": return { eyebrow: "Step 05 · RCDO", title: "Dosimetry", sub: "The exposure pathways and the dose treatment." };
-    case "health": return { eyebrow: "Step 06 · RCHE", title: "Health Effects", sub: "The early and latent effects and the recognized risk factors." };
-    case "economics": return { eyebrow: "Step 07 · RCEC", title: "Economic Factors", sub: "The cost categories and the regional economic data." };
-    case "quantify": return { eyebrow: "Step 08 · RCQ", title: "Quantification", sub: "The codes, the consequence table and the uncertainty funnel." };
-    case "draft": return { eyebrow: "Step 09 · Draft", title: "Produce the draft", sub: "Build the RC report, then send it to review." };
-    case "review": return { eyebrow: "Step 10 · Review", title: "Internal technical review", sub: "Reviewers comment, the preparer replies, all resolve before approval." };
-    case "approval": return { eyebrow: "Step 11 · Approval", title: "Approval & sign-off", sub: "Everyone signs, the approver last." };
+    case "scope": return { eyebrow: "Step 01 · RCRE", title: "Scope" };
+    case "protective": return { eyebrow: "Step 02 · RCPA", title: "Site, Population & Response" };
+    case "weather": return { eyebrow: "Step 03 · RCME", title: "Meteorology" };
+    case "dispersion": return { eyebrow: "Step 04 · RCAD", title: "Atmospheric Dispersion" };
+    case "dose": return { eyebrow: "Step 05 · RCDO", title: "Dosimetry" };
+    case "health": return { eyebrow: "Step 06 · RCHE", title: "Health Effects" };
+    case "economics": return { eyebrow: "Step 07 · RCEC", title: "Economic Factors" };
+    case "quantify": return { eyebrow: "Step 08 · RCQ", title: "Quantification" };
+    case "handoff": return { eyebrow: "Step 09", title: "Technical Element Handoff" };
+    case "draft": return { eyebrow: "Step 10 · Draft", title: "Produce the draft" };
+    case "review": return { eyebrow: "Step 11 · Review", title: "Internal technical review" };
+    case "approval": return { eyebrow: "Step 12 · Approval", title: "Approval & sign-off" };
     default: return { eyebrow: "", title: "" };
   }
 }
@@ -184,11 +185,11 @@ function StepRail({ stepId, setStepId, persona, visibleSteps, mobileOpen, onClos
   );
 }
 
-function ConformanceDock({ ccId, site, checks, onGoToHandoff, onClose, mobileOpen }: {
+function ConformanceDock({ ccId, site, checks, onGoToScope, onClose, mobileOpen }: {
   ccId: string;
   site: SiteBasis;
   checks: RcStepChecks;
-  onGoToHandoff: () => void;
+  onGoToScope: () => void;
   onClose: () => void;
   mobileOpen: boolean;
 }): JSX.Element {
@@ -210,7 +211,7 @@ function ConformanceDock({ ccId, site, checks, onGoToHandoff, onClose, mobileOpe
           <div className="posdock__profile-display">
             <span className="posdock__profile-name">{cc.name}</span>
             <span className="posdock__profile-tag">{cc.tag}</span>
-            <button type="button" className="posdock__profile-change" onClick={onGoToHandoff}>Change</button>
+            <button type="button" className="posdock__profile-change" onClick={onGoToScope}>Change</button>
           </div>
         </div>
         <div className="posdock__gauge">
@@ -330,8 +331,8 @@ function RcWorkbench({
   useEffect(() => { setCcId(mefCcId); }, [mefCcId]);
   useEffect(() => { setSite(mefSite); }, [mefSite]);
 
-  const [selectedStepId, setStepIdState] = useState<string>(enabledSteps[0]?.id ?? "handoff");
-  const stepId = enabledSteps.some((step) => step.id === selectedStepId) ? selectedStepId : enabledSteps[0]?.id ?? "handoff";
+  const [selectedStepId, setStepIdState] = useState<string>(enabledSteps[0]?.id ?? "scope");
+  const stepId = enabledSteps.some((step) => step.id === selectedStepId) ? selectedStepId : enabledSteps[0]?.id ?? "scope";
   const [initialSiteTab, setInitialSiteTab] = useState<"location" | "receptors">("receptors");
   const [dockOpen, setDockOpen] = useState(false);
   const [railOpen, setRailOpen] = useState(true);
@@ -405,10 +406,10 @@ function RcWorkbench({
 
   function renderScreen(): JSX.Element {
     switch (stepId) {
-      case "handoff":
+      case "scope":
         return (
           <>
-            <HandoffScreen ccId={ccId} setCcId={setCcId} site={site} setSite={setSite} openDrawer={setDrawer} />
+            <ScopeScreen ccId={ccId} setCcId={setCcId} site={site} setSite={setSite} openDrawer={setDrawer} />
             {renderDocuments?.()}
           </>
         );
@@ -419,6 +420,7 @@ function RcWorkbench({
       case "health": return <HealthEffectsScreen openDrawer={setDrawer} />;
       case "economics": return <EconomicsScreen openDrawer={setDrawer} />;
       case "quantify": return <QuantifyScreen key={caseView} openDrawer={setDrawer} onOpenStep={setStepId} initialCaseTab={caseView === "default" ? undefined : "prepared"} />;
+      case "handoff": return <RcHandoffScreen />;
       case "draft": return <DraftScreen cc={cc} scores={scores} site={site} conformance={filterConformance(data.rc, ccId, site, checks)} onSubmitDraft={() => { handleSubmitToApproval(); setStepId("review"); }} canSubmit={isPreparer} />;
       case "review":
       case "approval": return (
@@ -467,7 +469,7 @@ function RcWorkbench({
           <div className="posmain__head">
             <div className="posmain__title-block">
               <div className="posmain__eyebrow">{h.eyebrow}</div>
-              <WorkbookSectionHeading workbook="RC" title={h.title} description={h.sub} level={1} className="posmain__title" />
+              <WorkbookSectionHeading title={h.title} level={1} className="posmain__title" />
             </div>
             <div className="posmain__actions">
               {!railOpen && <button type="button" className="posnav__btn posnav__btn--sm rc-show-steps" onClick={() => setRailOpen(true)}><RCIcon.Layers /> Show steps</button>}
@@ -492,7 +494,7 @@ function RcWorkbench({
         </main>
 
         {dockOpen && (
-          <ConformanceDock ccId={ccId} site={site} checks={checks} onGoToHandoff={() => setStepId("handoff")} onClose={() => { setDockOpen(false); setDockMobileOpen(false); }} mobileOpen={dockMobileOpen} />
+          <ConformanceDock ccId={ccId} site={site} checks={checks} onGoToScope={() => setStepId("scope")} onClose={() => { setDockOpen(false); setDockMobileOpen(false); }} mobileOpen={dockMobileOpen} />
         )}
         {(railMobileOpen || dockMobileOpen) && (
           <div className="posw__mobile-scrim" onClick={() => { setRailMobileOpen(false); setDockMobileOpen(false); }} aria-hidden="true" />

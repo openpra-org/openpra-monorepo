@@ -1,0 +1,15 @@
+.es-timing-actions { flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+.es-timing-table { min-width: 0; overflow-x: auto; }
+.es-timing-table th, .es-timing-table td { text-align: left; vertical-align: top; }
+.es-timing-table .postable__name-sub { display: block; }
+.es-timing-num { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.es-timing-feasibility { margin-top: 4px; }
+.es-timing-error { margin: 0 0 12px; font-size: 12.5px; color: var(--color-error); }
+.es-timing-time { width: 96px; }
+.es-records__filter .posfield__select.es-timing-tree-select { width: auto; max-width: none; }
+.es-records td > .posfield__input.es-timing-fit { width: auto; max-width: none; field-sizing: content; }
+.es-records td > .posfield__select.es-timing-fit { width: auto; max-width: none; }
+.es-timeline-fields .postable th, .es-timeline-fields .postable td { padding: 8px; }
+.es-timeline-fields .es-timing-fit--milestone { max-width: 240px; }
+.es-timeline-fields .es-timing-fit--basis { max-width: 260px; }
+.es-timeline-fields .es-timing-fit--references { min-width: 160px; max-width: 260px; }

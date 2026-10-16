@@ -4,7 +4,7 @@ import { DependencyType, FailureModeType, carriesUncertainExpression } from "../
 import { TechnicalElementTypes } from "../../technical-element";
 import { technicalElementSchema } from "../technical-element";
 import { BasicEventSchema } from "../core/events";
-import { CcfFactorModelSchema, UncertainExpressionSchema } from "../core/uncertainty";
+import { CCF_TOTAL_MESSAGE, CcfFactorModelSchema, UncertainExpressionSchema, ccfTotalMatchesModel } from "../core/uncertainty";
 import { ComponentSchema } from "../core/component";
 import { BaseUncertaintyAnalysisSchema, SensitivityStudySchema, SuccessCriteriaIdSchema } from "../core/shared-patterns";
 import {
@@ -475,7 +475,7 @@ export const CommonCauseFailureGroupSchema = z.object({
   affectedComponents: z.array(z.string()),
   affectedSystems: z.array(z.string()),
   factors: CcfFactorModelSchema,
-  total: UncertainExpressionSchema,
+  total: UncertainExpressionSchema.optional(),
   dataAnalysisCCFParameterRef: z.string().optional(),
   members: z
     .object({
@@ -518,7 +518,7 @@ export const CommonCauseFailureGroupSchema = z.object({
     )
     .optional(),
   implementsSrs: z.array(SRReferenceSchema),
-});
+}).refine(ccfTotalMatchesModel, { message: CCF_TOTAL_MESSAGE, path: ["total"] });
 
 export const HumanFailureEventIntegrationSchema = z.object({
   uuid: z.string(),

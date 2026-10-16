@@ -1,34 +1,6 @@
 import { createWorkbookPatch } from "interfaces-shared-types/workbooks";
 import { fetchJson, patchJson, postJson, postMultipart, deleteJson } from "../api/client";
 import { type HumanReliabilityAnalysis } from "interfaces-mef-types/hr/human-reliability-analysis";
-import { type HrLinkedInputs } from "./hrWorkbookContext";
-
-interface LinkedPosMef { plantOperatingStates?: { uuid: string; name: string; operatingMode?: string; meanDurationHours: number }[] }
-interface LinkedEsMef { operatorActionWindows?: { humanActionId: string; action: string; cue?: string; windowStartMinutes: number; windowEndMinutes: number }[] }
-interface LinkedScMef { humanActionSuccessCriteria?: { humanActionId: string; description: string; timeAvailable: string; successCriteria: string }[] }
-interface LinkedSyMef { humanFailureEventIntegrations?: { hfeReference: string; taskDescription: string; system: string }[]; systemDefinitions?: { uuid: string; name: string }[] }
-interface LinkedDaMef { parameters?: { uuid: string; name: string }[] }
-interface LinkedIeMef { initiators?: { uuid: string; name: string }[] }
-
-async function fetchHrLinkedInputs(variant: string): Promise<HrLinkedInputs> {
-  const [posB, esB, scB, syB, daB, ieB] = await Promise.all([
-    fetchJson<{ pos: { mef: LinkedPosMef } }>(`/api/example-workbooks/pos-bundle?example=${variant}`),
-    fetchJson<{ es: { mef: LinkedEsMef } }>(`/api/example-workbooks/es-bundle?example=${variant}`),
-    fetchJson<{ sc: { mef: LinkedScMef } }>(`/api/example-workbooks/sc-bundle?example=${variant}`),
-    fetchJson<{ sy: { mef: LinkedSyMef } }>(`/api/example-workbooks/sy-bundle?example=${variant}`),
-    fetchJson<{ da: { mef: LinkedDaMef } }>(`/api/example-workbooks/da-bundle?example=${variant}`),
-    fetchJson<{ ie: { mef: LinkedIeMef } }>(`/api/example-workbooks/ie-bundle?example=${variant}`),
-  ]);
-  return {
-    posStates: (posB.pos.mef.plantOperatingStates ?? []).map((s) => ({ id: s.uuid, name: s.name, mode: s.operatingMode ?? "—", durationHours: s.meanDurationHours })),
-    esActions: (esB.es.mef.operatorActionWindows ?? []).map((a) => ({ id: a.humanActionId, action: a.action, cue: a.cue ?? "—", window: `${String(a.windowStartMinutes)} to ${String(a.windowEndMinutes)}` })),
-    scWindows: (scB.sc.mef.humanActionSuccessCriteria ?? []).map((c) => ({ id: c.humanActionId, description: c.description, timeAvailable: c.timeAvailable, criteria: c.successCriteria })),
-    syPlaced: (syB.sy.mef.humanFailureEventIntegrations ?? []).map((h) => ({ id: h.hfeReference, task: h.taskDescription, system: h.system })),
-    syDefs: (syB.sy.mef.systemDefinitions ?? []).map((s) => ({ id: s.uuid, name: s.name })),
-    daParams: (daB.da.mef.parameters ?? []).map((p) => ({ id: p.uuid, name: p.name })),
-    ieInitiators: (ieB.ie.mef.initiators ?? []).map((i) => ({ id: i.uuid, name: i.name })),
-  };
-}
 
 type HrWorkbookRoleName = "preparer" | "co_preparer" | "reviewer" | "approver";
 
@@ -104,7 +76,6 @@ async function getHrDocumentDownload(workbookId: string, documentId: string): Pr
 }
 
 export {
-  fetchHrLinkedInputs,
   getHrWorkbook,
   patchHrWorkbook,
   getHrExampleOptions,

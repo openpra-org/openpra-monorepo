@@ -83,6 +83,8 @@ services:
 
   rabbitmq:
     image: ${IMAGE_RABBITMQ}
+    environment:
+      RABBITMQ_SERVER_ADDITIONAL_ERL_ARGS: "-rabbit consumer_timeout 172800000"
     networks:
       - app_net
     deploy:
@@ -105,6 +107,8 @@ services:
       MINIO_ACCESS_KEY: "minioadmin"
       MINIO_SECRET_KEY: "minioadmin"
       NODE_OPTIONS: "--max-old-space-size=8192"
+      PRAETOR_JOB_TIMEOUT_MS: "${PRAETOR_JOB_TIMEOUT_MS:-14400000}"
+      PRAETOR_JOB_STALE_MS: "${PRAETOR_JOB_STALE_MS:-300000}"
     networks:
       - app_net
     deploy:
@@ -127,11 +131,14 @@ services:
       MINIO_ACCESS_KEY: "minioadmin"
       MINIO_SECRET_KEY: "minioadmin"
       NODE_OPTIONS: "--max-old-space-size=8192"
+      PRAETOR_WORKER_SLOTS: "${PRAETOR_WORKER_SLOTS:-1}"
+      PRAETOR_JOB_MAX_ATTEMPTS: "${PRAETOR_JOB_MAX_ATTEMPTS:-2}"
+      PRAETOR_JOB_TIMEOUT_MS: "${PRAETOR_JOB_TIMEOUT_MS:-14400000}"
     networks:
       - app_net
     deploy:
       <<: *shared-replicated
-      replicas: 1
+      replicas: ${PRAETOR_WORKERS:-4}
       placement:
         constraints:
           - "node.hostname == gaia"

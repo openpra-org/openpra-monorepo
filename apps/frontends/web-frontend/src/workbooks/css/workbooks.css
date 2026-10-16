@@ -377,13 +377,17 @@
   border-radius: 999px;
   white-space: nowrap;
 }
-.wbrow__status--complete {
+.wbrow__status--approved {
   background: rgb(18 197 185 / 0.1);
   color: var(--c-complete);
 }
-.wbrow__status--in-progress {
+.wbrow__status--in-review {
   background: var(--color-primary-tint);
   color: var(--color-primary);
+}
+.wbrow__status--revision-required {
+  background: var(--color-warning-bg, rgba(196, 122, 24, 0.1));
+  color: var(--color-warning);
 }
 .wbrow__status--draft {
   background: var(--color-surface-low);

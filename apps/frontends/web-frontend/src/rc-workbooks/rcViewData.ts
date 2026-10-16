@@ -16,7 +16,7 @@ interface RcStep {
 }
 
 const RC_STEPS: RcStep[] = [
-  { id: "handoff", num: "01", se: "RCRE", seTone: "primary", label: "Scope", sub: "Receive the source term", status: "idle" },
+  { id: "scope", num: "01", se: "RCRE", seTone: "primary", label: "Scope", sub: "Receive the source term", status: "idle" },
   { id: "protective", num: "02", se: "RCPA", seTone: "site", label: "Protective Actions & Site", sub: "Model the people (A, B)", status: "idle" },
   { id: "weather", num: "03", se: "RCME", seTone: "atmos", label: "Meteorology", sub: "Compile the weather (A, B)", status: "idle" },
   { id: "dispersion", num: "04", se: "RCAD", seTone: "atmos", label: "Atmospheric Dispersion", sub: "Transport the plume (A to F)", status: "idle" },
@@ -24,9 +24,10 @@ const RC_STEPS: RcStep[] = [
   { id: "health", num: "06", se: "RCHE", seTone: "health", label: "Health Effects", sub: "Dose to risk (A to C)", status: "idle" },
   { id: "economics", num: "07", se: "RCEC", seTone: "site", label: "Economic Factors", sub: "Regional inputs and cost parameters", status: "idle" },
   { id: "quantify", num: "08", se: "RCQ", seTone: "credit", label: "Quantification", sub: "Integrate and own it (A to D)", status: "idle" },
-  { id: "draft", num: "09", label: "Draft", sub: "Produce RC report", status: "idle", terminal: true },
-  { id: "review", num: "10", label: "Review", sub: "Reviewer comments", status: "idle", terminal: true },
-  { id: "approval", num: "11", label: "Approval", sub: "Everyone signs", status: "idle", terminal: true },
+  { id: "handoff", num: "09", label: "Technical Element Handoff", sub: "Exported sections", status: "idle" },
+  { id: "draft", num: "10", label: "Draft", sub: "Produce RC report", status: "idle", terminal: true },
+  { id: "review", num: "11", label: "Review", sub: "Reviewer comments", status: "idle", terminal: true },
+  { id: "approval", num: "12", label: "Approval", sub: "Everyone signs", status: "idle", terminal: true },
 ];
 
 type RcPersona = "preparer" | "reviewer" | "approver";
@@ -307,31 +308,6 @@ const RC_METHODS: Record<string, MethodSpec> = {
   economic: { id: "economic", abbr: "Economic", name: "Off-site economic-cost calculation", ref: "Regional cost data and indices" },
 };
 
-interface LinkSpec {
-  id: string;
-  code: string;
-  element: string;
-  icon: string;
-  workbook?: string;
-  version?: number;
-  status?: string;
-  synced?: string;
-  delivers?: string;
-  uses?: string;
-  note: string;
-  role: string;
-}
-
-const RC_UPSTREAM_LINKS: LinkSpec[] = [
-  { id: "es", code: "ES", element: "Event Sequence Analysis", icon: "Tree", workbook: "ES Workbook Example", version: 3, status: "approved", synced: "May 20, 2026", delivers: "The release-category definitions RC reviews for the consequence input set", note: "ES defines the categories under ES-C1, which RCRE-A3 reviews against the input list.", role: "Categories in" },
-  { id: "ms", code: "MS", element: "Mechanistic Source Term", icon: "Boxes", workbook: "MS Workbook Example", version: 1, status: "in_review", synced: "May 28, 2026", delivers: "The source-term table by species, release fraction, timing, form and elevation", note: "MS hands over the source term for each release category, which RCRE-A2 extracts as the nine consequence inputs.", role: "Source term in" },
-  { id: "ri", code: "RI", element: "Risk Integration", icon: "Gauge", workbook: "RI Workbook Example", version: 1, status: "in_review", synced: "May 26, 2026", delivers: "The consequence metric to compute, taken from the intended application", note: "RI-A1 sets the consequence metric, and RI later pairs RC's consequence table with the ESQ frequencies.", role: "Metric in" },
-];
-
-const RC_DOWNSTREAM_LINKS: LinkSpec[] = [
-  { id: "ri", code: "RI", element: "Risk Integration", icon: "Gauge", uses: "Pairs the family-by-family consequence with the ESQ frequency", note: "RI clamps the RCQ consequence table against the ESQ frequencies to close the risk equation.", role: "Consequence out" },
-];
-
 interface SiteOptionSpec {
   id: SiteBasis;
   name: string;
@@ -343,25 +319,6 @@ interface SiteOptionSpec {
 const SITE_OPTIONS: SiteOptionSpec[] = [
   { id: "actual_site", name: "Identify the actual site", tag: "Site selected", icon: "Pin", desc: "Use the identified site and its real population, land use and geography." },
   { id: "bounding_site", name: "Describe a bounding site", tag: "Prior to site selection", icon: "Globe", desc: "Use a bounding site and justify that it bounds every site in the PRA scope." },
-];
-
-interface HandoffInputSpec {
-  id: string;
-  label: string;
-  note: string;
-  icon: string;
-}
-
-const HANDOFF_INPUTS: HandoffInputSpec[] = [
-  { id: "plumes", label: "Number of plumes", note: "The count of distinct plumes released per category.", icon: "Wind" },
-  { id: "fractions", label: "Release fractions per group", note: "The released fraction for each radionuclide group.", icon: "Sigma" },
-  { id: "isotopes", label: "Dose-important radionuclides", note: "The species that drive the dose, with the basis for the set.", icon: "Atom" },
-  { id: "timing", label: "Timing and duration", note: "The start time and the duration of each release phase.", icon: "Clock" },
-  { id: "warning", label: "Warning time", note: "The time available to act before the release begins.", icon: "Bell" },
-  { id: "energy", label: "Release energy", note: "The thermal energy that drives the plume buoyancy.", icon: "Thermo" },
-  { id: "height", label: "Release height", note: "The elevation at which the release enters the atmosphere.", icon: "Ruler" },
-  { id: "particle", label: "Particle size", note: "The aerosol size distribution that sets the deposition.", icon: "Dust" },
-  { id: "uncert", label: "Release uncertainties", note: "The uncertainty carried with each source-term input.", icon: "Curve" },
 ];
 
 const CONSEQUENCE_METRIC_NOTES: Record<string, string> = {
@@ -627,9 +584,7 @@ export type {
   ConformanceStatus,
   SiteBasis,
   MethodSpec,
-  LinkSpec,
   SiteOptionSpec,
-  HandoffInputSpec,
   LadderSpec,
   CreditFenceSpec,
   DepositionRowSpec,
@@ -648,10 +603,7 @@ export {
   RC_BOUNDING_SRS,
   RC_SR_LINKED_NM,
   RC_METHODS,
-  RC_UPSTREAM_LINKS,
-  RC_DOWNSTREAM_LINKS,
   SITE_OPTIONS,
-  HANDOFF_INPUTS,
   CONSEQUENCE_METRIC_NOTES,
   PROTECTIVE_ACTION_LABELS,
   INCIDENT_PHASE_LABELS,

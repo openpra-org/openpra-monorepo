@@ -21,9 +21,10 @@ const HR_STEPS: HrStep[] = [
   { id: "respquant", num: "07", label: "Response: Quantify", sub: "HEPs · PSFs (HLR-G)", status: "idle" },
   { id: "recovery", num: "08", label: "Recovery", sub: "Feasibility · credit (HLR-H)", status: "idle" },
   { id: "uncert", num: "09", label: "Dependence & Uncertainty", sub: "Joint floor · sources", status: "idle" },
-  { id: "draft", num: "10", label: "Draft", sub: "Produce HR report (HLR-I)", status: "idle", terminal: true },
-  { id: "review", num: "11", label: "Review", sub: "Reviewer comments", status: "idle", terminal: true },
-  { id: "approval", num: "12", label: "Approval", sub: "Everyone signs", status: "idle", terminal: true },
+  { id: "handoff", num: "10", label: "Technical Element Handoff", sub: "Exported sections", status: "idle" },
+  { id: "draft", num: "11", label: "Draft", sub: "Produce HR report (HLR-I)", status: "idle", terminal: true },
+  { id: "review", num: "12", label: "Review", sub: "Reviewer comments", status: "idle", terminal: true },
+  { id: "approval", num: "13", label: "Approval", sub: "Everyone signs", status: "idle", terminal: true },
 ];
 
 type HrPersona = "preparer" | "reviewer" | "approver";
@@ -266,35 +267,6 @@ const FEASIBILITY_KEYS: { key: "procedureOrGuidanceAvailable" | "trainingInclude
   { key: "equipmentAvailable", label: "Equipment" },
 ];
 
-interface LinkSpec {
-  id: string;
-  element: string;
-  icon: string;
-  workbook?: string;
-  version?: number;
-  delivers?: string;
-  uses?: string;
-  note: string;
-  role: string;
-  dir?: "in" | "out";
-}
-
-const HR_UPSTREAM_LINKS: LinkSpec[] = [
-  { id: "pos", element: "Plant Operating States", icon: "Layers", workbook: "POS Workbook Example", version: 3, delivers: "Configurations and cue timing per operating state", note: "A human failure event is defined per operating state.", role: "Per-state context" },
-  { id: "es", element: "Event Sequence Analysis", icon: "Network", workbook: "ES Workbook Example", version: 2, delivers: "Procedure-grounded operator actions at the branch points", note: "ES names the action, HR quantifies it.", role: "What must be done" },
-  { id: "sc", element: "Success Criteria Development", icon: "Target", workbook: "SC Workbook Example", version: 3, delivers: "Human action success criteria and time available", note: "Each criterion sets the time window for the action.", role: "How long there is" },
-  { id: "sy", element: "Systems Analysis", icon: "Settings", workbook: "SY Workbook Example", version: 2, delivers: "Human failure event placeholders in the fault trees", note: "SY places the event, HR returns the probability.", role: "Where events sit" },
-];
-
-const HR_SIDEWAYS_LINKS: LinkSpec[] = [
-  { id: "ie", element: "Initiating Events", icon: "Bolt", uses: "Supplies the operator-error contributions to support-system initiators", note: "IE-A5 item g is quantified here.", role: "Operator-caused in", dir: "in" },
-  { id: "da", element: "Data Analysis", icon: "Gauge", uses: "Supplies the underlying parameters for any data-informed estimate", note: "Used where a method draws on plant or generic data.", role: "Parameters in", dir: "in" },
-];
-
-const HR_DOWNSTREAM_LINKS: LinkSpec[] = [
-  { id: "esq", element: "Event Sequence Quantification", icon: "Network", uses: "Multiplies the human error probabilities through the sequences", note: "The quantified events drive the sequence results.", role: "HEPs out", dir: "out" },
-];
-
 const HR_TOC: [string, string][] = [
   ["Executive summary", "5"],
   ["Introduction", "6"],
@@ -336,7 +308,6 @@ export type {
   ConformanceStatus,
   Stage,
   MomentSpec,
-  LinkSpec,
 };
 
 export {
@@ -359,8 +330,5 @@ export {
   INDICATION_TREATMENT,
   TIME_BASIS,
   FEASIBILITY_KEYS,
-  HR_UPSTREAM_LINKS,
-  HR_SIDEWAYS_LINKS,
-  HR_DOWNSTREAM_LINKS,
   HR_TOC,
 };

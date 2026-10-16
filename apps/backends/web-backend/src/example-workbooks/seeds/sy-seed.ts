@@ -1,5 +1,5 @@
 import { type CommonCauseFailureGroup, type SystemDiagram, type SystemsAnalysis, type SystemBasicEvent, type LegacySystemFaultTreeNode } from "interfaces-mef-types/sy/systems-analysis";
-import { canonicalJson, type CcfFactorModel, type UncertainExpression } from "interfaces-mef-types/core/uncertainty";
+import { canonicalJson, ccfModelTakesTotal, type CcfFactorModel, type UncertainExpression } from "interfaces-mef-types/core/uncertainty";
 import { SystemsAnalysisSchema } from "interfaces-mef-types/zod/sy/systems-analysis";
 import { TechnicalElementTypes } from "interfaces-mef-types/technical-element";
 import { type SRReference, type SRConformance, type HlrId, type PlantStage, type SRStatus } from "interfaces-mef-types/core/pra-common";
@@ -104,6 +104,12 @@ function be(uuid: string, name: string, failureMode: string, parameterId: string
   };
 }
 
+function standby(event: SystemBasicEvent, testIntervalHours: number): SystemBasicEvent {
+  const rate = event.expression;
+  if (rate === undefined) return event;
+  return { ...event, expression: { node: "MODEL", model: { form: "STANDBY", rate, testInterval: { node: "VALUE", value: { unit: "HOURS", law: { family: "POINT", value: testIntervalHours } } } } } };
+}
+
 function ccf(uuid: string, name: string, probability: number): SystemBasicEvent {
   return {
     uuid,
@@ -173,6 +179,7 @@ const rpsEvents: SystemBasicEvent[] = [
   be("RPS-BKB-FO", "Scram breaker B fails to open", "FAILURE_TO_START", "DA-BE-009"),
   be("RPS-RODA-FRL", "Division A rods fail to release", "FAILURE_TO_START", "DA-BE-011"),
   be("RPS-RODB-FRL", "Division B rods fail to release", "FAILURE_TO_START", "DA-BE-011"),
+  ...Array.from({ length: 8 }, (_, index) => be(`RPS-CR${index + 1}-FI`, `Control rod ${index + 1} fails to insert`, "FAILURE_TO_START", "DA-BE-013")),
   ccf("RPS-CCF-FS", "Common cause failure of both divisions", 0.00009),
   ccf("RPS-ROD-CCF", "Common cause failure of the rod release", 0.00004),
   hfe("RPS-HFE-CAL", "Trip setpoints miscalibrated after surveillance", 0.0011, "HR-PRE-031"),
@@ -219,7 +226,7 @@ const cisEvents: SystemBasicEvent[] = [
   be("CIS-FAN-FR", "Running clean-up fan fails to run", "FAILURE_TO_RUN", "DA-BE-062"),
   be("CIS-IV-FO", "Inlet valve fails to open", "FAILURE_TO_START", "DA-BE-063"),
   be("CIS-IDMP-SO", "Clean-up train inlet damper closes spuriously", "FAILURE_TO_RUN", "DA-BE-065"),
-  be("CIS-FAN-B-FS", "Standby clean-up fan fails to start", "FAILURE_TO_START", "DA-BE-064"),
+  standby(be("CIS-FAN-B-FS", "Standby clean-up fan fails to start", "FAILURE_TO_START", "DA-BE-064"), 2190),
   hfe("CIS-HFE-STBY", "Operator fails to start the standby clean-up train", 0.008, "HR-POST-022"),
   tm("CIS-FAN-DMP-TM", "Clean-up train and isolation damper A out for a filter change", "DA-UA-04", "Coincident maintenance parameter DA-UA-04 in Data Analysis, one filter change a year at power.", true),
 ];
@@ -703,6 +710,9 @@ const FAULT_TREES: Record<string, LegacySystemFaultTreeNode> = {
       ] },
       { id: "be-RPS-CCF-FS", type: "BE", name: "Common cause failure of both divisions", be: "RPS-CCF-FS", mode: "COMMON_CAUSE_FAILURE", source: "CCF-RPS-DIV", prob: "9.0E-5", ccf: true },
       { id: "be-RPS-ROD-CCF", type: "BE", name: "Common cause failure of the rod release", be: "RPS-ROD-CCF", mode: "COMMON_CAUSE_FAILURE", source: "CCF-RPS-ROD", prob: "4.0E-5", ccf: true },
+      { id: "RPS-CR-BANK", type: "KN", k: 3, name: "Three or more of the eight control rods fail to insert", children: Array.from({ length: 8 }, (_, index) => (
+        { id: `be-RPS-CR${index + 1}-FI`, type: "BE" as const, name: `Control rod ${index + 1} fails to insert`, be: `RPS-CR${index + 1}-FI`, mode: "FAILURE_TO_START", source: "", prob: "" }
+      )) },
       { id: "be-RPS-HFE-CAL", type: "BE", name: "Trip setpoints miscalibrated after surveillance", be: "RPS-HFE-CAL", mode: "HUMAN_ERROR", source: "HR-PRE-031", prob: "1.1E-3" },
       { id: "tr-RPS-ACT", type: "TR", name: "Actuation logic fails to generate the trip", transfer: "SYS-ACT" },
       { id: "tr-RPS-DC", type: "TR", name: "Loss of Class-1E DC to the trip logic", transfer: "SYS-1E-DC" },
@@ -1014,6 +1024,7 @@ const CCF_GROUP_SEEDS: CcfGroupSeed[] = [
   { id: "CCF-DRACS-DMP", name: "DRACS air dampers", scope: "INTRASYSTEM", system: "SYS-DRACS", components: ["DRC-DMP1", "DRC-DMP2", "DRC-DMP3"], events: ["DRC-DMP1-FO", "DRC-DMP2-FO", "DRC-DMP3-FO", "DRC-DMP-CCF"], shared: { hardwareDesign: true, maintenance: true }, defenses: ["Staggered damper surveillance", "Position verification after each test"], basis: "Identical dampers serviced by one crew on one procedure.", risk: "The damper terms dominate the DRACS air path, carried at the air-operated valve factors.", daRef: "DA-CCF-15", affects: [], srs: ["SY-B1", "SY-B3", "SY-B4"] },
   { id: "CCF-RPS-DIV", name: "RPS trip divisions", scope: "INTRASYSTEM", system: "SYS-RPS", components: ["RPS-DV-A", "RPS-DV-B"], events: ["RPS-DVA-FS", "RPS-DVB-FS", "RPS-CCF-FS"], shared: { hardwareDesign: true, manufacturer: true }, defenses: ["Divisional separation", "Trip channels tested on separate schedules"], basis: "Two divisions of identical design and manufacture.", risk: "Risk significant, the divisional term sits directly under the failure-to-scram top gate.", daRef: "DA-CCF-04", affects: [], srs: ["SY-B1", "SY-B3", "SY-B4"] },
   { id: "CCF-DC-BATT", name: "Class-1E station batteries", scope: "INTERSYSTEM", system: "SYS-1E-DC", components: ["DC-BAT-A", "DC-BAT-B"], events: ["DC-BAT-A-FR", "DC-BAT-B-FR", "DC-BAT-CCF"], shared: { manufacturer: true, environment: true, maintenance: true }, defenses: ["Staggered equalize charging", "Train-dedicated chargers"], basis: "Two batteries of one make sharing one room and one maintenance schedule.", risk: "Risk significant, the battery term propagates through every DC-fed protective system.", daRef: "DA-CCF-08", affects: ["SYS-RPS", "SYS-ACT", "SYS-CONF"], srs: ["SY-B2", "SY-B3", "SY-B4"] },
+  { id: "CCF-RPS-CRD", name: "Control rods", scope: "INTRASYSTEM", system: "SYS-RPS", components: Array.from({ length: 8 }, (_, index) => `RPS-CR-${index + 1}`), events: Array.from({ length: 8 }, (_, index) => `RPS-CR${index + 1}-FI`), shared: { hardwareDesign: true, manufacturer: true, environment: true }, defenses: ["Rod drop timing test of the whole bank at each refueling outage", "Guide tubes inspected for bowing and debris at refueling"], basis: "Eight rods of one design in guide tubes of one design, all in the sodium pool and all dropped in one test.", risk: "Shutdown margin needs six of the eight rods, so three rods sticking together defeat the trip. The bank term is the largest group the model carries.", daRef: "DA-CCF-06", affects: [], srs: ["SY-B1", "SY-B3", "SY-B4"] },
   { id: "CCF-RPS-ROD", name: "Rod-release mechanisms", scope: "INTRASYSTEM", system: "SYS-RPS", components: ["RPS-ROD-A", "RPS-ROD-B"], events: ["RPS-RODA-FRL", "RPS-RODB-FRL", "RPS-ROD-CCF"], shared: { hardwareDesign: true, manufacturer: true }, defenses: ["Gravity-driven insertion with no motive power", "Periodic rod-drop timing tests"], basis: "Identical release mechanisms on both divisions.", risk: "Carried at the generic demand factors, the release path is the last mechanical link in the trip chain.", daRef: "DA-CCF-05", affects: [], srs: ["SY-B1", "SY-B3", "SY-B4"] },
   { id: "CCF-CIS-DMP", name: "Confinement isolation dampers", scope: "INTRASYSTEM", system: "SYS-CONF", components: ["CIS-DMP-A", "CIS-DMP-B"], events: ["CIS-DMP-A-FC", "CIS-DMP-B-FC", "CIS-DMP-CCF"], shared: { hardwareDesign: true, maintenance: true }, defenses: ["Series arrangement, either damper closes the line", "Closure verification after each test"], basis: "Two series dampers of one make on one test procedure.", risk: "The series pair defeats isolation only through the common term, so the group carries the path.", daRef: "DA-CCF-16", affects: [], srs: ["SY-B1", "SY-B3", "SY-B4"] },
   { id: "CCF-HVAC-CHL", name: "Safety chillers", scope: "INTRASYSTEM", system: "SYS-HVAC", components: ["HVC-CH-A", "HVC-CH-B"], events: ["HVC-CHA-FR", "HVC-CHB-FR", "HVC-CCF-FR"], shared: { hardwareDesign: true, environment: true }, defenses: ["Alternating lead and lag rotation", "Independent refrigerant circuits"], basis: "Identical chillers in one room on one cooling-water header.", risk: "Room heat-up is slow, the group matters through the long I&C mission time.", daRef: "DA-CCF-18", affects: [], srs: ["SY-B1", "SY-B3", "SY-B4"] },
@@ -1050,7 +1061,7 @@ const commonCauseFailureGroups: CommonCauseFailureGroup[] = CCF_GROUP_SEEDS.map(
     affectedComponents: g.components,
     affectedSystems: [g.system, ...g.affects],
     factors: daCcfFactors(g.daRef),
-    total: sharedMemberValue(g.id, members),
+    ...(ccfModelTakesTotal(daCcfFactors(g.daRef)) ? { total: sharedMemberValue(g.id, members) } : {}),
     dataAnalysisCCFParameterRef: g.daRef,
     members: { basicEvents: members.map((id) => ({ id })) },
     groupSelectionBasis: g.basis,

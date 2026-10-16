@@ -1,6 +1,32 @@
 import type { Law, UncertainExpression } from "../core/uncertainty";
 import type { FrequencyDataSource, FrequencyQuantificationBasis, InitiatingEventFrequencyQuantification, InitiatingEventsAnalysis } from "../ie/initiating-event-analysis";
-import type { DaEvidenceKind, DaSource, DaSourceEntry, DaSourceOrigin } from "./data-analysis";
+import { DistributionType, type ParameterDistribution } from "../core/events";
+import type { DaEvidenceKind, DaSource, DaSourceEntry, DaSourceEstimateType, DaSourceOrigin, DaSourceSpread } from "./data-analysis";
+
+export interface DaSourceEstimate {
+  estimateType: DaSourceEstimateType;
+  spread: DaSourceSpread;
+}
+
+export function sourceEntryEstimate(law: Law | undefined, distribution?: ParameterDistribution): DaSourceEstimate {
+  if (law === undefined) {
+    return distribution === undefined || distribution.type === DistributionType.POINT_ESTIMATE ? { estimateType: "POINT_ESTIMATE", spread: "NONE" } : { estimateType: "PRIOR", spread: "POPULATION" };
+  }
+  switch (law.family) {
+    case "POINT":
+      return { estimateType: "POINT_ESTIMATE", spread: "NONE" };
+    case "POSTERIOR":
+      return law.prior === null ? { estimateType: "DATA", spread: "MEAN" } : { estimateType: "POSTERIOR", spread: "MEAN" };
+    case "EMPIRICAL_BAYES":
+    case "POPULATION":
+      return law.target === null ? { estimateType: "EMPIRICAL_BAYES", spread: "POPULATION" } : { estimateType: "PLANT_SPECIFIC", spread: "MEAN" };
+    case "TREND":
+    case "DURATION":
+      return { estimateType: "POSTERIOR", spread: "MEAN" };
+    default:
+      return { estimateType: "PRIOR", spread: "POPULATION" };
+  }
+}
 
 export interface DaCatalogSource {
   id: string;
@@ -134,7 +160,7 @@ export const DA_SOURCE_CATALOG: DaCatalogSource[] = [
     provides: "Loss of offsite power frequencies by category and plant mode, unit and site specific frequencies and counts, recovery time distributions and model weights, cause shares and comparisons with NUREG-1032",
     kind: "GENERIC_NUCLEAR",
     origin: "OTHER_NUCLEAR",
-    estimates: 1569,
+    estimates: 1572,
     dataset: "source-nureg-cr-5496.json",
     yearsTo: "1996",
     boundaryConvention: "A LOSP is the simultaneous loss of electrical power to all safety buses of a unit, which requires the emergency power generators to start and supply the safety buses. Unlike NUREG-1032, losses of non-vital buses alone are not counted. Events are classed as plant-centered, grid-related or severe weather, and as occurring at power or during shutdown. An event at power is an initiating event only if the LOSP caused the trip or both came from one root cause, and events recovered in under 2 minutes are called momentary.",
@@ -387,12 +413,12 @@ function ieMemberEntry(source: FrequencyDataSource): DaSourceEntry {
   const named = split === -1 ? source.label : source.label.slice(split + 3);
   const bounding = " (bounding member)";
   const component = named.endsWith(bounding) ? named.slice(0, named.length - bounding.length) : named;
-  const entry: DaSourceEntry = { id, component, failureMode: "Member initiator frequency", quantity: "PER_YEAR", table: "Frequency quantification, member data sources", method: `${IE_BASIS_LABELS[source.basis]}. ${source.sourceReference}` };
+  const law = sourceLaw(source);
+  const entry: DaSourceEntry = { id, component, failureMode: "Member initiator frequency", quantity: "PER_YEAR", ...sourceEntryEstimate(law), table: "Frequency quantification, member data sources", method: `${IE_BASIS_LABELS[source.basis]}. ${source.sourceReference}` };
   if (source.eventCount !== undefined && source.exposureModuleYears !== undefined) {
     entry.failures = source.eventCount;
     entry.exposure = source.exposureModuleYears;
   }
-  const law = sourceLaw(source);
   if (law !== undefined) entry.law = law;
   return entry;
 }
@@ -403,15 +429,16 @@ export function daIeQuantificationEntries(analysis: InitiatingEventsAnalysis, ba
   const wanted = (basis: FrequencyQuantificationBasis): boolean => bases === undefined || bases.includes(basis);
   for (const quantification of analysis.quantifications) {
     const group = analysis.initiatingEventGroups.find((candidate) => candidate.uuid === quantification.initiatorOrGroupId);
+    const law = quantificationLaw(quantification);
     const entry: DaSourceEntry = {
       id: quantification.initiatorOrGroupId,
       component: group?.name ?? quantification.initiatorOrGroupId,
       failureMode: group === undefined ? "Initiator frequency" : "Group frequency",
       quantity: "PER_YEAR",
+      ...sourceEntryEstimate(law),
       table: "Frequency quantification",
       method: `${IE_BASIS_LABELS[quantification.basis]}.`,
     };
-    const law = quantificationLaw(quantification);
     if (law !== undefined) entry.law = law;
     if (wanted(quantification.basis) && !taken.has(entry.id)) {
       entries.push(entry);

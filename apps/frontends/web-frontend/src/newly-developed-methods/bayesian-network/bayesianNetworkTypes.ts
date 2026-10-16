@@ -36,6 +36,7 @@ interface BayesianNetworkEditorProps {
   showQueryAnalysis?: boolean;
   showHclAnalysis?: boolean;
   hclScope?: "BOTH" | "FAULT_TREE" | "EVENT_TREE";
+  analysisHost?: HclBindingEditorProps["analysisHost"];
   evidence: BayesianNetworkEvidenceConfiguration;
   queryNodeId: string | null;
   validation: ValidationIssue[];

@@ -24,6 +24,7 @@ import { lognormalBounds, type CcScore } from "./rcSelectors";
 import { type RcDrawerContext } from "./rcScreens";
 import { RcSourceTermEditor } from "./rcSourceTerm";
 import { RcMetricDrawer } from "./rcMetrics";
+import { RcRiFeedbackCard } from "./rcRiFeedback";
 import { rcFamilyReferenceMatches } from "interfaces-shared-types/rc-workbooks/step-checks";
 import { rcConsequenceMatchesFamily, rcLatestCategoryResult } from "interfaces-shared-types/rc-workbooks/family-consequences";
 import {
@@ -77,9 +78,9 @@ import type { RcEconomicCostCode } from "interfaces-mef-types/rc/economic-inputs
 // ─── 08 — Quantification (RCQ) ─────────────────────────────────────────────
 function QuantifyScreen({ openDrawer, onOpenStep, initialCaseTab }: { openDrawer: (ctx: RcDrawerContext) => void; onOpenStep?: (id: string) => void; initialCaseTab?: "checks" | "prepared" | "results" }): JSX.Element {
   const { rc, editable, mutateRc, links } = useRcWorkbook();
-  const [tab, setTab] = useState<"case" | "consequences" | "review" | "basis" | "handoff">("case");
+  const [tab, setTab] = useState<"case" | "consequences" | "review" | "basis" | "feedback">("case");
   const tabId = useId(), tabsRef = useRef<HTMLDivElement>(null);
-  const tabLabels = { case: "Case inputs and outputs", consequences: "Consequences", review: "Output review", basis: "Basis and uncertainty", handoff: "RI feedback" } as const;
+  const tabLabels = { case: "Case inputs and outputs", consequences: "Consequences", review: "Output review", basis: "Basis and uncertainty", feedback: "RI feedback" } as const;
   const tabOrder = Object.keys(tabLabels) as (keyof typeof tabLabels)[];
   const q = rc.consequenceQuantification;
   const familyName = (entityId: string) => links.es?.eventSequenceFamilies.find((family) => family.uuid === entityId)?.name ?? "";
@@ -136,11 +137,6 @@ function QuantifyScreen({ openDrawer, onOpenStep, initialCaseTab }: { openDrawer
     mutateRc((d) => ({ ...d, sensitivityStudies: [...(d.sensitivityStudies ?? []), { uuid, name: "", description: "", variedParameters: [], parameterRanges: {}, results: "" }] }));
     openDrawer({ kind: "sensitivity", id: uuid });
   }
-  const rif = rc.riskIntegrationFeedback;
-  function addRif(): void {
-    mutateRc((d) => ({ ...d, riskIntegrationFeedback: { analysisRef: "", feedbackDate: "", metricFeedback: [], releaseCategoryFeedback: [], generalFeedback: "", response: { description: "", changes: [], status: "IN_PROGRESS" } } }));
-    openDrawer({ kind: "rifeedback", id: "rif" });
-  }
 
   return (
     <div className="rc-step08">
@@ -156,7 +152,7 @@ function QuantifyScreen({ openDrawer, onOpenStep, initialCaseTab }: { openDrawer
       {tab === "consequences" && <>
       <div className="poscard">
         <div className="poscard__head">
-          <WorkbookSectionHeading workbook="RC" title="Calculation codes" level={3} />
+          <WorkbookSectionHeading title="Calculation codes" level={3} />
           <div className="posrow" style={{ gap: 10 }}>
             <RcProvenanceChip>RCQ-A1 · A2</RcProvenanceChip>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addCode}><RCIcon.Plus /> Add code</button>}
@@ -181,7 +177,7 @@ function QuantifyScreen({ openDrawer, onOpenStep, initialCaseTab }: { openDrawer
 
       <div className="poscard">
         <div className="poscard__head">
-          <WorkbookSectionHeading workbook="RC" title="Event-sequence consequences" level={3} />
+          <WorkbookSectionHeading title="Event-sequence consequences" level={3} />
           <RcProvenanceChip>RCQ-A3</RcProvenanceChip>
         </div>
         <div className="rcfamily">
@@ -228,7 +224,7 @@ function QuantifyScreen({ openDrawer, onOpenStep, initialCaseTab }: { openDrawer
       {tab === "review" && <>
       <div className="poscard">
         <div className="poscard__head">
-          <WorkbookSectionHeading workbook="RC" title="Output review" level={3} />
+          <WorkbookSectionHeading title="Output review" level={3} />
           <RcProvenanceChip>RCQ-B1 · B2</RcProvenanceChip>
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
@@ -263,7 +259,7 @@ function QuantifyScreen({ openDrawer, onOpenStep, initialCaseTab }: { openDrawer
       {tab === "basis" && <>
       <div className="poscard">
         <div className="poscard__head">
-          <WorkbookSectionHeading workbook="RC" title="Uncertainty characterization" level={3} />
+          <WorkbookSectionHeading title="Uncertainty characterization" level={3} />
           <RcProvenanceChip>RCQ-C1 · C2</RcProvenanceChip>
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
@@ -297,7 +293,7 @@ function QuantifyScreen({ openDrawer, onOpenStep, initialCaseTab }: { openDrawer
 
       <div className="poscard">
         <div className="poscard__head">
-          <WorkbookSectionHeading workbook="RC" title="Quantification basis and limitations" level={3} />
+          <WorkbookSectionHeading title="Quantification basis and limitations" level={3} />
           <RcProvenanceChip>RCQ-B3 · D3</RcProvenanceChip>
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
@@ -355,7 +351,7 @@ function QuantifyScreen({ openDrawer, onOpenStep, initialCaseTab }: { openDrawer
 
       <div className="poscard">
         <div className="poscard__head">
-          <WorkbookSectionHeading workbook="RC" title="Open items register" level={3} />
+          <WorkbookSectionHeading title="Open items register" level={3} />
           <div className="posrow" style={{ gap: 10 }}>
             <span className="possubtle">{register.length} {register.length === 1 ? "item" : "items"}</span>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addUncertainty}><RCIcon.Plus /> Add uncertainty</button>}
@@ -378,33 +374,11 @@ function QuantifyScreen({ openDrawer, onOpenStep, initialCaseTab }: { openDrawer
       </div>
 
       </>}
-      {tab === "handoff" && <>
+      {tab === "feedback" && <>
+      <RcRiFeedbackCard openDrawer={openDrawer} />
       <div className="poscard">
         <div className="poscard__head">
-          <WorkbookSectionHeading workbook="RC" title="Risk-integration feedback" level={3} />
-          <div className="posrow" style={{ gap: 10 }}>
-            <RcProvenanceChip>RCQ-B3 · RI-C1</RcProvenanceChip>
-            {editable && rif !== undefined && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => openDrawer({ kind: "rifeedback", id: "rif" })}><RCIcon.Settings /> Edit</button>}
-            {editable && rif === undefined && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addRif}><RCIcon.Plus /> Add feedback</button>}
-          </div>
-        </div>
-        {rif === undefined ? (
-          <p className="rc-step08-empty">Awaiting feedback from Risk Integration.</p>
-        ) : (
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            <div><span className="possubtle" style={{ fontWeight: 700 }}>Analysis: </span><span className="posmono">{rif.analysisRef}</span></div>
-            {(rif.generalFeedback ?? "").length > 0 && <p className="possubtle" style={{ margin: 0, lineHeight: 1.5 }}>{rif.generalFeedback}</p>}
-            {rif.response !== undefined && <p className="possubtle" style={{ margin: 0, lineHeight: 1.5 }}><strong>Response:</strong> {rif.response.description}</p>}
-            <div className="posrow posrow--wrap" style={{ gap: 6 }}>
-              <span className="poschip">{(rif.releaseCategoryFeedback ?? []).length} category items</span>
-              <span className="poschip">{(rif.metricFeedback ?? []).length} metric items</span>
-            </div>
-          </div>
-        )}
-      </div>
-      <div className="poscard">
-        <div className="poscard__head">
-          <WorkbookSectionHeading workbook="RC" title="Risk-significant contributors" level={3} />
+          <WorkbookSectionHeading title="Risk-significant contributors" level={3} />
           <div className="posrow" style={{ gap: 10 }}>
             <RcProvenanceChip>RCQ-B3</RcProvenanceChip>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => mutateRc((d) => ({ ...d, consequenceQuantification: { ...d.consequenceQuantification, riskSignificantContributors: [...(d.consequenceQuantification.riskSignificantContributors ?? []), { contributor: "", basisPerRiB: "" }] } }))}><RCIcon.Plus /> Add contributor</button>}
@@ -505,7 +479,7 @@ function DraftScreen({ cc, scores, site, conformance, onSubmitDraft, canSubmit }
 
       <div className="posgen__side">
         <div className="posgen__readout">
-          <WorkbookSectionHeading workbook="RC" title="Conformance check" level={3} className="posgen__readout-h" />
+          <WorkbookSectionHeading title="Conformance check" level={3} className="posgen__readout-h" />
           <div className="posgen__bar"><span className="posgen__bar-label">Capability category</span><span style={{ fontWeight: 700 }}>{cc.name} · {cc.tag}</span></div>
           <div className="posgen__bar"><span className="posgen__bar-label">Site basis</span><span style={{ fontWeight: 700 }}>{site === "actual_site" ? "Identified site" : "Bounding site"}</span></div>
           <div className="posgen__bar"><span className="posgen__bar-label">Items satisfied</span><span className="posmono">{scores.met} / {scores.applicable}</span></div>
@@ -514,7 +488,7 @@ function DraftScreen({ cc, scores, site, conformance, onSubmitDraft, canSubmit }
         </div>
 
         <div className="posgen__readout">
-          <WorkbookSectionHeading workbook="RC" title="Hand-off to internal review" level={3} className="posgen__readout-h" />
+          <WorkbookSectionHeading title="Draft submission" level={3} className="posgen__readout-h" />
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {canSubmit && <button type="button" className="posnav__btn posnav__btn--primary" onClick={onSubmitDraft}><RCIcon.Send /> Submit draft to internal review</button>}
             <button type="button" className="posnav__btn" onClick={() => { void generateRcReport(rc, false, conformance); }}><RCIcon.Download /> Download draft (.docx)</button>
@@ -547,7 +521,7 @@ function DrawerContent({ context, onClose, centered = false }: { context: RcDraw
     const remove = (): void => { setSourceTermDraft(c.releaseCategory, undefined); mutateRc((d) => ({ ...d, releaseCategoryToConsequence: { ...d.releaseCategoryToConsequence, releaseCategoryInputs: d.releaseCategoryToConsequence.releaseCategoryInputs.filter((x) => x.releaseCategory !== c.releaseCategory) } })); onClose(); };
     return (
       <>
-        <DrawerHead cap="Release category" title={c.releaseCategory} sub={c.sourceTermDefinitionRef} onClose={onClose} centered />
+        <DrawerHead cap="Release category" title={c.releaseCategory} onClose={onClose} centered />
         <div className="modal__body">
           <div className="posfield-grid rc-category-main-fields">
             <RcTextField label="Category ID" value={c.releaseCategory} onChange={(v) => patch({ releaseCategory: v })} disabled={dis || Boolean(c.sourceTerm) || Boolean(Object.prototype.hasOwnProperty.call(sourceTermDrafts, c.releaseCategory) && sourceTermDrafts[c.releaseCategory])} />
@@ -580,7 +554,7 @@ function DrawerContent({ context, onClose, centered = false }: { context: RcDraw
     const extra = chars.additionalCharacteristics ?? [];
     return (
       <>
-        <DrawerHead cap="Bounding site" title="Bounding-site characteristics" sub="RCRE-A1" onClose={onClose} />
+        <DrawerHead cap="Bounding site" title="Bounding-site characteristics" onClose={onClose} />
         <div className="posdrawer__body">
           <RcAreaField label="Description" value={bs.description} onChange={(v) => patch({ description: v })} disabled={dis} rows={2} />
           <RcAreaField label="Bounding justification" value={bs.boundingJustification} onChange={(v) => patch({ boundingJustification: v })} disabled={dis} rows={2} />
@@ -750,7 +724,7 @@ function DrawerContent({ context, onClose, centered = false }: { context: RcDraw
       const patch = (next: Partial<typeof p>): void => mutateRc((d) => ({ ...d, protectiveActionParameters: { ...d.protectiveActionParameters, populationDistribution: { ...d.protectiveActionParameters.populationDistribution, ...next } } }));
       return (
         <>
-          <DrawerHead cap="Site data" title="Population distribution" sub="RCPA-B1" onClose={onClose} centered={centered} />
+          <DrawerHead cap="Site data" title="Population distribution" onClose={onClose} centered={centered} />
           <div className={centered ? "modal__body" : "posdrawer__body"}>
             <RcSelectField label="Basis" value={p.basis} options={POP_BASIS_OPTIONS} onChange={(v) => patch({ basis: v as typeof p.basis })} disabled={dis} />
             <RcAreaField label="Description" value={p.description} onChange={(v) => patch({ description: v })} disabled={dis} rows={2} />
@@ -766,7 +740,7 @@ function DrawerContent({ context, onClose, centered = false }: { context: RcDraw
       const patch = (next: Partial<typeof l>): void => mutateRc((d) => ({ ...d, protectiveActionParameters: { ...d.protectiveActionParameters, landUseData: { ...d.protectiveActionParameters.landUseData, ...next } } }));
       return (
         <>
-          <DrawerHead cap="Site data" title="Land use" sub="RCPA-B2" onClose={onClose} centered={centered} />
+          <DrawerHead cap="Site data" title="Land use" onClose={onClose} centered={centered} />
           <div className={centered ? "modal__body" : "posdrawer__body"}>
             <RcSelectField label="Basis" value={l.basis} options={LAND_BASIS_OPTIONS} onChange={(v) => patch({ basis: v as typeof l.basis })} disabled={dis} />
             <RcAreaField label="Description" value={l.description} onChange={(v) => patch({ description: v })} disabled={dis} rows={2} />
@@ -780,7 +754,7 @@ function DrawerContent({ context, onClose, centered = false }: { context: RcDraw
     const patch = (next: Partial<typeof b>): void => mutateRc((d) => ({ ...d, protectiveActionParameters: { ...d.protectiveActionParameters, plantPhysicalCharacteristics: { ...d.protectiveActionParameters.plantPhysicalCharacteristics, ...next } } }));
     return (
       <>
-        <DrawerHead cap="Site data" title="Building dimensions and stack heights" sub="RCPA-B3" onClose={onClose} centered={centered} />
+        <DrawerHead cap="Site data" title="Building dimensions and stack heights" onClose={onClose} centered={centered} />
         <div className={centered ? "modal__body" : "posdrawer__body"}>
           <RcSelectField label="Basis" value={b.basis} options={PLANT_BASIS_OPTIONS} onChange={(v) => patch({ basis: v as typeof b.basis })} disabled={dis} />
           <RcAreaField label="Description" value={b.description} onChange={(v) => patch({ description: v })} disabled={dis} rows={2} />
@@ -797,7 +771,7 @@ function DrawerContent({ context, onClose, centered = false }: { context: RcDraw
     const period = met.periodSelection.periodDescription || met.weatherInputs?.configuration?.dateGroups.map(group => `${group.start} to ${group.end}`).join("; ") || "";
     return (
       <>
-        <DrawerHead cap="Meteorology" title="Source and period" sub="RCME-A1" onClose={onClose} centered={centered} />
+        <DrawerHead cap="Meteorology" title="Source and period" onClose={onClose} centered={centered} />
         <div className={centered ? "modal__body" : "posdrawer__body"}>
           <RcAreaField label="Data source" value={source} onChange={(v) => patch({ dataSource: v })} disabled={dis} rows={3} />
           <RcAreaField label="Spatial representativeness" value={met.spatialRepresentativenessJustification} onChange={(v) => patch({ spatialRepresentativenessJustification: v })} disabled={dis} rows={3} />
@@ -819,7 +793,7 @@ function DrawerContent({ context, onClose, centered = false }: { context: RcDraw
     const stability = met.stabilityClassificationMethod;
     return (
       <>
-        <DrawerHead cap="Meteorology" title="Quality controls" sub="RCME-A2 to A4" onClose={onClose} centered={centered} />
+        <DrawerHead cap="Meteorology" title="Quality controls" onClose={onClose} centered={centered} />
         <div className={centered ? "modal__body" : "posdrawer__body"}>
           {!constant && <>
             <RcAreaField label="Missing-period treatment" value={dr.substitutionTechniques ?? ""} onChange={(v) => patchDr({ substitutionTechniques: v })} disabled={dis} rows={3} />
@@ -849,7 +823,7 @@ function DrawerContent({ context, onClose, centered = false }: { context: RcDraw
     const ar = met.accuracyReview;
     return (
       <>
-        <DrawerHead cap="Meteorology" title="Meteorological data quality" sub="RCME-A1 to A4" onClose={onClose} centered={centered} />
+        <DrawerHead cap="Meteorology" title="Meteorological data quality" onClose={onClose} centered={centered} />
         <div className={centered ? "modal__body" : "posdrawer__body"}>
           <RcAreaField label="Data source" value={met.dataSource} onChange={(v) => patch({ dataSource: v })} disabled={dis} rows={2} />
           <RcAreaField label="Spatial representativeness justification" value={met.spatialRepresentativenessJustification} onChange={(v) => patch({ spatialRepresentativenessJustification: v })} disabled={dis} rows={2} />
@@ -879,7 +853,7 @@ function DrawerContent({ context, onClose, centered = false }: { context: RcDraw
     const ep = met.extractedParameters;
     return (
       <>
-        <DrawerHead cap="Meteorology" title="Extracted parameters" sub="RCME-A5 to A7" onClose={onClose} centered={centered} />
+        <DrawerHead cap="Meteorology" title="Extracted parameters" onClose={onClose} centered={centered} />
         <div className={centered ? "modal__body" : "posdrawer__body"}>
           <RcSelectField label="Wind speed and direction at 10 m" value={ep.windSpeedAndDirection10m ? "yes" : "no"} options={YESNO_OPTIONS} onChange={(v) => patch({ extractedParameters: { ...ep, windSpeedAndDirection10m: v === "yes" } })} disabled={dis} />
           <RcSelectField label="Stability class measurement" value={ep.stabilityClassMeasurement ? "yes" : "no"} options={YESNO_OPTIONS} onChange={(v) => patch({ extractedParameters: { ...ep, stabilityClassMeasurement: v === "yes" } })} disabled={dis} />
@@ -902,7 +876,7 @@ function DrawerContent({ context, onClose, centered = false }: { context: RcDraw
     const ms = ad.meteorologicalSampling;
     return (
       <>
-        <DrawerHead cap="Dispersion" title="Dispersion model and sampling" sub="RCAD-A to C" onClose={onClose} centered={centered} />
+        <DrawerHead cap="Dispersion" title="Dispersion model and sampling" onClose={onClose} centered={centered} />
         <div className={`${centered ? "modal__body" : "posdrawer__body"} rc-transport-model-form`}>
           <RcSelectField label="Model class" value={ad.dispersionModel.modelClass} options={MODEL_CLASS_OPTIONS} onChange={(v) => patch({ dispersionModel: { ...ad.dispersionModel, modelClass: v as typeof ad.dispersionModel.modelClass } })} disabled={dis} />
           <RcTextField label="Model name" value={ad.dispersionModel.name ?? ""} onChange={(v) => patch({ dispersionModel: { ...ad.dispersionModel, name: v } })} disabled={dis} />
@@ -944,7 +918,7 @@ function DrawerContent({ context, onClose, centered = false }: { context: RcDraw
     const wash = dep.wetDeposition.washoutCoefficients ?? [];
     return (
       <>
-        <DrawerHead cap="Deposition" title="Deposition matrix" sub="RCAD-E1 to E7" onClose={onClose} centered={centered} />
+        <DrawerHead cap="Deposition" title="Deposition matrix" onClose={onClose} centered={centered} />
         <div className={centered ? "modal__body" : "posdrawer__body"}>
           <RcSelectField label="Dry deposition included" value={dep.dryDeposition.included ? "yes" : "no"} options={YESNO_OPTIONS} onChange={(v) => patch({ dryDeposition: { ...dep.dryDeposition, included: v === "yes" } })} disabled={dis} />
           {dep.dryDeposition.included && <><RcSelectField label="Dry deposition approach" value={dep.dryDeposition.approach ?? "SINGLE_VELOCITY"} options={DRY_APPROACH_OPTIONS} onChange={(v) => patch({ dryDeposition: { ...dep.dryDeposition, approach: v as NonNullable<typeof dep.dryDeposition.approach> } })} disabled={dis} />
@@ -1018,7 +992,7 @@ function DrawerContent({ context, onClose, centered = false }: { context: RcDraw
     const patchPeriod = (index: number, next: Partial<typeof dose.exposurePeriods[number]>): void => patch({ exposurePeriods: dose.exposurePeriods.map((period, position) => position === index ? { ...period, ...next } : period) });
     return (
       <>
-        <DrawerHead cap="Dosimetry" title="Dose treatment" sub="RCDO-A4 to B1" onClose={onClose} centered={centered} />
+        <DrawerHead cap="Dosimetry" title="Dose treatment" onClose={onClose} centered={centered} />
         <div className={`${centered ? "modal__body" : "posdrawer__body"} rc-dose-treatment-form`}>
           <RcSelectField label="Use dispersion results" value={dose.dispersionResultsUsed ? "yes" : "no"} options={YESNO_OPTIONS} onChange={(v) => patch({ dispersionResultsUsed: v === "yes" })} disabled={dis} />
           <RcSelectField label="Cloud immersion model" value={dose.cloudImmersionModel.approach} options={IMMERSION_OPTIONS} onChange={(v) => patch({ cloudImmersionModel: { ...dose.cloudImmersionModel, approach: v as typeof dose.cloudImmersionModel.approach } })} disabled={dis} />
@@ -1053,7 +1027,7 @@ function DrawerContent({ context, onClose, centered = false }: { context: RcDraw
     const patch = (next: Partial<typeof he>): void => mutateRc((d) => ({ ...d, healthEffects: { ...d.healthEffects, ...next } }));
     return (
       <>
-        <DrawerHead cap="Health effects" title="Effect parameters" sub="RCHE-A2 to A4" onClose={onClose} />
+        <DrawerHead cap="Health effects" title="Effect parameters" onClose={onClose} />
         <div className="posdrawer__body">
           <RcSelectField label="Early-effect approach" value={he.earlyEffectParameters.approach} options={EARLY_EFFECT_OPTIONS} onChange={(v) => patch({ earlyEffectParameters: { ...he.earlyEffectParameters, approach: v as typeof he.earlyEffectParameters.approach } })} disabled={dis} />
           <RcAreaField label="Early-effect description" value={he.earlyEffectParameters.description} onChange={(v) => patch({ earlyEffectParameters: { ...he.earlyEffectParameters, description: v } })} disabled={dis} rows={2} />
@@ -1208,7 +1182,7 @@ function DrawerContent({ context, onClose, centered = false }: { context: RcDraw
     const reasonMissing = typed && !f.overrideReason?.trim();
     return (
       <>
-        <DrawerHead cap="Event sequence family" title={name ? `${familyId} · ${name}` : familyId} sub={category ? `In ${category.releaseCategory}` : "In no release category"} onClose={onClose} centered={centered} />
+        <DrawerHead cap="Event sequence family" title={name ? `${familyId} · ${name}` : familyId} onClose={onClose} centered={centered} />
         <div className={centered ? "modal__body" : "posdrawer__body"}>
           {f && <div className="posfield-grid">
             <RcSelectField label="Risk significance" value={f.riskSignificance ?? ""} options={[["", "Not assessed"], ...SIG_OPTIONS]} onChange={(v) => patch({ riskSignificance: v ? v as ImportanceLevel : undefined })} disabled={dis} />
@@ -1281,7 +1255,7 @@ function DrawerContent({ context, onClose, centered = false }: { context: RcDraw
     const remove = (): void => { mutateRc((d) => ({ ...d, sensitivityStudies: (d.sensitivityStudies ?? []).filter((x) => x.uuid !== st.uuid) })); onClose(); };
     return (
       <>
-        <DrawerHead cap="Sensitivity study" title={st.name ?? st.uuid} sub={st.uuid} onClose={onClose} centered={centered} />
+        <DrawerHead cap="Sensitivity study" title={st.name ?? st.uuid} onClose={onClose} centered={centered} />
         <div className={centered ? "modal__body" : "posdrawer__body"}>
           <RcTextField label="Name" value={st.name ?? ""} onChange={(v) => patch({ name: v })} disabled={dis} />
           <RcAreaField label="Description" value={st.description} onChange={(v) => patch({ description: v })} disabled={dis} rows={2} />
@@ -1300,7 +1274,7 @@ function DrawerContent({ context, onClose, centered = false }: { context: RcDraw
     const remove = (): void => { mutateRc((d) => ({ ...d, boundingSiteAssumptions: (d.boundingSiteAssumptions ?? []).filter((x) => x.assumptionId !== a.assumptionId) })); onClose(); };
     return (
       <>
-        <DrawerHead cap="Bounding-site assumption" title={a.influenceOnDefinition} sub={a.assumptionId} onClose={onClose} centered={centered} />
+        <DrawerHead cap="Bounding-site assumption" title={a.influenceOnDefinition} onClose={onClose} centered={centered} />
         <div className={centered ? "modal__body" : "posdrawer__body"}>
           <RcTextField label="Area of influence" value={a.influenceOnDefinition} onChange={(v) => patch({ influenceOnDefinition: v })} disabled={dis} />
           <RcAreaField label="Description" value={a.description} onChange={(v) => patch({ description: v })} disabled={dis} rows={2} />
@@ -1322,7 +1296,7 @@ function DrawerContent({ context, onClose, centered = false }: { context: RcDraw
     const remove = (): void => { mutateRc((d) => ({ ...d, preOperationalAssumptions: (d.preOperationalAssumptions ?? []).filter((x) => x.assumptionId !== a.assumptionId) })); onClose(); };
     return (
       <>
-        <DrawerHead cap="Pre-operational assumption" title={a.influenceOnDefinition} sub={a.assumptionId} onClose={onClose} centered={centered} />
+        <DrawerHead cap="Pre-operational assumption" title={a.influenceOnDefinition} onClose={onClose} centered={centered} />
         <div className={centered ? "modal__body" : "posdrawer__body"}>
           <RcTextField label="Area of influence" value={a.influenceOnDefinition} onChange={(v) => patch({ influenceOnDefinition: v })} disabled={dis} />
           <RcAreaField label="Description" value={a.description} onChange={(v) => patch({ description: v })} disabled={dis} rows={2} />
@@ -1350,7 +1324,7 @@ function DrawerContent({ context, onClose, centered = false }: { context: RcDraw
     const remove = (): void => { mutateRc((d) => ({ ...d, riskIntegrationFeedback: undefined })); onClose(); };
     return (
       <>
-        <DrawerHead cap="Risk-integration feedback" title="Risk-integration feedback" sub={f.analysisRef} onClose={onClose} centered={centered} />
+        <DrawerHead cap="Risk-integration feedback" title="Risk-integration feedback" onClose={onClose} centered={centered} />
         <div className={centered ? "modal__body" : "posdrawer__body"}>
           <div className="posfield-grid">
             <RcTextField label="Analysis reference" value={f.analysisRef} onChange={(v) => patch({ analysisRef: v })} disabled={dis} />

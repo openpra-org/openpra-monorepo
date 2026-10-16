@@ -3,6 +3,7 @@ import type {
   EventTree,
   EventTreeOutcome,
   FunctionalEvent,
+  FunctionalEventNetworkNode,
 } from "interfaces-mef-types/es/event-sequence-analysis";
 import type { EventTreeInitiatingEventFrequency, FaultTreeTopEventReference } from "interfaces-mef-types/modeling";
 import type { EventTreeAnalysisResult } from "interfaces-shared-types/newly-developed-methods/event-tree";
@@ -56,6 +57,7 @@ type EventTreeOperation =
   | { kind: "REMOVE_BRANCH"; sequenceId: string; functionalEventId: string }
   | { kind: "SET_SEQUENCE_TRANSFER"; sequenceId: string; targetEventTreeId: string | null }
   | { kind: "SET_FAULT_TREE_REFERENCE"; functionalEventId: string; reference: FaultTreeTopEventReference | undefined }
+  | { kind: "SET_NETWORK_NODE"; functionalEventId: string; link: FunctionalEventNetworkNode | undefined }
   | { kind: "REPLACE"; model: EventTree };
 
 interface EventTreeEndStateOption {
@@ -95,8 +97,9 @@ interface EventTreeEditorProps {
   onOperation: (operation: EventTreeOperation) => void;
   onRepresentationChange: (representation: EventTreeRepresentation) => void;
   onSelectionChange: (entityId: string | null) => void;
-  onSelectFaultTreeLink?: (functionalEvent: FunctionalEvent) => void;
+  onSelectLink?: (functionalEvent: FunctionalEvent) => void;
   faultTreeName?: (reference: FaultTreeTopEventReference) => string | undefined;
+  networkNodeName?: (link: FunctionalEventNetworkNode) => string | undefined;
   onUpdateEventSequence?: (
     eventSequenceId: string,
     changes: Partial<Pick<EventSequence, "sequenceFamilyId" | "releaseCategoryId">>,

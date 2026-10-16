@@ -2,6 +2,7 @@ import {
   ESQ_PLAN_DEFAULTS,
   type EsqFlag,
   type EsqFunctionLink,
+  type EsqFunctionNodeLink,
   type EsqFunctionRecord,
   type EsqFunctionRule,
   type EsqFunctionTarget,
@@ -23,6 +24,7 @@ type EsqLinkOrigin = "RULE" | "ESQ" | "ES" | "NONE";
 
 interface EsqResolvedLink {
   target?: EsqFunctionTarget;
+  node?: EsqFunctionNodeLink;
   origin: EsqLinkOrigin;
   ruleId?: string;
 }
@@ -86,6 +88,30 @@ function esqStableId(seed: string): string {
   const hex = [0x9747b28c, 0x2f1e3d4c, 0x5a6b7c8d, 0x1c2d3e4f].map((value) => hash32(seed, value).toString(16).padStart(8, "0")).join("");
   const variant = ((Number.parseInt(hex.charAt(16), 16) & 0x3) | 0x8).toString(16);
   return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-5${hex.slice(13, 16)}-${variant}${hex.slice(17, 20)}-${hex.slice(20, 32)}`;
+}
+
+const HEX_DIGITS = "0123456789abcdefABCDEF";
+
+const UUID_DASHES: readonly number[] = [8, 13, 18, 23];
+
+function generatedId(id: string): boolean {
+  if (id.length !== 36) return false;
+  for (let index = 0; index < id.length; index += 1) {
+    const char = id.charAt(index);
+    if (UUID_DASHES.includes(index) ? char !== "-" : !HEX_DIGITS.includes(char)) return false;
+  }
+  return true;
+}
+
+function esqItemLabel(name: string | undefined, id: string, unnamed: string): string {
+  const shown = name === undefined || name.trim().length === 0 ? undefined : name;
+  if (generatedId(id)) return shown ?? unnamed;
+  return shown === undefined ? id : `${shown} (${id})`;
+}
+
+function esqItemCode(id: string, name: string | undefined, unnamed: string): string {
+  if (!generatedId(id)) return id;
+  return name === undefined || name.trim().length === 0 ? unnamed : name;
 }
 
 function uniqueTexts(items: readonly string[]): string[] {
@@ -226,6 +252,8 @@ function resolveLink(record: EsqFunctionRecord, link: EsqFunctionLink | undefine
   if (link?.target !== undefined) return { target: link.target, origin: "ESQ" };
   const es = record.esLinks.find((entry) => entry.treeId === tree.id);
   if (es !== undefined) return { target: { kind: "FAULT_TREE", top: es.top }, origin: "ES" };
+  const node = record.nodeLinks?.find((entry) => entry.treeId === tree.id);
+  if (node !== undefined) return { node, origin: "ES" };
   return { origin: "NONE" };
 }
 
@@ -439,6 +467,8 @@ export {
   esqParameterRecord,
   esqParameterLinks,
   esqStableId,
+  esqItemCode,
+  esqItemLabel,
   esqTreeRunId,
   esqFunctionRunId,
   esqSequenceRunId,

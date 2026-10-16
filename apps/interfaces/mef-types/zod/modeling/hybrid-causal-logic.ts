@@ -389,6 +389,7 @@ export {
   HclUncertaintySeedSchema,
   HclUncertaintySampleCountSchema,
   HclCptClipEpsilonSchema,
+  HclSamplerSchema,
   HclUncertaintySettingsSchema,
   HclSolverSettingsSchema,
   HclConfigurationDefinitionBaseSchema,

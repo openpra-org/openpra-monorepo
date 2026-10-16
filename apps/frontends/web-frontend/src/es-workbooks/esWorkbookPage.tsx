@@ -43,7 +43,6 @@ import { type EsPersona } from "./esViewData";
 const STEP_SR_HINT: Record<string, string | undefined> = {
   scope: "ES-A2",
   sequences: "ES-A1",
-  deps: "ES-B1",
   timing: "ES-A6",
   dynamic: "ES-A5",
   uncertainty: "ES-A14",

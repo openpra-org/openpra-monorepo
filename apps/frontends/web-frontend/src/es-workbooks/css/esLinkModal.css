@@ -102,9 +102,32 @@
 .eslink__ft-selectors {
   display: grid;
   min-width: 0;
-  flex: 0 1 900px;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  flex: 0 1 1100px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 14px;
+}
+.eslink__states {
+  display: flex;
+  width: min(100%, 1280px);
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  margin: 0 auto;
+  border: 0;
+  padding: 0;
+}
+.eslink__states legend {
+  margin-bottom: 8px;
+  padding: 0;
+  color: var(--color-text-muted);
+  font-size: 12.5px;
+  font-weight: 650;
+}
+.eslink__states label {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--color-text);
+  font-size: 13px;
 }
 .eslink__ft-actions {
   display: flex;

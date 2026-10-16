@@ -1,7 +1,6 @@
-import { type EventSequence, type EventSequenceAnalysis, type EventSequenceFamily, type KeySafetyFunction, type EventTree, type EventTreeBranch, type EventTreeOutcome, type EventTreeSequence, type EventTreeTransfer } from "interfaces-mef-types/es/event-sequence-analysis";
+import { type EventSequence, type EventSequenceAnalysis, type EventSequenceFamily, type KeySafetyFunction, type EventTreeBranch, type EventTreeOutcome, type EventTreeSequence, type EventTreeTransfer } from "interfaces-mef-types/es/event-sequence-analysis";
 import { EndState } from "interfaces-mef-types/core/events";
 import { endStateOfKind } from "interfaces-mef-types/es/es-end-states";
-import { functionalEventBindingId, inEventTreeScope } from "interfaces-mef-types/es/es-dependency-bindings";
 import {
   CONFORMANCE_ITEMS,
   ES_STEPS,
@@ -154,21 +153,10 @@ function stepsForPersona(persona: EsPersona): EsStep[] {
   return ES_STEPS.filter((s) => ids.includes(s.id));
 }
 
-function hasDependencyModels(es: EventSequenceAnalysis): boolean {
-  const d = es.dependencyModels;
-  if (d === undefined) return false;
-  return (d.functionalDependencies?.length ?? 0) > 0
-    || (d.phenomenologicalDependencies?.length ?? 0) > 0
-    || (d.operationalDependencies?.length ?? 0) > 0
-    || (d.humanDependencies?.length ?? 0) > 0
-    || (d.systemInterfaces?.length ?? 0) > 0;
-}
-
 function stepsFromMef(es: EventSequenceAnalysis, persona: EsPersona): EsStep[] {
   const base = stepsForPersona(persona);
   const scopeComplete = es.scopeDefinition.initiatingEventIds.length > 0 || es.scopeDefinition.plantOperatingStateIds.length > 0 || es.keySafetyFunctions.length > 0;
   const sequencesComplete = es.eventSequences.length > 0;
-  const depsComplete = hasDependencyModels(es);
   const timingComplete = es.eventSequences.some((sequence) => (sequence.timing ?? []).length > 0) || (es.operatorActionWindows ?? []).length > 0 || (es.dependencyModels?.phenomenologicalDependencies ?? []).length > 0 || (es.repairCreditRecords ?? []).length > 0;
   const dynamicComplete = (es.dynamicRuns ?? []).length > 0;
   const uncertaintyComplete = es.modelUncertainty.uncertaintySources.length > 0 || (es.preOperationalAssumptions ?? []).length > 0 || (es.sensitivityStudies ?? []).length > 0;
@@ -184,7 +172,6 @@ function stepsFromMef(es: EventSequenceAnalysis, persona: EsPersona): EsStep[] {
     switch (s.id) {
       case "scope": return { ...s, status: status(scopeComplete) };
       case "sequences": return { ...s, status: status(sequencesComplete) };
-      case "deps": return { ...s, status: status(depsComplete) };
       case "timing": return { ...s, status: status(timingComplete) };
       case "dynamic": return { ...s, status: status(dynamicComplete) };
       case "uncertainty": return { ...s, status: status(uncertaintyComplete) };
@@ -688,18 +675,9 @@ function endStateUseCount(es: EventSequenceAnalysis, endStateId: string): number
   return (es.eventTrees ?? []).reduce((count, tree) => count + Object.values(tree.sequences).filter((sequence) => sequence.endStateId === endStateId).length, 0);
 }
 
-function dependencyBoundFunctionalEvents(es: EventSequenceAnalysis, tree: EventTree): Set<string> {
-  const bound = new Set((es.dependencyHclConfigurations ?? [])
-    .filter((configuration) => inEventTreeScope(configuration, tree))
-    .flatMap((configuration) => configuration.bindings.map((binding) => binding.faultTreeBasicEvent.entityId)));
-  return new Set(Object.values(tree.functionalEvents).flatMap((event) =>
-    event.faultTreeTopEvent === undefined && bound.has(functionalEventBindingId(event.uuid)) ? [event.uuid] : []));
-}
-
 export {
   eventTreesView,
   coverageView,
-  dependencyBoundFunctionalEvents,
   endStateUseCount,
   withEndStateDefinitionApplied,
   withSyncedSequenceEndState,

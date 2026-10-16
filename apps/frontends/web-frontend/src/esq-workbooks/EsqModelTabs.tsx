@@ -1,7 +1,8 @@
 import { JSX, useId, useMemo, useState } from "react";
-import type { EventTree, FunctionalEvent } from "interfaces-mef-types/es/event-sequence-analysis";
+import type { EventTree, FunctionalEvent, FunctionalEventNetworkNode } from "interfaces-mef-types/es/event-sequence-analysis";
 import type {
   EsqFamilyChoice,
+  EsqFunctionNodeLink,
   EsqFunctionRule,
   EsqFunctionTarget,
   EsqInitiatorChoice,
@@ -96,13 +97,17 @@ type ModelDialog =
   | { kind: "initiator"; id: string }
   | { kind: "split"; key: string }
   | { kind: "value"; id: string }
-  | { kind: "faultTree"; treeId: string; functionalEventId: string; name: string }
+  | { kind: "link"; treeId: string; functionalEventId: string; name: string }
   | { kind: "faultTreeView"; modelIds: string[] };
+
+type LinkKind = "FAULT_TREE" | "NETWORK_NODE";
 
 interface AxisOption {
   id: string;
   name: string;
 }
+
+const LINK_KINDS: readonly (readonly [LinkKind, string])[] = [["FAULT_TREE", "Fault tree top"], ["NETWORK_NODE", "Network node"]];
 
 const MODEL_TABS: { id: ModelTab; label: string }[] = [
   { id: "trees", label: "Trees" },
@@ -155,10 +160,15 @@ function targetText(model: EsqModel, target: EsqFunctionTarget | undefined): str
   return topOf(model, target.top)?.code ?? "Missing top";
 }
 
+function nodeText(link: EsqFunctionNodeLink): string {
+  return link.label.length === 0 ? "Missing network node" : `Network node ${link.label}`;
+}
+
 function linkedToText(model: EsqModel, entry: EsqFunctionView): string {
-  const first = entry.targets[0];
+  const labels = [...entry.targets.map((target) => targetText(model, target)), ...entry.nodes.map(nodeText)];
+  const first = labels[0];
   if (first === undefined) return "Not linked";
-  const head = entry.targets.length === 1 ? targetText(model, first) : `${entry.targets.length} targets`;
+  const head = labels.length === 1 ? first : `${labels.length} targets`;
   return entry.unlinked.length === 0 ? head : `${head}, ${entry.unlinked.length} not linked`;
 }
 
@@ -169,7 +179,7 @@ function fallbackText(model: EsqModel, entry: EsqFunctionView, tree: EsqTreeReco
   const resolved = resolveLink(entry.record, rest, tree);
   if (resolved.origin === "NONE") return "Not linked";
   const where = resolved.origin === "ES" ? (tree.typed === true ? "As drawn" : "From ES") : resolved.origin === "ESQ" ? "Every tree" : "Rule";
-  return `${where} · ${targetText(model, resolved.target)}`;
+  return `${where} · ${resolved.node === undefined ? targetText(model, resolved.target) : nodeText(resolved.node)}`;
 }
 
 function syWorkbookOf(esq: EventSequenceQuantification, model: EsqModel): string {
@@ -300,13 +310,13 @@ function ReasonCell({ label, value, editable, onChange }: { label: string; value
   );
 }
 
-function TreePanel({ tree, initiators, states, onOpenTree, onOpenFaultTree, onLinkFaultTree }: {
+function TreePanel({ tree, initiators, states, onOpenTree, onOpenFaultTree, onLink }: {
   tree: EsqTreeRecord | undefined;
   initiators: readonly AxisOption[];
   states: readonly AxisOption[];
   onOpenTree: (id: string) => void;
   onOpenFaultTree: (modelIds: string[]) => void;
-  onLinkFaultTree: (treeId: string, event: FunctionalEvent) => void;
+  onLink: (treeId: string, event: FunctionalEvent) => void;
 }): JSX.Element | null {
   const { esq, editable, mutateEsq, upstream, runtime } = useEsqWorkbook();
   const [representation, setRepresentation] = useState<EventTreeRepresentation>("event-tree");
@@ -347,6 +357,13 @@ function TreePanel({ tree, initiators, states, onOpenTree, onOpenFaultTree, onLi
     return top === undefined ? undefined : topLabel({ code: top.code, name: top.name });
   }
 
+  function networkNodeName(link: FunctionalEventNetworkNode): string | undefined {
+    const reference = link.bayesianNetworkNode;
+    const network = (upstream.sy?.dependencyBayesianNetworks ?? []).find((candidate) => candidate.modelId === reference.modelId);
+    const node = network?.nodes.find((candidate) => candidate.id === reference.entityId);
+    return network === undefined || node === undefined ? undefined : `${node.code} · ${node.name} · ${network.code}`;
+  }
+
   return (
     <EventTreeEditor
       model={source}
@@ -364,7 +381,8 @@ function TreePanel({ tree, initiators, states, onOpenTree, onOpenFaultTree, onLi
       onRepresentationChange={setRepresentation}
       onSelectionChange={setSelection}
       faultTreeName={faultTreeName}
-      {...(author ? { onSelectFaultTreeLink: (event: FunctionalEvent) => onLinkFaultTree(source.uuid, event) } : {})}
+      networkNodeName={networkNodeName}
+      {...(author ? { onSelectLink: (event: FunctionalEvent) => onLink(source.uuid, event) } : {})}
       {...(endStates.length === 0 ? {} : { endStateOptions: endStates })}
       onOpenReference={(reference) => {
         if ("targetEventTreeId" in reference) onOpenTree(reference.targetEventTreeId);
@@ -374,34 +392,63 @@ function TreePanel({ tree, initiators, states, onOpenTree, onOpenFaultTree, onLi
   );
 }
 
-function FaultTreeDialog({ treeId, functionalEventId, name, onClose }: { treeId: string; functionalEventId: string; name: string; onClose: () => void }): JSX.Element {
+function LinkDialog({ treeId, functionalEventId, name, onClose }: { treeId: string; functionalEventId: string; name: string; onClose: () => void }): JSX.Element {
   const { esq, editable, mutateEsq, upstream } = useEsqWorkbook();
   const fieldId = useId();
   const tree = typedTreesOf(esq).find((candidate) => candidate.uuid === treeId);
-  const current = Object.values(tree?.functionalEvents ?? {}).find((candidate) => candidate.uuid === functionalEventId)?.faultTreeTopEvent;
+  const functionalEvent = Object.values(tree?.functionalEvents ?? {}).find((candidate) => candidate.uuid === functionalEventId);
+  const current = functionalEvent?.faultTreeTopEvent;
+  const currentNode = functionalEvent?.networkNode;
+  const [kind, setKind] = useState<LinkKind>(currentNode === undefined ? "FAULT_TREE" : "NETWORK_NODE");
   const [value, setValue] = useState(current === undefined ? "" : topKey(current.modelId, current.entityId));
+  const [networkId, setNetworkId] = useState(currentNode?.bayesianNetworkNode.modelId ?? "");
+  const [nodeId, setNodeId] = useState(currentNode?.bayesianNetworkNode.entityId ?? "");
+  const [failingStateIds, setFailingStateIds] = useState<readonly string[]>(currentNode?.trueStateIds ?? []);
   const model = esq.model;
   const tops = model?.tops ?? [];
   const workbookId = model === undefined ? "" : syWorkbookOf(esq, model);
+  const networks = upstream.sy?.dependencyBayesianNetworks ?? [];
+  const network = networks.find((candidate) => candidate.modelId === networkId) ?? networks[0];
+  const nodes = network?.nodes ?? [];
+  const node = nodes.find((candidate) => candidate.id === nodeId) ?? nodes[0];
+  const failing = node === undefined ? [] : failingStateIds.filter((stateId) => node.states.some((state) => state.id === stateId));
+  const nodeReady = workbookId.length > 0 && network !== undefined && node !== undefined && failing.length > 0 && failing.length < node.states.length;
+  const chosen = tops.find((record) => topKey(record.modelId, record.gateId) === value);
 
-  function apply(reference: FaultTreeTopEventReference | undefined): void {
+  function change(operation: EventTreeOperation): void {
     if (!editable) return;
     const now = new Date().toISOString();
     mutateEsq((draft) => {
       const trees = typedTreesOf(draft);
       const known = trees.find((candidate) => candidate.uuid === treeId);
       if (known === undefined) return draft;
-      const next = applyEventTreeOperation(known, { kind: "SET_FAULT_TREE_REFERENCE", functionalEventId, reference });
+      const next = applyEventTreeOperation(known, operation);
       return withTypedTrees(draft, trees.map((candidate) => (candidate.uuid === treeId ? next : candidate)), upstream, now);
     });
     onClose();
   }
 
-  const chosen = tops.find((record) => topKey(record.modelId, record.gateId) === value);
-
   function save(): void {
-    if (chosen === undefined) return;
-    apply({ referenceType: "FAULT_TREE_TOP_EVENT", workbookId, modelId: chosen.modelId, entityId: chosen.gateId });
+    if (kind === "FAULT_TREE") {
+      if (chosen === undefined) return;
+      change({ kind: "SET_FAULT_TREE_REFERENCE", functionalEventId, reference: { referenceType: "FAULT_TREE_TOP_EVENT", workbookId, modelId: chosen.modelId, entityId: chosen.gateId } });
+      return;
+    }
+    if (!nodeReady || network === undefined || node === undefined) return;
+    change({
+      kind: "SET_NETWORK_NODE",
+      functionalEventId,
+      link: {
+        bayesianNetworkNode: { referenceType: "BAYESIAN_NETWORK_NODE", workbookId, modelId: network.modelId, entityId: node.id },
+        trueStateIds: node.states.filter((state) => failing.includes(state.id)).map((state) => state.id),
+      },
+    });
+  }
+
+  function remove(): void {
+    change(currentNode === undefined
+      ? { kind: "SET_FAULT_TREE_REFERENCE", functionalEventId, reference: undefined }
+      : { kind: "SET_NETWORK_NODE", functionalEventId, link: undefined });
   }
 
   function showModel(modelId: string): void {
@@ -409,24 +456,74 @@ function FaultTreeDialog({ treeId, functionalEventId, name, onClose }: { treeId:
     if (top !== undefined) setValue(topKey(top.modelId, top.gateId));
   }
 
+  function selectNetwork(modelId: string): void {
+    setNetworkId(modelId);
+    setNodeId("");
+    setFailingStateIds([]);
+  }
+
+  function selectNode(id: string): void {
+    setNodeId(id);
+    setFailingStateIds([]);
+  }
+
+  function toggleState(stateId: string): void {
+    setFailingStateIds((known) => (known.includes(stateId) ? known.filter((id) => id !== stateId) : [...known, stateId]));
+  }
+
   return (
-    <DialogShell label="Fault tree" onClose={onClose} fit>
-      <DialogHead cap="Fault tree · ESQ-A2" title={name} onClose={onClose} />
+    <DialogShell label="Link" onClose={onClose} fit>
+      <DialogHead cap="Link · ESQ-A2" title={name} onClose={onClose} />
       <div className="modal__body">
         <div className="posfield-grid esq-model-fields">
           <div className="posfield posfield-grid--span2">
-            <label className="posfield__label" htmlFor={`${fieldId}-top`}>Fault tree top</label>
-            <select id={`${fieldId}-top`} className="posfield__select" value={value} disabled={!editable || tops.length === 0} onChange={(event) => setValue(event.target.value)}>
-              <option value="">Not linked</option>
-              {tops.map((top) => <option key={topKey(top.modelId, top.gateId)} value={topKey(top.modelId, top.gateId)}>{topLabel(top)}</option>)}
+            <label className="posfield__label" htmlFor={`${fieldId}-kind`}>Link to</label>
+            <select id={`${fieldId}-kind`} className="posfield__select" value={kind} disabled={!editable} onChange={(event) => setKind(LINK_KINDS.find(([option]) => option === event.target.value)?.[0] ?? "FAULT_TREE")}>
+              {LINK_KINDS.map(([option, label]) => <option key={option} value={option}>{label}</option>)}
             </select>
           </div>
+          {kind === "FAULT_TREE" ? (
+            <div className="posfield posfield-grid--span2">
+              <label className="posfield__label" htmlFor={`${fieldId}-top`}>Fault tree top</label>
+              <select id={`${fieldId}-top`} className="posfield__select" value={value} disabled={!editable || tops.length === 0} onChange={(event) => setValue(event.target.value)}>
+                <option value="">Not linked</option>
+                {tops.map((top) => <option key={topKey(top.modelId, top.gateId)} value={topKey(top.modelId, top.gateId)}>{topLabel(top)}</option>)}
+              </select>
+            </div>
+          ) : (
+            <>
+              <div className="posfield">
+                <label className="posfield__label" htmlFor={`${fieldId}-network`}>Network</label>
+                <select id={`${fieldId}-network`} className="posfield__select" value={network?.modelId ?? ""} disabled={!editable || networks.length === 0} onChange={(event) => selectNetwork(event.target.value)}>
+                  {networks.length === 0 && <option value="">No network in the linked SY workbook</option>}
+                  {networks.map((candidate) => <option key={candidate.modelId} value={candidate.modelId}>{`${candidate.code} · ${candidate.name}`}</option>)}
+                </select>
+              </div>
+              <div className="posfield">
+                <label className="posfield__label" htmlFor={`${fieldId}-node`}>Node</label>
+                <select id={`${fieldId}-node`} className="posfield__select" value={node?.id ?? ""} disabled={!editable || nodes.length === 0} onChange={(event) => selectNode(event.target.value)}>
+                  {nodes.map((candidate) => <option key={candidate.id} value={candidate.id}>{`${candidate.code} · ${candidate.name}`}</option>)}
+                </select>
+              </div>
+            </>
+          )}
         </div>
-        {chosen !== undefined && <FaultTreeDiagram key={chosen.modelId} modelId={chosen.modelId} eventIds={[]} onModel={showModel} />}
+        {kind === "FAULT_TREE" && chosen !== undefined && <FaultTreeDiagram key={chosen.modelId} modelId={chosen.modelId} eventIds={[]} onModel={showModel} />}
+        {kind === "NETWORK_NODE" && node !== undefined && (
+          <fieldset className="esq-model-states" disabled={!editable}>
+            <legend>{`States of ${node.code} in which ${name} fails`}</legend>
+            {node.states.map((state) => (
+              <label key={state.id}>
+                <input type="checkbox" checked={failing.includes(state.id)} onChange={() => toggleState(state.id)} />
+                <span>{`${state.code} · ${state.name}`}</span>
+              </label>
+            ))}
+          </fieldset>
+        )}
         {editable && (
           <div className="posrow es-dialog-actions">
-            {current !== undefined && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => apply(undefined)}>Remove link</button>}
-            <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" disabled={value.length === 0} onClick={save}>Save</button>
+            {(current !== undefined || currentNode !== undefined) && <button type="button" className="posnav__btn posnav__btn--sm" onClick={remove}>Remove link</button>}
+            <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" disabled={kind === "FAULT_TREE" ? chosen === undefined : !nodeReady} onClick={save}>Save</button>
           </div>
         )}
       </div>
@@ -456,7 +553,7 @@ function FunctionsPanel({ view, onOpen }: { view: EsqModelView; onOpen: (id: str
                   {entry.record.name !== entry.record.id && <span className="postable__name-sub posmono">{entry.record.id}</span>}
                 </td>
                 <td className="posmono">{entry.trees.length}</td>
-                <td>{entry.targets.length === 0 ? <span className="esq-model-flag">Not linked</span> : linkedToText(view.model, entry)}</td>
+                <td>{entry.targets.length === 0 && entry.nodes.length === 0 ? <span className="esq-model-flag">Not linked</span> : linkedToText(view.model, entry)}</td>
                 <td className="es-records__act">
                   <button type="button" className="posnav__btn posnav__btn--sm" aria-label={`${actionLabel} ${entry.record.id}`} onClick={() => onOpen(entry.record.id)}>{actionLabel}</button>
                 </td>
@@ -479,7 +576,7 @@ function FunctionDialog({ id, view, onClose }: { id: string; view: EsqModelView;
   const link = entry.link;
   const legacy = (link?.rules ?? []).filter((rule) => (rule.treeIds ?? []).length === 0);
   const defaultReason = entry.fromEs && link?.target !== undefined;
-  const treeReason = (tree: EsqTreeRecord): boolean => tree.typed !== true && treeRuleOf(link, tree.id) !== undefined && record.esLinks.some((candidate) => candidate.treeId === tree.id);
+  const treeReason = (tree: EsqTreeRecord): boolean => tree.typed !== true && treeRuleOf(link, tree.id) !== undefined && [...record.esLinks, ...(record.nodeLinks ?? [])].some((candidate) => candidate.treeId === tree.id);
   const showReason = defaultReason || legacy.length > 0 || entry.trees.some(treeReason);
   const showActions = editable && legacy.length > 0;
 
@@ -1337,7 +1434,7 @@ function EsqModelTabs(): JSX.Element {
           states={axes.states}
           onOpenTree={openTree}
           onOpenFaultTree={(modelIds) => setDialog({ kind: "faultTreeView", modelIds })}
-          onLinkFaultTree={(id, event) => setDialog({ kind: "faultTree", treeId: id, functionalEventId: event.uuid, name: event.label ?? event.name })}
+          onLink={(id, event) => setDialog({ kind: "link", treeId: id, functionalEventId: event.uuid, name: event.label ?? event.name })}
         />
       );
     }
@@ -1355,7 +1452,7 @@ function EsqModelTabs(): JSX.Element {
   function renderDialog(): JSX.Element | null {
     if (dialog === null) return null;
     const close = (): void => setDialog(null);
-    if (dialog.kind === "faultTree") return <FaultTreeDialog treeId={dialog.treeId} functionalEventId={dialog.functionalEventId} name={dialog.name} onClose={close} />;
+    if (dialog.kind === "link") return <LinkDialog treeId={dialog.treeId} functionalEventId={dialog.functionalEventId} name={dialog.name} onClose={close} />;
     if (dialog.kind === "faultTreeView") return <FaultTreeWindow key={dialog.modelIds.join(",")} modelIds={dialog.modelIds} eventIds={[]} onClose={close} />;
     if (view === undefined) return null;
     switch (dialog.kind) {

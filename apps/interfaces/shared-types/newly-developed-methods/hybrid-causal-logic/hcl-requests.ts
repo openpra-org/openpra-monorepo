@@ -25,6 +25,13 @@ import type {
   HclSolverSettings,
 } from "./hcl-configuration";
 import type { HclEventBinding } from "./hcl-bindings";
+import type { HclParameterDraws, HclSampler, HclZeroProbabilityContexts } from "interfaces-mef-types/modeling";
+import {
+  HclCptClipEpsilonSchema,
+  HclSamplerSchema,
+  HclUncertaintySampleCountSchema,
+  HclUncertaintySeedSchema,
+} from "interfaces-mef-types/zod/modeling";
 import {
   HclBaseEvidenceSchema,
   HclEvidenceScenarioSchema,
@@ -36,6 +43,30 @@ import {
 
 const HclCalculationTypeSchema = z.enum(["PROBABILITY", "UNCERTAINTY"]);
 type HclCalculationType = z.infer<typeof HclCalculationTypeSchema>;
+
+interface HclRunSampling {
+  sampleCount: number;
+  seed?: number;
+  sampler: HclSampler;
+  cptSampler?: HclSampler;
+  correlation?: HclParameterDraws;
+  clipProbabilities?: boolean;
+  cptClipEpsilon?: number;
+  zeroProbabilityContexts?: HclZeroProbabilityContexts;
+}
+
+const HclRunSamplingSchema = z
+  .object({
+    sampleCount: HclUncertaintySampleCountSchema,
+    seed: HclUncertaintySeedSchema.optional(),
+    sampler: HclSamplerSchema,
+    cptSampler: HclSamplerSchema.optional(),
+    correlation: z.enum(["SHARED", "INDEPENDENT"]).optional(),
+    clipProbabilities: z.boolean().optional(),
+    cptClipEpsilon: HclCptClipEpsilonSchema.optional(),
+    zeroProbabilityContexts: z.enum(["ZERO", "FAIL"]).optional(),
+  })
+  .strict();
 
 interface HclCreateRequest {
   schemaVersion: WorkbookMethodSchemaVersion;
@@ -90,6 +121,7 @@ interface HclEventTreeExecuteRequest {
   eventTree: WorkbookModelAddress;
   dependencyConfiguration?: WorkbookModelAddress;
   evidenceScenarioId?: WorkbookEntityId;
+  sampling?: HclRunSampling;
 }
 
 const HclBatchInputSchema = z.object({
@@ -126,6 +158,7 @@ interface HclEventTreeBatchExecuteRequest {
   evidenceScenarioIds: WorkbookEntityId[];
   batchInput?: HclBatchInput;
   integrateHazardGrid?: boolean;
+  sampling?: HclRunSampling;
 }
 
 const HclCreateRequestSchema = z
@@ -193,6 +226,7 @@ const HclEventTreeExecuteRequestSchema = z
     eventTree: WorkbookModelAddressSchema,
     dependencyConfiguration: WorkbookModelAddressSchema.optional(),
     evidenceScenarioId: WorkbookEntityIdSchema.optional(),
+    sampling: HclRunSamplingSchema.optional(),
   })
   .strict();
 
@@ -229,6 +263,7 @@ const HclEventTreeBatchExecuteRequestSchema = z
     evidenceScenarioIds: EvidenceScenarioIdsSchema,
     batchInput: HclBatchInputSchema.optional(),
     integrateHazardGrid: z.boolean().optional(),
+    sampling: HclRunSamplingSchema.optional(),
   })
   .strict();
 
@@ -248,9 +283,11 @@ type _AssertHclFaultTreeBatchExecuteRequest = Expect<
 type _AssertHclEventTreeBatchExecuteRequest = Expect<
   Equal<z.infer<typeof HclEventTreeBatchExecuteRequestSchema>, HclEventTreeBatchExecuteRequest>
 >;
+type _AssertHclRunSampling = Expect<Equal<z.infer<typeof HclRunSamplingSchema>, HclRunSampling>>;
 
 export {
   HclCalculationTypeSchema,
+  HclRunSamplingSchema,
   HclBatchInputSchema,
   HclCreateRequestSchema,
   HclPatchChangesSchema,
@@ -263,6 +300,7 @@ export {
 };
 export type {
   HclCalculationType,
+  HclRunSampling,
   HclBatchInput,
   HclCreateRequest,
   HclPatchChanges,

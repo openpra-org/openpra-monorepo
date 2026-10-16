@@ -83,12 +83,11 @@ const HANDOFF_SECTIONS = [
 
   { element: "ES", key: "scope", name: "Scope", contents: "Initiator groups, operating states and sources in scope.", readers: ["SY", "ESQ"] },
   { element: "ES", key: "safety-functions", name: "Safety functions", contents: "Key safety functions with their supporting systems.", readers: ["SC", "SY"] },
-  { element: "ES", key: "event-trees", name: "Event trees", contents: "Trees with functional events, fault tree links, sequences and transfers.", readers: ["ESQ", "RI"] },
+  { element: "ES", key: "event-trees", name: "Event trees", contents: "Trees with functional events, fault tree and network node links, sequences and transfers.", readers: ["ESQ", "RI"] },
   { element: "ES", key: "sequences", name: "Sequences", contents: "Sequence records with path, end state, family and release category.", readers: ["SC", "ESQ", "RI"] },
   { element: "ES", key: "families", name: "Families", contents: "Families with members, release categories and representative initiator and state.", readers: ["ESQ", "MS", "RC", "RI"] },
   { element: "ES", key: "release-categories", name: "Release categories", contents: "Release categories with their sequences.", readers: ["MS", "RC"] },
   { element: "ES", key: "screening", name: "Screening", contents: "Screening records.", readers: ["RI"] },
-  { element: "ES", key: "dependency-networks", name: "Dependency networks", contents: "Bayesian networks and their HCL configurations.", readers: ["ESQ"] },
   { element: "ES", key: "timing", name: "Timing and phenomena", contents: "Sequence timelines, operator-action windows, phenomenological conditions and repair credit.", readers: ["HRA", "ESQ"] },
   { element: "ES", key: "dynamic-runs", name: "Dynamic runs", contents: "Dynamic PRA runs and their branches.", readers: ["ESQ"] },
   { element: "ES", key: "uncertainty", name: "Uncertainty", contents: "Model uncertainty register, sensitivity proposals, pre-operational assumptions and sequence and family assumptions.", readers: ["ESQ", "RI"] },

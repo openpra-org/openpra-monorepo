@@ -243,11 +243,25 @@ export interface EsqFunctionEsLink {
   top: EsqTopReference;
 }
 
+export interface EsqNetworkNodeReference {
+  workbookId: string;
+  modelId: string;
+  nodeId: string;
+}
+
+export interface EsqFunctionNodeLink {
+  treeId: string;
+  node: EsqNetworkNodeReference;
+  trueStateIds: string[];
+  label: string;
+}
+
 export interface EsqFunctionRecord {
   id: string;
   name: string;
   treeIds: string[];
   esLinks: EsqFunctionEsLink[];
+  nodeLinks?: EsqFunctionNodeLink[];
 }
 
 export interface EsqTopNode {

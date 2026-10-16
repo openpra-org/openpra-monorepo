@@ -207,6 +207,12 @@ export const EsqFunctionRecordSchema = z.object({
   name: z.string(),
   treeIds: z.array(z.string()),
   esLinks: z.array(z.object({ treeId: z.string(), top: EsqTopReferenceSchema })),
+  nodeLinks: z.array(z.object({
+    treeId: z.string(),
+    node: z.object({ workbookId: z.string(), modelId: z.string(), nodeId: z.string() }),
+    trueStateIds: z.array(z.string()),
+    label: z.string(),
+  })).optional(),
 });
 
 export const EsqTopNodeSchema = z.object({

@@ -396,14 +396,22 @@ function applyEventTreeOperation(model: EventTree, operation: EventTreeOperation
 function operationResult(model: EventTree, operation: EventTreeOperation): EventTree {
   if (operation.kind === "REPLACE") return operation.model;
   if (operation.kind === "UPDATE_TREE") return { ...model, ...operation.changes };
-  if (operation.kind === "SET_FAULT_TREE_REFERENCE") {
+  if (operation.kind === "SET_FAULT_TREE_REFERENCE" || operation.kind === "SET_NETWORK_NODE") {
     const current = model.functionalEvents[operation.functionalEventId];
     if (current === undefined) return model;
+    const { faultTreeTopEvent: _top, networkNode: _node, faultTreeId: _legacy, ...unlinked } = current;
+    const next = operation.kind === "SET_FAULT_TREE_REFERENCE"
+      ? operation.reference === undefined
+        ? { ...unlinked, ...(current.networkNode === undefined ? {} : { networkNode: current.networkNode }) }
+        : { ...unlinked, faultTreeTopEvent: operation.reference }
+      : operation.link === undefined
+        ? { ...unlinked, ...(current.faultTreeTopEvent === undefined ? {} : { faultTreeTopEvent: current.faultTreeTopEvent }) }
+        : { ...unlinked, networkNode: operation.link };
     return {
       ...model,
       functionalEvents: {
         ...model.functionalEvents,
-        [current.uuid]: { ...current, faultTreeTopEvent: operation.reference, faultTreeId: undefined },
+        [current.uuid]: next,
       },
     };
   }
@@ -590,8 +598,8 @@ function validateEventTree(model: EventTree, allTrees: Array<EventTree | string>
   events.forEach((event, order) => {
     if (event.order !== order) error("ET_ORDER_INVALID", "Functional-event order must be contiguous.", event.uuid);
     const splitsSuccessFailure = [...derivedPaths.values()].some((path) => path[event.uuid] === "SUCCESS" || path[event.uuid] === "FAILURE");
-    if (event.faultTreeTopEvent === undefined && splitsSuccessFailure) {
-      error("ET_FT_LINK_REQUIRED", `Link ${event.label ?? event.name} to a fault-tree top event.`, event.uuid);
+    if (event.faultTreeTopEvent === undefined && event.networkNode === undefined && splitsSuccessFailure) {
+      error("ET_FT_LINK_REQUIRED", `Link ${event.label ?? event.name} to a fault-tree top event or a network node.`, event.uuid);
     }
   });
   const reachableSequences = new Set<string>();
@@ -680,7 +688,7 @@ function createEventTreePresentation(
       id: event.uuid,
       code: event.label ?? event.uuid,
       label: event.name,
-      linked: event.faultTreeTopEvent !== undefined,
+      linked: event.faultTreeTopEvent !== undefined || event.networkNode !== undefined,
     })),
     node: model.initialState.branchId.length === 0 ? { seq: "" } : node(model.initialState.branchId, new Set()),
     sequences: Object.values(model.sequences).map((sequence) => {

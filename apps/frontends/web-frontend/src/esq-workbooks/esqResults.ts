@@ -18,7 +18,7 @@ import { ScreeningStatus } from "interfaces-mef-types/core/shared-patterns";
 import { PUBLISHED_RI_CRITERIA, type RiskIntegration } from "interfaces-mef-types/ri/risk-integration";
 import type { InitiatingEventsAnalysis } from "interfaces-mef-types/ie/initiating-event-analysis";
 import { solveInputsKey, solveWorkOf } from "interfaces-mef-types/esq/esq-solve-inputs";
-import { treesInScope } from "interfaces-mef-types/esq/esq-run-inputs";
+import { esqItemLabel, treesInScope } from "interfaces-mef-types/esq/esq-run-inputs";
 import type {
   EsqEventTreeRunLogic,
   EsqImportanceRunResult,
@@ -365,8 +365,8 @@ function contributorRows(input: {
     const record = records.get(finalId);
     const tree = trees.get(sequence.treeId);
     add("SEQUENCE", `${sequence.treeId}:${finalId}`, `${tree?.code ?? sequence.treeId} · ${record?.code ?? finalId}`, sequence.annualFrequency);
-    if (tree !== undefined) add("INITIATOR", tree.initiatorId, `${initiators.get(tree.initiatorId) ?? tree.initiatorId} (${tree.initiatorId})`, sequence.annualFrequency);
-    if (tree?.stateId !== undefined) add("STATE", tree.stateId, `${states.get(tree.stateId) ?? tree.stateId} (${tree.stateId})`, sequence.annualFrequency);
+    if (tree !== undefined) add("INITIATOR", tree.initiatorId, esqItemLabel(initiators.get(tree.initiatorId), tree.initiatorId, "Unresolved initiator group"), sequence.annualFrequency);
+    if (tree?.stateId !== undefined) add("STATE", tree.stateId, esqItemLabel(states.get(tree.stateId), tree.stateId, "Unresolved operating state"), sequence.annualFrequency);
     for (const source of record?.sourceIds ?? []) add("SOURCE", source, source, sequence.annualFrequency);
   }
   const result = input.importance;
@@ -562,7 +562,7 @@ function screenedFindings(view: Omit<EsqResultsView, "findings">): EsqResultsFin
   const findings: EsqResultsFinding[] = [];
   for (const row of view.screened) {
     const target = { kind: "esqResultsScreened" as const, id: row.groupId };
-    const item = `${row.name} (${row.groupId})`;
+    const item = esqItemLabel(row.name, row.groupId, "Unnamed initiator group");
     if (row.bound === undefined || row.bound.conditional === undefined) {
       findings.push({ severity: "error", check: "Screened initiator without a bound", item, detail: "Give a bounding conditional probability so its family frequency can be bounded (ESQ-D8).", target });
       continue;

@@ -845,6 +845,7 @@ describe("workbook-owned analysis-run APIs", () => {
       ({ modelId }) => modelId === HCL_CASE_BAYESIAN_IDS.model,
     )!;
     const seismicNode = hclCaseNetwork.nodes.find(({ id }) => id === HCL_CASE_BAYESIAN_IDS.seismic)!;
+    delete hclCaseSystems.dependencyHclConfigurations![0]!.hazardGrid;
     hclCaseSystems.dependencyHclConfigurations![0]!.evidenceScenarios = [
       {
         id: HCL_CASE_SCENARIO_BASE_ID,

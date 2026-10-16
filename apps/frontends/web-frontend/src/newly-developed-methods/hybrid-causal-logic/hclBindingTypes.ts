@@ -81,27 +81,13 @@ interface HclEditorBatchRunResult {
 
 type QuantificationWorkflow = "MANUAL" | "BATCH";
 
-interface HclScopeChoice {
-  id: string;
-  name: string;
-}
-
-interface HclScopeChoices {
-  initiatingEvents: HclScopeChoice[];
-  plantOperatingStates: HclScopeChoice[];
-}
-
 interface HclBindingEditorProps {
   model: BayesianNetworkModel;
   editable: boolean;
   workbookId: string | null;
   configurations: WorkbookHclConfiguration[];
   scope?: "BOTH" | "FAULT_TREE" | "EVENT_TREE";
-  setupOnly?: boolean;
-  scopeChoices?: HclScopeChoices;
-  externalBindingLabels?: ReadonlyMap<string, string>;
   faultTreeOptions: HclFaultTreeOption[];
-  referencedFaultTrees?: HclFaultTreeOption[];
   eventTreeOptions: HclEventTreeOption[];
   baseEvidence: BayesianNetworkEvidenceConfiguration;
   validation: ValidationIssue[];
@@ -135,7 +121,5 @@ export type {
   QuantificationWorkflow,
   HclEventTreeOption,
   HclFaultTreeOption,
-  HclScopeChoice,
-  HclScopeChoices,
   HclSyValue,
 };

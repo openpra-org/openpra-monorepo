@@ -64,7 +64,6 @@ import {
   type ActingUser,
   type EsqDependencySource,
   type EsqDependencyTreeBuild,
-  type EsqHclStandIn,
   type EsqModelHcl,
   type EsqPreparedTreeRun,
   type LoadedWorkbook,
@@ -175,7 +174,7 @@ interface PrepareTreesInput {
   transform?: (build: EsqRunBuild, root: EsqTreeRecord) => EsqRunBuild;
   eventCodes: Record<string, string>;
   builds: Map<string, EsqRunBuild>;
-  standInFor?: (rootId: string) => (treeId: string, functionId: string) => EsqHclStandIn | undefined;
+  network?: { workbookId: string; modelId: string };
   augment?: (envelope: SolverEnvelope, build: EsqRunBuild, root: EsqTreeRecord) => SolverEnvelope;
 }
 
@@ -611,7 +610,7 @@ export class EsqModelRunsService {
         ...(points === undefined ? {} : { points }),
         ...(input.raisedHep === undefined ? {} : { raisedHep: input.raisedHep }),
         ...(input.failedEventIds === undefined || input.failedEventIds.length === 0 ? {} : { failedEventIds: input.failedEventIds }),
-        ...(input.standInFor === undefined ? {} : { standIn: input.standInFor(root.id) }),
+        ...(input.network === undefined ? {} : { network: input.network }),
       }), input.points, input.references, owner, input.acting);
     } catch (error) {
       if (!(error instanceof EsqRunBuildError)) throw error;
@@ -666,23 +665,21 @@ export class EsqModelRunsService {
     hcl: EsqModelHcl | undefined,
     sy: LoadedWorkbook<SystemsAnalysis>,
     covered: string[],
-  ): Pick<PrepareTreesInput, "standInFor" | "augment"> {
+  ): Pick<PrepareTreesInput, "network" | "augment"> {
     if (hcl === undefined) return {};
     return {
-      standInFor: hcl.standInFor,
+      network: hcl.network,
       augment: (envelope, build, root) => {
-        if (!hcl.covers(root.id, sy.workbookId, build.syModelIds)) return envelope;
-        const refusal = hcl.refusal(root.id);
-        if (refusal !== undefined) throw new BadRequestException(refusal);
+        if (!hcl.covers(sy.workbookId, build.syModelIds, build.standIns)) return envelope;
         covered.push(root.id);
-        return hcl.augment(envelope, sy.workbookId, build.syModelIds, build.standInModelIds);
+        return hcl.augment(envelope, sy.workbookId, build.syModelIds, build.standIns);
       },
     };
   }
 
   private hclResult(hcl: EsqModelHcl | undefined, covered: readonly string[]): { hcl?: EsqModelRunHclResult } {
     if (hcl === undefined) return {};
-    if (covered.length === 0) throw new BadRequestException("The dependency configuration covers no event tree in scope. Pick a configuration whose scope or fault trees match these event trees.");
+    if (covered.length === 0) throw new BadRequestException("The dependency configuration covers no event tree in scope. Pick a configuration whose fault trees or network nodes these event trees use.");
     return { hcl: { workbookId: hcl.configurationWorkbookId, modelId: hcl.configurationId, treeIds: [...covered] } };
   }
 
@@ -777,7 +774,7 @@ export class EsqModelRunsService {
       extras: () => ({}),
       eventCodes: {},
       builds,
-      standInFor: input.hcl.standInFor,
+      network: input.hcl.network,
     }, input.root);
     const build = builds.get(input.root.id);
     if (prepared.envelope === null || build === undefined) throw new BadRequestException(prepared.failure ?? `${input.root.code} could not be built.`);
@@ -786,7 +783,7 @@ export class EsqModelRunsService {
       envelope: prepared.envelope,
       syWorkbookId: input.sy.workbookId,
       syModelIds: build.syModelIds,
-      standInModelIds: build.standInModelIds,
+      standIns: build.standIns,
       models: prepared.models,
       sources: [...input.sources, ...input.references.sources],
     };

@@ -25,6 +25,7 @@ import type { HumanReliabilityAnalysis } from "interfaces-mef-types/hr/human-rel
 import type { RadiologicalConsequenceAnalysis } from "interfaces-mef-types/rc/radiological-consequence-analysis";
 import type { RiskIntegration } from "interfaces-mef-types/ri/risk-integration";
 import { EndState } from "interfaces-mef-types/core/events";
+import { HclUncertaintySettingsSchema } from "interfaces-mef-types/zod/modeling";
 
 const EXAMPLE_ESQ_WORKBOOK_ID = "example-esq-workbook";
 const EXAMPLE_SY_WORKBOOK_ID = "example-sy-workbook";
@@ -362,6 +363,28 @@ function reconcileExampleEsqDependencyReferences(
   };
 }
 
+function relinkedSolverSettings(
+  settings: EsqHclConfiguration["solverSettings"],
+  syWorkbookId: string,
+  localNetworkIds: ReadonlySet<string>,
+  localBasicEventIds: ReadonlySet<string>,
+): EsqHclConfiguration["solverSettings"] {
+  const parsed = HclUncertaintySettingsSchema.safeParse(settings.uncertainty);
+  if (!parsed.success) return settings;
+  const node = <T extends { modelId: string; workbookId: string }>(reference: T): T => (localNetworkIds.has(reference.modelId) ? { ...reference, workbookId: syWorkbookId } : reference);
+  return {
+    ...settings,
+    uncertainty: {
+      ...parsed.data,
+      basicEvents: parsed.data.basicEvents.map((entry) => (localBasicEventIds.has(entry.faultTreeBasicEvent.entityId)
+        ? { ...entry, faultTreeBasicEvent: { ...entry.faultTreeBasicEvent, workbookId: syWorkbookId } }
+        : entry)),
+      cptRows: parsed.data.cptRows.map((entry) => ({ ...entry, bayesianNetworkNode: node(entry.bayesianNetworkNode) })),
+      cptGenerators: parsed.data.cptGenerators.map((entry) => ({ ...entry, bayesianNetworkNode: node(entry.bayesianNetworkNode) })),
+    },
+  };
+}
+
 function reconcileExampleSyDependencyOwnership(
   analysis: SystemsAnalysis,
   syWorkbookId: string,
@@ -414,6 +437,7 @@ function reconcileExampleSyDependencyOwnership(
             ? { ...binding.bayesianNetworkNode, workbookId: syWorkbookId }
             : binding.bayesianNetworkNode,
         })),
+        solverSettings: relinkedSolverSettings(owned.solverSettings, syWorkbookId, localNetworkIds, localBasicEventIds),
       };
     }),
   };
@@ -428,6 +452,7 @@ function reconcileExampleEventTreeDependencyReferences(
     ? exampleRpsReferences(systems)
     : null;
   const systemModels = new Map(systems.systemLogicModels.map((model) => [model.uuid, model]));
+  const networkIds = new Set((systems.dependencyBayesianNetworks ?? []).map((network) => network.modelId));
   return {
     ...analysis,
     eventTrees: analysis.eventTrees?.map((tree) => {
@@ -452,6 +477,12 @@ function reconcileExampleEventTreeDependencyReferences(
       return {
         ...tree,
         functionalEvents: Object.fromEntries(Object.entries(functionalEvents).map(([eventId, functionalEvent]) => {
+          const node = functionalEvent.networkNode;
+          if (node !== undefined) {
+            return networkIds.has(node.bayesianNetworkNode.modelId)
+              ? [eventId, { ...functionalEvent, networkNode: { ...node, bayesianNetworkNode: { ...node.bayesianNetworkNode, workbookId: syWorkbookId } } }]
+              : [eventId, functionalEvent];
+          }
           const reference = functionalEvent.faultTreeTopEvent;
           const model = reference === undefined ? undefined : systemModels.get(reference.modelId);
           return model === undefined || model.topGate === null
@@ -1155,6 +1186,7 @@ function esqSystemsLinks(quantification: EventSequenceQuantification): ExampleLi
     ...workbookLinks<SystemsLinkKind>(linked),
     ...(model?.sources ?? []).flatMap((source) => (source.element === "SY" ? workbookLinks<SystemsLinkKind>(source.workbookId) : [])),
     ...(model?.functions ?? []).flatMap((record) => record.esLinks.flatMap((link) => topLinks(link.top))),
+    ...(model?.functions ?? []).flatMap((record) => (record.nodeLinks ?? []).map((link) => entityLink<SystemsLinkKind>(link.node.workbookId, "MODEL", link.node.modelId))),
     ...(model?.tops ?? []).flatMap((top) => held("MODEL", top.modelId)),
     ...(model?.events ?? []).flatMap((event) => held("BASIC_EVENT", event.id)),
     ...(quantification.modelDecisions?.functionLinks ?? []).flatMap((link) => [
@@ -1195,6 +1227,7 @@ function reconcileExampleEsqSystemsLinks(quantification: EventSequenceQuantifica
         functions: model.functions.map((record) => ({
           ...record,
           esLinks: record.esLinks.map((link) => ({ ...link, top: { ...link.top, workbookId: moveId(link.top.workbookId) } })),
+          ...(record.nodeLinks === undefined ? {} : { nodeLinks: record.nodeLinks.map((link) => ({ ...link, node: { ...link.node, workbookId: moveId(link.node.workbookId) } })) }),
         })),
       },
     }),

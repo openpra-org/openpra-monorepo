@@ -6,7 +6,6 @@ import { applyEventTreeOperation, validateEventTree } from "../newly-developed-m
 import { DialogHead, DialogShell } from "./EsScope";
 import { useEsWorkbook } from "./esWorkbookContext";
 import {
-  dependencyBoundFunctionalEvents,
   endStateUseCount,
   familyRows,
   nextReleaseCategoryId,
@@ -108,10 +107,8 @@ function sequenceFindings(es: EventSequenceAnalysis): EsSequenceFinding[] {
   const codes = new Map(definitions.map((definition) => [definition.id, definition.code]));
   const findings: EsSequenceFinding[] = [];
   for (const tree of trees) {
-    const bound = dependencyBoundFunctionalEvents(es, tree);
     for (const finding of validateEventTree(tree, trees, endStateIds)) {
       if (finding.code.startsWith("ET_FREQUENCY")) continue;
-      if (finding.code === "ET_FT_LINK_REQUIRED" && finding.entityId !== undefined && bound.has(finding.entityId)) continue;
       findings.push({
         severity: finding.severity === "ERROR" ? "error" : "warning",
         check: "Event tree",

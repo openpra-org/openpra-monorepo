@@ -15,6 +15,9 @@
 .esq-model-items .posfield__input.esq-model-share { box-sizing: border-box; width: 96px; }
 .esq-model-reason-error { display: block; margin-top: 4px; font-size: 11px; color: var(--color-error); }
 .esq-model-mission { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
+.esq-model-states { display: flex; flex-wrap: wrap; gap: 8px 18px; margin: 12px 0 0; border: 0; padding: 0; }
+.esq-model-states legend { margin-bottom: 8px; padding: 0; font-size: 12.5px; font-weight: 650; color: var(--color-text-muted); }
+.esq-model-states label { display: inline-flex; align-items: center; gap: 7px; font-size: 13px; color: var(--color-text); }
 .esq-model-items input[type="number"] { appearance: textfield; -moz-appearance: textfield; }
 .esq-model-items input[type="number"]::-webkit-inner-spin-button,
 .esq-model-items input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }

@@ -67,6 +67,16 @@ type ContextMenu =
   | { kind: "sequence"; id: string; x: number; y: number }
   | { kind: "branch"; branch: EventTreeBranchPoint; x: number; y: number };
 
+function linkedOf(event: FunctionalEvent): boolean {
+  return event.faultTreeTopEvent !== undefined || event.networkNode !== undefined;
+}
+
+function unlinkOperation(event: FunctionalEvent): EventTreeOperation {
+  return event.networkNode === undefined
+    ? { kind: "SET_FAULT_TREE_REFERENCE", functionalEventId: event.uuid, reference: undefined }
+    : { kind: "SET_NETWORK_NODE", functionalEventId: event.uuid, link: undefined };
+}
+
 function EventTreeEditor(props: EventTreeEditorProps): JSX.Element {
   const {
     model,
@@ -92,8 +102,9 @@ function EventTreeEditor(props: EventTreeEditorProps): JSX.Element {
     onOperation,
     onRepresentationChange,
     onSelectionChange,
-    onSelectFaultTreeLink,
+    onSelectLink,
     faultTreeName,
+    networkNodeName,
     onUpdateEventSequence,
     onClassifySequence,
     sequenceFamilySource,
@@ -364,8 +375,8 @@ function EventTreeEditor(props: EventTreeEditorProps): JSX.Element {
             <button type="button" className="et-editor__rail-item" disabled={order <= 0} onClick={() => commit({ kind: "MOVE_FUNCTIONAL_EVENT", functionalEventId: selectedEvent.uuid, direction: -1 })}>Move earlier</button>
             <button type="button" className="et-editor__rail-item" disabled={order < 0 || order >= events.length - 1} onClick={() => commit({ kind: "MOVE_FUNCTIONAL_EVENT", functionalEventId: selectedEvent.uuid, direction: 1 })}>Move later</button>
             <div className="et-editor__rail-separator" />
-            {onSelectFaultTreeLink !== undefined && <button type="button" className="et-editor__rail-item" onClick={() => onSelectFaultTreeLink(selectedEvent)}>{selectedEvent.faultTreeTopEvent === undefined ? "Link fault tree" : "Change fault-tree link"}</button>}
-            <button type="button" className="et-editor__rail-item" disabled={selectedEvent.faultTreeTopEvent === undefined} onClick={() => commit({ kind: "SET_FAULT_TREE_REFERENCE", functionalEventId: selectedEvent.uuid, reference: undefined })}>Remove fault-tree link</button>
+            {onSelectLink !== undefined && <button type="button" className="et-editor__rail-item" onClick={() => onSelectLink(selectedEvent)}>{linkedOf(selectedEvent) ? "Change link" : "Link"}</button>}
+            <button type="button" className="et-editor__rail-item" disabled={!linkedOf(selectedEvent)} onClick={() => commit(unlinkOperation(selectedEvent))}>Remove link</button>
             <div className="et-editor__rail-separator" />
             <button type="button" className="et-editor__rail-item et-editor__rail-item--danger" onClick={() => deleteFunctionalEvent(selectedEvent)}>Delete functional event</button>
           </>
@@ -599,15 +610,19 @@ function EventTreeEditor(props: EventTreeEditorProps): JSX.Element {
                 <label className="et-editor__field"><span>Code</span><input key={`${selectedEvent.uuid}-${selectedEvent.label ?? ""}`} defaultValue={selectedEvent.label ?? ""} disabled={!capabilities.author} onBlur={(event) => { const label = event.currentTarget.value.trim(); if (label.length > 0 && label !== selectedEvent.label) commit({ kind: "UPDATE_FUNCTIONAL_EVENT", functionalEventId: selectedEvent.uuid, changes: { label } }); }} /></label>
                 <label className="et-editor__field"><span>Description</span><textarea key={`${selectedEvent.uuid}-${selectedEvent.description ?? ""}`} defaultValue={selectedEvent.description ?? ""} disabled={!capabilities.author} rows={3} onBlur={(event) => { if (event.currentTarget.value !== (selectedEvent.description ?? "")) commit({ kind: "UPDATE_FUNCTIONAL_EVENT", functionalEventId: selectedEvent.uuid, changes: { description: event.currentTarget.value } }); }} /></label>
                 <div className="et-editor__reference">
-                  <span>Fault-tree top event</span>
+                  <span>{selectedEvent.networkNode === undefined ? "Fault-tree top event" : "Network node"}</span>
                   {selectedEvent.faultTreeTopEvent !== undefined && (() => {
                     const reference = selectedEvent.faultTreeTopEvent;
-                    return <button type="button" onClick={() => { if (capabilities.author && onSelectFaultTreeLink !== undefined) onSelectFaultTreeLink(selectedEvent); else onOpenReference?.(reference); }}>{faultTreeName?.(reference) ?? "Linked fault tree"}</button>;
+                    return <button type="button" onClick={() => { if (capabilities.author && onSelectLink !== undefined) onSelectLink(selectedEvent); else onOpenReference?.(reference); }}>{faultTreeName?.(reference) ?? "Linked fault tree"}</button>;
                   })()}
-                  {capabilities.author && (onSelectFaultTreeLink !== undefined || selectedEvent.faultTreeTopEvent !== undefined) && (
+                  {selectedEvent.networkNode !== undefined && (() => {
+                    const link = selectedEvent.networkNode;
+                    return <button type="button" disabled={!capabilities.author || onSelectLink === undefined} onClick={() => onSelectLink?.(selectedEvent)}>{networkNodeName?.(link) ?? "Linked network node"}</button>;
+                  })()}
+                  {capabilities.author && (onSelectLink !== undefined || linkedOf(selectedEvent)) && (
                     <div className="et-editor__reference-actions">
-                      {onSelectFaultTreeLink !== undefined && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={() => onSelectFaultTreeLink(selectedEvent)}>{selectedEvent.faultTreeTopEvent === undefined ? "Link fault tree" : "Change link"}</button>}
-                      {selectedEvent.faultTreeTopEvent !== undefined && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => commit({ kind: "SET_FAULT_TREE_REFERENCE", functionalEventId: selectedEvent.uuid, reference: undefined })}>Remove link</button>}
+                      {onSelectLink !== undefined && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={() => onSelectLink(selectedEvent)}>{linkedOf(selectedEvent) ? "Change link" : "Link"}</button>}
+                      {linkedOf(selectedEvent) && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => commit(unlinkOperation(selectedEvent))}>Remove link</button>}
                     </div>
                   )}
                 </div>
@@ -696,8 +711,8 @@ function EventTreeEditor(props: EventTreeEditorProps): JSX.Element {
               <div className="et-editor__context-title">{functionalEvent.label ?? functionalEvent.name}</div>
               <button type="button" role="menuitem" onClick={() => { onSelectionChange(functionalEvent.uuid); setContextMenu(null); }}>Open details</button>
               {!capabilities.author && functionalEvent.faultTreeTopEvent !== undefined && <button type="button" role="menuitem" onClick={() => { onOpenReference?.(functionalEvent.faultTreeTopEvent!); setContextMenu(null); }}>Open linked fault tree</button>}
-              {capabilities.author && onSelectFaultTreeLink !== undefined && <button type="button" role="menuitem" onClick={() => { onSelectFaultTreeLink(functionalEvent); setContextMenu(null); }}>{functionalEvent.faultTreeTopEvent === undefined ? "Link fault-tree top event" : "Change fault-tree link"}</button>}
-              {capabilities.author && functionalEvent.faultTreeTopEvent !== undefined && <button type="button" role="menuitem" onClick={() => { commit({ kind: "SET_FAULT_TREE_REFERENCE", functionalEventId: functionalEvent.uuid, reference: undefined }); setContextMenu(null); }}>Remove fault-tree link</button>}
+              {capabilities.author && onSelectLink !== undefined && <button type="button" role="menuitem" onClick={() => { onSelectLink(functionalEvent); setContextMenu(null); }}>{linkedOf(functionalEvent) ? "Change link" : "Link"}</button>}
+              {capabilities.author && linkedOf(functionalEvent) && <button type="button" role="menuitem" onClick={() => { commit(unlinkOperation(functionalEvent)); setContextMenu(null); }}>Remove link</button>}
               {capabilities.author && <div className="et-editor__context-separator" />}
               {capabilities.author && <button type="button" role="menuitem" disabled={events.length >= 10} onClick={() => { addFunctionalEvent(order); setContextMenu(null); }}>Insert functional event before</button>}
               {capabilities.author && <button type="button" role="menuitem" disabled={events.length >= 10} onClick={() => { addFunctionalEvent(order + 1); setContextMenu(null); }}>Insert functional event after</button>}

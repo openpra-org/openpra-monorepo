@@ -11,6 +11,7 @@ import type {
 } from "interfaces-mef-types/esq/event-sequence-quantification";
 import type { EsqModelRunResult } from "interfaces-shared-types/newly-developed-methods/event-tree";
 import { importanceGroupsOf } from "interfaces-mef-types/esq/esq-measure-inputs";
+import { esqItemLabel } from "interfaces-mef-types/esq/esq-run-inputs";
 import { WorkbookSectionHeading } from "../workbooks/workbookSectionHeading";
 import { WorkbookInput, WorkbookTextarea } from "../workbooks/commitOnDeactivateFields";
 import { analysisSaveBlock } from "../newly-developed-methods/shared/useAnalysisScope";
@@ -569,9 +570,9 @@ function targetOptions(esq: EventSequenceQuantification, kind: EsqCaseKind): { v
   const model = esq.model;
   if (model === undefined) return [];
   switch (kind) {
-    case "PARAMETER": return model.parameters.map((parameter) => ({ value: parameter.id, label: `${parameter.name} (${parameter.id})` }));
-    case "CCF_TOTAL": return model.ccfGroups.map((group) => ({ value: group.id, label: `${group.name} (${group.id})` }));
-    case "HEP": return model.humanEvents.map((human) => ({ value: human.id, label: `${human.name} (${human.id})` }));
+    case "PARAMETER": return model.parameters.map((parameter) => ({ value: parameter.id, label: esqItemLabel(parameter.name, parameter.id, "Unnamed parameter") }));
+    case "CCF_TOTAL": return model.ccfGroups.map((group) => ({ value: group.id, label: esqItemLabel(group.name, group.id, "Unnamed common cause group") }));
+    case "HEP": return model.humanEvents.map((human) => ({ value: human.id, label: esqItemLabel(human.name, human.id, "Unnamed human failure event") }));
     case "EVENT": return model.events.map((event) => ({ value: event.id, label: blank(event.name) ? event.code : `${event.code} · ${event.name}` }));
     case "GROUP_FAILED": return importanceGroupsOf(esq).map((group) => ({ value: group.key, label: group.label }));
     case "FLAG": return (esq.logic?.flags ?? []).map((flag) => ({ value: flag.id, label: flag.name }));

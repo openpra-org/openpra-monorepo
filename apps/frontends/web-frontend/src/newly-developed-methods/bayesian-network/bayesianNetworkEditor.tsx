@@ -265,10 +265,6 @@ function BayesianNetworkEditor(props: BayesianNetworkEditorProps): JSX.Element {
     showAnalysis = true,
     showQueryAnalysis = true,
     showHclAnalysis = true,
-    hclSetupOnly = false,
-    hclScopeChoices,
-    hclExternalBindingLabels,
-    hclReferencedFaultTrees,
     hclScope = "BOTH",
     analysisHost,
     evidence,
@@ -1730,38 +1726,7 @@ function BayesianNetworkEditor(props: BayesianNetworkEditorProps): JSX.Element {
         </section>
       )}
 
-      {hclSetupOnly && (
-        <section className="bneditor__analysis" aria-label="HCL bindings">
-          <div className="bneditor__quantification-shell">
-          <HclBindingEditor
-            model={model}
-            editable={editable}
-            workbookId={workbookId}
-            configurations={hclConfigurations}
-            scope={hclScope}
-            setupOnly
-            scopeChoices={hclScopeChoices}
-            externalBindingLabels={hclExternalBindingLabels}
-            referencedFaultTrees={hclReferencedFaultTrees}
-            faultTreeOptions={faultTreeOptions}
-            eventTreeOptions={eventTreeOptions}
-            baseEvidence={evidence}
-            validation={hclIssues}
-            running={false}
-            runError={null}
-            runResult={null}
-            batchRunResult={null}
-            onChange={onHclConfigurationsChange}
-            onRunFaultTree={onRunHclFaultTree}
-            onRunEventTree={onRunHclEventTree}
-            onRunFaultTreeBatch={onRunHclFaultTreeBatch}
-            onRunEventTreeBatch={onRunHclEventTreeBatch}
-          />
-          </div>
-        </section>
-      )}
-
-      {!hclSetupOnly && showAnalysis && (showQueryAnalysis || showHclAnalysis) && <section className="bneditor__analysis" aria-label="Bayesian-network analysis">
+      {showAnalysis && (showQueryAnalysis || showHclAnalysis) && <section className="bneditor__analysis" aria-label="Bayesian-network analysis">
         <div className="bneditor__quantification-shell">
           <fieldset className="bneditor__calculation-picker">
             <legend>Calculation</legend>

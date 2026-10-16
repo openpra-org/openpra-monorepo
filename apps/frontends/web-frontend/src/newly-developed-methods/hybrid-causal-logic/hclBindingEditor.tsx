@@ -19,7 +19,6 @@ import type {
   HclBindingEditorProps,
   HclEventTreeOption,
   HclFaultTreeOption,
-  HclScopeChoice,
 } from "./hclBindingTypes";
 import { HclEvidenceScenarioEditor } from "./hclEvidenceScenarioEditor";
 import {
@@ -136,11 +135,7 @@ function HclBindingEditor({
   workbookId,
   configurations,
   scope = "BOTH",
-  setupOnly = false,
-  scopeChoices,
-  externalBindingLabels,
   faultTreeOptions,
-  referencedFaultTrees,
   eventTreeOptions,
   baseEvidence,
   validation,
@@ -171,9 +166,9 @@ function HclBindingEditor({
   );
   const savedUncertainty = configuration?.solverSettings.uncertainty;
   const parsedUncertainty = useMemo(
-    () => (calculationType !== "UNCERTAINTY" && !setupOnly) || savedUncertainty === undefined
+    () => calculationType !== "UNCERTAINTY" || savedUncertainty === undefined
       ? undefined : HclUncertaintySettingsSchema.safeParse(savedUncertainty),
-    [calculationType, savedUncertainty, setupOnly],
+    [calculationType, savedUncertainty],
   );
   const uncertainty = parsedUncertainty?.success ? parsedUncertainty.data : undefined;
   const uncertaintyError = useMemo(() => {
@@ -209,7 +204,6 @@ function HclBindingEditor({
     (option) => `${option.workbookId}:${option.modelId}` === faultTreeKey,
   );
   const selectedNode = model.nodes.find((node) => node.id === nodeId);
-  const knownFaultTrees = useMemo(() => [...faultTreeOptions, ...(referencedFaultTrees ?? [])], [faultTreeOptions, referencedFaultTrees]);
   const declaredFaultTrees = useMemo(() => {
     if (configuration === undefined) return [];
     const declared = new Set(configuration.faultTrees.map((reference) => `${reference.workbookId}:${reference.modelId}`));
@@ -415,31 +409,6 @@ function HclBindingEditor({
     setError(null);
   }
 
-  function toggleScope(axis: "initiatingEventIds" | "plantOperatingStateIds", id: string, checked: boolean): void {
-    if (configuration === undefined) return;
-    const current = configuration.eventTreeScope ?? { initiatingEventIds: [], plantOperatingStateIds: [] };
-    const values = checked ? [...current[axis].filter((value) => value !== id), id] : current[axis].filter((value) => value !== id);
-    const next = axis === "initiatingEventIds" ? { ...current, initiatingEventIds: values } : { ...current, plantOperatingStateIds: values };
-    const { eventTreeScope: _previous, ...rest } = configuration;
-    replaceConfiguration(next.initiatingEventIds.length === 0 && next.plantOperatingStateIds.length === 0 ? rest : { ...rest, eventTreeScope: next });
-  }
-
-  function scopeFieldset(axis: "initiatingEventIds" | "plantOperatingStateIds", legend: string, choices: HclScopeChoice[]): JSX.Element {
-    const selected = configuration?.eventTreeScope?.[axis] ?? [];
-    const shown = [...choices, ...selected.filter((id) => !choices.some((choice) => choice.id === id)).map((id) => ({ id, name: "" }))];
-    return (
-      <fieldset disabled={!editable}>
-        <legend>{selected.length === 0 ? `${legend} · all` : legend}</legend>
-        {shown.map((choice) => (
-          <label key={choice.id} className="bneditor__check" title={choice.name.length > 0 ? choice.name : choice.id}>
-            <input type="checkbox" checked={selected.includes(choice.id)} onChange={(event) => toggleScope(axis, choice.id, event.target.checked)} />
-            {choice.id}
-          </label>
-        ))}
-      </fieldset>
-    );
-  }
-
   function includeSelectedFaultTree(): void {
     if (configuration === undefined || selectedTree === undefined) {
       setError("Choose a fault tree to include.");
@@ -562,17 +531,7 @@ function HclBindingEditor({
 
   const configurationGroups = configuration === undefined ? null : (
     <>
-              {scopeChoices !== undefined && (
-                <details className="hcleditor__configuration-group" open={setupOnly}>
-                  <summary>Applies to</summary>
-                  <div className="hcleditor__scope" aria-label="HCL event tree scope">
-                    {scopeFieldset("initiatingEventIds", "Initiator groups", scopeChoices.initiatingEvents)}
-                    {scopeFieldset("plantOperatingStateIds", "Operating states", scopeChoices.plantOperatingStates)}
-                  </div>
-                </details>
-              )}
-
-              <details className="hcleditor__configuration-group" open={setupOnly}>
+              <details className="hcleditor__configuration-group">
                 <summary>Fault trees</summary>
                 <div role="tabpanel" aria-label="HCL fault trees">
                   {editable && (
@@ -591,7 +550,7 @@ function HclBindingEditor({
                     ariaLabel="Included HCL fault trees"
                     heading="Included"
                     items={configuration.faultTrees.map((reference) => {
-                      const tree = knownFaultTrees.find((option) =>
+                      const tree = faultTreeOptions.find((option) =>
                         option.workbookId === reference.workbookId && option.modelId === reference.modelId,
                       );
                       const code = tree?.modelCode ?? "Unresolved fault tree";
@@ -606,7 +565,7 @@ function HclBindingEditor({
                 </div>
               </details>
 
-              <details className="hcleditor__configuration-group" open={setupOnly}>
+              <details className="hcleditor__configuration-group">
                 <summary>Bindings</summary>
                 <div role="tabpanel" aria-label="HCL binding manager">
                   {editable && (
@@ -621,10 +580,7 @@ function HclBindingEditor({
                       <label>
                         <span>Basic event</span>
                         <select aria-label="Basic event for binding" value={basicEventId} onChange={(event) => setBasicEventId(event.target.value)}>
-                          {(selectedTree?.basicEvents ?? []).map((event) => {
-                            const external = externalBindingLabels?.get(`${selectedTree?.workbookId ?? ""}:${event.id}`);
-                            return <option key={event.id} value={event.id}>{external === undefined ? event.code : `${event.code} · bound in ${external}`}</option>;
-                          })}
+                          {(selectedTree?.basicEvents ?? []).map((event) => <option key={event.id} value={event.id}>{event.code}</option>)}
                         </select>
                       </label>
                       <label>
@@ -652,16 +608,15 @@ function HclBindingEditor({
                     </div>
                     <div className="bneditor__binding-list hcleditor__binding-list">
                       {configuration.bindings.map((binding) => {
-                        const tree = knownFaultTrees.find((option) => option.workbookId === binding.faultTreeBasicEvent.workbookId && option.basicEvents.some((event) => event.id === binding.faultTreeBasicEvent.entityId));
+                        const tree = faultTreeOptions.find((option) => option.workbookId === binding.faultTreeBasicEvent.workbookId && option.basicEvents.some((event) => event.id === binding.faultTreeBasicEvent.entityId));
                         const basicEvent = tree?.basicEvents.find((event) => event.id === binding.faultTreeBasicEvent.entityId);
                         const node = model.nodes.find((candidate) => candidate.id === binding.bayesianNetworkNode.entityId);
                         const states = node?.states.filter((state) => binding.trueStateIds.includes(state.id)) ?? [];
                         const invalid = basicEvent === undefined || node === undefined || states.length !== binding.trueStateIds.length || states.length === 0 || states.length === node.states.length;
-                        const external = externalBindingLabels?.get(`${binding.faultTreeBasicEvent.workbookId}:${binding.faultTreeBasicEvent.entityId}`);
                         return (
                           <div key={binding.id} className={`bneditor__binding${invalid ? " is-invalid" : ""}`}>
                             <span className="hcleditor__binding-endpoint">
-                              <small>{external === undefined ? "FT / basic event" : `FT / basic event · overrides ${external}`}</small>
+                              <small>FT / basic event</small>
                               <strong>{tree?.modelCode ?? "Missing FT"} / {basicEvent?.code ?? "Missing basic event"}</strong>
                             </span>
                             <span className="hcleditor__binding-arrow" aria-hidden="true">→</span>
@@ -706,39 +661,6 @@ function HclBindingEditor({
       </div>
     </details>
   );
-
-  if (setupOnly) {
-    return (
-      <section className="hcleditor hcleditor--setup" aria-label="HCL bindings">
-        {configuration === undefined ? (
-          <div className="hcleditor__empty-state">
-            <span>No HCL configuration</span>
-            {editable && (
-              <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={createConfiguration}>
-                <HclIcon name="configuration" />
-                <span>Create HCL configuration</span>
-              </button>
-            )}
-          </div>
-        ) : (
-          <div className="hcleditor__manage" aria-label="HCL configuration manager">
-            <div className="hcleditor__identity">
-              <label><span>Code</span><input value={configuration.code} disabled={!editable} onChange={(event) => replaceConfiguration({ ...configuration, code: event.target.value })} /></label>
-              <label><span>Name</span><input value={configuration.name} disabled={!editable} onChange={(event) => replaceConfiguration({ ...configuration, name: event.target.value })} /></label>
-              {editable && <button type="button" className="posnav__btn posnav__btn--sm hcleditor__aligned-action" onClick={deleteConfiguration}><HclIcon name="trash" />Delete configuration</button>}
-            </div>
-            <div className="hcleditor__configuration-stack">
-              {configurationGroups}
-              {uncertaintyGroup}
-            </div>
-          </div>
-        )}
-        {error !== null && <p className="bneditor__error" role="alert">{error}</p>}
-        {validation.map((issue, index) => <p key={`${issue.code}-${String(index)}`} className={issue.severity === "ERROR" ? "bneditor__error" : "bneditor__warning"}>{issue.message}</p>)}
-        {confirmationDialog}
-      </section>
-    );
-  }
 
   return (
     <section className="hcleditor" aria-label="HCL bindings">

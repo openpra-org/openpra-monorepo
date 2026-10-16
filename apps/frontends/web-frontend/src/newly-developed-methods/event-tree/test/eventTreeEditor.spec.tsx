@@ -361,12 +361,12 @@ describe("EventTreeEditor", () => {
         },
       },
     };
-    const onSelectFaultTreeLink = jest.fn();
-    renderEditor({ model: unlinkedModel, selection: "FE-1", onSelectFaultTreeLink });
+    const onSelectLink = jest.fn();
+    renderEditor({ model: unlinkedModel, selection: "FE-1", onSelectLink });
 
     expect(screen.getByText("Not linked")).toHaveClass("et-editor__reference-status");
-    fireEvent.click(screen.getByRole("button", { name: "Link fault tree" }));
-    expect(onSelectFaultTreeLink).toHaveBeenCalledWith(expect.objectContaining({ uuid: "FE-1" }));
+    fireEvent.click(screen.getByRole("button", { name: "Link" }));
+    expect(onSelectLink).toHaveBeenCalledWith(expect.objectContaining({ uuid: "FE-1" }));
   });
 
   it("highlights only the selected route through a classic event-tree fork", () => {
@@ -437,15 +437,15 @@ describe("EventTreeEditor", () => {
   });
 
   it("opens functional-event and end-state actions from their context menus", () => {
-    const onSelectFaultTreeLink = jest.fn();
-    const { onOperation, onSelectionChange } = renderEditor({ onSelectFaultTreeLink });
+    const onSelectLink = jest.fn();
+    const { onOperation, onSelectionChange } = renderEditor({ onSelectLink });
     const functionalEvent = screen.getByRole("button", { name: /RT Reactor trip/i });
     onSelectionChange.mockClear();
     fireEvent.contextMenu(functionalEvent, { clientX: 100, clientY: 100 });
     expect(onSelectionChange).toHaveBeenLastCalledWith(null);
     expect(onSelectionChange).not.toHaveBeenCalledWith("FE-1");
-    fireEvent.click(screen.getByRole("menuitem", { name: "Change fault-tree link" }));
-    expect(onSelectFaultTreeLink).toHaveBeenCalledWith(expect.objectContaining({ uuid: "FE-1" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Change link" }));
+    expect(onSelectLink).toHaveBeenCalledWith(expect.objectContaining({ uuid: "FE-1" }));
 
     const sequenceId = Object.keys(model.sequences)[0]!;
     onSelectionChange.mockClear();

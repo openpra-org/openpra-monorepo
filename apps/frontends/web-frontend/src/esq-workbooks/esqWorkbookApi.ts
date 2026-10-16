@@ -19,6 +19,7 @@ import type {
   HclExecuteResult,
   HclCalculationType,
   HclQuantificationResult,
+  HclRunSampling,
 } from "interfaces-shared-types/newly-developed-methods/hybrid-causal-logic";
 import {
   EsqImportanceRunResultSchema,
@@ -186,6 +187,7 @@ async function runEsqHclEventTree(
   eventTree: WorkbookModelAddress,
   calculationType: HclCalculationType,
   dependencyConfiguration?: WorkbookModelAddress,
+  sampling?: HclRunSampling,
 ): Promise<HclExecuteResult> {
   return finishedRun("esq", workbookId, postJson<HclExecuteResult>(
     `/api/esq-workbooks/${workbookId}/hcl-configurations/${configurationId}/event-tree-runs`,
@@ -196,6 +198,7 @@ async function runEsqHclEventTree(
       calculationType,
       eventTree,
       ...(dependencyConfiguration === undefined ? {} : { dependencyConfiguration }),
+      ...(sampling === undefined ? {} : { sampling }),
     },
   ));
 }
@@ -245,6 +248,7 @@ async function runEsqHclEventTreeBatch(
   integrateHazardGrid = false,
   dependencyConfiguration?: WorkbookModelAddress,
   batchInput?: HclBatchInput,
+  sampling?: HclRunSampling,
 ): Promise<HclBatchExecuteResult> {
   return finishedHclBatch(workbookId, configurationId, postJson<HclBatchExecuteResult>(
     `/api/esq-workbooks/${workbookId}/hcl-configurations/${configurationId}/event-tree-batch-runs`,
@@ -258,6 +262,7 @@ async function runEsqHclEventTreeBatch(
       evidenceScenarioIds,
       ...(batchInput === undefined ? {} : { batchInput }),
       ...(integrateHazardGrid ? { integrateHazardGrid: true } : {}),
+      ...(sampling === undefined ? {} : { sampling }),
     },
   ));
 }

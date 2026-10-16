@@ -19,7 +19,6 @@ import { useEsWorkbook, type EsFaultTreeSource } from "./esWorkbookContext";
 import {
   eventTreesView,
   coverageView,
-  dependencyBoundFunctionalEvents,
   nextReleaseCategoryId,
   releaseCategoryOptions,
   endStateUseCount,
@@ -38,7 +37,7 @@ import {
 } from "./esSelectors";
 import { generateEsReport } from "./esDocx";
 import { EsFaultTreeReferencePicker } from "./esFaultTreeReferencePicker";
-import { setFunctionalEventFaultTreeReference } from "./esFaultTreeReferences";
+import { setFunctionalEventFaultTreeReference, setFunctionalEventNetworkNode } from "./esFaultTreeReferences";
 import { ChoiceEditor, DialogHead, DialogShell } from "./EsScope";
 import { BARRIER_CONDITIONS, END_STATE_KINDS, SequenceRecordTabs, sequenceFindings, type RecordTab } from "./EsSequenceTabs";
 import {
@@ -590,7 +589,10 @@ interface EsTrailPlace {
 function useFaultTreeNames(trees: readonly EventTree[], linkedSyId: string | undefined, linkedSy: SystemsAnalysis | undefined, source: EsFaultTreeSource | undefined): Map<string, string> {
   const [fetched, setFetched] = useState<ReadonlyMap<string, SystemsAnalysis>>(new Map());
   const requested = useRef(new Set<string>());
-  const referenced = useMemo(() => [...new Set(trees.flatMap((tree) => Object.values(tree.functionalEvents).flatMap((event) => (event.faultTreeTopEvent === undefined ? [] : [event.faultTreeTopEvent.workbookId]))))], [trees]);
+  const referenced = useMemo(() => [...new Set(trees.flatMap((tree) => Object.values(tree.functionalEvents).flatMap((event) => [
+    ...(event.faultTreeTopEvent === undefined ? [] : [event.faultTreeTopEvent.workbookId]),
+    ...(event.networkNode === undefined ? [] : [event.networkNode.bayesianNetworkNode.workbookId]),
+  ])))], [trees]);
   useEffect(() => {
     for (const workbookId of referenced) {
       if (workbookId.length === 0 || workbookId === source?.workbookId || (workbookId === linkedSyId && linkedSy !== undefined) || requested.current.has(workbookId)) continue;
@@ -606,6 +608,9 @@ function useFaultTreeNames(trees: readonly EventTree[], linkedSyId: string | und
       for (const model of mef.systemLogicModels) {
         names.set(`${workbookId}|${model.uuid}`, model.name);
         if (!names.has(`|${model.uuid}`)) names.set(`|${model.uuid}`, model.name);
+      }
+      for (const network of mef.dependencyBayesianNetworks ?? []) {
+        for (const node of network.nodes) names.set(`${workbookId}|${network.modelId}|${node.id}`, `${node.code} · ${node.name} · ${network.code}`);
       }
     };
     if (source !== undefined) add(source.workbookId, source.mef);
@@ -917,14 +922,14 @@ function SequencesScreen({ treeId, setTreeId, tab, setTab }: { treeId: string; s
         representation={representation}
         capabilities={{ author: editable, quantification: false, linkSelection: true }}
         selection={selection}
-        validation={validateEventTree(model, trees, endStateIds).filter((finding) => !finding.code.startsWith("ET_FREQUENCY")
-          && !(finding.code === "ET_FT_LINK_REQUIRED" && finding.entityId !== undefined && dependencyBoundFunctionalEvents(es, model).has(finding.entityId)))}
+        validation={validateEventTree(model, trees, endStateIds).filter((finding) => !finding.code.startsWith("ET_FREQUENCY"))}
         saveState={runtime.saveState}
         onOperation={applyOperation}
         onRepresentationChange={setRepresentation}
         onSelectionChange={setSelection}
         faultTreeName={(reference) => faultTreeNames.get(`${reference.workbookId}|${reference.modelId}`) ?? faultTreeNames.get(`|${reference.modelId}`)}
-        onSelectFaultTreeLink={(functionalEvent) => setFaultTreeLink({ eventTreeId: model.uuid, functionalEventId: functionalEvent.uuid, functionalEventName: functionalEvent.label ?? functionalEvent.name })}
+        networkNodeName={(link) => faultTreeNames.get(`${link.bayesianNetworkNode.workbookId}|${link.bayesianNetworkNode.modelId}|${link.bayesianNetworkNode.entityId}`)}
+        onSelectLink={(functionalEvent) => setFaultTreeLink({ eventTreeId: model.uuid, functionalEventId: functionalEvent.uuid, functionalEventName: functionalEvent.label ?? functionalEvent.name })}
         onClassifySequence={(sequenceId, changes) => mutateEs((draft) => withTreeSequenceClassification(draft, model.uuid, sequenceId, changes))}
         sequenceFamilySource="From the Families tab"
         releaseCategorySource="From the Release categories tab"
@@ -1019,9 +1024,14 @@ function SequencesScreen({ treeId, setTreeId, tab, setTab }: { treeId: string; s
           {...(es.linkedWorkbooks?.SY === undefined ? {} : { linkedWorkbookId: es.linkedWorkbooks.SY })}
           functionalEventName={faultTreeLink.functionalEventName}
           currentReference={linkingFunctionalEvent?.faultTreeTopEvent}
+          currentNetworkNode={linkingFunctionalEvent?.networkNode}
           onClose={() => setFaultTreeLink(null)}
           onConfirm={(reference) => {
             mutateEs((draft) => setFunctionalEventFaultTreeReference(draft, faultTreeLink.eventTreeId, faultTreeLink.functionalEventId, reference));
+            setFaultTreeLink(null);
+          }}
+          onConfirmNetworkNode={(link) => {
+            mutateEs((draft) => setFunctionalEventNetworkNode(draft, faultTreeLink.eventTreeId, faultTreeLink.functionalEventId, link));
             setFaultTreeLink(null);
           }}
         />

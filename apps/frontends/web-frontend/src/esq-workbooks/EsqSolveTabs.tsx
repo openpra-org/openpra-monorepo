@@ -21,7 +21,9 @@ import {
   type EventTreeMonteCarloSettings,
   type EventTreeSuccessTreatment,
 } from "interfaces-shared-types/newly-developed-methods/event-tree";
-import { HclCalculationTypeSchema, type HclBatchInput, type HclCalculationType } from "interfaces-shared-types/newly-developed-methods/hybrid-causal-logic";
+import { HclCalculationTypeSchema, type HclBatchInput, type HclCalculationType, type HclRunSampling } from "interfaces-shared-types/newly-developed-methods/hybrid-causal-logic";
+import type { HclParameterDraws, HclSampler, HclZeroProbabilityContexts, WorkbookHclConfiguration } from "interfaces-mef-types/modeling";
+import { HclCptClipEpsilonSchema, HclUncertaintySampleCountSchema, HclUncertaintySeedSchema, HclUncertaintySettingsSchema } from "interfaces-mef-types/zod/modeling";
 import { analysisSaveBlock } from "../newly-developed-methods/shared/useAnalysisScope";
 import { cancelAnalysisRun } from "../newly-developed-methods/shared/analysisRunWait";
 import { AnalysisJobs } from "../newly-developed-methods/shared/analysisJobs";
@@ -57,7 +59,8 @@ import {
   type EsqSolveWindowKind,
 } from "./esqSolve";
 import { getEsqModelRunResult, getEsqRunDetails, getEsqRunWorkbook, listEsqModelRuns, runEsqModel, type EsqModelRunEntry } from "./esqWorkbookApi";
-import { EsqDependencies, studyConfiguration, studyTree, type DependencyEvidence, type DependencyStudy, type DependencyStudyTree } from "./EsqDependencies";
+import { EsqDependencies, dependencyEvidenceProblem, studyConfiguration, studyTree, type DependencyEvidence, type DependencyStudy, type DependencyStudyTree } from "./EsqDependencies";
+import { EsqDependencyResults } from "./EsqDependencyResults";
 import "../es-workbooks/css/esSequences.css";
 import "../sy-workbooks/css/syFaultTreeAnalysis.css";
 import "./css/esqSolveTabs.css";
@@ -110,6 +113,17 @@ interface ComposerSettings {
   dependencyEvidence: DependencyEvidence;
 }
 
+interface DependencySettings {
+  sampler: HclSampler;
+  cptSampler: HclSampler | "SAME";
+  sampleCount: number;
+  seed: number | null;
+  correlation: HclParameterDraws;
+  clipProbabilities: boolean;
+  zeroProbabilityContexts: HclZeroProbabilityContexts;
+  cptClipEpsilon: number;
+}
+
 interface TreeOption {
   id: string;
   label: string;
@@ -132,6 +146,8 @@ interface Composer {
   run: () => void;
   stop: (runId: string) => void;
   network: NetworkOption | undefined;
+  dependency: DependencySettings;
+  setDependency: (patch: Partial<DependencySettings>) => void;
   batchInput: HclBatchInput | null;
   setBatchInput: (input: HclBatchInput | null) => void;
   study: DependencyStudy | null;
@@ -174,6 +190,24 @@ const RUN_WORDS: Record<RunChoice, string> = { EXACT: "probability", CUT_SETS: "
 const DEPENDENCY_RESULTS: readonly (readonly [HclCalculationType, string])[] = [["PROBABILITY", "Probability"], ["UNCERTAINTY", "Uncertainty"]];
 
 const DEPENDENCY_EVIDENCE: readonly (readonly [DependencyEvidence, string])[] = [["BASE", "Base evidence"], ["SCENARIOS", "Evidence scenarios"], ["HAZARD", "Hazard convolution"]];
+
+const SAMPLERS: readonly (readonly [HclSampler, string])[] = [["MC", "Monte Carlo (MC)"], ["LHS", "Latin hypercube (LHS)"]];
+
+const BN_SAMPLERS: readonly (readonly [HclSampler | "SAME", string])[] = [["SAME", "Same as inputs"], ...SAMPLERS];
+
+const PARAMETER_DRAWS: readonly (readonly [HclParameterDraws, string])[] = [["SHARED", "Shared across uses"], ["INDEPENDENT", "Independent per use"]];
+
+const OUT_OF_RANGE: readonly (readonly ["FAIL" | "CLIP", string])[] = [["FAIL", "Fail the run"], ["CLIP", "Clip to 0 and 1"]];
+
+const ZERO_CONTEXTS: readonly (readonly [HclZeroProbabilityContexts, string])[] = [["ZERO", "Count as 0"], ["FAIL", "Fail the run"]];
+
+const SEED_SOURCES: readonly (readonly ["FIXED" | "RUN", string])[] = [["FIXED", "Fixed"], ["RUN", "New each run"]];
+
+const START_SAMPLES = 1_000;
+
+const START_SEED = 42;
+
+const START_SAMPLER: HclSampler = "LHS";
 
 const WORKFLOWS: readonly (readonly [RunWorkflow, string])[] = [["MANUAL", "Manual"], ["BATCH", "Batch"]];
 
@@ -241,6 +275,54 @@ const COMPOSER_VIEW = jsonView<ComposerSettings>(z.object({
   dependencyResult: HclCalculationTypeSchema.default(START_SETTINGS.dependencyResult),
   dependencyEvidence: z.enum(["BASE", "SCENARIOS", "HAZARD"]).default(START_SETTINGS.dependencyEvidence),
 }));
+
+const DEPENDENCY_VIEW = jsonView<DependencySettings>(z.object({
+  sampler: z.enum(["MC", "LHS"]),
+  cptSampler: z.enum(["SAME", "MC", "LHS"]),
+  sampleCount: z.number(),
+  seed: z.number().nullable(),
+  correlation: z.enum(["SHARED", "INDEPENDENT"]),
+  clipProbabilities: z.boolean(),
+  zeroProbabilityContexts: z.enum(["ZERO", "FAIL"]),
+  cptClipEpsilon: z.number(),
+}));
+
+function dependencySettingsOf(configuration: WorkbookHclConfiguration | undefined): DependencySettings {
+  const parsed = HclUncertaintySettingsSchema.safeParse(configuration?.solverSettings.uncertainty);
+  const sampling = parsed.success ? parsed.data : undefined;
+  return {
+    sampler: sampling?.sampler ?? START_SAMPLER,
+    cptSampler: sampling?.cptSampler ?? "SAME",
+    sampleCount: sampling?.sampleCount ?? START_SAMPLES,
+    seed: sampling === undefined ? START_SEED : sampling.seed ?? null,
+    correlation: sampling?.correlation ?? "SHARED",
+    clipProbabilities: sampling?.clipProbabilities ?? false,
+    zeroProbabilityContexts: sampling?.zeroProbabilityContexts ?? "ZERO",
+    cptClipEpsilon: sampling?.cptClipEpsilon ?? 0,
+  };
+}
+
+function samplingOf(settings: DependencySettings): HclRunSampling {
+  return {
+    sampleCount: settings.sampleCount,
+    sampler: settings.sampler,
+    ...(settings.seed === null ? {} : { seed: settings.seed }),
+    ...(settings.cptSampler === "SAME" ? {} : { cptSampler: settings.cptSampler }),
+    ...(settings.correlation === "SHARED" ? {} : { correlation: settings.correlation }),
+    ...(settings.clipProbabilities ? { clipProbabilities: true } : {}),
+    ...(settings.cptClipEpsilon === 0 ? {} : { cptClipEpsilon: settings.cptClipEpsilon }),
+    ...(settings.zeroProbabilityContexts === "ZERO" ? {} : { zeroProbabilityContexts: settings.zeroProbabilityContexts }),
+  };
+}
+
+function samplingProblem(settings: DependencySettings, configuration: WorkbookHclConfiguration): string | undefined {
+  const stored = configuration.solverSettings.uncertainty;
+  if (stored !== undefined && !HclUncertaintySettingsSchema.safeParse(stored).success) return "The uncertainty laws of this dependency configuration need review in the linked SY workbook.";
+  if (!HclUncertaintySampleCountSchema.safeParse(settings.sampleCount).success) return "Uncertainty samples must be a whole number of at least 2.";
+  if (settings.seed !== null && !HclUncertaintySeedSchema.safeParse(settings.seed).success) return `The seed must be a whole number from 0 to ${String(Number.MAX_SAFE_INTEGER)}.`;
+  if (!HclCptClipEpsilonSchema.safeParse(settings.cptClipEpsilon).success) return "The CPT floor must be at least 0 and below 0.5.";
+  return undefined;
+}
 
 const SOLVE_TAB_VIEW = jsonView<SolveTab>(z.enum(["runs", "families", "convergence", "dynamic", "checks"]));
 
@@ -448,7 +530,7 @@ function useShownRun(workbookId: string | null, recordId: string | undefined): S
 
 function useComposer(model: EsqModel | undefined, shownRun: ShownRun, initialNetworkId: string | null, initialSourceWorkbookId: string | null): Composer {
   const { esq, upstream, runtime } = useEsqWorkbook();
-  const networks = useMemo(() => networkOptionsOf(esq, upstream.es, upstream.sy), [esq, upstream.es, upstream.sy]);
+  const networks = useMemo(() => networkOptionsOf(esq, upstream.sy), [esq, upstream.sy]);
   const roots = useMemo(() => (model === undefined ? [] : treesInScope(esq, model)
     .filter((tree) => !tree.transferEntry)
     .map((tree) => ({ id: tree.id, label: treeLabel(model, tree.id) }))), [esq, model]);
@@ -472,6 +554,9 @@ function useComposer(model: EsqModel | undefined, shownRun: ShownRun, initialNet
 
   const network = networks.find((option) => option.key === settings.network) ?? networks[0];
   const networkKey = network?.key;
+  const networkConfiguration = network?.configuration;
+  const dependencyStart = useMemo(() => dependencySettingsOf(networkConfiguration), [networkConfiguration]);
+  const [dependency, setDependencySettings] = useWorkbookView<DependencySettings>(`solve.dependency.${networkKey ?? ""}`, dependencyStart, DEPENDENCY_VIEW);
   useEffect(() => {
     setBatchInput(null);
   }, [networkKey]);
@@ -485,13 +570,12 @@ function useComposer(model: EsqModel | undefined, shownRun: ShownRun, initialNet
   const dependencyStudy = settings.choice === "HCL" && (settings.dependencyResult === "UNCERTAINTY" || settings.dependencyEvidence !== "BASE");
   const studied = network === undefined ? undefined : studyConfiguration(network.configuration, batchInput);
   const scenarioIds = (studied?.evidenceScenarios ?? []).filter((scenario) => scenario.enabled).map((scenario) => scenario.id);
+  const sampling = network !== undefined && settings.dependencyResult === "UNCERTAINTY" ? samplingProblem(dependency, network.configuration) : undefined;
   const problem = settings.choice === "HCL"
-    ? network === undefined ? "The linked ES and SY workbooks hold no dependency configuration."
-      : settings.dependencyResult === "UNCERTAINTY" && network.configuration.solverSettings.uncertainty === undefined ? "This dependency configuration has no uncertainty settings. Turn them on in the Dependencies step of its ES or SY workbook."
-      : settings.dependencyEvidence === "HAZARD" && settings.dependencyResult === "UNCERTAINTY" ? "Hazard convolution gives a probability only. Pick Probability as the result."
-      : settings.dependencyEvidence !== "BASE" && scenarioIds.length === 0 ? "This dependency configuration has no enabled evidence scenario. Upload or generate scenarios under the network."
-      : settings.dependencyEvidence === "HAZARD" && studied?.hazardGrid === undefined ? "This dependency configuration has no hazard grid. Generate scenarios under the network to make one."
-      : undefined
+    ? studied === undefined ? "The linked SY workbook has no dependency configuration."
+      : sampling !== undefined ? sampling
+      : settings.dependencyEvidence === "HAZARD" && settings.dependencyResult === "UNCERTAINTY" ? "Hazard convolution gives a probability only."
+      : dependencyEvidenceProblem(studied, settings.dependencyEvidence)
     : settings.choice === "CUT_SETS"
       ? settings.lowest >= settings.highest ? "The lowest cutoff must be below the highest."
         : !(settings.keep >= 1 && settings.keep <= 1000) ? "Keep between 1 and 1000 cut sets."
@@ -519,7 +603,8 @@ function useComposer(model: EsqModel | undefined, shownRun: ShownRun, initialNet
     setError(null);
     setStudy({ result, evidence, trees: [] });
     setStudyTotal(trees.length);
-    Promise.all(trees.map((treeId) => studyTree({ workbookId, revision, option, treeId, result, evidence, scenarioIds: [...scenarioIds], batchInput })
+    const draws = result === "UNCERTAINTY" ? { sampling: samplingOf(dependency) } : {};
+    Promise.all(trees.map((treeId) => studyTree({ workbookId, revision, option, treeId, result, evidence, scenarioIds: [...scenarioIds], batchInput, ...draws })
       .catch((caught: Error): DependencyStudyTree => ({ treeId, runResult: null, batchRunResult: null, failure: caught.message }))
       .then((outcome) => {
         setStudy((current) => (current === null ? current : {
@@ -541,7 +626,9 @@ function useComposer(model: EsqModel | undefined, shownRun: ShownRun, initialNet
     const workbookId = runtime.workbookId;
     const revision = runtime.revision;
     if (workbookId === null || revision === null || !ready || running) return;
-    const hcl: EsqModelRunHcl | undefined = settings.choice === "HCL" && network !== undefined ? { workbookId: network.workbookId, modelId: network.configuration.modelId } : undefined;
+    const hcl: EsqModelRunHcl | undefined = settings.choice === "HCL" && network !== undefined
+      ? { workbookId: network.workbookId, modelId: network.configuration.modelId }
+      : undefined;
     const cutSets: EventTreeCutSetSettings | undefined = settings.choice === "CUT_SETS"
       ? { basis: settings.basis, cutOffs: cutOffsFrom(settings.highest, settings.lowest), quantifier: settings.quantifier, keep: settings.keep, ...(settings.limitOrder === undefined ? {} : { limitOrder: settings.limitOrder }) }
       : undefined;
@@ -616,6 +703,8 @@ function useComposer(model: EsqModel | undefined, shownRun: ShownRun, initialNet
     run,
     stop,
     network,
+    dependency,
+    setDependency: (patch) => setDependencySettings((current) => ({ ...current, ...patch })),
     batchInput,
     setBatchInput,
     study,
@@ -756,14 +845,88 @@ function ShownCaption({ shownRun, model }: { shownRun: ShownRun; model: EsqModel
   return shownRun.summary === undefined ? <ShownRunState shownRun={shownRun} model={model} /> : null;
 }
 
+function DependencySampling({ dependency, onChange }: { dependency: DependencySettings; onChange: (patch: Partial<DependencySettings>) => void }): JSX.Element {
+  return (
+    <>
+      <label>
+        <span>Sampling method</span>
+        <select aria-label="Dependency sampling method" value={dependency.sampler} onChange={(event) => {
+          const sampler = optionOf(SAMPLERS, event.target.value);
+          if (sampler !== undefined) onChange({ sampler });
+        }}>
+          {SAMPLERS.map(([option, text]) => <option key={option} value={option}>{text}</option>)}
+        </select>
+      </label>
+      <label>
+        <span>BN sampling method</span>
+        <select aria-label="Dependency BN sampling method" value={dependency.cptSampler} onChange={(event) => {
+          const cptSampler = optionOf(BN_SAMPLERS, event.target.value);
+          if (cptSampler !== undefined) onChange({ cptSampler });
+        }}>
+          {BN_SAMPLERS.map(([option, text]) => <option key={option} value={option}>{text}</option>)}
+        </select>
+      </label>
+      <label>
+        <span>Samples</span>
+        <input aria-label="Dependency samples" type="number" min={2} step={1} aria-invalid={!HclUncertaintySampleCountSchema.safeParse(dependency.sampleCount).success} value={dependency.sampleCount} onChange={(event) => onChange({ sampleCount: Number(event.target.value) })} />
+      </label>
+      <label>
+        <span>Seed</span>
+        <select aria-label="Dependency seed source" value={dependency.seed === null ? "RUN" : "FIXED"} onChange={(event) => onChange({ seed: event.target.value === "FIXED" ? START_SEED : null })}>
+          {SEED_SOURCES.map(([option, text]) => <option key={option} value={option}>{text}</option>)}
+        </select>
+      </label>
+      {dependency.seed !== null && (
+        <label>
+          <span>Seed value</span>
+          <input aria-label="Dependency seed" type="number" min={0} step={1} aria-invalid={!HclUncertaintySeedSchema.safeParse(dependency.seed).success} value={dependency.seed} onChange={(event) => onChange({ seed: Number(event.target.value) })} />
+        </label>
+      )}
+      <label>
+        <span>Parameter draws</span>
+        <select aria-label="Dependency parameter draws" value={dependency.correlation} onChange={(event) => {
+          const correlation = optionOf(PARAMETER_DRAWS, event.target.value);
+          if (correlation !== undefined) onChange({ correlation });
+        }}>
+          {PARAMETER_DRAWS.map(([option, text]) => <option key={option} value={option}>{text}</option>)}
+        </select>
+      </label>
+      <label>
+        <span>Out-of-range probabilities</span>
+        <select aria-label="Dependency out-of-range probabilities" value={dependency.clipProbabilities ? "CLIP" : "FAIL"} onChange={(event) => onChange({ clipProbabilities: event.target.value === "CLIP" })}>
+          {OUT_OF_RANGE.map(([option, text]) => <option key={option} value={option}>{text}</option>)}
+        </select>
+      </label>
+      <label>
+        <span>Zero-probability contexts</span>
+        <select aria-label="Dependency zero-probability contexts" value={dependency.zeroProbabilityContexts} onChange={(event) => {
+          const zeroProbabilityContexts = optionOf(ZERO_CONTEXTS, event.target.value);
+          if (zeroProbabilityContexts !== undefined) onChange({ zeroProbabilityContexts });
+        }}>
+          {ZERO_CONTEXTS.map(([option, text]) => <option key={option} value={option}>{text}</option>)}
+        </select>
+      </label>
+      <label>
+        <span>CPT floor</span>
+        <input aria-label="Dependency CPT floor" type="number" min={0} max={0.5} step="any" aria-invalid={!HclCptClipEpsilonSchema.safeParse(dependency.cptClipEpsilon).success} value={dependency.cptClipEpsilon} onChange={(event) => onChange({ cptClipEpsilon: Number(event.target.value) })} />
+      </label>
+    </>
+  );
+}
+
 function RunsPanel({ view, shownRun, composer, onCutSets }: { view: EsqSolveView; shownRun: ShownRun; composer: Composer; onCutSets: (dialog: CutSetDialog) => void }): JSX.Element {
   const { editable, runtime } = useEsqWorkbook();
   const fieldId = useId();
-  const { settings, set } = composer;
+  const { settings, set, dependency } = composer;
   const blocked = analysisSaveBlock(runtime);
   const batch = settings.workflow === "BATCH";
   const network = composer.network;
   const dependencies = settings.choice === "HCL";
+  const uncertainty = dependencies && settings.dependencyResult === "UNCERTAINTY";
+  const studyMode = dependencies && (uncertainty || settings.dependencyEvidence !== "BASE");
+  const study = composer.study;
+  const shownStudy = studyMode && study !== null && study.result === settings.dependencyResult && study.evidence === settings.dependencyEvidence ? study : null;
+  const hasSettings = !dependencies || uncertainty;
   const shown = shownRun.shown;
   const activeId = composer.live !== null && (composer.live.status === "QUEUED" || composer.live.status === "RUNNING") ? composer.live.id
     : shown !== undefined && (shown.status === "QUEUED" || shown.status === "RUNNING") ? shown.id
@@ -777,6 +940,10 @@ function RunsPanel({ view, shownRun, composer, onCutSets }: { view: EsqSolveView
     return tree === undefined ? undefined : treeLabel(view.model, tree.id);
   }
 
+  function pillClass(selected: boolean, disabled: boolean): string {
+    return [selected ? "is-selected" : "", disabled ? "is-disabled" : ""].filter((name) => name.length > 0).join(" ");
+  }
+
   return (
     <section className="syft-analysis" aria-label="Event tree quantification">
       <div className="syft-analysis__heading">
@@ -784,37 +951,11 @@ function RunsPanel({ view, shownRun, composer, onCutSets }: { view: EsqSolveView
         <AnalysisJobs host="esq" workbookId={runtime.workbookId} modelLabel={jobLabel} />
       </div>
       <div className={`syft-analysis__composer syft-analysis__composer--${settings.workflow.toLowerCase()} esq-composer`} aria-label="Event tree quantification controls">
-        <div className="syft-analysis__run-composer">
-          {batch ? (
-            <>
-              <fieldset className="syft-analysis__batch-models">
-                <legend>Event trees</legend>
-                {composer.roots.map((tree) => (
-                  <label key={tree.id}>
-                    <input type="checkbox" checked={composer.treeIds.includes(tree.id)} onChange={() => composer.toggleTree(tree.id)} />
-                    <span>{tree.label}</span>
-                  </label>
-                ))}
-              </fieldset>
-              <span className="syft-analysis__selection-summary">{`${plural(composer.treeIds.length, "event tree", "event trees")} selected`}</span>
-            </>
-          ) : (
-            <div className="syft-analysis__run-fields">
-              <label className="syft-analysis__run-field">
-                <span>Event tree</span>
-                <select aria-label="Event tree" value={composer.manualTreeId ?? ""} disabled={composer.roots.length === 0} onChange={(event) => set({ treeId: event.target.value })}>
-                  {composer.roots.map((tree) => <option key={tree.id} value={tree.id}>{tree.label}</option>)}
-                </select>
-              </label>
-            </div>
-          )}
-        </div>
-
         <fieldset className="syft-analysis__calculation-picker">
           <legend>Calculation</legend>
           <div role="radiogroup" aria-label="Event tree calculation">
             {RUN_CHOICES.map(([value, label]) => (
-              <label key={value} className={settings.choice === value ? "is-selected" : ""}>
+              <label key={value} className={pillClass(settings.choice === value, false)}>
                 <input type="radio" name={`${fieldId}-calculation`} value={value} checked={settings.choice === value} onChange={() => set({ choice: value })} />
                 <span>{label}</span>
               </label>
@@ -826,7 +967,7 @@ function RunsPanel({ view, shownRun, composer, onCutSets }: { view: EsqSolveView
           <legend>Workflow</legend>
           <div role="radiogroup" aria-label="Event tree workflow">
             {WORKFLOWS.map(([value, label]) => (
-              <label key={value} className={settings.workflow === value ? "is-selected" : ""}>
+              <label key={value} className={pillClass(settings.workflow === value, false)}>
                 <input type="radio" name={`${fieldId}-workflow`} value={value} checked={settings.workflow === value} onChange={() => set({ workflow: value })} />
                 <span>{label}</span>
               </label>
@@ -834,9 +975,68 @@ function RunsPanel({ view, shownRun, composer, onCutSets }: { view: EsqSolveView
           </div>
         </fieldset>
 
+        {dependencies && (
+          <>
+            <fieldset className="syft-analysis__calculation-picker">
+              <legend>Result</legend>
+              <div role="radiogroup" aria-label="Dependency result">
+                {DEPENDENCY_RESULTS.map(([value, label]) => {
+                  const disabled = value === "UNCERTAINTY" && settings.dependencyEvidence === "HAZARD";
+                  return (
+                    <label key={value} className={pillClass(settings.dependencyResult === value, disabled)}>
+                      <input type="radio" name={`${fieldId}-result`} value={value} checked={settings.dependencyResult === value} disabled={disabled} onChange={() => set({ dependencyResult: value })} />
+                      <span>{label}</span>
+                    </label>
+                  );
+                })}
+              </div>
+            </fieldset>
+
+            <fieldset className="syft-analysis__workflow-picker">
+              <legend>Evidence</legend>
+              <div role="radiogroup" aria-label="Dependency evidence">
+                {DEPENDENCY_EVIDENCE.map(([value, label]) => {
+                  const disabled = value === "HAZARD" && settings.dependencyResult === "UNCERTAINTY";
+                  return (
+                    <label key={value} className={pillClass(settings.dependencyEvidence === value, disabled)}>
+                      <input type="radio" name={`${fieldId}-evidence`} value={value} checked={settings.dependencyEvidence === value} disabled={disabled} onChange={() => set({ dependencyEvidence: value })} />
+                      <span>{label}</span>
+                    </label>
+                  );
+                })}
+              </div>
+            </fieldset>
+          </>
+        )}
+
         <div className="syft-analysis__run-composer">
+          {batch && (
+            <>
+              <div className="syft-analysis__setup-row">
+                <span className="syft-analysis__selection-summary">{`${plural(composer.treeIds.length, "event tree", "event trees")} selected`}</span>
+              </div>
+              <fieldset className="syft-analysis__batch-models">
+                <legend>Event trees</legend>
+                {composer.roots.map((tree) => (
+                  <label key={tree.id}>
+                    <input type="checkbox" checked={composer.treeIds.includes(tree.id)} onChange={() => composer.toggleTree(tree.id)} />
+                    <span>{tree.label}</span>
+                  </label>
+                ))}
+              </fieldset>
+            </>
+          )}
+
           <div className="syft-analysis__execution-row">
             <div className="syft-analysis__run-fields">
+              {!batch && (
+                <label className="syft-analysis__run-field">
+                  <span>Event tree</span>
+                  <select aria-label="Event tree" value={composer.manualTreeId ?? ""} disabled={composer.roots.length === 0} onChange={(event) => set({ treeId: event.target.value })}>
+                    {composer.roots.map((tree) => <option key={tree.id} value={tree.id}>{tree.label}</option>)}
+                  </select>
+                </label>
+              )}
               {settings.choice === "EXACT" && (
                 <label className="syft-analysis__run-field">
                   <span>Algorithm</span>
@@ -875,131 +1075,112 @@ function RunsPanel({ view, shownRun, composer, onCutSets }: { view: EsqSolveView
             )}
           </div>
 
-          <div className="syft-analysis__advanced-panel" aria-label="Event tree quantification settings">
-            <div className="syft-analysis__advanced">
-              {settings.choice === "EXACT" && settings.algorithm === "BDD" && (
-                <label>
-                  <span>Success treatment</span>
-                  <select aria-label="Success treatment" value={settings.treatment} onChange={(event) => {
-                    const treatment = optionOf(TREATMENT_OPTIONS, event.target.value);
-                    if (treatment !== undefined) set({ treatment });
-                  }}>
-                    {TREATMENT_OPTIONS.map(([option, text]) => <option key={option} value={option}>{text}</option>)}
-                  </select>
-                </label>
-              )}
-              {settings.choice === "EXACT" && settings.algorithm === "MONTE_CARLO" && (
-                <>
-                  <label><span>Trials</span><input aria-label="Event tree trials" type="number" min={1} step={1} aria-invalid={!(Number.isInteger(settings.trials) && settings.trials >= 1)} value={settings.trials} onChange={(event) => set({ trials: Number(event.target.value) })} /></label>
-                  <label><span>Seed</span><input aria-label="Event tree seed" type="number" min={0} step={1} aria-invalid={!(Number.isInteger(settings.seed) && settings.seed >= 0)} value={settings.seed} onChange={(event) => set({ seed: Number(event.target.value) })} /></label>
-                  <label className="syft-analysis__check"><input type="checkbox" checked={settings.earlyStop} onChange={(event) => set({ earlyStop: event.target.checked })} /><span>Stop when converged</span></label>
-                  {settings.earlyStop && (
-                    <>
-                      <label><span>Relative error target</span><input aria-label="Monte Carlo convergence delta" type="number" min="0.000001" step="any" value={settings.convergenceDelta} onChange={(event) => set({ convergenceDelta: Number(event.target.value) })} /></label>
-                      <label><span>Confidence</span><input aria-label="Monte Carlo confidence" type="number" min="0.01" max="0.999999" step="any" value={settings.confidenceLevel} onChange={(event) => set({ confidenceLevel: Number(event.target.value) })} /></label>
-                      <label><span>Burn-in trials</span><input aria-label="Monte Carlo burn-in trials" type="number" min={0} step={1} value={settings.burnInTrials} onChange={(event) => set({ burnInTrials: Number(event.target.value) })} /></label>
-                    </>
-                  )}
-                </>
-              )}
-              {settings.choice === "CUT_SETS" && (
-                <>
+          {hasSettings && (
+            <div className="syft-analysis__advanced-panel" aria-label="Event tree quantification settings">
+              <div className="syft-analysis__advanced">
+                {settings.choice === "EXACT" && settings.algorithm === "BDD" && (
                   <label>
                     <span>Success treatment</span>
-                    <select aria-label="Success treatment" value={settings.cutSetTreatment} onChange={(event) => {
-                      const cutSetTreatment = optionOf(TREATMENT_OPTIONS, event.target.value);
-                      if (cutSetTreatment !== undefined) set({ cutSetTreatment });
+                    <select aria-label="Success treatment" value={settings.treatment} onChange={(event) => {
+                      const treatment = optionOf(TREATMENT_OPTIONS, event.target.value);
+                      if (treatment !== undefined) set({ treatment });
                     }}>
                       {TREATMENT_OPTIONS.map(([option, text]) => <option key={option} value={option}>{text}</option>)}
                     </select>
                   </label>
-                  <label>
-                    <span>Probability method</span>
-                    <select aria-label="Probability method" value={settings.quantifier} onChange={(event) => {
-                      const quantifier = optionOf(QUANTIFIER_OPTIONS, event.target.value);
-                      if (quantifier !== undefined) set({ quantifier });
-                    }}>
-                      {QUANTIFIER_OPTIONS.map(([option, text]) => <option key={option} value={option}>{text}</option>)}
-                    </select>
-                  </label>
-                  <label>
-                    <span>Cutoff on</span>
-                    <select aria-label="Cutoff on" value={settings.basis} onChange={(event) => {
-                      const basis = optionOf(BASIS_OPTIONS, event.target.value);
-                      if (basis !== undefined) set({ basis });
-                    }}>
-                      {BASIS_OPTIONS.map(([option, text]) => <option key={option} value={option}>{text}</option>)}
-                    </select>
-                  </label>
-                  <label>
-                    <span>Highest cutoff</span>
-                    <select aria-label="Highest cutoff" value={settings.highest} onChange={(event) => set({ highest: Number(event.target.value) })}>
-                      {HIGHEST_EXPONENTS.map((exponent) => <option key={exponent} value={exponent}>{decadeText(exponent)}</option>)}
-                    </select>
-                  </label>
-                  <label>
-                    <span>Lowest cutoff</span>
-                    <select aria-label="Lowest cutoff" value={settings.lowest} onChange={(event) => set({ lowest: Number(event.target.value) })}>
-                      {LOWEST_EXPONENTS.map((exponent) => <option key={exponent} value={exponent}>{decadeText(exponent)}</option>)}
-                    </select>
-                  </label>
-                  <label>
-                    <span>Cut sets kept</span>
-                    <input aria-label="Cut sets kept" type="number" min={1} max={1000} step={1} aria-invalid={!(settings.keep >= 1 && settings.keep <= 1000)} value={settings.keep} onChange={(event) => set({ keep: Math.round(Number(event.target.value)) })} />
-                  </label>
-                  <label>
-                    <span>Maximum cut set order</span>
-                    <input aria-label="Maximum cut set order" type="number" min={1} step={1} placeholder="No limit" value={settings.limitOrder ?? ""} onChange={(event) => {
-                      const value = Math.round(Number(event.target.value));
-                      if (event.target.value.trim().length === 0 || !(value >= 1)) composer.clearLimit();
-                      else set({ limitOrder: value });
-                    }} />
-                  </label>
-                </>
-              )}
-              {dependencies && (
-                <>
-                  <label>
-                    <span>Result</span>
-                    <select aria-label="Dependency result" value={settings.dependencyResult} onChange={(event) => {
-                      const dependencyResult = optionOf(DEPENDENCY_RESULTS, event.target.value);
-                      if (dependencyResult !== undefined) set({ dependencyResult });
-                    }}>
-                      {DEPENDENCY_RESULTS.map(([option, text]) => <option key={option} value={option}>{text}</option>)}
-                    </select>
-                  </label>
-                  <label>
-                    <span>Evidence</span>
-                    <select aria-label="Dependency evidence" value={settings.dependencyEvidence} onChange={(event) => {
-                      const dependencyEvidence = optionOf(DEPENDENCY_EVIDENCE, event.target.value);
-                      if (dependencyEvidence !== undefined) set({ dependencyEvidence });
-                    }}>
-                      {DEPENDENCY_EVIDENCE.map(([option, text]) => <option key={option} value={option} disabled={option === "HAZARD" && settings.dependencyResult === "UNCERTAINTY"}>{text}</option>)}
-                    </select>
-                  </label>
-                </>
-              )}
-              {!dependencies && <label className="syft-analysis__check"><input type="checkbox" checked={settings.expandCcf} onChange={(event) => set({ expandCcf: event.target.checked })} /><span>Expand common-cause groups</span></label>}
+                )}
+                {settings.choice === "EXACT" && settings.algorithm === "MONTE_CARLO" && (
+                  <>
+                    <label><span>Trials</span><input aria-label="Event tree trials" type="number" min={1} step={1} aria-invalid={!(Number.isInteger(settings.trials) && settings.trials >= 1)} value={settings.trials} onChange={(event) => set({ trials: Number(event.target.value) })} /></label>
+                    <label><span>Seed</span><input aria-label="Event tree seed" type="number" min={0} step={1} aria-invalid={!(Number.isInteger(settings.seed) && settings.seed >= 0)} value={settings.seed} onChange={(event) => set({ seed: Number(event.target.value) })} /></label>
+                    <label className="syft-analysis__check"><input type="checkbox" checked={settings.earlyStop} onChange={(event) => set({ earlyStop: event.target.checked })} /><span>Stop when converged</span></label>
+                    {settings.earlyStop && (
+                      <>
+                        <label><span>Relative error target</span><input aria-label="Monte Carlo convergence delta" type="number" min="0.000001" step="any" value={settings.convergenceDelta} onChange={(event) => set({ convergenceDelta: Number(event.target.value) })} /></label>
+                        <label><span>Confidence</span><input aria-label="Monte Carlo confidence" type="number" min="0.01" max="0.999999" step="any" value={settings.confidenceLevel} onChange={(event) => set({ confidenceLevel: Number(event.target.value) })} /></label>
+                        <label><span>Burn-in trials</span><input aria-label="Monte Carlo burn-in trials" type="number" min={0} step={1} value={settings.burnInTrials} onChange={(event) => set({ burnInTrials: Number(event.target.value) })} /></label>
+                      </>
+                    )}
+                  </>
+                )}
+                {settings.choice === "CUT_SETS" && (
+                  <>
+                    <label>
+                      <span>Success treatment</span>
+                      <select aria-label="Success treatment" value={settings.cutSetTreatment} onChange={(event) => {
+                        const cutSetTreatment = optionOf(TREATMENT_OPTIONS, event.target.value);
+                        if (cutSetTreatment !== undefined) set({ cutSetTreatment });
+                      }}>
+                        {TREATMENT_OPTIONS.map(([option, text]) => <option key={option} value={option}>{text}</option>)}
+                      </select>
+                    </label>
+                    <label>
+                      <span>Probability method</span>
+                      <select aria-label="Probability method" value={settings.quantifier} onChange={(event) => {
+                        const quantifier = optionOf(QUANTIFIER_OPTIONS, event.target.value);
+                        if (quantifier !== undefined) set({ quantifier });
+                      }}>
+                        {QUANTIFIER_OPTIONS.map(([option, text]) => <option key={option} value={option}>{text}</option>)}
+                      </select>
+                    </label>
+                    <label>
+                      <span>Cutoff on</span>
+                      <select aria-label="Cutoff on" value={settings.basis} onChange={(event) => {
+                        const basis = optionOf(BASIS_OPTIONS, event.target.value);
+                        if (basis !== undefined) set({ basis });
+                      }}>
+                        {BASIS_OPTIONS.map(([option, text]) => <option key={option} value={option}>{text}</option>)}
+                      </select>
+                    </label>
+                    <label>
+                      <span>Highest cutoff</span>
+                      <select aria-label="Highest cutoff" value={settings.highest} onChange={(event) => set({ highest: Number(event.target.value) })}>
+                        {HIGHEST_EXPONENTS.map((exponent) => <option key={exponent} value={exponent}>{decadeText(exponent)}</option>)}
+                      </select>
+                    </label>
+                    <label>
+                      <span>Lowest cutoff</span>
+                      <select aria-label="Lowest cutoff" value={settings.lowest} onChange={(event) => set({ lowest: Number(event.target.value) })}>
+                        {LOWEST_EXPONENTS.map((exponent) => <option key={exponent} value={exponent}>{decadeText(exponent)}</option>)}
+                      </select>
+                    </label>
+                    <label>
+                      <span>Cut sets kept</span>
+                      <input aria-label="Cut sets kept" type="number" min={1} max={1000} step={1} aria-invalid={!(settings.keep >= 1 && settings.keep <= 1000)} value={settings.keep} onChange={(event) => set({ keep: Math.round(Number(event.target.value)) })} />
+                    </label>
+                    <label>
+                      <span>Maximum cut set order</span>
+                      <input aria-label="Maximum cut set order" type="number" min={1} step={1} placeholder="No limit" value={settings.limitOrder ?? ""} onChange={(event) => {
+                        const value = Math.round(Number(event.target.value));
+                        if (event.target.value.trim().length === 0 || !(value >= 1)) composer.clearLimit();
+                        else set({ limitOrder: value });
+                      }} />
+                    </label>
+                  </>
+                )}
+                {uncertainty && <DependencySampling dependency={dependency} onChange={composer.setDependency} />}
+                {!dependencies && <label className="syft-analysis__check"><input type="checkbox" checked={settings.expandCcf} onChange={(event) => set({ expandCcf: event.target.checked })} /><span>Expand common-cause groups</span></label>}
+              </div>
             </div>
-          </div>
+          )}
         </div>
-        {dependencies && network !== undefined && (
-          <EsqDependencies
-            option={network}
-            evidence={settings.dependencyEvidence}
-            result={settings.dependencyResult}
-            batchInput={composer.batchInput}
-            study={composer.study}
-            running={composer.running}
-            onBatchInput={composer.setBatchInput}
-          />
-        )}
       </div>
       {blocked !== null && <p className="syft-analysis__notice" role="status">{blocked}</p>}
       {composer.running && composer.live === null && composer.studyTotal === 0 && <p className="syft-analysis__notice" role="status">Building the event trees for PRAXIS</p>}
       {composer.problem !== undefined && <p className="syft-analysis__error" role="alert">{composer.problem}</p>}
       {composer.error !== null && <p className="syft-analysis__error" role="alert">{composer.error}</p>}
-      <ModelRunsBody view={view} shownRun={shownRun} composer={composer} onCutSets={onCutSets} />
+      {dependencies && network !== undefined && (
+        <EsqDependencies
+          option={network}
+          evidence={settings.dependencyEvidence}
+          batchInput={composer.batchInput}
+          running={composer.running}
+          onBatchInput={composer.setBatchInput}
+        />
+      )}
+      {studyMode
+        ? shownStudy !== null && <EsqDependencyResults study={shownStudy} model={view.model} />
+        : <ModelRunsBody view={view} shownRun={shownRun} composer={composer} onCutSets={onCutSets} />}
     </section>
   );
 }

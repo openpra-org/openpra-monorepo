@@ -2,7 +2,6 @@ import { JSX, ReactNode, useId, useLayoutEffect, useMemo, useRef, useState, type
 import type { EsqModel, EsqSolveRun, EventSequenceQuantification } from "interfaces-mef-types/esq/event-sequence-quantification";
 import { eventInputKey, sampledInputsOf } from "interfaces-mef-types/esq/esq-measure-inputs";
 import { esqTreeRunId } from "interfaces-mef-types/esq/esq-run-inputs";
-import type { EventSequenceAnalysis } from "interfaces-mef-types/es/event-sequence-analysis";
 import type { SystemLogicModel, SystemsAnalysis } from "interfaces-mef-types/sy/systems-analysis";
 import type { WorkbookHclConfiguration } from "interfaces-mef-types/modeling";
 import type { AnalysisRunMetadata } from "interfaces-shared-types/newly-developed-methods";
@@ -227,7 +226,6 @@ interface FailedTree {
 
 interface NetworkOption {
   key: string;
-  owner: "ES" | "SY";
   workbookId: string;
   configuration: WorkbookHclConfiguration;
 }
@@ -243,16 +241,12 @@ function trimmedText(text: string | null | undefined): string | undefined {
 function networkLabel(option: NetworkOption): string {
   const code = trimmedText(option.configuration.code);
   const name = trimmedText(option.configuration.name);
-  return `${option.owner} · ${code !== undefined && name !== undefined && code !== name ? `${code} · ${name}` : code ?? name ?? option.configuration.modelId}`;
+  return code !== undefined && name !== undefined && code !== name ? `${code} · ${name}` : code ?? name ?? option.configuration.modelId;
 }
 
-function networkOptionsOf(esq: EventSequenceQuantification, es: EventSequenceAnalysis | undefined, sy: SystemsAnalysis | undefined): NetworkOption[] {
-  const esId = linkedWorkbookId(esq.linkedWorkbooks?.ES);
+function networkOptionsOf(esq: EventSequenceQuantification, sy: SystemsAnalysis | undefined): NetworkOption[] {
   const syId = linkedWorkbookId(esq.linkedWorkbooks?.SY);
-  const own = (owner: "ES" | "SY", workbookId: string | undefined, configurations: readonly WorkbookHclConfiguration[] | undefined): NetworkOption[] => (workbookId === undefined
-    ? []
-    : (configurations ?? []).map((configuration) => ({ key: `${workbookId}:${configuration.modelId}`, owner, workbookId, configuration })));
-  return [...own("ES", esId, es?.dependencyHclConfigurations), ...own("SY", syId, sy?.dependencyHclConfigurations)];
+  return syId === undefined ? [] : (sy?.dependencyHclConfigurations ?? []).map((configuration) => ({ key: `${syId}:${configuration.modelId}`, workbookId: syId, configuration }));
 }
 
 interface Runner {

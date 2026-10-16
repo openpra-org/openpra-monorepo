@@ -30,8 +30,6 @@ function esHandoffSections(es: EventSequenceAnalysis, linkedNames: ReadonlyMap<s
     ["Source", scope.radioactiveMaterialSources],
     ["Barrier", scope.radionuclideBarriers],
   ];
-  const networks = es.dependencyBayesianNetworks ?? [];
-  const configurations = es.dependencyHclConfigurations ?? [];
   return [
     {
       key: "scope",
@@ -82,18 +80,6 @@ function esHandoffSections(es: EventSequenceAnalysis, linkedNames: ReadonlyMap<s
       key: "release-categories",
       columns: [{ label: "Category" }, { label: "End states" }, { label: "Sequences", numeric: true }],
       rows: releaseCategoryRows(es).map((category) => ({ id: category.id, cells: [handoffName(category.id, category.name), joinedOrNone(category.endStateCodes), category.sequenceCount] })),
-    },
-    {
-      key: "dependency-networks",
-      columns: [{ label: "Network" }, { label: "Nodes", numeric: true }, { label: "HCL configurations" }],
-      rows: networks.map((network) => ({
-        id: network.modelId,
-        cells: [
-          handoffName(network.code, network.name),
-          network.nodes.length,
-          joinedOrNone(configurations.filter((configuration) => configuration.bayesianNetwork.modelId === network.modelId).map((configuration) => configuration.code)),
-        ],
-      })),
     },
     {
       key: "screening",

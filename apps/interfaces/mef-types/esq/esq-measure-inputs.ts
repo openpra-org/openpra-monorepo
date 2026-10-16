@@ -11,7 +11,7 @@ import type {
 } from "./event-sequence-quantification";
 import { cellExpressionOfRecord, cellOf } from "./esq-barrier-inputs";
 import { esqIndependentEventId, recoveryInputKey, resolvedRecoveries } from "./esq-post-inputs";
-import { esqStableId, functionLinkOf, groupFrequency, hash32, resolveLink, sameItem, treesInScope } from "./esq-run-inputs";
+import { esqItemCode, esqItemLabel, esqStableId, functionLinkOf, groupFrequency, hash32, resolveLink, sameItem, treesInScope } from "./esq-run-inputs";
 import { solveInputsKey } from "./esq-solve-inputs";
 
 type EsqImportanceGroupKind = "PARAMETER" | "HFE" | "CCF_GROUP" | "SYSTEM";
@@ -157,7 +157,7 @@ function sampledInputsOf(esq: EventSequenceQuantification): EsqSampledInput[] {
       key: `PARAMETER:${parameterId}`,
       kind: "PARAMETER",
       ref: parameterId,
-      label: parameter === undefined ? parameterId : `${parameter.name} (${parameterId})`,
+      label: esqItemLabel(parameter?.name, parameterId, "Unresolved parameter"),
       unit: parameterUnit(parameter),
       uncertain: false,
       users: [],
@@ -173,7 +173,7 @@ function sampledInputsOf(esq: EventSequenceQuantification): EsqSampledInput[] {
     }
     if (holder.heldBy === "HRA" && holder.holderId !== undefined) {
       const human = model.humanEvents.find((entry) => entry.id === holder.holderId);
-      const input: EsqSampledInput = { key: `HFE:${holder.holderId}`, kind: "HFE", ref: holder.holderId, label: human === undefined ? holder.holderId : `${human.name} (${holder.holderId})`, unit: "PROBABILITY", uncertain: false, users: [] };
+      const input: EsqSampledInput = { key: `HFE:${holder.holderId}`, kind: "HFE", ref: holder.holderId, label: esqItemLabel(human?.name, holder.holderId, "Unresolved human failure event"), unit: "PROBABILITY", uncertain: false, users: [] };
       use(lawInput(input, human?.hep, "HR", "HR gives this event no HEP.", "HR gives this HEP no uncertainty. Give it a law in HR."), user);
       continue;
     }
@@ -196,7 +196,7 @@ function sampledInputsOf(esq: EventSequenceQuantification): EsqSampledInput[] {
       use(parameterInput(parameter), `ccf:${group.id}`);
       continue;
     }
-    const input: EsqSampledInput = { key: `CCF_GROUP:${group.id}`, kind: "CCF_GROUP", ref: group.id, label: `${group.name} (${group.id})`, unit: "PROBABILITY", uncertain: false, users: [] };
+    const input: EsqSampledInput = { key: `CCF_GROUP:${group.id}`, kind: "CCF_GROUP", ref: group.id, label: esqItemLabel(group.name, group.id, "Unnamed common cause group"), unit: "PROBABILITY", uncertain: false, users: [] };
     if (group.factors !== undefined && !ccfModelTakesTotal(group.factors)) {
       const model: EsqSampledInput = { ...input, uncertain: factorsUncertain(group.factors), source: "SY" };
       if (!model.uncertain) model.missing = "SY gives the binomial failure rate parts of this group no uncertainty. Give them a law in SY or DA.";
@@ -231,7 +231,7 @@ function sampledInputsOf(esq: EventSequenceQuantification): EsqSampledInput[] {
     }
     const view = groupFrequency(esq, model, groupId, roots);
     const record = model.initiators.find((entry) => sameItem(entry.id, groupId));
-    const input: EsqSampledInput = { key, kind: "INITIATOR", ref: groupId, label: `${record?.name ?? groupId} (${groupId})`, unit: "PER_YEAR", uncertain: false, users: [] };
+    const input: EsqSampledInput = { key, kind: "INITIATOR", ref: groupId, label: esqItemLabel(record?.name, groupId, "Unresolved initiator group"), unit: "PER_YEAR", uncertain: false, users: [] };
     if (view.given === undefined) {
       use({ ...input, missing: "The initiator group has no frequency. Take it from IE or DA, or type it in Step 02." }, `initiator:${groupId}`);
       continue;
@@ -253,7 +253,8 @@ function sampledInputsOf(esq: EventSequenceQuantification): EsqSampledInput[] {
       }
       if (target.cellId !== undefined) {
         const cell = cellOf(esq, target.cellId);
-        const input: EsqSampledInput = { key, kind: "CELL", ref: target.cellId, label: `Cell ${target.cellId}`, unit: "PROBABILITY", uncertain: false, users: [] };
+        const code = esqItemCode(target.cellId, undefined, "");
+        const input: EsqSampledInput = { key, kind: "CELL", ref: target.cellId, label: code.length === 0 ? "Unnamed cell" : `Cell ${code}`, unit: "PROBABILITY", uncertain: false, users: [] };
         const expression = cell === undefined ? undefined : cellExpressionOfRecord(cell);
         if (cell === undefined || expression === undefined) {
           use({ ...input, missing: "The cell has no value of record. Run it or type its value in Step 03." }, user);
@@ -296,18 +297,18 @@ function importanceGroupsOf(esq: EventSequenceQuantification): EsqImportanceGrou
     const holder = holderOf(esq, model, event.id);
     if (holder.heldBy === "DA" && holder.holderId !== undefined) {
       const parameter = model.parameters.find((entry) => entry.id === holder.holderId);
-      addEvent(slot("PARAMETER", holder.holderId, parameter === undefined ? holder.holderId : `${parameter.name} (${holder.holderId})`), event.id);
+      addEvent(slot("PARAMETER", holder.holderId, esqItemLabel(parameter?.name, holder.holderId, "Unresolved parameter")), event.id);
     }
     if (holder.heldBy === "HRA" && holder.holderId !== undefined) {
       const human = model.humanEvents.find((entry) => entry.id === holder.holderId);
-      const group = slot("HFE", holder.holderId, human === undefined ? holder.holderId : `${human.name} (${holder.holderId})`);
+      const group = slot("HFE", holder.holderId, esqItemLabel(human?.name, holder.holderId, "Unresolved human failure event"));
       addEvent(group, event.id);
       const independent = esqIndependentEventId(event.id);
       if (!group.events.includes(independent)) group.events.push(independent);
     }
-    if (event.systemId !== undefined) addEvent(slot("SYSTEM", event.systemId, event.systemName === undefined ? event.systemId : `${event.systemName} (${event.systemId})`), event.id);
+    if (event.systemId !== undefined) addEvent(slot("SYSTEM", event.systemId, esqItemLabel(event.systemName, event.systemId, "Unnamed system")), event.id);
   }
-  for (const group of model.ccfGroups) slot("CCF_GROUP", group.id, `${group.name} (${group.id})`).ccfGroups.push(group.id);
+  for (const group of model.ccfGroups) slot("CCF_GROUP", group.id, esqItemLabel(group.name, group.id, "Unnamed common cause group")).ccfGroups.push(group.id);
   return [...groups.values()].filter((group) => group.events.length > 0 || group.ccfGroups.length > 0);
 }
 

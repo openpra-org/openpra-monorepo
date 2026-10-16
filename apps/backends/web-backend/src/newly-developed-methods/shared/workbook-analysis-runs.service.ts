@@ -21,20 +21,14 @@ import { SystemsAnalysisSchema } from "interfaces-mef-types/zod/sy/systems-analy
 import { DataAnalysisSchema } from "interfaces-mef-types/zod/da/data-analysis";
 import { HumanReliabilityAnalysisSchema } from "interfaces-mef-types/zod/hr/human-reliability-analysis";
 import { SuccessCriteriaDevelopmentSchema } from "interfaces-mef-types/zod/sc/success-criteria-development";
-import type { EventSequenceAnalysis, FunctionalEvent } from "interfaces-mef-types/es/event-sequence-analysis";
-import {
-  boundFunctionalEventIds,
-  esConfigurationApplies,
-  eventTreeHclFacts,
-  functionalEventBindingId,
-  overridingConfiguration,
-} from "interfaces-mef-types/es/es-dependency-bindings";
+import type { EventSequenceAnalysis } from "interfaces-mef-types/es/event-sequence-analysis";
 import type { EventSequenceQuantification } from "interfaces-mef-types/esq/event-sequence-quantification";
 import type { SystemsAnalysis } from "interfaces-mef-types/sy/systems-analysis";
 import { daCcfVectorParameter, type DataAnalysis } from "interfaces-mef-types/da/data-analysis";
 import type { HumanReliabilityAnalysis } from "interfaces-mef-types/hr/human-reliability-analysis";
 import type { SuccessCriteriaDevelopment } from "interfaces-mef-types/sc/success-criteria-development";
-import type { WorkbookBayesianNetwork, WorkbookHclConfiguration } from "interfaces-mef-types/modeling";
+import type { HclEventBinding, WorkbookBayesianNetwork, WorkbookHclConfiguration } from "interfaces-mef-types/modeling";
+import { HclUncertaintySettingsSchema } from "interfaces-mef-types/zod/modeling";
 import {
   AnalysisRunMetadataSchema,
   AnalysisRunFailureSchema,
@@ -85,6 +79,7 @@ import type {
   BayesianNetworkExecuteRequest,
   EsqBarrierCellRunRequest,
   EsqEventTreeRunRequest,
+  EsqModelRunHcl,
   EsqModelRunRequest,
   EsqModelRunResult,
   EsqImportanceRunRequest,
@@ -103,6 +98,7 @@ import type {
   HclCalculationType,
   HclBatchInput,
   HclFaultTreeBatchExecuteRequest,
+  HclRunSampling,
   HclBatchExecuteResult,
   HclGenerateScenariosResult,
   HclHazardConvolutionResult,
@@ -130,14 +126,10 @@ import {
 import { AnalysisRunRecord, type AnalysisRunRecordDocument } from "./analysis-run-record.schema";
 import {
   adaptEsEventTreeSnapshot,
-  adaptEsFunctionalEventStandIn,
   adaptEsqBayesianNetworkSnapshot,
   adaptEsqHclSnapshot,
-  adaptEsBayesianNetworkSnapshot,
-  adaptEsHclSnapshot,
-  functionalEventStandInTop,
+  adaptHclConfigurationSnapshot,
   adaptSyBayesianNetworkSnapshot,
-  adaptSyHclSnapshot,
   adaptSyFaultTreeSnapshot,
   collectEsEventTreeReferences,
   collectHclUncertaintyReferences,
@@ -166,7 +158,8 @@ import {
 } from "interfaces-mef-types/core/uncertainty";
 import type { HumanFailureEventReference, WorkbookParameterReference } from "interfaces-mef-types/modeling/references";
 import { parameterLaw } from "interfaces-mef-types/esq/esq-measure-inputs";
-import { esqParameterRecord, transferTreeIds } from "interfaces-mef-types/esq/esq-run-inputs";
+import { esqParameterRecord } from "interfaces-mef-types/esq/esq-run-inputs";
+import type { EsqRunStandIn } from "../../esq-workbooks/esq-model-run-builder";
 import { PraetorAnalysisClient, type PraetorNativeResponse } from "./praetor-analysis.client";
 import { describeRunChange, jsonOf, type ChangedSource } from "./analysis-run-changes";
 import { storedWorkbookRejection } from "../../workbooks/stored-workbook-format";
@@ -232,7 +225,6 @@ interface HclBatchRunContext {
 
 export type HclConfigurationOwner =
   | LoadedWorkbook<EventSequenceQuantification>
-  | LoadedWorkbook<EventSequenceAnalysis>
   | LoadedWorkbook<SystemsAnalysis>;
 
 interface LoadedHclSources {
@@ -271,21 +263,14 @@ export interface EsqPreparedTreeRun {
   models: WorkbookModelAddress[];
 }
 
-export interface EsqHclStandIn {
-  top: { modelId: string; entityId: string };
-  eventId: string;
-  snapshot: AdaptedFaultTreeSnapshot;
-}
-
 export interface EsqModelHcl {
   sources: HclConfigurationOwner[];
   configurationId: string;
   configurationWorkbookId: string;
-  covers: (treeId: string, syWorkbookId: string, syModelIds: readonly string[]) => boolean;
-  refusal: (treeId: string) => string | undefined;
-  standInFor: (rootId: string) => (treeId: string, functionId: string) => EsqHclStandIn | undefined;
-  augment: (envelope: SolverEnvelope, syWorkbookId: string, syModelIds: readonly string[], standInModelIds: readonly string[], evidence?: WorkbookHclConfiguration["baseEvidence"]) => SolverEnvelope;
-  entities: (envelope: SolverEnvelope, syWorkbookId: string, syModelIds: readonly string[], standInModelIds: readonly string[], evidence: WorkbookHclConfiguration["baseEvidence"]) => WorkbookCrossReference[];
+  network: WorkbookModelAddress;
+  covers: (syWorkbookId: string, syModelIds: readonly string[], standIns: readonly EsqRunStandIn[]) => boolean;
+  augment: (envelope: SolverEnvelope, syWorkbookId: string, syModelIds: readonly string[], standIns: readonly EsqRunStandIn[], evidence?: WorkbookHclConfiguration["baseEvidence"]) => SolverEnvelope;
+  entities: (envelope: SolverEnvelope, syWorkbookId: string, syModelIds: readonly string[], standIns: readonly EsqRunStandIn[], evidence: WorkbookHclConfiguration["baseEvidence"]) => WorkbookCrossReference[];
 }
 
 export type EsqDependencySource = HclConfigurationOwner | LoadedWorkbook<SuccessCriteriaDevelopment> | LoadedWorkbook<DataAnalysis>;
@@ -295,7 +280,7 @@ export interface EsqDependencyTreeBuild {
   envelope: SolverEnvelope;
   syWorkbookId: string;
   syModelIds: string[];
-  standInModelIds: string[];
+  standIns: EsqRunStandIn[];
   models: WorkbookModelAddress[];
   sources: EsqDependencySource[];
 }
@@ -369,6 +354,30 @@ const adaptOrThrow = <T>(adapter: () => T): T => {
     }
     throw error;
   }
+};
+
+const withRunSampling = (hcl: LoadedHclSources, sampling: HclRunSampling | undefined): LoadedHclSources => {
+  if (sampling === undefined) return hcl;
+  const stored = hcl.configuration.solverSettings.uncertainty;
+  const laws = stored === undefined ? undefined : HclUncertaintySettingsSchema.safeParse(stored);
+  if (laws !== undefined && !laws.success) {
+    throw new BadRequestException(`The uncertainty laws of dependency configuration '${hcl.configuration.code}' need review in the linked SY workbook. ${laws.error.issues[0]?.message ?? ""}`.trim());
+  }
+  return {
+    ...hcl,
+    configuration: {
+      ...hcl.configuration,
+      solverSettings: {
+        ...hcl.configuration.solverSettings,
+        uncertainty: {
+          ...sampling,
+          basicEvents: laws?.success === true ? laws.data.basicEvents : [],
+          cptRows: laws?.success === true ? laws.data.cptRows : [],
+          cptGenerators: laws?.success === true ? laws.data.cptGenerators : [],
+        },
+      },
+    },
+  };
 };
 
 const iso = (value: Date | string): string =>
@@ -1600,13 +1609,12 @@ export class WorkbookAnalysisRunsService implements OnModuleInit, OnModuleDestro
   private eventTreeFaultTreeReferences(
     source: LoadedWorkbook<EventSequenceAnalysis>,
     modelId: string,
-    functionalEventStandIns: ReadonlySet<string> = new Set(),
   ): WorkbookModelAddress[] {
     const tree = source.mef.eventTrees?.find((candidate) => candidate.uuid === modelId);
     if (!tree) throw new NotFoundException("ES event tree not found");
     const refs = Object.values(tree.functionalEvents).flatMap((event) => {
       if (!event.faultTreeTopEvent) {
-        if (functionalEventStandIns.has(event.uuid)) return [];
+        if (event.networkNode !== undefined) throw new BadRequestException(`Functional event '${event.label ?? event.name}' links to a network node. Quantify it in ESQ with dependencies.`);
         throw new BadRequestException(`Functional event '${event.uuid}' has no typed fault-tree top-event reference`);
       }
       return [{
@@ -1620,10 +1628,9 @@ export class WorkbookAnalysisRunsService implements OnModuleInit, OnModuleDestro
   private async loadEventTreeFaultTrees(
     eventTree: LoadedWorkbook<EventSequenceAnalysis>,
     modelId: string,
-    functionalEventStandIns: ReadonlySet<string> = new Set(),
   ): Promise<Array<{ source: LoadedWorkbook<SystemsAnalysis>; modelId: string }>> {
     const references = this.eventTreeModelIds(eventTree, modelId).flatMap((eventTreeModelId) =>
-      this.eventTreeFaultTreeReferences(eventTree, eventTreeModelId, functionalEventStandIns),
+      this.eventTreeFaultTreeReferences(eventTree, eventTreeModelId),
     );
     const uniqueReferences = [
       ...new Map(references.map((reference) => [`${reference.workbookId}:${reference.modelId}`, reference])).values(),
@@ -1690,10 +1697,10 @@ export class WorkbookAnalysisRunsService implements OnModuleInit, OnModuleDestro
 
   async loadEsqModelHcl(
     owner: LoadedWorkbook<EventSequenceQuantification>,
-    address: WorkbookModelAddress,
+    address: EsqModelRunHcl,
     acting: ActingUser,
   ): Promise<EsqModelHcl> {
-    const hcl = await this.loadHclSources(owner, address.modelId, address.workbookId === owner.workbookId ? undefined : address);
+    const hcl = await this.loadHclSources(owner, address.modelId, address.workbookId === owner.workbookId ? undefined : { workbookId: address.workbookId, modelId: address.modelId });
     return this.esqModelHcl(owner, hcl, acting, "PROBABILITY");
   }
 
@@ -1703,66 +1710,40 @@ export class WorkbookAnalysisRunsService implements OnModuleInit, OnModuleDestro
     acting: ActingUser,
     calculationType: HclCalculationType,
   ): Promise<EsqModelHcl> {
-    if (hcl.configurationOwner.hostType === "ESQ") throw new BadRequestException("Pick a dependency configuration from the linked ES or SY workbook.");
+    if (hcl.configurationOwner.hostType !== "SY") throw new BadRequestException("Pick a dependency configuration from the linked SY workbook.");
     const sources: HclConfigurationOwner[] = [hcl.configurationOwner, hcl.bayesian, ...hcl.faultTrees.map(({ source }) => source)];
     await this.authorizeSources(sources, owner.workbookId, acting);
     const controlled = await this.resolveFaultTreeInputs([], this.hclReferences(hcl, calculationType));
     const network = adaptOrThrow(() => this.adaptHclBayesianNetwork(hcl));
-    const esOwner = hcl.configurationOwner.hostType === "ES" ? (hcl.configurationOwner as LoadedWorkbook<EventSequenceAnalysis>) : undefined;
-    const esTrees = esOwner?.mef.eventTrees ?? [];
-    const model = owner.mef.model;
     const declared = new Set(hcl.configuration.faultTrees.map((reference) => `${reference.workbookId}:${reference.modelId}`));
-    const linkedEs = owner.mef.linkedWorkbooks?.ES;
-    const precedenceEs = esOwner !== undefined || linkedEs === undefined || linkedEs.length === 0 || linkedEs.startsWith("example") ? undefined : await this.loadEs(linkedEs);
-    const precedenceTrees = precedenceEs?.mef.eventTrees ?? [];
-    const esCovers = (rootId: string): boolean => {
-      const root = esTrees.find((tree) => tree.uuid === rootId);
-      if (esOwner === undefined || root === undefined || model === undefined) return false;
-      const connected = transferTreeIds(model, rootId).flatMap((id) => esTrees.filter((tree) => tree.uuid === id));
-      return esConfigurationApplies(esOwner.workbookId, hcl.configuration, eventTreeHclFacts(esOwner.workbookId, root, connected));
-    };
-    const functionKey = (event: FunctionalEvent, key: string): string => {
-      const label = event.label?.trim() ?? "";
-      if (label.length > 0) return label;
-      const name = event.name.trim();
-      return name.length > 0 ? name : key;
-    };
-    const effectiveOf = (syWorkbookId: string, syModelIds: readonly string[], standInModelIds: readonly string[]): WorkbookModelAddress[] => [
+    const effectiveOf = (syWorkbookId: string, syModelIds: readonly string[], standIns: readonly EsqRunStandIn[]): WorkbookModelAddress[] => [
       ...syModelIds.map((modelId) => ({ workbookId: syWorkbookId, modelId })),
-      ...(esOwner === undefined ? [] : standInModelIds.map((modelId) => ({ workbookId: esOwner.workbookId, modelId }))),
+      ...standIns.map((standIn) => ({ workbookId: owner.workbookId, modelId: standIn.modelId })),
     ];
+    const withStandIns = (standIns: readonly EsqRunStandIn[]): LoadedHclSources => (standIns.length === 0 ? hcl : {
+      ...hcl,
+      configuration: {
+        ...hcl.configuration,
+        faultTrees: [...hcl.configuration.faultTrees, ...standIns.map((standIn) => ({ workbookId: owner.workbookId, modelId: standIn.modelId }))],
+        bindings: [...hcl.configuration.bindings, ...standIns.map((standIn): HclEventBinding => ({
+          id: standIn.eventId,
+          faultTreeBasicEvent: { referenceType: "FAULT_TREE_BASIC_EVENT", workbookId: owner.workbookId, entityId: standIn.eventId },
+          bayesianNetworkNode: { referenceType: "BAYESIAN_NETWORK_NODE", workbookId: standIn.node.workbookId, modelId: standIn.node.modelId, entityId: standIn.node.nodeId },
+          trueStateIds: standIn.trueStateIds,
+        }))],
+      },
+    });
     const membershipOf = (envelope: SolverEnvelope): ReadonlyMap<string, ReadonlySet<string>> =>
       this.hclFaultTreeBasicEventMembership(envelope.modelSnapshots.filter((snapshot) => snapshot["methodType"] === "FAULT_TREE"));
     return {
       sources,
       configurationId: hcl.configuration.modelId,
       configurationWorkbookId: hcl.configurationOwner.workbookId,
-      covers: (treeId, syWorkbookId, syModelIds) => (esOwner === undefined
-        ? syModelIds.some((modelId) => declared.has(`${syWorkbookId}:${modelId}`))
-        : esCovers(treeId)),
-      refusal: (treeId) => {
-        const root = precedenceTrees.find((tree) => tree.uuid === treeId);
-        if (precedenceEs === undefined || root === undefined || model === undefined) return undefined;
-        const connected = transferTreeIds(model, treeId).flatMap((id) => precedenceTrees.filter((tree) => tree.uuid === id));
-        const overriding = overridingConfiguration(hcl.configuration, precedenceEs.mef.dependencyHclConfigurations ?? [], eventTreeHclFacts(precedenceEs.workbookId, root, connected));
-        return overriding === undefined ? undefined : `Event Sequence configuration '${overriding.code}' binds the same basic events and takes precedence for event tree '${root.label ?? root.name}'. Run the model with that configuration.`;
-      },
-      standInFor: (rootId) => (treeId, functionId) => {
-        if (esOwner === undefined || !esCovers(rootId)) return undefined;
-        const tree = esTrees.find((candidate) => candidate.uuid === treeId);
-        if (tree === undefined) return undefined;
-        const event = Object.entries(tree.functionalEvents)
-          .find(([key, candidate]) => candidate.faultTreeTopEvent === undefined && functionKey(candidate, key) === functionId)?.[1];
-        if (event === undefined || boundFunctionalEventIds(hcl.configuration, esOwner.workbookId, [event.uuid]).length === 0) return undefined;
-        return {
-          top: functionalEventStandInTop(esOwner.workbookId, event.uuid),
-          eventId: functionalEventBindingId(event.uuid),
-          snapshot: adaptOrThrow(() => adaptEsFunctionalEventStandIn(esOwner, event)),
-        };
-      },
-      augment: (envelope, syWorkbookId, syModelIds, standInModelIds, evidence) => {
-        const effective = effectiveOf(syWorkbookId, syModelIds, standInModelIds);
-        const configuration = adaptOrThrow(() => this.adaptHclConfiguration(hcl, calculationType, membershipOf(envelope), controlled, evidence, effective));
+      network: { workbookId: hcl.configuration.bayesianNetwork.workbookId, modelId: hcl.configuration.bayesianNetwork.modelId },
+      covers: (syWorkbookId, syModelIds, standIns) => standIns.length > 0 || syModelIds.some((modelId) => declared.has(`${syWorkbookId}:${modelId}`)),
+      augment: (envelope, syWorkbookId, syModelIds, standIns, evidence) => {
+        const effective = effectiveOf(syWorkbookId, syModelIds, standIns);
+        const configuration = adaptOrThrow(() => this.adaptHclConfiguration(withStandIns(standIns), calculationType, membershipOf(envelope), controlled, evidence, effective));
         return {
           ...envelope,
           request: { ...envelope.request, mode: "HYBRID_CAUSAL_LOGIC", calculationType, ...(calculationType === "UNCERTAINTY" ? { keepSamples: true } : {}) },
@@ -1775,19 +1756,18 @@ export class WorkbookAnalysisRunsService implements OnModuleInit, OnModuleDestro
           ],
         };
       },
-      entities: (envelope, syWorkbookId, syModelIds, standInModelIds, evidence) => [
-        ...this.hclBindingContributionEntities(hcl.configurationOwner, hcl.configuration, effectiveOf(syWorkbookId, syModelIds, standInModelIds), membershipOf(envelope)),
+      entities: (envelope, syWorkbookId, syModelIds, standIns, evidence) => [
+        ...this.hclBindingContributionEntities(hcl.configurationOwner, hcl.configuration, effectiveOf(syWorkbookId, syModelIds, standIns), membershipOf(envelope)),
+        ...standIns.map((standIn) => ({ referenceType: "BAYESIAN_NETWORK_NODE" as const, workbookId: standIn.node.workbookId, modelId: standIn.node.modelId, entityId: standIn.node.nodeId })),
         ...this.hclEvidenceContributionEntities(hcl.configuration, evidence),
       ],
     };
   }
 
-  private coveredDependencyTree(hcl: EsqModelHcl, treeId: string, tree: EsqDependencyTreeBuild): EsqDependencyTreeBuild {
-    if (!hcl.covers(treeId, tree.syWorkbookId, tree.syModelIds)) {
-      throw new BadRequestException("The dependency configuration does not cover this event tree. Pick a configuration whose scope or fault trees match it.");
+  private coveredDependencyTree(hcl: EsqModelHcl, tree: EsqDependencyTreeBuild): EsqDependencyTreeBuild {
+    if (!hcl.covers(tree.syWorkbookId, tree.syModelIds, tree.standIns)) {
+      throw new BadRequestException("The dependency configuration does not cover this event tree. Pick a configuration whose fault trees or network nodes it uses.");
     }
-    const refusal = hcl.refusal(treeId);
-    if (refusal !== undefined) throw new BadRequestException(refusal);
     return tree;
   }
 
@@ -1832,13 +1812,13 @@ export class WorkbookAnalysisRunsService implements OnModuleInit, OnModuleDestro
     const { owner, request, acting } = input;
     const loaded = await this.loadHclSources(owner, request.modelId, request.dependencyConfiguration);
     const scenario = this.resolveHclEvidenceScenario(loaded.configuration, request.evidenceScenarioId);
-    const hcl = await this.esqModelHcl(owner, loaded, acting, request.calculationType);
-    const tree = this.coveredDependencyTree(hcl, input.treeId, await input.build(hcl));
+    const hcl = await this.esqModelHcl(owner, withRunSampling(loaded, request.sampling), acting, request.calculationType);
+    const tree = this.coveredDependencyTree(hcl, await input.build(hcl));
     const evidence = scenario?.evidence ?? loaded.configuration.baseEvidence;
-    const envelope = hcl.augment(tree.envelope, tree.syWorkbookId, tree.syModelIds, tree.standInModelIds, scenario?.evidence);
+    const envelope = hcl.augment(tree.envelope, tree.syWorkbookId, tree.syModelIds, tree.standIns, scenario?.evidence);
     const sources = [...tree.sources, ...hcl.sources];
     const identity = { workbookId: owner.workbookId, modelId: request.modelId, workbookRevision: owner.workbookRevision };
-    const entities = hcl.entities(envelope, tree.syWorkbookId, tree.syModelIds, tree.standInModelIds, evidence);
+    const entities = hcl.entities(envelope, tree.syWorkbookId, tree.syModelIds, tree.standIns, evidence);
     return this.executeRun(
       randomUUID(),
       identity,
@@ -1868,9 +1848,9 @@ export class WorkbookAnalysisRunsService implements OnModuleInit, OnModuleDestro
       const resolved = this.resolveHclEvidenceScenario(configuration, scenarioId);
       return resolved === null ? [] : [resolved];
     });
-    const hcl = await this.esqModelHcl(owner, loaded, acting, request.calculationType);
-    const tree = this.coveredDependencyTree(hcl, input.treeId, await input.build(hcl));
-    const augmented = hcl.augment(tree.envelope, tree.syWorkbookId, tree.syModelIds, tree.standInModelIds);
+    const hcl = await this.esqModelHcl(owner, withRunSampling(loaded, request.sampling), acting, request.calculationType);
+    const tree = this.coveredDependencyTree(hcl, await input.build(hcl));
+    const augmented = hcl.augment(tree.envelope, tree.syWorkbookId, tree.syModelIds, tree.standIns);
     const envelope: SolverEnvelope = {
       ...augmented,
       request: {
@@ -1910,13 +1890,14 @@ export class WorkbookAnalysisRunsService implements OnModuleInit, OnModuleDestro
         workbookRevision: request.workbookRevision,
         eventTree: request.eventTree,
         ...(request.dependencyConfiguration === undefined ? {} : { dependencyConfiguration: request.dependencyConfiguration }),
+        ...(request.sampling === undefined ? {} : { sampling: structuredClone(request.sampling) }),
         evidenceScenarioId: scenario.id,
         mode: "HYBRID_CAUSAL_LOGIC",
         batchContext,
         evidenceScenario: structuredClone(scenario),
         effectiveEvidence: structuredClone(evidence),
       },
-      trace: this.esqDependencyTrace(owner, loaded, identity, tree, sources, hcl.entities(envelope, tree.syWorkbookId, tree.syModelIds, tree.standInModelIds, evidence)),
+      trace: this.esqDependencyTrace(owner, loaded, identity, tree, sources, hcl.entities(envelope, tree.syWorkbookId, tree.syModelIds, tree.standIns, evidence)),
     }));
     const executed = await this.executeHclBatchRuns(identity, "EVENT_TREE", prepared, sources, envelope, "EVENT_TREE", acting, hazardGrid !== null);
     return HclBatchExecuteResultSchema.parse({ schemaVersion: "1.0.0", ...executed });
@@ -2193,8 +2174,6 @@ export class WorkbookAnalysisRunsService implements OnModuleInit, OnModuleDestro
     const configurations =
       configurationOwner.hostType === "SY" ?
         ((configurationOwner.mef as SystemsAnalysis).dependencyHclConfigurations ?? [])
-      : configurationOwner.hostType === "ES" ?
-        ((configurationOwner.mef as EventSequenceAnalysis).dependencyHclConfigurations ?? [])
       : (configurationOwner.mef as EventSequenceQuantification).hclConfigurations;
     const configuration = configurations.find((candidate) => candidate.modelId === modelId);
     if (!configuration) {
@@ -2203,12 +2182,9 @@ export class WorkbookAnalysisRunsService implements OnModuleInit, OnModuleDestro
     const bayesian =
       configuration.bayesianNetwork.workbookId === configurationOwner.workbookId ? configurationOwner
       : configurationOwner.hostType === "SY" ? await this.loadSy(configuration.bayesianNetwork.workbookId)
-      : configurationOwner.hostType === "ES" ? await this.loadEs(configuration.bayesianNetwork.workbookId)
       : await this.loadEsq(configuration.bayesianNetwork.workbookId);
-    const systemReferences = configuration.faultTrees.filter((reference) =>
-      configurationOwner.hostType !== "ES" || reference.workbookId !== configurationOwner.workbookId);
     const byWorkbook = new Map<string, LoadedWorkbook<SystemsAnalysis>>();
-    for (const reference of systemReferences) {
+    for (const reference of configuration.faultTrees) {
       if (!byWorkbook.has(reference.workbookId)) {
         byWorkbook.set(reference.workbookId, await this.loadSy(reference.workbookId));
       }
@@ -2217,7 +2193,7 @@ export class WorkbookAnalysisRunsService implements OnModuleInit, OnModuleDestro
       configuration,
       configurationOwner,
       bayesian,
-      faultTrees: systemReferences.map((reference) => ({
+      faultTrees: configuration.faultTrees.map((reference) => ({
         source: byWorkbook.get(reference.workbookId)!,
         modelId: reference.modelId,
       })),
@@ -2226,18 +2202,14 @@ export class WorkbookAnalysisRunsService implements OnModuleInit, OnModuleDestro
 
   private async loadDependencyOwner(workbookId: string): Promise<HclConfigurationOwner> {
     const fromSy = await this.syWorkbookModel.exists({ workbookId }).exec();
-    return fromSy === null ? this.loadEs(workbookId) : this.loadSy(workbookId);
+    if (fromSy === null) throw new BadRequestException("Pick a dependency configuration from the linked SY workbook.");
+    return this.loadSy(workbookId);
   }
 
   private adaptHclBayesianNetwork(hcl: LoadedHclSources): PraxisModelSnapshot {
     return hcl.bayesian.hostType === "SY" ?
         adaptSyBayesianNetworkSnapshot(
           hcl.bayesian as LoadedWorkbook<SystemsAnalysis>,
-          hcl.configuration.bayesianNetwork.modelId,
-        )
-      : hcl.bayesian.hostType === "ES" ?
-        adaptEsBayesianNetworkSnapshot(
-          hcl.bayesian as LoadedWorkbook<EventSequenceAnalysis>,
           hcl.configuration.bayesianNetwork.modelId,
         )
       : adaptEsqBayesianNetworkSnapshot(
@@ -2256,19 +2228,9 @@ export class WorkbookAnalysisRunsService implements OnModuleInit, OnModuleDestro
   ): PraxisModelSnapshot {
     this.validateHclBindingReferences(hcl, faultTreeBasicEventMembership, effectiveFaultTrees);
     return hcl.configurationOwner.hostType === "SY" ?
-        adaptSyHclSnapshot(
-          hcl.configurationOwner as LoadedWorkbook<SystemsAnalysis>,
-          hcl.configuration.modelId,
-          calculationType,
-          faultTreeBasicEventMembership,
-          evidence,
-          effectiveFaultTrees,
-          sources,
-        )
-      : hcl.configurationOwner.hostType === "ES" ?
-        adaptEsHclSnapshot(
-          hcl.configurationOwner as LoadedWorkbook<EventSequenceAnalysis>,
-          hcl.configuration.modelId,
+        adaptHclConfigurationSnapshot(
+          hcl.configurationOwner,
+          hcl.configuration,
           calculationType,
           faultTreeBasicEventMembership,
           evidence,
@@ -2305,7 +2267,6 @@ export class WorkbookAnalysisRunsService implements OnModuleInit, OnModuleDestro
       const target = binding.faultTreeBasicEvent;
       if (effectiveFaultTrees.some((tree) => tree.workbookId === target.workbookId &&
         selectedMemberships.get(tree.modelId)?.has(target.entityId))) continue;
-      if (hcl.configurationOwner.hostType === "ES" && target.workbookId === hcl.configurationOwner.workbookId) continue;
 
       const candidates = hcl.faultTrees.filter(({ source }) => source.workbookId === target.workbookId);
       if (candidates.length === 0) {
@@ -2345,8 +2306,6 @@ export class WorkbookAnalysisRunsService implements OnModuleInit, OnModuleDestro
     const models =
       source.hostType === "SY" ?
         ((source.mef as SystemsAnalysis).dependencyBayesianNetworks ?? [])
-      : source.hostType === "ES" ?
-        ((source.mef as EventSequenceAnalysis).dependencyBayesianNetworks ?? [])
       : (source.mef as EventSequenceQuantification).bayesianNetworks;
     const model = models.find((candidate) => candidate.modelId === modelId);
     if (model === undefined)

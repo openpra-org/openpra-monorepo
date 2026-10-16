@@ -5,6 +5,7 @@ import { BaseModelUncertaintyDocumentation, PreOperationalAssumption, PlantRepre
 import { TechnicalElement, TechnicalElementTypes } from "../technical-element";
 import { HlrId, PlantStage, SRReference } from "../core/pra-common";
 import type {
+  BayesianNetworkNodeReference,
   EventTreeCanvasLayout,
   EventTreeInitiatingEventFrequency,
   FaultTreeTopEventReference,
@@ -358,6 +359,11 @@ export interface DependencyModels {
   systemInterfaces?: SystemInterfaceDependency[];
 }
 
+export interface FunctionalEventNetworkNode {
+  bayesianNetworkNode: BayesianNetworkNodeReference;
+  trueStateIds: string[];
+}
+
 export interface FunctionalEvent extends Unique, Named {
   label?: string;
   order?: number;
@@ -365,6 +371,7 @@ export interface FunctionalEvent extends Unique, Named {
   systemReference?: SystemReference;
   humanActionReference?: HumanActionReference;
   faultTreeTopEvent?: FaultTreeTopEventReference;
+  networkNode?: FunctionalEventNetworkNode;
   /** @deprecated Retained only until the ES event-tree migration TODO resolves legacy links. */
   faultTreeId?: string;
 }

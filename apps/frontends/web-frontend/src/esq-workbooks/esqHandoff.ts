@@ -25,7 +25,7 @@ import type { PreOperationalAssumption } from "interfaces-mef-types/core/documen
 import type { RiskIntegration } from "interfaces-mef-types/ri/risk-integration";
 import { holdsEstimate } from "interfaces-mef-types/da/data-analysis";
 import type { UncertainExpression } from "interfaces-mef-types/core/uncertainty";
-import { hash32 } from "interfaces-mef-types/esq/esq-run-inputs";
+import { esqItemLabel, hash32 } from "interfaces-mef-types/esq/esq-run-inputs";
 import { resolvedCombinations, resolvedRecoveries } from "interfaces-mef-types/esq/esq-post-inputs";
 import { solveInputsKey, solveWorkOf } from "interfaces-mef-types/esq/esq-solve-inputs";
 import { hasUncertainty, uncertaintyInputsKey } from "interfaces-mef-types/esq/esq-measure-inputs";
@@ -598,7 +598,7 @@ function publishEsq(esq: EventSequenceQuantification, input: EsqPublishInput): E
   const sensitivity = sensitivityViewOf(esq, input.upstream);
   const register = sensitivity?.register ?? [];
   const names = new Map(families.map((family) => [family.id, family.name]));
-  const familyName = (id: string): string => (blank(names.get(id)) ? id : `${names.get(id) ?? ""} (${id})`);
+  const familyName = (id: string): string => esqItemLabel(names.get(id), id, "Unnamed family");
   const independent = uncertaintyWorkOf(esq).independent;
   const familyQuantifications = familyQuantificationsOf(esq, input, register);
   const notes = reviewOf(esq).reconciliations ?? [];

@@ -60,6 +60,7 @@ import {
 } from "./esqResults";
 import { getEsqImportanceResult, getEsqModelRunResult, getEsqRunSourceRevision, runEsqImportance } from "./esqWorkbookApi";
 import { esqModelRunId } from "interfaces-mef-types/esq/esq-solve-inputs";
+import { esqItemLabel } from "interfaces-mef-types/esq/esq-run-inputs";
 
 type ResultsTab = "consistency" | "contributors" | "importance" | "screened" | "checks";
 
@@ -734,7 +735,7 @@ function ScreenedWindow({ id, onClose }: { id: string; onClose: () => void }): J
 
   return (
     <>
-      <ModalHead cap={`Screened initiator · ${row.origin === "IE" ? "IE" : "Step 01"} · ESQ-D8`} title={`${row.name} (${row.groupId})`} onClose={onClose} />
+      <ModalHead cap={`Screened initiator · ${row.origin === "IE" ? "IE" : "Step 01"} · ESQ-D8`} title={esqItemLabel(row.name, row.groupId, "Unnamed initiator group")} onClose={onClose} />
       <div className="modal__body esq-form">
         <FormRow label="Screening basis"><span className="esq-form__unit">{textValue(row.ieBasis)}</span></FormRow>
         <FormRow label="Frequency (/yr)" htmlFor={`${fieldId}-frequency`}>

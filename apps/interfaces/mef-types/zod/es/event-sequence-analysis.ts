@@ -19,6 +19,7 @@ import {
 import { SRReferenceSchema } from "../core/pra-common";
 import { WorkbookBayesianNetworkSchema, WorkbookHclConfigurationSchema } from "../modeling/workbook-models";
 import {
+  BayesianNetworkNodeReferenceSchema,
   EventTreeCanvasLayoutSchema,
   EventTreeInitiatingEventFrequencySchema,
   FaultTreeTopEventReferenceSchema,
@@ -320,6 +321,13 @@ export const DependencyModelsSchema = z.object({
   systemInterfaces: z.array(SystemInterfaceDependencySchema).optional(),
 });
 
+export const FunctionalEventNetworkNodeSchema = z
+  .object({
+    bayesianNetworkNode: BayesianNetworkNodeReferenceSchema,
+    trueStateIds: z.array(z.string().min(1)).min(1, "Pick at least one failing state"),
+  })
+  .strict();
+
 export const FunctionalEventSchema = z
   .object({
     uuid: z.string(),
@@ -330,6 +338,7 @@ export const FunctionalEventSchema = z
     systemReference: z.string().optional(),
     humanActionReference: z.string().optional(),
     faultTreeTopEvent: FaultTreeTopEventReferenceSchema.optional(),
+    networkNode: FunctionalEventNetworkNodeSchema.optional(),
     faultTreeId: z.string().optional(),
   })
   .strict()
@@ -339,6 +348,13 @@ export const FunctionalEventSchema = z
         code: z.ZodIssueCode.custom,
         message: "Use the typed faultTreeTopEvent reference instead of storing both FT link forms",
         path: ["faultTreeId"],
+      });
+    }
+    if (functionalEvent.networkNode !== undefined && (functionalEvent.faultTreeTopEvent !== undefined || functionalEvent.faultTreeId !== undefined)) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "A functional event links to a fault tree or a network node, not both",
+        path: ["networkNode"],
       });
     }
   });

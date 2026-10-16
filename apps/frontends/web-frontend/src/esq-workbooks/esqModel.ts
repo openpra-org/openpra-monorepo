@@ -15,6 +15,7 @@ import {
   type EsqFamilyChoice,
   type EsqFamilyRecord,
   type EsqFunctionLink,
+  type EsqFunctionNodeLink,
   type EsqFunctionRecord,
   type EsqFunctionRule,
   type EsqFunctionTarget,
@@ -71,7 +72,7 @@ import { type SuccessCriteriaDevelopment } from "interfaces-mef-types/sc/success
 import { cellExpressionOfRecord, cellOf } from "interfaces-mef-types/esq/esq-barrier-inputs";
 import { hasUncertainty, parameterLaw, parameterUnit } from "interfaces-mef-types/esq/esq-measure-inputs";
 import { sequenceFamilyOf } from "interfaces-mef-types/esq/esq-solve-inputs";
-import { type QuantificationTimeUnit } from "interfaces-mef-types/modeling";
+import { type BayesianNetworkNodeReference, type QuantificationTimeUnit } from "interfaces-mef-types/modeling";
 import { type Workbook } from "interfaces-shared-types";
 import {
   esqParameterLinks,
@@ -88,6 +89,7 @@ import {
   transferTreeIds,
   treesInScope,
   withLiveDa,
+  esqItemCode,
   type EsqGroupFrequency,
   type EsqGroupState,
   type EsqResolvedLink,
@@ -164,6 +166,7 @@ interface EsqFunctionView {
   resolved: { tree: EsqTreeRecord; link: EsqResolvedLink }[];
   unlinked: EsqTreeRecord[];
   targets: EsqFunctionTarget[];
+  nodes: EsqFunctionNodeLink[];
   fromEs: boolean;
   edited: boolean;
 }
@@ -416,7 +419,19 @@ function familyRecords(source: EsqTreeSource, sequences: readonly EsqSequenceRec
   return records;
 }
 
-function functionRecords(source: EsqTreeSource): EsqFunctionRecord[] {
+type NodeLabel = (reference: BayesianNetworkNodeReference) => string;
+
+function nodeLabelOf(esq: EventSequenceQuantification, upstream: EsqUpstream): NodeLabel {
+  const syId = linkOf(esq, "SY");
+  const networks = syId === undefined ? [] : upstream.sy?.dependencyBayesianNetworks ?? [];
+  return (reference) => {
+    const network = reference.workbookId === syId ? networks.find((candidate) => candidate.modelId === reference.modelId) : undefined;
+    const node = network?.nodes.find((candidate) => candidate.id === reference.entityId);
+    return network === undefined || node === undefined ? "" : `${node.code} · ${node.name} · ${network.code}`;
+  };
+}
+
+function functionRecords(source: EsqTreeSource, nodeLabel: NodeLabel): EsqFunctionRecord[] {
   const out = new Map<string, EsqFunctionRecord>();
   for (const tree of source.trees) {
     for (const { key, event } of orderedFunctions(tree)) {
@@ -427,6 +442,16 @@ function functionRecords(source: EsqTreeSource): EsqFunctionRecord[] {
       const gateId = textOf(top?.entityId);
       if (modelId !== undefined && gateId !== undefined && !record.esLinks.some((link) => link.treeId === tree.uuid)) {
         record.esLinks.push({ treeId: tree.uuid, top: { workbookId: textOf(top?.workbookId) ?? "", modelId, gateId } });
+      }
+      const node = event.networkNode;
+      if (node !== undefined && !(record.nodeLinks ?? []).some((link) => link.treeId === tree.uuid)) {
+        const reference = node.bayesianNetworkNode;
+        record.nodeLinks = [...(record.nodeLinks ?? []), {
+          treeId: tree.uuid,
+          node: { workbookId: reference.workbookId, modelId: reference.modelId, nodeId: reference.entityId },
+          trueStateIds: [...node.trueStateIds],
+          label: nodeLabel(reference),
+        }];
       }
       out.set(key, record);
     }
@@ -902,7 +927,7 @@ function importModel(esq: EventSequenceQuantification, upstream: EsqUpstream, no
     trees: es === undefined ? [] : esTreeRecords(es),
     sequences,
     families: source === undefined ? [] : familyRecords(source, sequences),
-    functions: source === undefined ? [] : functionRecords(source),
+    functions: source === undefined ? [] : functionRecords(source, nodeLabelOf(esq, upstream)),
     tops: sy === undefined ? [] : topRecords(sy),
     initiators: ie === undefined ? [] : initiatorRecords(ie),
     states: pos === undefined ? [] : stateRecords(pos),
@@ -966,7 +991,12 @@ function withTreeMissionTime(esq: EventSequenceQuantification, treeId: string, m
   return { ...esq, model: { ...model, trees } };
 }
 
-function withTypedRecords(model: EsqModel, esq: EventSequenceQuantification, previous?: EsqModel): EsqModel {
+function withNodeLinks(record: EsqFunctionRecord, nodeLinks: readonly EsqFunctionNodeLink[]): EsqFunctionRecord {
+  const { nodeLinks: _previous, ...rest } = record;
+  return nodeLinks.length === 0 ? rest : { ...rest, nodeLinks: [...nodeLinks] };
+}
+
+function withTypedRecords(model: EsqModel, esq: EventSequenceQuantification, nodeLabel: NodeLabel, previous?: EsqModel): EsqModel {
   const typedTrees = typedTreesOf(esq);
   const stale = new Set([...model.trees, ...(previous?.trees ?? [])].filter((tree) => tree.typed === true).map((tree) => tree.id));
   for (const tree of typedTrees) stale.add(tree.uuid);
@@ -974,7 +1004,7 @@ function withTypedRecords(model: EsqModel, esq: EventSequenceQuantification, pre
   const keptSequences = model.sequences.filter((sequence) => !stale.has(sequence.treeId));
   const functions = model.functions.flatMap((record): EsqFunctionRecord[] => {
     const treeIds = record.treeIds.filter((id) => !stale.has(id));
-    return treeIds.length === 0 ? [] : [{ ...record, treeIds, esLinks: record.esLinks.filter((link) => !stale.has(link.treeId)) }];
+    return treeIds.length === 0 ? [] : [withNodeLinks({ ...record, treeIds, esLinks: record.esLinks.filter((link) => !stale.has(link.treeId)) }, (record.nodeLinks ?? []).filter((link) => !stale.has(link.treeId)))];
   });
   const missionTimes = new Map([...(previous?.trees ?? []), ...model.trees].flatMap((tree) => (tree.typed === true && tree.missionTime !== undefined ? [[tree.id, tree.missionTime] as const] : [])));
   const source = typedTreeSource(esq);
@@ -982,11 +1012,11 @@ function withTypedRecords(model: EsqModel, esq: EventSequenceQuantification, pre
     const missionTime = missionTimes.get(tree.id);
     return missionTime === undefined ? { ...tree, typed: true } : { ...tree, typed: true, missionTime };
   });
-  for (const record of functionRecords(source)) {
+  for (const record of functionRecords(source, nodeLabel)) {
     const index = functions.findIndex((entry) => entry.id === record.id);
     const known = functions[index];
     if (known === undefined) functions.push(record);
-    else functions[index] = { ...known, treeIds: [...known.treeIds, ...record.treeIds], esLinks: [...known.esLinks, ...record.esLinks] };
+    else functions[index] = withNodeLinks({ ...known, treeIds: [...known.treeIds, ...record.treeIds], esLinks: [...known.esLinks, ...record.esLinks] }, [...(known.nodeLinks ?? []), ...(record.nodeLinks ?? [])]);
   }
   return { ...model, trees: [...keptTrees, ...trees], sequences: [...keptSequences, ...sequenceRecords(source)], functions };
 }
@@ -995,7 +1025,7 @@ function withTypedTrees(esq: EventSequenceQuantification, trees: EventTree[], up
   const next: EventSequenceQuantification = { ...esq, modelDecisions: { ...(esq.modelDecisions ?? {}), typedTrees: trees } };
   const model = next.model;
   if (model?.importedAt === undefined) return withModelImported(next, upstream, now);
-  return { ...next, model: withTypedRecords(model, next) };
+  return { ...next, model: withTypedRecords(model, next, nodeLabelOf(next, upstream)) };
 }
 
 function withTypedTreeRemoved(esq: EventSequenceQuantification, treeId: string, upstream: EsqUpstream, now: string): EventSequenceQuantification {
@@ -1015,7 +1045,7 @@ function withTypedTreeRemoved(esq: EventSequenceQuantification, treeId: string, 
 
 function withModelImported(esq: EventSequenceQuantification, upstream: EsqUpstream, now: string): EventSequenceQuantification {
   const previous = esq.model;
-  const next = withTypedRecords(withTreeMissionTimes(previous, importModel(esq, upstream, now)), esq, previous);
+  const next = withTypedRecords(withTreeMissionTimes(previous, importModel(esq, upstream, now)), esq, nodeLabelOf(esq, upstream), previous);
   if (previous?.importedAt === undefined) return { ...esq, model: next };
   const changes: EsqModelChange[] = [];
   tableChanges("TREE", previous.trees, next.trees, (row) => row.id, (row) => row.code, changes);
@@ -1069,6 +1099,10 @@ function topOf(model: EsqModel, top: EsqTopReference): EsqTopRecord | undefined 
 function targetKey(target: EsqFunctionTarget): string {
   if (target.kind === "FAULT_TREE") return `tree:${target.top.modelId}:${target.top.gateId}`;
   return `split:${target.cellId ?? ""}:${target.parameterId ?? ""}:${target.expression === undefined ? "" : canonicalJson(target.expression)}`;
+}
+
+function nodeKey(link: EsqFunctionNodeLink): string {
+  return `node:${link.node.workbookId}:${link.node.modelId}:${link.node.nodeId}:${[...link.trueStateIds].sort().join(",")}`;
 }
 
 function sequenceViews(esq: EventSequenceQuantification, model: EsqModel, trees: readonly EsqTreeRecord[]): EsqSequenceView[] {
@@ -1139,17 +1173,22 @@ function functionViews(esq: EventSequenceQuantification, model: EsqModel, trees:
     const link = functionLinkOf(esq, record.id);
     const resolved = using.map((tree) => ({ tree, link: resolveLink(record, link, tree) }));
     const targets: EsqFunctionTarget[] = [];
+    const nodes: EsqFunctionNodeLink[] = [];
     for (const entry of resolved) {
       const target = entry.link.target;
       if (target !== undefined && !targets.some((seen) => targetKey(seen) === targetKey(target))) targets.push(target);
+      const node = entry.link.node;
+      if (node !== undefined && !nodes.some((seen) => nodeKey(seen) === nodeKey(node))) nodes.push(node);
     }
-    const fromEs = record.esLinks.some((entry) => using.some((tree) => tree.id === entry.treeId && tree.typed !== true));
+    const esTrees = [...record.esLinks, ...(record.nodeLinks ?? [])].map((entry) => entry.treeId);
+    const fromEs = using.some((tree) => tree.typed !== true && esTrees.includes(tree.id));
     const view: EsqFunctionView = {
       record,
       trees: using,
       resolved,
-      unlinked: resolved.filter((entry) => entry.link.target === undefined).map((entry) => entry.tree),
+      unlinked: resolved.filter((entry) => entry.link.target === undefined && entry.link.node === undefined).map((entry) => entry.tree),
       targets,
+      nodes,
       fromEs,
       edited: fromEs && (link?.target !== undefined || (link?.rules ?? []).length > 0),
     };
@@ -1250,9 +1289,9 @@ function parameterLabelOf(esq: EventSequenceQuantification, sources: readonly Sc
   for (const option of [...ccfVectorOptionsOf(esq), ...ccfFactorOptionsOf(esq)]) labels.set(parameterReferenceKey(option.reference), option.label);
   for (const parameter of esq.model?.parameters ?? []) {
     const reference = daReferenceOf(esq, parameter.id);
-    if (reference !== undefined) labels.set(parameterReferenceKey(reference), parameter.id);
+    if (reference !== undefined) labels.set(parameterReferenceKey(reference), esqItemCode(parameter.id, parameter.name, "Unnamed parameter"));
   }
-  return (key) => labels.get(key) ?? key.slice(key.indexOf(":") + 1);
+  return (key) => labels.get(key) ?? esqItemCode(key.slice(key.indexOf(":") + 1), undefined, "Unresolved parameter");
 }
 
 function substituted(expression: UncertainExpression, from: string, to: UncertainExpression): UncertainExpression {
@@ -1547,12 +1586,13 @@ function functionFindings(esq: EventSequenceQuantification, model: EsqModel, fun
         findings.push(...splitFindings(esq, model, linkTarget, id, id, cc, target));
       }
     }
+    if (view.nodes.some((node) => node.label.length === 0)) findings.push({ severity: "error", check: "Node missing", item: id, detail: `${id} links to a network node that is not in the linked SY workbook.`, target });
     if (view.edited && view.link?.target !== undefined && blank(view.link.reason)) findings.push({ severity: "error", check: "Changed without a reason", item: id, detail: "The link differs from ES. Give the reason.", target });
     (view.link?.rules ?? []).forEach((rule, index) => {
       const ruleTrees = rule.treeIds ?? [];
       if (ruleTrees.length > 0) {
         const label = `${id} in ${listText(ruleTrees.map((treeId) => model.trees.find((tree) => tree.id === treeId)?.code ?? treeId))}`;
-        const overridesEs = view.trees.some((tree) => tree.typed !== true && ruleMatches(rule, tree) && view.record.esLinks.some((link) => link.treeId === tree.id));
+        const overridesEs = view.trees.some((tree) => tree.typed !== true && ruleMatches(rule, tree) && [...view.record.esLinks, ...(view.record.nodeLinks ?? [])].some((link) => link.treeId === tree.id));
         if (overridesEs && blank(rule.reason)) findings.push({ severity: "error", check: "Changed without a reason", item: label, detail: "The link differs from ES. Give the reason.", target });
         if (!view.trees.some((tree) => ruleMatches(rule, tree))) findings.push({ severity: "note", check: "Link not used", item: label, detail: "The tree of this link is out of scope or gone. The link is kept but not used.", target });
         return;

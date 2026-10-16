@@ -14,7 +14,6 @@ import { SequencesScreen, DraftScreen, PlaceholderScreen, type SequenceTab } fro
 import { EsTimingScreen } from "./EsTiming";
 import { EsDynamicPraScreen } from "./EsDynamicPra";
 import { EsUncertaintyScreen } from "./EsUncertainty";
-import { DependenciesScreen } from "./EsDependencies";
 import { EsHandoffScreen } from "./EsHandoff";
 import { InternalReviewScreen, ReviewerCommentDock } from "./esReview";
 import { EsScopeScreen, type EsLinkActions } from "./EsScope";
@@ -36,14 +35,13 @@ function headersFor(stepId: string): StepHeader {
   switch (stepId) {
     case "scope": return { eyebrow: "Step 01 · ES-A", title: "Scope" };
     case "sequences": return { eyebrow: "Step 02 · ES-A", title: "Event Sequences" };
-    case "deps": return { eyebrow: "Step 03 · ES-B", title: "Dependencies" };
-    case "timing": return { eyebrow: "Step 04", title: "Timing, phenomena & repair" };
-    case "dynamic": return { eyebrow: "Step 05", title: "Dynamic PRA" };
-    case "uncertainty": return { eyebrow: "Step 06", title: "Uncertainty" };
-    case "handoff": return { eyebrow: "Step 07", title: "Technical Element Handoff" };
-    case "draft": return { eyebrow: "Step 08 · Draft", title: "Produce the draft" };
-    case "review": return { eyebrow: "Step 09 · Review", title: "Internal technical review" };
-    case "approval": return { eyebrow: "Step 10 · Approval", title: "Approval & sign-off" };
+    case "timing": return { eyebrow: "Step 03", title: "Timing, phenomena & repair" };
+    case "dynamic": return { eyebrow: "Step 04", title: "Dynamic PRA" };
+    case "uncertainty": return { eyebrow: "Step 05", title: "Uncertainty" };
+    case "handoff": return { eyebrow: "Step 06", title: "Technical Element Handoff" };
+    case "draft": return { eyebrow: "Step 07 · Draft", title: "Produce the draft" };
+    case "review": return { eyebrow: "Step 08 · Review", title: "Internal technical review" };
+    case "approval": return { eyebrow: "Step 09 · Approval", title: "Approval & sign-off" };
     default: return { eyebrow: "", title: "" };
   }
 }
@@ -376,7 +374,6 @@ function EsWorkbench({
           </>
         );
       case "sequences": return <SequencesScreen treeId={treeId} setTreeId={setTreeId} tab={sequenceTab} setTab={setSequenceTab} />;
-      case "deps": return <DependenciesScreen />;
       case "timing": return <EsTimingScreen treeId={treeId} setTreeId={setTreeId} />;
       case "dynamic": return <EsDynamicPraScreen treeId={treeId} />;
       case "uncertainty": return <EsUncertaintyScreen />;

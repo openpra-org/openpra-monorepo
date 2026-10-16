@@ -76,12 +76,13 @@ function renderEditor(overrides: Partial<Parameters<typeof EventTreeEditor>[0]> 
 }
 
 function classifiedTreeFixture(): { linkedModel: EventTree; eventSequences: EventSequence[] } {
-  const sequences = Object.values(model.sequences);
+  const branched = applyEventTreeOperation(model, { kind: "SET_FUNCTIONAL_EVENT_BYPASS", sequenceId: Object.keys(model.sequences)[0]!, functionalEventId: "FE-1", bypassed: false });
+  const sequences = Object.values(branched.sequences);
   const successful = sequences.find((sequence) => sequence.functionalEventStates?.["FE-1"] === "SUCCESS")!;
   const failed = sequences.find((sequence) => sequence.functionalEventStates?.["FE-1"] === "FAILURE")!;
   return {
     linkedModel: {
-      ...model,
+      ...branched,
       sequences: {
         [successful.uuid]: {
           ...successful,
@@ -138,7 +139,7 @@ describe("EventTreeEditor", () => {
         ],
       },
     });
-    fireEvent.change(screen.getByLabelText("Sequence result"), { target: { value: "TRANSFER" } });
+    fireEvent.change(screen.getByLabelText("End state"), { target: { value: "TRANSFER" } });
     expect(onOperation).toHaveBeenLastCalledWith({ kind: "SET_SEQUENCE_TRANSFER", sequenceId: source.uuid, targetEventTreeId: "ET-2" });
     expect(screen.queryByLabelText("Target sequence")).not.toBeInTheDocument();
     const results = within(screen.getByLabelText("Transferred sequence results"));
@@ -150,7 +151,7 @@ describe("EventTreeEditor", () => {
 
   it("edits the initiating frequency as an uncertain expression", () => {
     const { onOperation } = renderEditor();
-    const frequency = within(screen.getByRole("group", { name: "Initiating-event frequency" }));
+    const frequency = within(screen.getByRole("group", { name: "Initiating event frequency" }));
     const value = frequency.getByLabelText("Value");
 
     fireEvent.focus(value);
@@ -166,16 +167,16 @@ describe("EventTreeEditor", () => {
       kind: "UPDATE_TREE",
       changes: { initiatingEventFrequency: expect.objectContaining({ expression: { node: "VALUE", value: { unit: "PER_YEAR", law: expect.objectContaining({ family: "LOGNORMAL", mean: 0.01 }) } } }) },
     });
-    expect(screen.queryByRole("spinbutton", { name: "Initiating-event frequency" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("spinbutton", { name: "Initiating event frequency" })).not.toBeInTheDocument();
   });
 
   it("keeps the time basis in the expression unit and the annualization beside it", () => {
     const { onOperation } = renderEditor();
 
-    expect(Array.from(screen.getByLabelText<HTMLSelectElement>("Initiating-event frequency unit").options).map((option) => option.value)).toEqual(["PER_YEAR", "PER_HOUR"]);
-    fireEvent.change(screen.getByLabelText("Initiating-event frequency unit"), { target: { value: "PER_HOUR" } });
+    expect(Array.from(screen.getByLabelText<HTMLSelectElement>("Initiating event frequency unit").options).map((option) => option.value)).toEqual(["PER_YEAR", "PER_HOUR"]);
+    fireEvent.change(screen.getByLabelText("Initiating event frequency unit"), { target: { value: "PER_HOUR" } });
     fireEvent.change(screen.getByLabelText("Annualization basis"), { target: { value: "CRITICAL_YEAR" } });
-    fireEvent.blur(screen.getByLabelText("Annualization hours per year"), { target: { value: "7000" } });
+    fireEvent.blur(screen.getByLabelText("Exposure hours per year"), { target: { value: "7000" } });
 
     expect(onOperation.mock.calls.map(([operation]) => operation)).toEqual([
       { kind: "UPDATE_TREE", changes: { initiatingEventFrequency: { expression: { node: "VALUE", value: { unit: "PER_HOUR", law: { family: "POINT", value: 0.01 } } }, annualization: { basis: "PLANT_YEAR", hoursPerYear: 8_760 } } } },
@@ -184,21 +185,23 @@ describe("EventTreeEditor", () => {
     ]);
   });
 
-  it("offers to add a frequency when the tree has none", () => {
+  it("starts a frequency from the empty frequency field when the tree has none", () => {
     const { onOperation, unmount } = renderEditor({ model: { ...model, initiatingEventFrequency: undefined } });
 
-    expect(screen.getByLabelText("Initiating-event frequency unit")).toBeDisabled();
+    expect(screen.getByLabelText("Initiating event frequency unit")).toBeDisabled();
     expect(screen.getByLabelText("Annualization basis")).toBeDisabled();
-    fireEvent.click(screen.getByRole("button", { name: "Add a frequency" }));
+    const value = within(screen.getByRole("group", { name: "Initiating event frequency" })).getByLabelText("Value");
+    fireEvent.focus(value);
+    fireEvent.change(value, { target: { value: "0.02" } });
+    fireEvent.blur(value);
     expect(onOperation).toHaveBeenCalledWith({
       kind: "UPDATE_TREE",
-      changes: { initiatingEventFrequency: { expression: { node: "VALUE", value: { unit: "PER_YEAR", law: { family: "POINT", value: expect.any(Number) } } }, annualization: { basis: "PLANT_YEAR", hoursPerYear: 8_760 } } },
+      changes: { initiatingEventFrequency: { expression: perYear(0.02), annualization: { basis: "PLANT_YEAR", hoursPerYear: 8_760 } } },
     });
 
     unmount();
     renderEditor({ model: { ...model, initiatingEventFrequency: undefined }, capabilities: { author: false } });
-    expect(screen.queryByRole("button", { name: "Add a frequency" })).not.toBeInTheDocument();
-    expect(screen.getByText("No frequency yet.")).toBeInTheDocument();
+    expect(within(screen.getByRole("group", { name: "Initiating event frequency" })).getByLabelText("Value")).toBeDisabled();
   });
 
   it("seeds a missing frequency from the chosen initiating event", () => {
@@ -262,7 +265,7 @@ describe("EventTreeEditor", () => {
 
     it("offers DA frequency links of the same unit and links one", () => {
       const { onOperation } = renderEditor({ frequencyOptions, frequencyParameters });
-      const source = within(screen.getByRole("group", { name: "Initiating-event frequency" })).getByLabelText<HTMLSelectElement>("Source");
+      const source = within(screen.getByRole("group", { name: "Initiating event frequency" })).getByLabelText<HTMLSelectElement>("Source");
       expect(Array.from(source.options).map((option) => option.textContent)).toEqual(["Typed here", "DA-IE-01 in Plant DA"]);
       fireEvent.change(source, { target: { value: "da-1:DA-IE-01" } });
       expect(onOperation).toHaveBeenCalledWith({
@@ -273,8 +276,8 @@ describe("EventTreeEditor", () => {
 
     it("shows the PRAXIS point of a linked frequency in the unit of the DA parameter", async () => {
       const { container } = renderEditor({ model: withFrequency({ node: "PARAMETER", reference: hourly }), representation: "event-tree", analysisResult: EMPTY_RESULT, frequencyOptions, frequencyParameters });
-      expect(screen.getByLabelText<HTMLSelectElement>("Initiating-event frequency unit").value).toBe("PER_HOUR");
-      expect(within(screen.getByRole("group", { name: "Initiating-event frequency" })).getByLabelText<HTMLSelectElement>("Source").value).toBe("da-1:DA-IE-02");
+      expect(screen.getByLabelText<HTMLSelectElement>("Initiating event frequency unit").value).toBe("PER_HOUR");
+      expect(within(screen.getByRole("group", { name: "Initiating event frequency" })).getByLabelText<HTMLSelectElement>("Source").value).toBe("da-1:DA-IE-02");
       await praxisSettled();
       expect(header(container)?.textContent).toBe("3.00e-6 /h");
     });
@@ -283,7 +286,7 @@ describe("EventTreeEditor", () => {
       const composed: UncertainExpression = { node: "OPERATION", operation: "MULTIPLY", operands: [{ node: "PARAMETER", reference: yearly }, { node: "VALUE", value: { unit: "FACTOR", law: { family: "POINT", value: 0.5 } } }] };
       const { container } = renderEditor({ model: withFrequency(composed), representation: "event-tree", analysisResult: EMPTY_RESULT, frequencyOptions, frequencyParameters });
       expect(screen.getByText("Composed: (DA-IE-01 in Plant DA × 0.5)")).toBeInTheDocument();
-      expect(within(screen.getByRole("group", { name: "Initiating-event frequency" })).queryByLabelText("Value")).not.toBeInTheDocument();
+      expect(within(screen.getByRole("group", { name: "Initiating event frequency" })).queryByLabelText("Value")).not.toBeInTheDocument();
       await praxisSettled();
       expect(header(container)?.textContent).toBe("2.00e-2 /yr");
     });
@@ -351,7 +354,7 @@ describe("EventTreeEditor", () => {
     expect(screen.queryByText("Safe linked sequence")).not.toBeInTheDocument();
   });
 
-  it("uses the standard inspector typography for an unlinked functional event", () => {
+  it("offers a link in the inspector for an unlinked functional event", () => {
     const unlinkedModel: EventTree = {
       ...model,
       functionalEvents: {
@@ -364,8 +367,10 @@ describe("EventTreeEditor", () => {
     const onSelectLink = jest.fn();
     renderEditor({ model: unlinkedModel, selection: "FE-1", onSelectLink });
 
-    expect(screen.getByText("Not linked")).toHaveClass("et-editor__reference-status");
-    fireEvent.click(screen.getByRole("button", { name: "Link" }));
+    const inspector = within(screen.getByLabelText("Event-tree selection inspector"));
+    expect(inspector.getByText("Fault-tree top event").closest(".et-editor__reference")).not.toBeNull();
+    expect(inspector.queryByRole("button", { name: "Linked fault tree" })).not.toBeInTheDocument();
+    fireEvent.click(inspector.getByRole("button", { name: "Link" }));
     expect(onSelectLink).toHaveBeenCalledWith(expect.objectContaining({ uuid: "FE-1" }));
   });
 
@@ -411,17 +416,18 @@ describe("EventTreeEditor", () => {
   it("disables quantification while validation errors remain", () => {
     renderEditor({ validation: [{ code: "ET_INVALID", message: "Invalid tree", severity: "ERROR" }] });
     expect(screen.getByRole("button", { name: "Run" })).toBeDisabled();
-    expect(screen.getByRole("button", { name: "1 issue" })).toBeInTheDocument();
+    expect(within(screen.getByLabelText("Event tree validation")).getByRole("heading", { name: "Validation · 1 issue" })).toBeInTheDocument();
   });
 
-  it("keeps long validation codes and messages in separate wrapping columns", () => {
+  it("lists a long validation message beside its severity without the internal code", () => {
     const code = "ET_FUNCTIONAL_EVENT_REFERENCE_WITH_AN_EXCEPTIONALLY_LONG_CODE";
     const message = "The selected functional event has a long validation explanation that must remain readable without overlapping its code.";
     renderEditor({ validation: [{ code, message, severity: "ERROR" }] });
 
-    fireEvent.click(screen.getByRole("button", { name: "1 issue" }));
-    expect(screen.getByText(code)).toHaveClass("et-editor__finding-code");
-    expect(screen.getByText(message)).toHaveClass("et-editor__finding-message");
+    const issue = screen.getByText(message);
+    expect(issue).toHaveClass("et-editor__issue");
+    expect(within(issue).getByText("ERROR")).toHaveClass("et-editor__issue-severity");
+    expect(screen.queryByText(code)).not.toBeInTheDocument();
   });
 
   it("closes a context menu before handling a left-click selection", () => {
@@ -429,10 +435,10 @@ describe("EventTreeEditor", () => {
     const functionalEvent = screen.getByRole("button", { name: /RT Reactor trip/i });
 
     fireEvent.contextMenu(functionalEvent, { clientX: 100, clientY: 100 });
-    expect(screen.getByRole("menu")).toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: "Open details" })).toBeInTheDocument();
     fireEvent.click(functionalEvent);
 
-    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+    expect(screen.queryByRole("menuitem", { name: "Open details" })).not.toBeInTheDocument();
     expect(onSelectionChange).toHaveBeenLastCalledWith("FE-1");
   });
 

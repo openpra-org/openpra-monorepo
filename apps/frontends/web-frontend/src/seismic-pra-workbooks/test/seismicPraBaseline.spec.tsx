@@ -50,14 +50,13 @@ describe("Seismic PRA Step 03 baseline PRA and seismic changes", () => {
     expect(screen.getByText("Executable MHTGR PRA database, software version, and reproducible run package")).toBeInTheDocument();
   });
 
-  it("keeps explanations behind help controls", async () => {
+  it("shows the baseline title without a help control", () => {
     renderBaseline();
     expect(screen.queryByRole("note")).not.toBeInTheDocument();
-    await userEvent.click(screen.getByRole("button", { name: "About Baseline PRA version" }));
-    expect(screen.getByRole("note")).toHaveTextContent(
-      "This is the exact PRA model used as the starting point",
-    );
-    expect(screen.getByRole("note")).toHaveTextContent("For example");
+    const heading = screen.getByRole("heading", { name: "Baseline PRA version" }).closest(".ssection__heading");
+    expect(heading).not.toBeNull();
+    expect(within(heading as HTMLElement).queryAllByRole("button")).toHaveLength(0);
+    expect(screen.queryByRole("button", { name: "About Baseline PRA version" })).not.toBeInTheDocument();
   });
 
   it("shows the unavailable-input message without a decorative symbol", () => {

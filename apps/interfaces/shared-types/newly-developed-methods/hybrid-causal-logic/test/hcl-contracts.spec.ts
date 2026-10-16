@@ -109,6 +109,17 @@ describe("HCL integration-workbook event-tree execution", () => {
     ).toBe(true);
   });
 
+  it("accepts a readable ESQ event tree id such as an example tree", () => {
+    expect(
+      HclEventTreeExecuteRequestSchema.safeParse({
+        schemaVersion: "1.0.0",
+        modelId: CONFIGURATION_ID,
+        workbookRevision: 3,
+        eventTree: { workbookId: "esq-workbook", modelId: "ET-CGAS" },
+      }).success,
+    ).toBe(true);
+  });
+
   it.each([
     { schemaVersion: "1.0.0", modelId: CONFIGURATION_ID, workbookRevision: 3 },
     {
@@ -121,7 +132,7 @@ describe("HCL integration-workbook event-tree execution", () => {
       schemaVersion: "1.0.0",
       modelId: CONFIGURATION_ID,
       workbookRevision: 3,
-      eventTree: { workbookId: "es-workbook", modelId: "ET-1" },
+      eventTree: { workbookId: "es-workbook", modelId: "  " },
     },
   ])("rejects malformed integration ET request %#", (candidate) => {
     expect(HclEventTreeExecuteRequestSchema.safeParse(candidate).success).toBe(false);

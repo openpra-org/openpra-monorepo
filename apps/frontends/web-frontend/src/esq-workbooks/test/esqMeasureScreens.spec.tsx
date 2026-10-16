@@ -3,6 +3,7 @@ import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import type { EventSequenceQuantification } from "interfaces-mef-types/esq/event-sequence-quantification";
 import { esqImportanceRunId, esqUncertaintyRunId } from "interfaces-mef-types/esq/esq-measure-inputs";
 import { esqSensitivityRunId } from "interfaces-mef-types/esq/esq-sensitivity-inputs";
+import type { EsqUncertaintyRunResult } from "interfaces-shared-types/newly-developed-methods/event-tree";
 import type { AnalysisRunMetadata } from "interfaces-shared-types/newly-developed-methods/shared";
 import { EsqWorkbookProvider, type EsqWorkbookRuntime } from "../esqWorkbookContext";
 import { ResultsScreen } from "../esqResultsScreen";
@@ -20,6 +21,7 @@ import {
   getEsqModelRunResult,
   getEsqSensitivityResult,
   getEsqUncertaintyResult,
+  listEsqUncertaintyRuns,
   runEsqImportance,
   runEsqSensitivity,
   runEsqUncertainty,
@@ -35,6 +37,7 @@ jest.mock("../esqWorkbookApi", () => ({
   getEsqImportanceResult: jest.fn(),
   runEsqUncertainty: jest.fn(),
   getEsqUncertaintyResult: jest.fn(),
+  listEsqUncertaintyRuns: jest.fn(),
   runEsqSensitivity: jest.fn(),
   getEsqSensitivityResult: jest.fn(),
   getEsqModelRunResult: jest.fn(),
@@ -108,12 +111,30 @@ async function praxis(): Promise<void> {
   await act(async () => { await settledWithPraxis(() => undefined); });
 }
 
-describe("ESQ Steps 07 to 10 screens", () => {
+function everyTreeResult(esq: EventSequenceQuantification): EsqUncertaintyRunResult {
+  const result = uncertaintyResult(esq);
+  const total = result.total;
+  if (total === null) throw new Error("no total");
+  const series = { ...total, histogram: null, quantiles: [] };
+  return {
+    ...result,
+    trees: [...result.trees, { treeId: "ET-B", runId: result.runId, status: "SUCCEEDED", initiatorFrequency: 0.5, failure: null }],
+    sequences: [{ ...series, treeId: "ET-A", sequenceIds: ["A-2"], paths: 1, familyId: "F-REL", releaseCategoryId: "RC-1", endState: "RADIONUCLIDE_RELEASE" }],
+    groups: [
+      { ...series, treeId: null, kind: "FAMILY", key: "F-REL" },
+      { ...series, treeId: null, kind: "RELEASE_TOTAL", key: "" },
+    ],
+  };
+}
+
+describe("ESQ Steps 06 to 09 screens", () => {
   beforeEach(() => {
     jest.mocked(runEsqImportance).mockReset();
     jest.mocked(getEsqImportanceResult).mockReset();
     jest.mocked(runEsqUncertainty).mockReset();
     jest.mocked(getEsqUncertaintyResult).mockReset();
+    jest.mocked(listEsqUncertaintyRuns).mockReset();
+    jest.mocked(listEsqUncertaintyRuns).mockResolvedValue([]);
     jest.mocked(runEsqSensitivity).mockReset();
     jest.mocked(getEsqSensitivityResult).mockReset();
     jest.mocked(getEsqModelRunResult).mockReset();
@@ -126,11 +147,9 @@ describe("ESQ Steps 07 to 10 screens", () => {
     const result = importanceResult(esq);
     jest.mocked(runEsqImportance).mockResolvedValue(runOf(result.runId, esqImportanceRunId()));
     jest.mocked(getEsqImportanceResult).mockResolvedValue(result);
-    jest.mocked(getEsqModelRunResult).mockResolvedValue(modelSummary(esq, RELEASE));
     const onChange = jest.fn();
     render(<Harness initial={esq} step="results" onChange={onChange} />);
     await settle();
-    expect(within(screen.getByRole("table", { name: "Cut sets" })).getByText("COOL-PMP-FS")).toBeTruthy();
     fireEvent.click(screen.getByRole("tab", { name: /Importance/ }));
     fireEvent.click(screen.getByRole("button", { name: "Rank" }));
     await settle();
@@ -144,31 +163,35 @@ describe("ESQ Steps 07 to 10 screens", () => {
     expect(within(pump).getByText("300.4")).toBeTruthy();
   });
 
-  it("samples with shared draws and stores the family statistics", async () => {
+  it("samples every event tree with shared draws and stores the family statistics as values of record", async () => {
     const esq = withImportance(measureEsq(), importanceRecordOf(importanceResult(measureEsq()), measureEsq(), thresholdsOf(measureEsq(), undefined)));
-    jest.mocked(runEsqUncertainty).mockResolvedValue(runOf("u-1", esqUncertaintyRunId()));
-    jest.mocked(getEsqUncertaintyResult).mockImplementation(async () => uncertaintyResult(esq));
+    const result = everyTreeResult(esq);
+    jest.mocked(runEsqUncertainty).mockResolvedValue(runOf(result.runId, esqUncertaintyRunId()));
+    jest.mocked(getEsqUncertaintyResult).mockResolvedValue(result);
     const onChange = jest.fn();
     render(<Harness initial={esq} step="uncert" onChange={onChange} />);
-    fireEvent.click(screen.getByRole("tab", { name: "Runs" }));
-    fireEvent.click(screen.getByRole("button", { name: "Sample" }));
     await settle();
-    expect(jest.mocked(runEsqUncertainty).mock.calls[0]?.[3]).toEqual({ trials: 10000, seed: 1, method: "LATIN_HYPERCUBE", correlation: "SHARED" });
-    expect(lastOf(onChange).uncertaintyWork?.run).toMatchObject({ trials: 1000, families: [expect.objectContaining({ familyId: "F-REL", mean: 1.3e-5, p95: 4.5e-5 })] });
+    jest.mocked(listEsqUncertaintyRuns).mockResolvedValue([{ id: result.runId, requestedAt: NOW, revision: 5, status: "SUCCEEDED" }]);
+    fireEvent.click(screen.getByRole("button", { name: "Run uncertainty batch" }));
     await settle();
-    const keys = screen.getByRole("table", { name: "Sampled keys" });
-    expect(keys).toHaveTextContent("Pump fails to start (P-1)");
-    expect(keys).toHaveTextContent("Lognormal (mean 2.00E-3, EF 5) at most 1 · probability");
-    expect(screen.getByText("1 input drew in this run. 1 input stayed at their point values.")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("tab", { name: /Families/ }));
-    const families = screen.getByRole("table", { name: "Family distributions" });
-    expect(within(families).getAllByText("1.3E-5").length).toBeGreaterThan(0);
-    fireEvent.click(within(families).getByRole("button", { name: "Show the details of F-REL" }));
-    expect(families).toHaveTextContent("Standard error of the mean");
-    expect(families).toHaveTextContent("6.32E-7");
+    await settle();
+    expect(jest.mocked(runEsqUncertainty).mock.calls[0]?.[3]).toMatchObject({ trials: 10000, seed: 1, method: "LATIN_HYPERCUBE", correlation: "SHARED" });
+    expect(jest.mocked(runEsqUncertainty).mock.calls[0]?.[5]).toBeUndefined();
+    expect(onChange).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("tab", { name: "Results" }));
+    await settle();
+    const sequences = screen.getByRole("table", { name: "Sequences" });
+    expect(within(sequences).getByRole("button", { name: "Distribution of A-2" }).closest("tr")).toHaveTextContent("1.3E-5");
+    fireEvent.click(screen.getByRole("button", { name: "Use as values of record" }));
+    expect(lastOf(onChange).uncertaintyWork?.run).toMatchObject({ trials: 1000, correlation: "SHARED", families: [expect.objectContaining({ familyId: "F-REL", mean: 1.3e-5, p95: 4.5e-5 })] });
+    expect(screen.getByRole("button", { name: "Values of record" })).toBeDisabled();
+    fireEvent.change(screen.getByLabelText("Group by"), { target: { value: "FAMILY" } });
+    const families = screen.getByRole("table", { name: "Family results" });
+    expect(within(families).getByRole("button", { name: "Distribution of F-REL · Release" }).closest("tr")).toHaveTextContent("1.3E-5");
+    expect(within(families).getByRole("button", { name: "Distribution of the release total" })).toBeInTheDocument();
   });
 
-  it("lists the sampled inputs with their PRAXIS points and laws", async () => {
+  it("lists the sampled inputs with their PRAXIS points, laws and sharing, and plots one", async () => {
     const esq = withImportance(measureEsq(), importanceRecordOf(importanceResult(measureEsq()), measureEsq(), thresholdsOf(measureEsq(), undefined)));
     render(<Harness initial={esq} step="uncert" onChange={jest.fn()} />);
     await praxis();
@@ -177,13 +200,19 @@ describe("ESQ Steps 07 to 10 screens", () => {
     if (pump === null) throw new Error("no row");
     expect(pump).toHaveTextContent("2E-3");
     expect(pump).toHaveTextContent("Lognormal (mean 2.00E-3, EF 5)");
+    expect(pump).toHaveTextContent("Not shared");
     const fan = within(table).getByRole("button", { name: "SUP-FAN-FR · Fan fails to run" }).closest("tr");
     if (fan === null) throw new Error("no row");
     expect(fan).toHaveTextContent("None, fixed at the point");
-    fireEvent.click(within(pump).getByRole("button", { name: "Show the details of Pump fails to start (P-1)" }));
+    fireEvent.click(within(pump).getByRole("button", { name: "Plot Pump fails to start (P-1)" }));
     await praxis();
-    expect(table).toHaveTextContent("Two shared copies raise the mean");
-    expect(table).toHaveTextContent("2.6×");
+    expect(within(pump).getByRole("button", { name: "Hide the plot of Pump fails to start (P-1)" })).toHaveAttribute("aria-expanded", "true");
+    expect(within(table).getByRole("img", { name: "Probability density of Pump fails to start (P-1), probability, on a logarithmic axis" })).toBeInTheDocument();
+    const summary = within(table).getByLabelText("Summary values for Pump fails to start (P-1)");
+    expect(summary).toHaveTextContent("5th percentile");
+    expect(summary).toHaveTextContent("95th percentile");
+    expect(summary).not.toHaveTextContent("Not given");
+    expect(table).toHaveTextContent("DA estimate");
   });
 
   it("shows a value changed in DA without importing again", async () => {

@@ -46,8 +46,8 @@ const requestJson = JSON.stringify({
     faultTreeBasicEventCatalogue: {
       projectId: "project-1",
       basicEvents: [
-        { id: "A", probability: { value: 0.1 } },
-        { id: "B", probability: { value: 0.2 } },
+        { id: "A", expression: { node: "VALUE", value: { unit: "PROBABILITY", law: { family: "POINT", value: 0.1 } } } },
+        { id: "B", expression: { node: "VALUE", value: { unit: "PROBABILITY", law: { family: "POINT", value: 0.2 } } } },
       ],
     },
   },

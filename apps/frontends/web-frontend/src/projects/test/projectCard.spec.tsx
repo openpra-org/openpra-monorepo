@@ -18,8 +18,6 @@ function makeProject(overrides: Partial<Project> = {}): Project {
       { username: "a", fullName: "Alice", role: "viewer" },
       { username: "b", fullName: "Bob", role: "editor" },
     ],
-    status: { POS: "baseline", IE: "baseline", ES: "in-progress" },
-    progress: 2 / 11,
     pinned: false,
     state: "active",
     pageLayout: "modern",
@@ -51,14 +49,15 @@ describe("ProjectCard", () => {
     expect(screen.getByText("2")).toBeInTheDocument();
   });
 
-  it("shows the percentage from project.progress", () => {
-    render(<ProjectCard project={makeProject({ progress: 0.5 })} {...noopHandlers} />);
-    expect(screen.getByText("50%")).toBeInTheDocument();
+  it("shows no progress bar", () => {
+    render(<ProjectCard project={makeProject()} {...noopHandlers} />);
+    expect(screen.queryByRole("progressbar")).not.toBeInTheDocument();
   });
 
-  it("renders the Baseline chip when state is 'baseline'", () => {
-    render(<ProjectCard project={makeProject({ state: "baseline" })} {...noopHandlers} />);
-    expect(screen.getByText("Baseline")).toBeInTheDocument();
+  it("renders no state chip when state is 'active'", () => {
+    render(<ProjectCard project={makeProject({ state: "active" })} {...noopHandlers} />);
+    expect(screen.queryByText("Baseline")).not.toBeInTheDocument();
+    expect(screen.queryByText("Archived")).not.toBeInTheDocument();
   });
 
   it("renders the Archived chip when state is 'archived'", () => {

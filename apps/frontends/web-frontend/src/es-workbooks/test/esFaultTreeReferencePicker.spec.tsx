@@ -122,9 +122,11 @@ describe("ES fault-tree references", () => {
     render(
       <EsFaultTreeReferencePicker
         projectId="project-1"
+        linkedWorkbookId={SOURCE_WORKBOOK_ID}
         functionalEventName="Cooling succeeds"
         onClose={jest.fn()}
         onConfirm={onConfirm}
+        onConfirmNetworkNode={jest.fn()}
       />,
     );
 
@@ -159,6 +161,7 @@ describe("ES fault-tree references", () => {
         functionalEventName="Cooling succeeds"
         onClose={jest.fn()}
         onConfirm={onConfirm}
+        onConfirmNetworkNode={jest.fn()}
       />,
     );
 
@@ -236,6 +239,7 @@ describe("ES fault-tree references", () => {
         functionalEventName="Cooling succeeds"
         onClose={jest.fn()}
         onConfirm={jest.fn()}
+        onConfirmNetworkNode={jest.fn()}
       />,
     );
 
@@ -290,9 +294,11 @@ describe("ES fault-tree references", () => {
     render(
       <EsFaultTreeReferencePicker
         projectId="project-1"
+        linkedWorkbookId={SOURCE_WORKBOOK_ID}
         functionalEventName="Cooling succeeds"
         onClose={jest.fn()}
         onConfirm={jest.fn()}
+        onConfirmNetworkNode={jest.fn()}
       />,
     );
 

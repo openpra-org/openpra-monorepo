@@ -41,14 +41,13 @@ describe("Seismic PRA Step 04 initial SEL", () => {
     },
   );
 
-  it("keeps the initial-SEL explanation behind the help control", async () => {
+  it("shows the initial-SEL title without a help control", () => {
     renderInitialSel();
     expect(screen.queryByRole("note")).not.toBeInTheDocument();
-    await userEvent.click(screen.getByRole("button", { name: "About Initial seismic equipment list" }));
-    expect(screen.getByRole("note")).toHaveTextContent(
-      "first controlled list of SSCs that may matter to seismic risk",
-    );
-    expect(screen.getByRole("note")).toHaveTextContent("For example");
+    const heading = screen.getByRole("heading", { name: "Initial seismic equipment list" }).closest(".ssection__heading");
+    expect(heading).not.toBeNull();
+    expect(within(heading as HTMLElement).queryAllByRole("button")).toHaveLength(0);
+    expect(screen.queryByRole("button", { name: "About Initial seismic equipment list" })).not.toBeInTheDocument();
   });
 
   it("opens one flat SSC editor without downstream fragility-result fields", async () => {

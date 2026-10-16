@@ -95,15 +95,17 @@ describe("ESQ scope coverage", () => {
     expect(scopeRowsView(blankEsq(), { ...EMPTY_UPSTREAM, es: linked }, "INITIATOR_GROUP").map((row) => row.key)).toEqual(["IEG-LOOP"]);
   });
 
-  it("takes operating states and sources from POS and leaves the ES column off sources", () => {
+  it("takes operating states and sources from POS and marks the sources ES lists", () => {
     const states = scopeRowsView(blankEsq(), UPSTREAM, "OPERATING_STATE");
     expect(states.map((row) => [row.key, row.inEs])).toEqual([["POS-01", true], ["POS-02", false]]);
-    const sources = scopeRowsView(blankEsq(), UPSTREAM, "SOURCE");
+    const plateout: EventSequenceAnalysis = { ...ES, scopeDefinition: { ...ES.scopeDefinition, radioactiveMaterialSources: ["Primary plateout"] } };
+    const sources = scopeRowsView(blankEsq(), { ...UPSTREAM, es: plateout }, "SOURCE");
     expect(sources.map((row) => [row.key, row.inEs])).toEqual([
-      ["In-core fuel", undefined],
-      ["Primary plateout", undefined],
-      ["In-core fuel (decay)", undefined],
+      ["In-core fuel", false],
+      ["Primary plateout", true],
+      ["In-core fuel (decay)", false],
     ]);
+    expect(scopeRowsView(blankEsq(), { ...EMPTY_UPSTREAM, pos: POS }, "SOURCE").map((row) => row.inEs)).toEqual([undefined, undefined, undefined]);
     expect(scopeRowsView(blankEsq(), { ...EMPTY_UPSTREAM, es: ES }, "SOURCE").map((row) => row.key)).toEqual(["SRC-1"]);
   });
 
@@ -171,12 +173,11 @@ describe("ESQ scope completion", () => {
   it("lists what a blank workbook still needs", () => {
     expect(scopeItemsToComplete(blankEsq(), EMPTY_UPSTREAM)).toEqual([
       "Write the PRA scope.",
-      "Link the ES workbook.",
       "Include at least one hazard group.",
       "Set Included or Excluded for 7 hazard groups.",
       "Include at least one operating state.",
-      "Include at least one source.",
       "Include at least one initiator group.",
+      "Include at least one source.",
       "Set the number of modules per plant.",
       "Give the basis for leaving out sequences with several reactors.",
     ]);

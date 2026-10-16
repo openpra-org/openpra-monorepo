@@ -99,7 +99,7 @@ import { type ScMissionTimeSource } from "../sc-workbooks/scMissionTimeSources";
 import { parametersFor, peekExpression, requestExpression } from "../newly-developed-methods/shared/useUncertainty";
 import { legacyExpression } from "interfaces-mef-types/core/legacy-uncertainty-adapter";
 import { ccfFactorIssues } from "../sy-workbooks/syCcf";
-import { validateEventTree } from "../newly-developed-methods/event-tree/eventTreeOperations";
+import { validateEventTree } from "../newly-developed-methods/event-tree";
 import { type EsqUpstream } from "./esqLinks";
 import { ESQ_MODEL_ELEMENTS, MODEL_ELEMENT_LABELS, exampleLinkLabel } from "./esqViewData";
 

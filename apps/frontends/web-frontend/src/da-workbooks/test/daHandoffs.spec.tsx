@@ -136,19 +136,23 @@ describe("hand-offs", () => {
     expect(read).toMatchObject({ isRiskSignificant: true, importance: { from: "ESQ", fussellVesely: 0.04, riskAchievementWorth: 1.9, entryIds: ["IMP-1 · 5"], importedAt: NOW } });
   });
 
-  it("lists each exported section and the status of each item that reads DA", async () => {
-    render(<DaWorkbookProvider data={{ da: DA, cc: CC, nms: [] }} editable={false} mutateDa={() => undefined} upstream={UPSTREAM}><HandoffScreen openDrawer={() => undefined} /></DaWorkbookProvider>);
+  it("shows each exported section as a tab with its record count and table", async () => {
+    render(<DaWorkbookProvider data={{ da: DA, cc: CC, nms: [] }} editable={false} mutateDa={() => undefined} upstream={UPSTREAM}><HandoffScreen /></DaWorkbookProvider>);
     await settle();
+    expect(within(screen.getByRole("tablist", { name: "Handoff sections" })).getAllByRole("tab").map((tab) => tab.textContent)).toEqual(["Parameters", "Failure modes", "Common cause", "Maintenance", "Outages", "Uncertainty"]);
     expect(screen.getByRole("tab", { name: "Parameters" })).toHaveAttribute("aria-selected", "true");
-    expect(screen.getByRole("tab", { name: "Outages" })).toBeInTheDocument();
-    await userEvent.selectOptions(screen.getByRole("combobox", { name: "Workbook" }), "IE");
-    const table = screen.getAllByRole("table").find((candidate) => within(candidate).queryByText("IEG-03") !== null);
-    expect(table).toBeDefined();
-    await userEvent.selectOptions(screen.getByRole("combobox", { name: "Workbook" }), "SY");
-    await userEvent.click(screen.getAllByRole("button", { name: /^Show the details of/ })[0]!);
-    await settle();
-    const detail = document.querySelector("tr.da-rowtable__detail-row")?.textContent ?? "";
-    expect(detail).toContain("DA estimate");
-    expect(detail).not.toContain("…");
+    const parameters = screen.getByRole("tabpanel", { name: "DA.Parameters" });
+    expect(within(parameters).getByText(`1 to 10 of ${String(DA.parameters.length)} records`)).toBeInTheDocument();
+    const parameterTable = within(parameters).getByRole("table", { name: "DA.Parameters" });
+    for (const parameter of DA.parameters.slice(0, 10)) expect(within(parameterTable).getByText(parameter.uuid)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("tab", { name: "Outages" }));
+    expect(screen.getByRole("tab", { name: "Outages" })).toHaveAttribute("aria-selected", "true");
+    const outages = screen.getByRole("tabpanel", { name: "DA.Outages" });
+    expect(within(outages).getByText("2 records")).toBeInTheDocument();
+    const outageTable = within(outages).getByRole("table", { name: "DA.Outages" });
+    expect(within(outageTable).getByText("OG-1")).toBeInTheDocument();
+    expect(within(outageTable).getByText("OG-2")).toBeInTheDocument();
+    expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading")).not.toBeInTheDocument();
   });
 });

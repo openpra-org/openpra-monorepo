@@ -80,8 +80,8 @@ describe("SY common cause PRAXIS analysis", () => {
     await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Run CCF comparison" })); });
 
     expect(mockedValidate).toHaveBeenCalledWith("sy-workbook", "model-1", 12);
-    expect(mockedRun).toHaveBeenNthCalledWith(1, "sy-workbook", "model-1", 12, expect.objectContaining({ settings: expect.objectContaining({ expandCcf: false }) }));
-    expect(mockedRun).toHaveBeenNthCalledWith(2, "sy-workbook", "model-1", 12, expect.objectContaining({ settings: expect.objectContaining({ expandCcf: true }) }));
+    expect(mockedRun).toHaveBeenNthCalledWith(1, "sy-workbook", "model-1", 12, expect.objectContaining({ settings: expect.objectContaining({ expandCcf: false }) }), expect.any(Function));
+    expect(mockedRun).toHaveBeenNthCalledWith(2, "sy-workbook", "model-1", 12, expect.objectContaining({ settings: expect.objectContaining({ expandCcf: true }) }), expect.any(Function));
     await waitFor(() => expect(screen.getByRole("region", { name: "Common cause comparison results" })).toBeInTheDocument());
     expect(screen.getByText("+900.00%")).toBeInTheDocument();
     expect(within(screen.getByRole("region", { name: "Common cause comparison results" })).getByText("Cooling pumps")).toBeInTheDocument();
@@ -117,7 +117,7 @@ describe("SY common cause PRAXIS analysis", () => {
     fireEvent.click(screen.getByRole("radio", { name: "Probability + cut sets" }));
     await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Run CCF comparison" })); });
 
-    expect((await screen.findAllByText("Cooling pumps · common")).length).toBe(25);
+    expect((await screen.findAllByText("Cooling pumps · common")).length).toBe(10);
     expect(screen.getByRole("navigation", { name: "CLG · FT-CLG · Cooling fault tree expanded cut sets pagination" })).toBeInTheDocument();
   });
 

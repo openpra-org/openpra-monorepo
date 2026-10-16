@@ -3,8 +3,8 @@ import type { UncertainExpression } from "interfaces-mef-types/core/uncertainty"
 import { uncertaintyInputsKey } from "interfaces-mef-types/esq/esq-measure-inputs";
 import { stepsFromMef } from "../esqSelectors";
 import {
+  CONSISTENCY_TOPICS,
   contributorRows,
-  cutSetRows,
   importanceRecordOf,
   measureRows,
   resultsComplete,
@@ -13,7 +13,6 @@ import {
   withComparison,
   withConfirmation,
   withConsistency,
-  withCutSetReview,
   withImportance,
   withThresholds,
 } from "../esqResults";
@@ -39,20 +38,16 @@ function ranked(esq: EventSequenceQuantification): EventSequenceQuantification {
 }
 
 function reviewed(esq: EventSequenceQuantification): EventSequenceQuantification {
-  const view = resultsViewOf(esq);
-  if (view === undefined) throw new Error("no view");
-  const [row] = cutSetRows(modelSummary(esq, RELEASE), "F-REL", RELEASE, view.work, view.thresholds, (id) => id);
-  if (row === undefined) throw new Error("no cut set");
-  let next = withCutSetReview(esq, row, { verdict: "CORRECT", note: "The pump is the only cooling train." });
-  for (const topic of ["SYSTEMS", "SUCCESS_CRITERIA", "PROCEDURES", "RULES"] as const) next = withConsistency(next, topic, { topic, consistent: true, note: "Checked against the linked models." });
+  let next = esq;
+  for (const topic of CONSISTENCY_TOPICS) next = withConsistency(next, topic, { topic, consistent: true, note: "Checked against the linked models." });
   next = withComparison(next, { possible: false, reason: "No operating plant of this design exists.", plants: [] });
   return withConfirmation(next, "E-2", "The alignment action is only credited in sequences that do not reach a release.");
 }
 
-describe("ESQ Steps 07 to 10", () => {
-  it("lists the thirteen steps in order", () => {
+describe("ESQ Steps 06 to 09", () => {
+  it("lists the twelve steps in order", () => {
     expect(stepsFromMef(measureEsq(), "preparer").map((step) => `${step.num}:${step.id}`)).toEqual([
-      "01:scope", "02:model", "03:logic", "04:barriers", "05:solve", "06:post", "07:results", "08:uncert", "09:sens", "10:handoff", "11:draft", "12:review", "13:approval",
+      "01:scope", "02:model", "03:barriers", "04:logic", "05:solve", "06:results", "07:uncert", "08:sens", "09:handoff", "10:draft", "11:review", "12:approval",
     ]);
   });
 
@@ -79,21 +74,22 @@ describe("ESQ Steps 07 to 10", () => {
     expect(importanceRecordOf(result, typed, thresholdsOf(typed, undefined)).significant.map((entry) => entry.id).sort()).toEqual(["EVENT:E-1", "PARAMETER:P-1", "SYSTEM:SYS-COOL"]);
   });
 
-  it("asks for the reviews of Step 07 and completes once they are done", () => {
+  it("asks for the reviews of Step 06 and completes once they are done", () => {
     const esq = measureEsq();
-    expect(checks(resultsViewOf(esq)?.findings ?? [])).toEqual(expect.arrayContaining([
-      "error:No significant cut set reviewed:F-REL",
+    expect(checks(resultsViewOf(esq)?.findings ?? [])).toEqual([
       "error:Consistency not checked:System models",
+      "error:Consistency not checked:Success criteria",
+      "error:Consistency not checked:Procedures and operations",
       "error:Consistency not checked:Flags, exclusions and recovery",
       "error:Similar plants not addressed:Comparison",
       "error:Importance not ranked:Importance",
-    ]));
+    ]);
     const ranking = ranked(esq);
     expect(checks(resultsViewOf(ranking)?.findings ?? [])).toContain("warning:Event never in a retained cut set:SUP-HFE");
     const done = reviewed(ranking);
     const view = resultsViewOf(done);
     expect(checks(view?.findings ?? []).filter((text) => text.startsWith("error"))).toEqual([]);
-    expect(checks(view?.findings ?? [])).toContain("warning:No non-significant cut set sampled:Cut sets");
+    expect(checks(view?.findings ?? [])).not.toContain("warning:Event never in a retained cut set:SUP-HFE");
     expect(resultsComplete(done)).toBe(true);
     expect(stepsFromMef(done, "preparer").find((step) => step.id === "results")?.status).toBe("complete");
   });

@@ -135,19 +135,21 @@ describe("Seismic PRA Step 10 human response", () => {
       action.name.includes("scram"))).toBe(true);
   });
 
-  it("keeps section help behind a question mark and entry detail beside its name", async () => {
+  it("keeps entry detail beside its name without section help", async () => {
     const mef = renderHumanResponse();
     const action =
       mef.seismicPlantResponseAnalysis.humanReliabilityModel.humanActions[0]!;
 
     expect(screen.queryByRole("note")).not.toBeInTheDocument();
-    await userEvent.click(screen.getByRole("button", {
+    const heading = screen.getByRole("heading", {
+      name: "Seismic performance conditions",
+    }).closest(".ssection__heading");
+    expect(heading).not.toBeNull();
+    expect(within(heading as HTMLElement).queryAllByRole("button"))
+      .toHaveLength(0);
+    expect(screen.queryByRole("button", {
       name: "About Seismic performance conditions",
-    }));
-    expect(screen.getByRole("note")).toHaveTextContent(
-      "Earthquake damage can change what operators see",
-    );
-    expect(screen.getByRole("note")).toHaveTextContent("For example");
+    })).not.toBeInTheDocument();
 
     expect(screen.queryByText(
       action.seismicSpecificChallenges.trainingAndProcedures,

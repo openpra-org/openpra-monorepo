@@ -124,16 +124,18 @@ describe("Seismic PRA Step 07 plant configuration and final SEL", () => {
     },
   );
 
-  it("keeps beginner guidance behind question-mark controls", async () => {
+  it("shows the final SEL confirmations title without a question-mark control", () => {
     renderPlantConfiguration();
     expect(screen.queryByRole("note")).not.toBeInTheDocument();
-    await userEvent.click(screen.getByRole("button", {
+    const heading = screen.getByRole("heading", {
+      name: "Final SEL confirmations",
+    }).closest(".ssection__heading");
+    expect(heading).not.toBeNull();
+    expect(within(heading as HTMLElement).queryAllByRole("button"))
+      .toHaveLength(0);
+    expect(screen.queryByRole("button", {
       name: "About Final SEL confirmations",
-    }));
-    expect(screen.getByRole("note")).toHaveTextContent(
-      "final checklist for each seismic equipment list item",
-    );
-    expect(screen.getByRole("note")).toHaveTextContent("For example");
+    })).not.toBeInTheDocument();
   });
 
   it("shows operator routes, controls, communications, lighting, and indications", () => {

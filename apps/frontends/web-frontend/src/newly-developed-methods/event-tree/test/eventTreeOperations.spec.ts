@@ -31,11 +31,32 @@ function emptyTree(): EventTree {
   };
 }
 
+function restoreBranching(model: EventTree, functionalEventId: string): EventTree {
+  return Object.keys(model.sequences).reduce((tree, sequenceId) => applyEventTreeOperation(tree, {
+    kind: "SET_FUNCTIONAL_EVENT_BYPASS",
+    sequenceId,
+    functionalEventId,
+    bypassed: false,
+  }), model);
+}
+
 describe("canonical event-tree operations", () => {
-  it("generates complete success and failure paths as ordered functional events are added", () => {
-    const first = applyEventTreeOperation(emptyTree(), {
+  it("adds functional events bypassed and branches them into complete success and failure paths", () => {
+    const added = applyEventTreeOperation(emptyTree(), {
       kind: "ADD_FUNCTIONAL_EVENT",
       functionalEvent: { uuid: "FE-1", name: "First", order: 0, faultTreeTopEvent: reference },
+    });
+    expect(Object.values(added.sequences).map((sequence) => sequence.functionalEventStates)).toEqual([{ "FE-1": "BYPASSED" }]);
+    expect(applyEventTreeOperation(emptyTree(), {
+      kind: "ADD_FUNCTIONAL_EVENT",
+      functionalEvent: { uuid: "FE-1", name: "First", order: 0, faultTreeTopEvent: reference },
+    })).toEqual(added);
+
+    const first = applyEventTreeOperation(added, {
+      kind: "ADD_BRANCH",
+      sequenceId: Object.keys(added.sequences)[0]!,
+      functionalEventId: "FE-1",
+      position: "BOTTOM",
     });
     expect(Object.values(first.sequences)).toHaveLength(2);
     expect(Object.values(first.sequences).map((sequence) => sequence.functionalEventStates)).toEqual([
@@ -43,25 +64,30 @@ describe("canonical event-tree operations", () => {
       { "FE-1": "FAILURE" },
     ]);
     expect(Object.keys(first.sequences).every((id) => /^[0-9a-f-]{36}$/i.test(id))).toBe(true);
-    expect(applyEventTreeOperation(emptyTree(), {
-      kind: "ADD_FUNCTIONAL_EVENT",
-      functionalEvent: { uuid: "FE-1", name: "First", order: 0, faultTreeTopEvent: reference },
-    })).toEqual(first);
 
-    const second = applyEventTreeOperation(first, {
+    const bypassedSecond = applyEventTreeOperation(first, {
       kind: "ADD_FUNCTIONAL_EVENT",
       functionalEvent: { uuid: "FE-2", name: "Second", order: 1, faultTreeTopEvent: reference },
     });
+    expect(Object.values(bypassedSecond.sequences).map((sequence) => sequence.functionalEventStates?.["FE-2"])).toEqual(["BYPASSED", "BYPASSED"]);
+
+    const second = restoreBranching(bypassedSecond, "FE-2");
     expect(Object.values(second.sequences)).toHaveLength(4);
+    expect(Object.values(second.sequences).map((sequence) => sequence.functionalEventStates)).toEqual(expect.arrayContaining([
+      { "FE-1": "SUCCESS", "FE-2": "SUCCESS" },
+      { "FE-1": "SUCCESS", "FE-2": "FAILURE" },
+      { "FE-1": "FAILURE", "FE-2": "SUCCESS" },
+      { "FE-1": "FAILURE", "FE-2": "FAILURE" },
+    ]));
     expect(Object.values(second.branches)).toHaveLength(3);
     expect(validateEventTree(second, [second.uuid])).toEqual([]);
   });
 
   it("preserves matching sequence identities and results when topology is regenerated", () => {
-    const first = applyEventTreeOperation(emptyTree(), {
+    const first = restoreBranching(applyEventTreeOperation(emptyTree(), {
       kind: "ADD_FUNCTIONAL_EVENT",
       functionalEvent: { uuid: "FE-1", name: "First", order: 0, faultTreeTopEvent: reference },
-    });
+    }), "FE-1");
     const failed = Object.values(first.sequences).find((sequence) => sequence.functionalEventStates?.["FE-1"] === "FAILURE")!;
     const withRelease = applyEventTreeOperation(first, {
       kind: "SET_SEQUENCE_END_STATE",
@@ -72,11 +98,15 @@ describe("canonical event-tree operations", () => {
       kind: "ADD_FUNCTIONAL_EVENT",
       functionalEvent: { uuid: "FE-2", name: "Second", order: 1, faultTreeTopEvent: reference },
     });
-    const preserved = Object.values(regenerated.sequences).filter((sequence) =>
+    expect(Object.keys(regenerated.sequences).sort()).toEqual(Object.keys(withRelease.sequences).sort());
+    expect(regenerated.sequences[failed.uuid]?.endState).toBe(EndState.RADIONUCLIDE_RELEASE);
+
+    const preserved = Object.values(restoreBranching(regenerated, "FE-2").sequences).filter((sequence) =>
       sequence.functionalEventStates?.["FE-1"] === "FAILURE" &&
       sequence.endState === EndState.RADIONUCLIDE_RELEASE,
     );
     expect(preserved).toHaveLength(2);
+    expect(preserved.map((sequence) => sequence.uuid)).toContain(failed.uuid);
   });
 
   it("stores a transfer on its terminal sequence and reports missing targets", () => {
@@ -139,9 +169,16 @@ describe("canonical event-tree operations", () => {
     };
     expect(validateEventTree(model, [model])).toEqual([]);
     expect(createEventTreePresentation(model, []).sequences[0]?.path["FE-1"]).toBe(outcome);
-    const expanded = applyEventTreeOperation(model, {
+    const added = applyEventTreeOperation(model, {
       kind: "ADD_FUNCTIONAL_EVENT",
       functionalEvent: { uuid: "FE-2", name: "Second", order: 1, faultTreeTopEvent: reference },
+    });
+    expect(Object.values(added.sequences).map((sequence) => sequence.functionalEventStates)).toEqual([{ "FE-1": outcome, "FE-2": "BYPASSED" }]);
+    const expanded = applyEventTreeOperation(added, {
+      kind: "SET_FUNCTIONAL_EVENT_BYPASS",
+      sequenceId: "SEQ-1",
+      functionalEventId: "FE-2",
+      bypassed: false,
     });
     expect(Object.values(expanded.sequences)).toHaveLength(2);
     expect(Object.values(expanded.sequences).every((s) => s.functionalEventStates?.["FE-1"] === outcome)).toBe(true);
@@ -182,9 +219,16 @@ describe("canonical event-tree operations", () => {
     expect(validateEventTree(bypassed, [bypassed])).toEqual([]);
     expect(createEventTreePresentation(bypassed, []).sequences[0]?.path["FE-1"]).toBe("BYPASSED");
 
-    const expanded = applyEventTreeOperation(bypassed, {
+    const added = applyEventTreeOperation(bypassed, {
       kind: "ADD_FUNCTIONAL_EVENT",
       functionalEvent: { uuid: "FE-2", name: "Second", order: 1, faultTreeTopEvent: reference },
+    });
+    expect(Object.values(added.sequences).map((sequence) => sequence.functionalEventStates)).toEqual([{ "FE-1": "BYPASSED", "FE-2": "BYPASSED" }]);
+    const expanded = applyEventTreeOperation(added, {
+      kind: "SET_FUNCTIONAL_EVENT_BYPASS",
+      sequenceId: "SEQ-B",
+      functionalEventId: "FE-2",
+      bypassed: false,
     });
     expect(Object.values(expanded.sequences)).toHaveLength(2);
     expect(Object.values(expanded.sequences).every((sequence) => sequence.functionalEventStates?.["FE-1"] === "BYPASSED")).toBe(true);
@@ -210,15 +254,16 @@ describe("canonical event-tree operations", () => {
   });
 
   it("inserts and reorders functional events without changing unaffected sequence identities", () => {
-    const first = applyEventTreeOperation(emptyTree(), {
+    const first = restoreBranching(applyEventTreeOperation(emptyTree(), {
       kind: "ADD_FUNCTIONAL_EVENT",
       functionalEvent: { uuid: "FE-1", name: "First", order: 0, faultTreeTopEvent: reference },
-    });
-    const second = applyEventTreeOperation(first, {
+    }), "FE-1");
+    const second = restoreBranching(applyEventTreeOperation(first, {
       kind: "ADD_FUNCTIONAL_EVENT",
       functionalEvent: { uuid: "FE-2", name: "Second", order: 1, faultTreeTopEvent: reference },
-    });
+    }), "FE-2");
     const beforeIds = Object.keys(second.sequences).sort();
+    expect(beforeIds).toHaveLength(4);
     const reordered = applyEventTreeOperation(second, {
       kind: "REORDER_FUNCTIONAL_EVENT",
       functionalEventId: "FE-2",

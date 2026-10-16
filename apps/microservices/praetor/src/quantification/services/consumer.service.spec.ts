@@ -31,8 +31,6 @@ describe('ConsumerService', () => {
     };
     const mockQueueConfigFactory = {
         createQuantJobQueueConfig: vi.fn().mockReturnValue({ name: 'quant' }),
-        createDistributedSequencesJobQueueConfig: vi.fn().mockReturnValue({ name: 'dist' }),
-        createAdaptiveSequencesJobQueueConfig: vi.fn().mockReturnValue({ name: 'adapt' }),
     };
     const mockMinioService = {
         getJobMetadata: vi.fn().mockResolvedValue({ sentAt: Date.now() }),
@@ -59,12 +57,13 @@ describe('ConsumerService', () => {
         expect(service).toBeDefined();
     });
     describe('onApplicationBootstrap', () => {
-        it('should setup queues and start consuming', async () => {
+        it('should set up the quant queue and start consuming it', async () => {
             await service.onApplicationBootstrap();
             expect(rabbitmqService.getChannelModel).toHaveBeenCalled();
             expect(rabbitmqService.getChannel).toHaveBeenCalled();
-            expect(queueService.setupQueue).toHaveBeenCalledTimes(3);
-            expect(mockChannel.consume).toHaveBeenCalledTimes(3);
+            expect(queueService.setupQueue).toHaveBeenCalledTimes(1);
+            expect(mockChannel.consume).toHaveBeenCalledTimes(1);
+            expect(mockChannel.consume).toHaveBeenCalledWith('quant', expect.any(Function), { noAck: false });
         });
     });
     describe('consumeQuantJobs processing', () => {

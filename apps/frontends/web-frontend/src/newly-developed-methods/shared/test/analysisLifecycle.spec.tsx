@@ -1,23 +1,20 @@
 import { act, render, screen, waitFor } from "@testing-library/react";
 import { useState } from "react";
 import type { SystemsAnalysis } from "interfaces-mef-types/sy/systems-analysis";
-import type { EventSequenceQuantification } from "interfaces-mef-types/esq/event-sequence-quantification";
 import type { WorkbookHclConfiguration } from "interfaces-mef-types/modeling";
 import type { BayesianNetworkEditorProps } from "../../bayesian-network/bayesianNetworkTypes";
 import { deleteNode } from "../../bayesian-network/bayesianNetworkOperations";
 import { testBayesianNetworkModel, TEST_ID } from "../../bayesian-network/test/bayesianNetworkTestModel";
 import { SyBayesianNetworkWorkspace } from "../../../sy-workbooks/syBayesianNetworkWorkspace";
-import { EsqEventTreeHclWorkspace } from "../../../esq-workbooks/esqEventTreeHclWorkspace";
+import { studyTree } from "../../../esq-workbooks/EsqDependencies";
 import { ToastProvider } from "../../../toast/toastProvider";
 import type { RevisionedSaveStatus } from "../../../workbooks/useRevisionedMefPatch";
 
 let mockEditor: BayesianNetworkEditorProps;
 let mockSyContext: unknown;
-let mockEsqContext: unknown;
 const mockExecute = jest.fn();
 const mockResult = jest.fn();
 jest.mock("../../../sy-workbooks/syWorkbookContext", () => ({ useSyWorkbook: () => mockSyContext }));
-jest.mock("../../../esq-workbooks/esqWorkbookContext", () => ({ useEsqWorkbook: () => mockEsqContext }));
 jest.mock("../../bayesian-network", () => ({
   ...jest.requireActual("../../bayesian-network"),
   BayesianNetworkEditor: (props: BayesianNetworkEditorProps) => {
@@ -38,22 +35,12 @@ jest.mock("../../../sy-workbooks/syWorkbookApi", () => ({
   getSyBayesianNetworkResult: () => mockResult(),
   getSyBayesianNetworkBatchResult: () => mockResult(),
   getSyHclFaultTreeResult: () => mockResult(),
-  getSyWorkbook: async () => ({ mef: { dependencyBayesianNetworks: [], dependencyHclConfigurations: [],
-    systemLogicModels: [{ uuid: "ft", code: "FT", name: "Fault tree", topGate: { gateId: "top" }, leafNodes: [] }], systemBasicEvents: [] } }),
 }));
 jest.mock("../../../esq-workbooks/esqWorkbookApi", () => ({
   runEsqHclEventTree: (...args: unknown[]) => mockExecute(...args),
   runEsqHclEventTreeBatch: (...args: unknown[]) => mockExecute(...args),
   generateEsqHclScenarios: (...args: unknown[]) => mockExecute(...args),
   getEsqHclEventTreeResult: () => mockResult(),
-}));
-jest.mock("../../../workbooks/workbookApi", () => ({
-  listWorkbooks: async (_project: string, kind: string) => ({ workbooks: [{ id: kind.toLowerCase(), name: kind }] }),
-}));
-jest.mock("../../../es-workbooks/esWorkbookApi", () => ({
-  getEsWorkbook: async () => ({ mef: { eventTrees: [{ uuid: "et", name: "ET", sequences: {}, functionalEvents: {
-    f: { uuid: "f", name: "Function", faultTreeTopEvent: { workbookId: "sy", modelId: "ft", entityId: "top" } },
-  } }] } }),
 }));
 
 const original = testBayesianNetworkModel();
@@ -67,18 +54,13 @@ function configuration(host: string): WorkbookHclConfiguration {
     solverSettings: { variableOrder: null, foldConstants: true, spliceNullGates: true },
   };
 }
-function Harness({ host = "SY", saveStatus = "saved", revision = 1 }: {
-  host?: "SY" | "ESQ"; saveStatus?: RevisionedSaveStatus; revision?: number;
-}) {
+function Harness({ saveStatus = "saved", revision = 1 }: { saveStatus?: RevisionedSaveStatus; revision?: number }) {
   const [sy, setSy] = useState(() => ({ dependencyBayesianNetworks: [structuredClone(original)],
     dependencyHclConfigurations: [configuration("sy")], systemLogicModels: [], systemBasicEvents: [] }) as unknown as SystemsAnalysis);
-  const [esq, setEsq] = useState(() => ({ bayesianNetworks: [structuredClone(original)],
-    hclConfigurations: [configuration("esq")] }) as unknown as EventSequenceQuantification);
   mockSyContext = { sy, editable: true, mutateSy: setSy, runtime: { workbookId: "sy", revision, saveStatus } };
-  mockEsqContext = { esq, editable: true, mutateEsq: setEsq, runtime: { workbookId: "esq", projectId: "project", revision, saveStatus } };
-  return <ToastProvider>{host === "SY" ? <SyBayesianNetworkWorkspace /> : <EsqEventTreeHclWorkspace mode="RUNS" />}</ToastProvider>;
+  return <ToastProvider><SyBayesianNetworkWorkspace /></ToastProvider>;
 }
-type RunKind = "BN" | "BN_BATCH" | "FT" | "FT_BATCH" | "ET" | "ET_BATCH";
+type RunKind = "BN" | "BN_BATCH" | "FT" | "FT_BATCH";
 function run(kind: RunKind) {
   const config = mockEditor.hclConfigurations[0]!;
   const tree = { workbookId: "sy", workbookName: "SY", modelId: "ft", modelName: "FT", modelCode: "FT", topGateId: "top", basicEvents: [] };
@@ -86,14 +68,22 @@ function run(kind: RunKind) {
   if (kind === "BN_BATCH") mockEditor.onRunBatch!(config.evidenceScenarios!);
   if (kind === "FT") mockEditor.onRunHclFaultTree(config, tree, "PROBABILITY");
   if (kind === "FT_BATCH") mockEditor.onRunHclFaultTreeBatch(config, tree, ["scenario"], false, "PROBABILITY");
-  if (kind === "ET") mockEditor.onRunHclEventTree(config, mockEditor.eventTreeOptions[0]!, "PROBABILITY");
-  if (kind === "ET_BATCH") mockEditor.onRunHclEventTreeBatch(config, mockEditor.eventTreeOptions[0]!, ["scenario"], false, "PROBABILITY");
 }
-async function ready(host: "SY" | "ESQ" = "SY", saveStatus: RevisionedSaveStatus = "saved") {
-  const view = render(<Harness host={host} saveStatus={saveStatus} />);
+async function ready(saveStatus: RevisionedSaveStatus = "saved") {
+  const view = render(<Harness saveStatus={saveStatus} />);
   await waitFor(() => expect(mockEditor.hclConfigurations).toHaveLength(1));
-  if (host === "ESQ") await waitFor(() => expect(mockEditor.eventTreeOptions).toHaveLength(1));
   return view;
+}
+async function faultTreeBatch() {
+  await ready();
+  act(() => run("FT_BATCH"));
+  await waitFor(() => expect(mockEditor.hclBatchRunResult).not.toBeNull());
+  return mockEditor.hclBatchRunResult;
+}
+async function eventTreeBatch() {
+  const study = await studyTree({ workbookId: "esq", revision: 1, option: { key: "sy:hcl", workbookId: "sy", configuration: configuration("sy") },
+    treeId: "et", result: "PROBABILITY", evidence: "SCENARIOS", scenarioIds: ["scenario"], batchInput: null });
+  return study.batchRunResult;
 }
 beforeEach(() => {
   jest.clearAllMocks();
@@ -101,8 +91,8 @@ beforeEach(() => {
   mockResult.mockResolvedValue({ probability: 0.2, marginals: [], sequences: [], scenarios: [] });
 });
 
-it.each(["SY", "ESQ"] as const)("preserves %s evidence through deletion, undo and rename", async (host) => {
-  await ready(host);
+it("preserves SY evidence through deletion, undo and rename", async () => {
+  await ready();
   const before = structuredClone(mockEditor.hclConfigurations);
   act(() => mockEditor.onModelChange(deleteNode(mockEditor.model, TEST_ID.a)));
   expect(mockEditor.hclConfigurations).toEqual(before);
@@ -114,17 +104,17 @@ it.each(["SY", "ESQ"] as const)("preserves %s evidence through deletion, undo an
   expect(mockEditor.hclConfigurations).toEqual(before);
 });
 
-const kinds: RunKind[] = ["BN", "BN_BATCH", "FT", "FT_BATCH", "ET", "ET_BATCH"];
+const kinds: RunKind[] = ["BN", "BN_BATCH", "FT", "FT_BATCH"];
 it.each(kinds.flatMap((kind) => (["saving", "failed"] as const).map((status) => [kind, status] as const)))(
   "blocks %s callbacks while saving is %s", async (kind, status) => {
-    await ready(kind.startsWith("ET") ? "ESQ" : "SY", status);
+    await ready(status);
     act(() => run(kind));
     expect(mockExecute).not.toHaveBeenCalled();
     expect(screen.getByTestId("blocked").textContent).not.toBe("");
   },
 );
 it.each(kinds)("clears completed %s results after a CPT edit", async (kind) => {
-  await ready(kind.startsWith("ET") ? "ESQ" : "SY");
+  await ready();
   act(() => run(kind));
   await waitFor(() => expect(screen.getByTestId("result")).not.toHaveTextContent("[null,null,null,null]"));
   act(() => mockEditor.onModelChange({ ...mockEditor.model, conditionalProbabilityTables: mockEditor.model.conditionalProbabilityTables.map((table) => ({
@@ -135,7 +125,7 @@ it.each(kinds)("clears completed %s results after a CPT edit", async (kind) => {
 it.each(kinds)("discards late %s results after inputs change", async (kind) => {
   let resolve!: (value: unknown) => void;
   mockResult.mockReturnValue(new Promise((done) => { resolve = done; }));
-  await ready(kind.startsWith("ET") ? "ESQ" : "SY");
+  await ready();
   act(() => run(kind));
   await waitFor(() => expect(mockResult).toHaveBeenCalled());
   act(() => mockEditor.onModelChange({ ...mockEditor.model, name: "Edited during execution" }));
@@ -143,7 +133,7 @@ it.each(kinds)("discards late %s results after inputs change", async (kind) => {
   expect(screen.getByTestId("result")).toHaveTextContent("[null,null,null,null]");
 });
 it("uses the saved revision after saving completes", async () => {
-  const view = await ready("SY", "saving");
+  const view = await ready("saving");
   act(() => run("BN"));
   view.rerender(<Harness saveStatus="saved" revision={2} />);
   act(() => run("BN"));
@@ -183,10 +173,9 @@ it.each(["FT_BATCH", "ET_BATCH"] as const)("preserves %s compilation counts and 
     ? { probability: 0.2, bddNodes: 3, bddVariables: 2, variableOrder: ["B", "A"], bridge: diagnostics.bridge, junctionTree: diagnostics.junctionTree, compilationReuse }
     : { sequences: [{ sequenceId: "S1", probability: 0.2, diagnostics }], compilationReuse };
   mockResult.mockResolvedValue(savedResult);
-  await ready(kind === "ET_BATCH" ? "ESQ" : "SY");
-  act(() => run(kind));
-  await waitFor(() => expect(mockEditor.hclBatchRunResult?.compilationReuse).toEqual(compilationReuse));
-  expect(mockEditor.hclBatchRunResult?.scenarios[0]?.result?.result).toEqual(savedResult);
+  const batch = kind === "FT_BATCH" ? await faultTreeBatch() : await eventTreeBatch();
+  expect(batch?.compilationReuse).toEqual(compilationReuse);
+  expect(batch?.scenarios[0]?.result?.result).toEqual(savedResult);
   expect(mockExecute).toHaveBeenCalledTimes(1);
   expect(mockResult).toHaveBeenCalledTimes(1);
 });

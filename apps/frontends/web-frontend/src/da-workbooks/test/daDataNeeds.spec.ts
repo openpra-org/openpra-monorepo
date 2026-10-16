@@ -317,8 +317,8 @@ describe("parameterFindings", () => {
     const da: DataAnalysis = {
       ...blankDa(needs({
         basicEvents: [
-          event("same-sequence", { importedKind: "RUNNING", kind: "RUNNING", missionTime: sc("MT-PLOFC"), parameterId: "DA-CMT" }),
-          event("other-sequence", { importedKind: "RUNNING", kind: "RUNNING", missionTime: sc("MT-DLOFC"), parameterId: "DA-CMT-2" }),
+          event("same-sequence", { importedKind: "RUNNING", kind: "RUNNING", missionTime: sc("MT-DLOFC"), parameterId: "DA-CMT" }),
+          event("other-sequence", { importedKind: "RUNNING", kind: "RUNNING", missionTime: sc("MT-PLOFC"), parameterId: "DA-CMT-2" }),
           event("typed", { importedKind: "RUNNING", kind: "RUNNING", missionTime: sc("MT-DLOFC"), parameterId: "DA-TYPED" }),
           event("linked", { importedKind: "RUNNING", kind: "RUNNING", missionTime: sc("MT-DLOFC"), parameterId: "DA-LINKED" }),
         ],

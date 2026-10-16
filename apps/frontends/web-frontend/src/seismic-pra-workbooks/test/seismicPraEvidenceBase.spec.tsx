@@ -76,23 +76,16 @@ describe("Seismic PRA Step 02 qualified evidence base", () => {
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
-  it("keeps plain-language purpose and workflow guidance behind help controls", async () => {
+  it("shows evidence section titles without help controls", () => {
     renderEvidenceBase();
 
     expect(screen.queryByRole("note")).not.toBeInTheDocument();
-
-    await userEvent.click(screen.getByRole("button", { name: "About Source evidence" }));
-    expect(screen.getByRole("note")).toHaveTextContent(
-      "register the existing records that the Seismic PRA will rely on",
-    );
-    expect(screen.getByRole("note")).toHaveTextContent("For example");
-    await userEvent.click(screen.getByRole("button", { name: "About Open evidence gaps" }));
-    const notes = screen.getAllByRole("note");
-    const gapNote = notes[notes.length - 1];
-    expect(gapNote).toHaveTextContent(
-      "source records are provisional, incomplete, or still need confirmation",
-    );
-    expect(gapNote).toHaveTextContent("For example");
+    for (const title of ["Source evidence", "Open evidence gaps"]) {
+      const heading = screen.getByRole("heading", { name: title }).closest(".ssection__heading");
+      expect(heading).not.toBeNull();
+      expect(within(heading as HTMLElement).queryAllByRole("button")).toHaveLength(0);
+      expect(screen.queryByRole("button", { name: `About ${title}` })).not.toBeInTheDocument();
+    }
   });
 
   it("puts the add action beside source evidence and opens one flat editor", async () => {

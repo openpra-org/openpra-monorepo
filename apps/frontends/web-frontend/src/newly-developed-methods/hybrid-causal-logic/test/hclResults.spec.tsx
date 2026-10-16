@@ -134,7 +134,7 @@ describe("HCL end-state presentation", () => {
       sequenceId: `s-${index}`,
     }));
     render(manual(result));
-    const nav = () => within(screen.getByRole("navigation", { name: "HCL sequences pagination" }));
+    const nav = () => within(screen.getByRole("navigation", { name: "Dependency sequences pagination" }));
     fireEvent.click(nav().getByRole("button", { name: "Next" }));
     expect(nav().getByText("Page 2 of 6")).toBeInTheDocument();
     choose("release");
@@ -152,7 +152,7 @@ describe("HCL end-state presentation", () => {
     const states = within(screen.getByRole("region", { name: "End-state results" }));
     expect(states.queryByText("end-29")).not.toBeInTheDocument();
     fireEvent.click(
-      within(screen.getByRole("navigation", { name: "HCL end states pagination" })).getByRole("button", {
+      within(screen.getByRole("navigation", { name: "Dependency end states pagination" })).getByRole("button", {
         name: "Last",
       }),
     );
@@ -337,7 +337,7 @@ describe("HCL hazard presentation", () => {
       scenarioCode: `S-${index}`,
     }));
     const view = render(batchView(batch));
-    const nav = () => within(screen.getByRole("navigation", { name: "HCL scenarios pagination" }));
+    const nav = () => within(screen.getByRole("navigation", { name: "Dependency scenarios pagination" }));
     fireEvent.click(nav().getByRole("button", { name: "Next" }));
     expect(nav().getByText("Page 2 of 3")).toBeInTheDocument();
     choose("release");

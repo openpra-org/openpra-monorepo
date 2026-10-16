@@ -165,7 +165,7 @@ describe("ESQ Step 02 model import", () => {
     esq = withInitiatorChoice(esq, "IEG-01", { groupId: "IEG-01", source: "TYPED", expression: { node: "VALUE", value: { unit: "PER_YEAR", law: { family: "GAMMA", shape: 1.5, rate: 1 } } }, basis: "Fleet data." });
     expect(checks(esq).filter((entry) => entry.endsWith(":IEG-01") && entry.startsWith("warning:No"))).toEqual([]);
     esq = withInitiatorChoice(esq, "IEG-01", { groupId: "IEG-01", source: "TYPED", expression: { node: "PARAMETER", reference: { referenceType: "WORKBOOK_PARAMETER", workbookId: "da-other", entityId: "P-IE" } }, basis: "Fleet data." });
-    expect(checks(esq)).toContain("error:Workbook not linked:IEG-01");
+    expect(checks(esq).filter((entry) => entry.endsWith(":IEG-01"))).toEqual([]);
     esq = withInitiatorChoice(esq, "IEG-01", { groupId: "IEG-01", source: "DA", parameterId: "P-SF" });
     expect(checks(esq)).toContain("error:No DA estimate:IEG-01");
   });
@@ -264,8 +264,14 @@ describe("ESQ Step 02 model import", () => {
   it("warns through PRAXIS points when a tree lasts longer than the running events under its functions", async () => {
     const missionChecks = (esq: EventSequenceQuantification, table: ReadonlyMap<string, UncertainParameter>): Promise<string[]> =>
       settledWithPraxis(() => (modelViewOf(esq, undefined, table)?.findings ?? []).filter((finding) => finding.check.startsWith("Mission time") || finding.check === "No tree mission time").map((finding) => `${finding.severity}:${finding.check}:${finding.item}`));
+    const untimedUpstream = modelUpstream();
+    const es = untimedUpstream.es;
+    if (es === undefined) throw new Error("ES fixture missing");
+    untimedUpstream.es = { ...es, eventTrees: (es.eventTrees ?? []).map(({ missionTime: _hours, ...tree }) => tree) };
+    expect(await missionChecks(liveImport(linkedEsq(), untimedUpstream, NOW), new Map())).toEqual(["note:No tree mission time:ET-A, ET-B and ET-T"]);
     const base = imported();
-    expect(await missionChecks(base, new Map())).toEqual(["note:No tree mission time:ET-A, ET-B and ET-T"]);
+    expect(base.model?.trees.map((tree) => tree.esMissionTime)).toEqual([hours(72), hours(72), hours(72)]);
+    expect(await missionChecks(base, new Map())).toEqual(["warning:Mission time:COOL"]);
     expect(checks(withTreeMissionTime(base, "ET-A", hours(72))).some((entry) => entry.includes("Mission time"))).toBe(false);
     const typed = withTreeMissionTime(withTreeMissionTime(withTreeMissionTime(base, "ET-A", hours(72)), "ET-B", hours(24)), "ET-T", hours(24));
     expect(await missionChecks(typed, new Map())).toEqual(["warning:Mission time:COOL"]);

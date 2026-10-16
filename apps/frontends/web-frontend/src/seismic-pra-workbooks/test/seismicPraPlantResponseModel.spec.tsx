@@ -173,20 +173,22 @@ describe("Seismic PRA Step 09 plant-response model", () => {
       .toContain("SOURCE-SODIUM-ACTIVATION-PRODUCTS");
   });
 
-  it("keeps explanations behind question-mark controls", async () => {
+  it("keeps technical decisions beside entry names without section help", async () => {
     const mef = renderPlantResponseModel();
     const initiator =
       mef.seismicPlantResponseAnalysis.initiatingEventIdentification
         .directInitiators[0]!;
 
     expect(screen.queryByRole("note")).not.toBeInTheDocument();
-    await userEvent.click(screen.getByRole("button", {
+    const heading = screen.getByRole("heading", {
+      name: "Seismic initiating events",
+    }).closest(".ssection__heading");
+    expect(heading).not.toBeNull();
+    expect(within(heading as HTMLElement).queryAllByRole("button"))
+      .toHaveLength(0);
+    expect(screen.queryByRole("button", {
       name: "About Seismic initiating events",
-    }));
-    expect(screen.getByRole("note")).toHaveTextContent(
-      "An initiating event is the first modeled event in a sequence",
-    );
-    expect(screen.getByRole("note")).toHaveTextContent("For example");
+    })).not.toBeInTheDocument();
 
     expect(screen.queryByText(initiator.description)).not.toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", {

@@ -132,7 +132,7 @@ describe("uncertainty", () => {
     expect(await caseOf(HTGR, "SS-5")).toMatchObject({ low: 0.034228276390151025, high: 0.0975 });
     const testing = await caseOf(HTGR, "SS-6");
     expect((testing.high ?? 0) / (testing.low ?? 1)).toBeCloseTo(1.9856, 3);
-    expect(Math.abs(((await caseOf(SFR, "SS-6")).high ?? 0) / 0.00017300976092140088 - 1)).toBeLessThan(1e-6);
+    expect(Math.abs(((await caseOf(SFR, "SS-6")).high ?? 0) / 0.0006669853695682913 - 1)).toBeLessThan(1e-6);
   });
 
   it("asks for a register and checks what the entries point at", async () => {

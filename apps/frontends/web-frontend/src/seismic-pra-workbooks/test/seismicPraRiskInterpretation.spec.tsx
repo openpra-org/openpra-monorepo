@@ -164,18 +164,20 @@ describe("Seismic PRA Step 12 risk interpretation", () => {
       ]));
   });
 
-  it("keeps section explanations behind question marks and technical details beside entry names", async () => {
+  it("keeps technical details beside entry names without section help", async () => {
     const mef = renderRiskInterpretation();
     const action = mef.riskInterpretation.refinementActions[0]!;
 
     expect(screen.queryByRole("note")).not.toBeInTheDocument();
-    await userEvent.click(screen.getByRole("button", {
+    const heading = screen.getByRole("heading", {
+      name: "Model refinements",
+    }).closest(".ssection__heading");
+    expect(heading).not.toBeNull();
+    expect(within(heading as HTMLElement).queryAllByRole("button"))
+      .toHaveLength(0);
+    expect(screen.queryByRole("button", {
       name: "About Model refinements",
-    }));
-    expect(screen.getByRole("note")).toHaveTextContent(
-      "A refinement is a specific technical change",
-    );
-    expect(screen.getByRole("note")).toHaveTextContent("For example");
+    })).not.toBeInTheDocument();
 
     expect(screen.queryByText(action.refinement, { exact: false }))
       .not.toBeInTheDocument();

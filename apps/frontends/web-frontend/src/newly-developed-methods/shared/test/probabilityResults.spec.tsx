@@ -278,7 +278,7 @@ describe("probability and uncertainty result fidelity", () => {
   it("paginates HCL sequences and exports both quantities plus returned end states", () => {
     renderHcl(et);
     expect(screen.queryByText("seq-26")).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Next" }));
+    fireEvent.click(screen.getByRole("button", { name: "Last" }));
     expect(screen.getByText("seq-26")).toBeInTheDocument();
     const rows = eventTreeResultRecords(et.result, () => undefined);
     expect(rows).toHaveLength(55);
@@ -296,7 +296,7 @@ describe("probability and uncertainty result fidelity", () => {
     renderHcl(null, batch([et]), true);
     expect(screen.getByLabelText("seq-0 conditional probability uncertainty results")).toHaveTextContent("1.00E-07");
     expect(screen.getByLabelText("seq-0 uncertainty results")).toHaveTextContent("1.00E-09/yr");
-    fireEvent.click(screen.getByRole("button", { name: "Next" }));
+    fireEvent.click(screen.getByRole("button", { name: "Last" }));
     expect(screen.getByLabelText("seq-26 uncertainty results")).toBeInTheDocument();
   });
 
@@ -321,7 +321,7 @@ describe("probability and uncertainty result fidelity", () => {
     result.scenarios[27]!.status = "SKIPPED";
     result.scenarios[27]!.failure = null;
     renderHcl(null, result);
-    fireEvent.click(screen.getByRole("button", { name: "Next" }));
+    fireEvent.click(screen.getByRole("button", { name: "Last" }));
     expect(screen.getByText("Impossible evidence")).toBeInTheDocument();
     expect(screen.getByText("Skipped: zero hazard weight")).toBeInTheDocument();
     const rows = hclBatchResultRecords(result, () => undefined);

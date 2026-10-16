@@ -61,14 +61,13 @@ describe("Seismic PRA Step 05 site seismic-hazard model", () => {
     },
   );
 
-  it("keeps the beginner explanation behind the question-mark control", async () => {
+  it("shows the seismic source model title without a question-mark control", () => {
     renderSiteHazard();
     expect(screen.queryByRole("note")).not.toBeInTheDocument();
-    await userEvent.click(screen.getByRole("button", { name: "About Seismic source model" }));
-    expect(screen.getByRole("note")).toHaveTextContent(
-      "identifies the faults and distributed seismic zones",
-    );
-    expect(screen.getByRole("note")).toHaveTextContent("For example");
+    const heading = screen.getByRole("heading", { name: "Seismic source model" }).closest(".ssection__heading");
+    expect(heading).not.toBeNull();
+    expect(within(heading as HTMLElement).queryAllByRole("button")).toHaveLength(0);
+    expect(screen.queryByRole("button", { name: "About Seismic source model" })).not.toBeInTheDocument();
   });
 
   it("removes the PSHA-basis editor and keeps the flat catalog editor", async () => {

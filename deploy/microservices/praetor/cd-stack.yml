@@ -151,7 +151,7 @@ services:
         max_attempts: 3
 
   minio:
-    image: quay.io/minio/minio
+    image: pgsty/silo:RELEASE.2026-09-16T00-00-00Z
     command: server /data --console-address ":9001"
     volumes:
       - "/etc/localtime:/etc/localtime:ro"

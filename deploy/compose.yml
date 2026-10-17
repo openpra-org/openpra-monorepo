@@ -1,0 +1,151 @@
+name: openpra
+
+x-praetor: &praetor
+  build:
+    context: ..
+    dockerfile: deploy/microservices/praetor/Dockerfile
+  platform: linux/amd64
+  restart: unless-stopped
+  env_file:
+    - microservices/praetor/configs/cd.stack.env
+  depends_on:
+    rabbitmq:
+      condition: service_healthy
+    minio:
+      condition: service_healthy
+
+services:
+  mongodb:
+    image: ${IMAGE_MONGO:-mongo:8.3.11}
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 10s
+      timeout: 10s
+      retries: 12
+      start_period: 30s
+
+  rabbitmq:
+    image: ${IMAGE_RABBITMQ:-rabbitmq:4.3.6-management-alpine}
+    hostname: rabbitmq
+    restart: unless-stopped
+    environment:
+      RABBITMQ_SERVER_ADDITIONAL_ERL_ARGS: "-rabbit consumer_timeout 172800000"
+    ports:
+      - "127.0.0.1:5672:5672"
+      - "127.0.0.1:15672:15672"
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 10s
+      retries: 12
+      start_period: 30s
+
+  minio:
+    image: ${IMAGE_MINIO:-pgsty/silo:RELEASE.2026-09-16T00-00-00Z}
+    restart: unless-stopped
+    command: ["server", "/data", "--console-address", ":9001"]
+    environment:
+      MINIO_ROOT_USER: "minioadmin"
+      MINIO_ROOT_PASSWORD: "minioadmin"
+    ports:
+      - "${OPENPRA_BIND:-127.0.0.1}:9000:9000"
+      - "127.0.0.1:9001:9001"
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/ready"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+
+  praetor-manager:
+    <<: *praetor
+    image: ${IMAGE_PRAETOR:-openpra-apps-praetor-manager:local}
+    command: ["node", "dist/src/main.js"]
+    environment:
+      NODE_OPTIONS: "--max-old-space-size=8192"
+      PRAETOR_JOB_TIMEOUT_MS: "${PRAETOR_JOB_TIMEOUT_MS:-14400000}"
+      PRAETOR_JOB_STALE_MS: "${PRAETOR_JOB_STALE_MS:-300000}"
+    ports:
+      - "127.0.0.1:3000:3000"
+
+  praetor-engine:
+    <<: *praetor
+    image: ${IMAGE_PRAETOR:-openpra-apps-praetor-engine:local}
+    command: ["node", "dist/src/main-engine.js"]
+    environment:
+      NODE_OPTIONS: "--max-old-space-size=8192"
+      PRAETOR_WORKER_SLOTS: "${PRAETOR_WORKER_SLOTS:-1}"
+      PRAETOR_JOB_MAX_ATTEMPTS: "${PRAETOR_JOB_MAX_ATTEMPTS:-2}"
+      PRAETOR_JOB_TIMEOUT_MS: "${PRAETOR_JOB_TIMEOUT_MS:-14400000}"
+    deploy:
+      replicas: ${PRAETOR_WORKERS:-1}
+
+  backend:
+    build:
+      context: ..
+      dockerfile: deploy/web/Dockerfile
+      target: backend
+    image: ${IMAGE_BACKEND:-openpra-apps-web-backend:local}
+    restart: unless-stopped
+    volumes:
+      - ../apps/backends/web-backend/example-documents:/app/example-documents:ro
+    environment:
+      NODE_ENV: "production"
+      PORT: "8000"
+      MONGO_URI: "mongodb://mongodb:27017/openpra"
+      JWT_SECRET: "${JWT_SECRET:-local-only-jwt-secret}"
+      JWT_EXPIRES_IN: "7d"
+      APP_BASE_URL: "http://${OPENPRA_HOST:-localhost}:${OPENPRA_PORT:-8080}"
+      OAUTH_CALLBACK_BASE: "http://${OPENPRA_HOST:-localhost}:${OPENPRA_PORT:-8080}/api"
+      GOOGLE_CLIENT_ID: "${GOOGLE_CLIENT_ID:-}"
+      GOOGLE_CLIENT_SECRET: "${GOOGLE_CLIENT_SECRET:-}"
+      GITHUB_CLIENT_ID: "${GITHUB_CLIENT_ID:-}"
+      GITHUB_CLIENT_SECRET: "${GITHUB_CLIENT_SECRET:-}"
+      RESEND_API_KEY: "${RESEND_API_KEY:-local-only-resend-placeholder}"
+      MAIL_FROM: "${MAIL_FROM:-noreply@localhost}"
+      MAIL_FROM_NAME: "OpenPRA"
+      TFA_ENC_KEY: "${TFA_ENC_KEY:-local-only-tfa-encryption-key}"
+      TFA_ISSUER: "OpenPRA"
+      TFA_TIME_URL: "${TFA_TIME_URL:-https://www.google.com/generate_204}"
+      ADMIN_BOOTSTRAP_EMAILS: "${ADMIN_BOOTSTRAP_EMAILS:-}"
+      MINIO_ENDPOINT: "minio"
+      MINIO_PORT: "9000"
+      MINIO_USE_SSL: "false"
+      MINIO_ACCESS_KEY: "minioadmin"
+      MINIO_SECRET_KEY: "minioadmin"
+      MINIO_BUCKET: "openpra-web"
+      MINIO_PUBLIC_URL: "http://${OPENPRA_HOST:-localhost}:9000"
+      PRAETOR_URL: "http://praetor-manager:3000/q"
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      praetor-manager:
+        condition: service_started
+
+  frontend:
+    build:
+      context: ..
+      dockerfile: deploy/web/Dockerfile
+      target: frontend
+    image: ${IMAGE_FRONTEND:-openpra-apps-web-frontend:local}
+    restart: unless-stopped
+    ports:
+      - "${OPENPRA_BIND:-127.0.0.1}:${OPENPRA_PORT:-8080}:80"
+    depends_on:
+      - backend
+
+volumes:
+  mongo_data:
+  rabbitmq_data:
+  minio_data:

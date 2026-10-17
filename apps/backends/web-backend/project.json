@@ -22,7 +22,10 @@
       },
       "configurations": {
         "development": {},
-        "production": {}
+        "production": {},
+        "container": {
+          "assets": [{ "glob": "source-*.json", "input": "apps/interfaces/mef-types/da", "output": "da-datasets" }]
+        }
       }
     },
     "serve": {

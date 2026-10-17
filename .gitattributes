@@ -2,3 +2,10 @@
 apps/interfaces/shared-types/rc-workbooks/test/fixtures/** -text
 apps/backends/web-backend/example-documents/RC-Published-Inputs/** -text
 patches/*.patch -text
+*.sh text eol=lf
+Dockerfile text eol=lf
+Dockerfile.* text eol=lf
+*.Dockerfile text eol=lf
+*.conf text eol=lf
+deploy/**/*.env text eol=lf
+deploy/**/enabled_plugins text eol=lf

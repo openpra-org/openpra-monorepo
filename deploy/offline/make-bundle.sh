@@ -47,14 +47,14 @@ docker build -t openpra-apps-web-frontend:local docker-context/web-frontend
 
 echo "==> Pulling infrastructure images"
 docker pull mongo:latest
-docker pull quay.io/minio/minio:latest
+docker pull pgsty/silo:RELEASE.2026-09-16T00-00-00Z
 
 echo "==> Saving all images to one tar"
 docker save -o "$STAGE/openpra-images.tar" \
   openpra-apps-web-backend:local \
   openpra-apps-web-frontend:local \
   mongo:latest \
-  quay.io/minio/minio:latest
+  pgsty/silo:RELEASE.2026-09-16T00-00-00Z
 
 echo "==> Collecting runtime files"
 cp deploy/offline/docker-compose.offline.yml "$STAGE/docker-compose.yml"

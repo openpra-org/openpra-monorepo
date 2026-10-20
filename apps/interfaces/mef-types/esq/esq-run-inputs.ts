@@ -348,10 +348,24 @@ function treeFrequency(esq: EventSequenceQuantification, model: EsqModel, tree: 
   if (tree.transferEntry) return undefined;
   const group = groupFrequency(esq, model, tree.initiatorId, model.trees);
   if (tree.stateId === undefined) {
+    if (group.states.length === 0) return group.expression;
     const only = group.states.length === 1 ? group.states[0] : undefined;
     return only?.expression;
   }
   return group.states.find((state) => state.stateId === tree.stateId)?.expression;
+}
+
+function treeFrequencyGap(esq: EventSequenceQuantification, model: EsqModel, tree: EsqTreeRecord): string {
+  const group = groupFrequency(esq, model, tree.initiatorId, model.trees);
+  const name = esqItemCode(group.id, group.record?.name, "its initiator group");
+  if (group.given === undefined) return `${tree.code} has no initiator frequency. Complete the Initiators tab of Step 02.`;
+  if (group.expression === undefined) {
+    return `The frequency of ${name} is per critical year, and POS gives no hours to turn it into per reactor-year. Give its operating states hours in POS, or type the frequency per reactor-year in the Initiators tab of Step 02.`;
+  }
+  if (tree.stateId === undefined) return `${tree.code} has no operating state, and ${name} applies to several. Pick the operating state where the tree is drawn.`;
+  const state = group.states.find((entry) => entry.stateId === tree.stateId);
+  if (state?.applicable !== true) return `${name} does not apply to the operating state of ${tree.code}, so the tree gets none of its frequency. Add that state to the group in IE, or change the state of the tree.`;
+  return `${tree.code} gets no share of the frequency of ${name}. Give its operating states hours in POS or typed shares in the Initiators tab of Step 02.`;
 }
 
 function reachedModels(model: EsqModel, start: string): string[] {
@@ -485,6 +499,7 @@ export {
   groupIdsOf,
   groupFrequency,
   treeFrequency,
+  treeFrequencyGap,
   reachedModels,
   flagApplies,
   flagsForTree,

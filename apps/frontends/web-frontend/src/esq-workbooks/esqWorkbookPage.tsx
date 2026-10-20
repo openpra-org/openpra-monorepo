@@ -2,6 +2,7 @@ import { JSX, useCallback, useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 import { type EventSequenceQuantification, type EsqLinkCode } from "interfaces-mef-types/esq/event-sequence-quantification";
 import { type Workbook } from "interfaces-shared-types";
+import { type SystemsAnalysis } from "interfaces-mef-types/sy/systems-analysis";
 import { getProject } from "../projects/projectApi";
 import { WorkbookRolesModal } from "../workbooks/workbookRolesModal";
 import { WorkbookApprovalTable } from "../workbooks/workbookApprovalTable";
@@ -23,6 +24,7 @@ import { EsqWorkbookProvider, useEsqUpstream, type EsqWorkbookData } from "./esq
 import { NO_LINK_OPTIONS, listEsqLinkOptions } from "./esqLinks";
 import { loadEsqDaLinks } from "./esqDaLinks";
 import { useEsqMefPatch } from "./useEsqMefPatch";
+import { useEsqIeSync } from "./esqIeSync";
 import { LoadExampleModal, UnloadExampleModal } from "../workbooks/exampleWorkbookModal";
 import { WorkbookViewMemory } from "../workbooks/workbookViewMemory";
 import { EsqDocumentsCard } from "./esqDocumentsCard";
@@ -186,6 +188,18 @@ function EsqWorkbookPage(): JSX.Element {
     if (!availablePersonas.includes(persona)) setPersona(availablePersonas[0]);
   }, [availablePersonas, persona]);
 
+  const syncState = data?.esq.workflowState;
+  const syncEditable = availablePersonas.includes("preparer") && persona === "preparer" && (syncState === "DRAFT" || syncState === "REVISION_REQUIRED");
+  const ieSync = useEsqIeSync(data?.esq, upstream.ie, syncEditable, mutateEsq);
+  const [latestSy, setLatestSy] = useState<{ workbookId: string; mef: SystemsAnalysis } | null>(null);
+  const linkedSyId = data?.esq.linkedWorkbooks?.SY;
+  useEffect(() => { setLatestSy(null); }, [linkedSyId]);
+  const replaceLinkedSy = useCallback((workbookId: string, mef: SystemsAnalysis): void => { setLatestSy({ workbookId, mef }); }, []);
+  const syncedUpstream = useMemo(() => {
+    const sy = latestSy !== null && latestSy.workbookId === linkedSyId ? latestSy.mef : upstream.sy;
+    return ieSync.ie === upstream.ie && sy === upstream.sy ? upstream : { ...upstream, ie: ieSync.ie, sy };
+  }, [ieSync.ie, latestSy, linkedSyId, upstream]);
+
   if (error !== null) {
     return <div className="posw"><main className="posmain"><p className="pws-status pws-status--error">{error}</p></main></div>;
   }
@@ -217,7 +231,9 @@ function EsqWorkbookPage(): JSX.Element {
       editable={editable}
       runtime={{ workbookId: id, projectId, revision, saveStatus }}
       mutateEsq={mutateEsq}
-      upstream={upstream}
+      upstream={syncedUpstream}
+      ieSync={ieSync.status}
+      replaceLinkedSy={replaceLinkedSy}
     >
       <WorkbookViewMemory scope={`esq.${id}`}>
         <EsqWorkbench

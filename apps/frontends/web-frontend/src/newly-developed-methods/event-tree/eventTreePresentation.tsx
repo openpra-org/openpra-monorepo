@@ -158,6 +158,7 @@ interface ClassicLayout {
   labels: Array<{ x: number; y: number; kind: OutcomeKind; text: string }>;
   leaves: Array<{ sequenceId: string; y: number }>;
   columnX: (column: number) => number;
+  initiatorRight: number;
   endX: number;
   rootY: number;
   width: number;
@@ -167,7 +168,9 @@ interface ClassicLayout {
 function layoutClassic(view: EventTreePresentationView): ClassicLayout {
   const columnWidth = 152;
   const rowHeight = 58;
-  const left = 112;
+  const initiatorRight = 86;
+  const lineStart = initiatorRight + 8;
+  const left = lineStart + 58;
   const top = 98;
   const endX = left + view.functionalEvents.length * columnWidth;
   const columnX = (column: number): number => left + column * columnWidth;
@@ -213,8 +216,8 @@ function layoutClassic(view: EventTreePresentationView): ClassicLayout {
       else draw(child, x, outcomeY);
     }
   };
-  if (!("seq" in view.node)) draw(view.node, left - 58, rootY);
-  return { segments, dots, labels, leaves, columnX, endX, rootY, width: endX + 172, height: top + Math.max(1, row) * rowHeight + 20 };
+  if (!("seq" in view.node)) draw(view.node, lineStart, rootY);
+  return { segments, dots, labels, leaves, columnX, initiatorRight, endX, rootY, width: endX + 172, height: top + Math.max(1, row) * rowHeight + 20 };
 }
 
 function SequenceOutcome({ sequence }: { sequence: EventTreeSequenceView }): JSX.Element {
@@ -234,7 +237,7 @@ function SequenceOutcome({ sequence }: { sequence: EventTreeSequenceView }): JSX
   );
 }
 
-function ClassicEventTreeDiagram({ view, activeSequenceId, selectedEntityId, selectedBranchKey = null, showFrequency, frequencyParameters = NO_PARAMETERS, canEdit, onHover, onSelect, onSelectFunctionalEvent, onFunctionalEventContext, onSequenceContext, onReorderFunctionalEvent, onSelectBranch, onBranchContext }: {
+function ClassicEventTreeDiagram({ view, activeSequenceId, selectedEntityId, selectedBranchKey = null, showFrequency, frequencyParameters = NO_PARAMETERS, canEdit, onHover, onSelect, onSelectFunctionalEvent, onFunctionalEventContext, onSequenceContext, onReorderFunctionalEvent, onSelectBranch, onBranchContext, onSelectInitiatingEvent, initiatingEventSelected = false }: {
   view: EventTreePresentationView;
   activeSequenceId: string | null;
   selectedEntityId: string | null;
@@ -250,8 +253,18 @@ function ClassicEventTreeDiagram({ view, activeSequenceId, selectedEntityId, sel
   selectedBranchKey?: string | null;
   onSelectBranch?: (branch: EventTreeBranchPoint) => void;
   onBranchContext?: (branch: EventTreeBranchPoint, x: number, y: number) => void;
+  onSelectInitiatingEvent?: (() => void) | undefined;
+  initiatingEventSelected?: boolean;
 }): JSX.Element {
   const layout = useMemo(() => layoutClassic(view), [view]);
+  const initiator = (
+    <>
+      <div className="estree__ie-cap">Initiator</div>
+      <div className="estree__ie-id">{view.initiatingEventId}</div>
+      {showFrequency && view.initiatingEventFrequency !== undefined && <InitiatingFrequency frequency={view.initiatingEventFrequency} parameters={frequencyParameters} />}
+    </>
+  );
+  const initiatorStyle = { left: layout.initiatorRight, top: layout.rootY, maxWidth: layout.initiatorRight };
   const sequences = new Map(view.sequences.map((sequence) => [sequence.id, sequence]));
   const highlighted = (ids: string[]): boolean => activeSequenceId !== null && ids.includes(activeSequenceId);
   return (
@@ -283,11 +296,9 @@ function ClassicEventTreeDiagram({ view, activeSequenceId, selectedEntityId, sel
             <div className="estree__head-label">{event.label}</div>
           </button>
         ))}
-        <div className="estree__ie" style={{ top: layout.rootY }}>
-          <div className="estree__ie-cap">Initiator</div>
-          <div className="estree__ie-id">{view.initiatingEventId}</div>
-          {showFrequency && view.initiatingEventFrequency !== undefined && <InitiatingFrequency frequency={view.initiatingEventFrequency} parameters={frequencyParameters} />}
-        </div>
+        {onSelectInitiatingEvent === undefined
+          ? <div className="estree__ie" style={initiatorStyle}>{initiator}</div>
+          : <button type="button" className={`estree__ie estree__ie--button${initiatingEventSelected ? " estree__ie--selected" : ""}`} style={initiatorStyle} aria-label={`Initiating event ${view.initiatingEventId}`} onClick={onSelectInitiatingEvent}>{initiator}</button>}
         <svg className="estree__svg" width={layout.width} height={layout.height} aria-hidden="true">
           {layout.segments.map((segment, index) => <line key={index} className={`estree__seg${highlighted(segment.sequences) ? " estree__seg--hot" : ""}`} x1={segment.x1} y1={segment.y1} x2={segment.x2} y2={segment.y2} />)}
           {layout.dots.map((dot, index) => <circle key={index} className="estree__node-dot" cx={dot.x} cy={dot.y} r="3.4" />)}
@@ -390,7 +401,7 @@ function actorFor(eventId: string): "operator" | "auto" | "passive" {
   return "auto";
 }
 
-function EventSequenceDiagram({ view, activeSequenceId, selectedEntityId, onHover, onSelectSequence, onSelectFunctionalEvent, onFunctionalEventContext, onSequenceContext }: {
+function EventSequenceDiagram({ view, activeSequenceId, selectedEntityId, onHover, onSelectSequence, onSelectFunctionalEvent, onFunctionalEventContext, onSequenceContext, onSelectInitiatingEvent, initiatingEventSelected = false }: {
   view: EventTreePresentationView;
   activeSequenceId: string | null;
   selectedEntityId: string | null;
@@ -399,6 +410,8 @@ function EventSequenceDiagram({ view, activeSequenceId, selectedEntityId, onHove
   onSelectFunctionalEvent: (functionalEventId: string) => void;
   onFunctionalEventContext: (functionalEventId: string, x: number, y: number) => void;
   onSequenceContext: (sequenceId: string, x: number, y: number) => void;
+  onSelectInitiatingEvent?: (() => void) | undefined;
+  initiatingEventSelected?: boolean;
 }): JSX.Element {
   const layout = useMemo(() => layoutEventSequenceDiagram(view), [view]);
   const sequences = new Map(view.sequences.map((sequence) => [sequence.id, sequence]));
@@ -417,7 +430,9 @@ function EventSequenceDiagram({ view, activeSequenceId, selectedEntityId, onHove
           {layout.links.map((link, index) => <path key={index} className={`esdg__link esdg__link--${link.kind.toLowerCase()}${highlighted(link.sequences) ? " esdg__link--hot" : ""}`} d={`M ${link.startX} ${link.startY} H ${link.middleX} V ${link.endY} H ${link.endX}`} markerEnd={`url(#esdg-${link.kind.toLowerCase()}-${markerSuffix})`} />)}
           {layout.labels.map((label, index) => <text key={index} className={`estree__branch-lab estree__branch-lab--${label.kind.toLowerCase()}`} x={label.x} y={label.y}>{label.text}</text>)}
         </svg>
-        <div className="esdg__ie" style={{ left: 6, top: layout.rootY }}><div className="esdg__ie-cap">Initiator</div><div className="esdg__ie-id">{view.initiatingEventId}</div></div>
+        {onSelectInitiatingEvent === undefined
+          ? <div className="esdg__ie" style={{ left: 6, top: layout.rootY }}><div className="esdg__ie-cap">Initiator</div><div className="esdg__ie-id">{view.initiatingEventId}</div></div>
+          : <button type="button" className={`esdg__ie esdg__ie--button${initiatingEventSelected ? " esdg__ie--selected" : ""}`} style={{ left: 6, top: layout.rootY }} aria-label={`Initiating event ${view.initiatingEventId}`} onClick={onSelectInitiatingEvent}><div className="esdg__ie-cap">Initiator</div><div className="esdg__ie-id">{view.initiatingEventId}</div></button>}
         {layout.boxes.map((box, index) => {
           const event = view.functionalEvents[box.eventIndex];
           if (event === undefined) return null;

@@ -37,6 +37,7 @@ import {
   transferLoops,
   transferTreeIds,
   treeFrequency,
+  treeFrequencyGap,
   treesInScope,
 } from "interfaces-mef-types/esq/esq-run-inputs";
 import { carriesUncertainExpression, type SystemBasicEvent, type SystemLogicModel, type SystemsAnalysis } from "interfaces-mef-types/sy/systems-analysis";
@@ -645,7 +646,7 @@ function buildEsqEventTreeRun(input: EsqRunBuildInput): EsqRunBuild {
   if (root.transferEntry) throw new EsqRunBuildError(`${root.code} is entered by transfer. Run the tree that transfers into it.`);
   if (!treesInScope(esq, model).some((tree) => tree.id === root.id)) throw new EsqRunBuildError(`Step 01 leaves ${root.code} out of scope.`);
   const frequency = treeFrequency(esq, model, root);
-  if (frequency === undefined) throw new EsqRunBuildError(`${root.code} has no initiator frequency. Complete the Initiators tab of Step 02.`);
+  if (frequency === undefined) throw new EsqRunBuildError(treeFrequencyGap(esq, model, root));
   const initiatorParameters = referencedParameters(tables, frequency, `The initiator frequency of ${root.code}`);
 
   const trees = transferTreeIds(model, root.id).flatMap((id) => model.trees.filter((tree) => tree.id === id));

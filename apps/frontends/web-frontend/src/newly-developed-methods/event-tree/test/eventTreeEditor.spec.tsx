@@ -490,4 +490,30 @@ describe("EventTreeEditor", () => {
     renderEditor({ model: bypassedModel, representation: "table" });
     expect(screen.getByText("RT B")).toHaveClass("et-editor__path-step--bypassed");
   });
+
+  it("opens the host's initiating event inspector from the setup row and from the diagram", () => {
+    renderEditor({ initiatingEventInspector: { content: <p>Initiating event details</p>, editable: true } });
+    expect(screen.queryByText("Initiating event details")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Edit" }));
+    expect(screen.getByText("Initiating event details")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Close inspector" }));
+    expect(screen.queryByText("Initiating event details")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Initiating event IE-1" }));
+    expect(screen.getByText("Initiating event details")).toBeInTheDocument();
+  });
+
+  it("starts the first branch to the right of the initiating event", () => {
+    const { linkedModel } = classifiedTreeFixture();
+    const { container } = renderEditor({ model: linkedModel, representation: "event-tree", initiatingEventInspector: { content: <p>Initiating event details</p>, editable: true } });
+    const initiatorRight = Number.parseFloat(screen.getByRole("button", { name: "Initiating event IE-1" }).style.left);
+    const starts = Array.from(container.querySelectorAll<SVGLineElement>(".estree__seg")).map((line) => Number(line.getAttribute("x1")));
+    expect(starts.length).toBeGreaterThan(0);
+    expect(Math.min(...starts)).toBeGreaterThan(initiatorRight);
+  });
+
+  it("offers View for a read-only initiating event inspector", () => {
+    renderEditor({ initiatingEventInspector: { content: <p>Initiating event details</p>, editable: false } });
+    expect(screen.getByRole("button", { name: "View" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Edit" })).not.toBeInTheDocument();
+  });
 });

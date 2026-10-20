@@ -662,6 +662,12 @@ function createdValues(esq: EventSequenceQuantification): EsqCreatedValue[] {
     if (choice.source !== "TYPED" || choice.expression === undefined) continue;
     out.push({ key: `initiator:${choice.groupId}`, item: choice.groupId, expression: choice.expression, where: "Step 02 initiator frequency", source: choice.basis ?? "" });
   }
+  const ieWorkbookId = esq.linkedWorkbooks?.IE;
+  for (const record of esq.modelDecisions?.typedInitiators ?? []) {
+    if (record.heldBy === "DA" || record.frequency === undefined) continue;
+    if (ieWorkbookId !== undefined && record.synced?.workbookId === ieWorkbookId) continue;
+    out.push({ key: `initiator:${record.id}`, item: record.id, expression: record.frequency.expression, where: "Step 02 initiating event frequency", source: "" });
+  }
   for (const link of esq.modelDecisions?.functionLinks ?? []) {
     const targets = [
       { key: `split:${link.functionId}`, target: link.target },

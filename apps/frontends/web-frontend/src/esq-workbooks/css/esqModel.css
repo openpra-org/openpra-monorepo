@@ -6,6 +6,9 @@
 .esq-model-dialog { min-width: min(560px, calc(100vw - 104px)); }
 .esq-model-fields .posfield__select { width: auto; max-width: 100%; }
 .esq-model-fields .posfield__textarea { box-sizing: border-box; width: 100%; }
+.esq-link-pick { display: flex; flex-wrap: wrap; align-items: stretch; gap: 8px; min-width: 0; }
+.esq-link-pick .posfield__select { flex: 0 1 auto; min-width: 0; }
+.esq-link-pick .posnav__btn { flex: none; justify-content: center; }
 .esq-model-section { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
 .esq-model-items td { overflow-wrap: anywhere; }
 .esq-model-items .postable__name-sub { display: block; }

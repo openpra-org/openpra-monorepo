@@ -1,12 +1,13 @@
 import { AnalysisRunHistory } from "../newly-developed-methods/shared/analysisRunHistory";
 import { WorkbookSectionHeading } from "../workbooks/workbookSectionHeading";
-import { JSX, useEffect, useMemo, useRef, useState } from "react";
+import { JSX, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { ESQIcon } from "./esqIcons";
 import {
   ESQ_PERSONAS,
   CAPABILITY_CATEGORIES,
   type EsqPersona,
+  type EsqLinkRequest,
   type EsqStep,
   type Stage,
 } from "./esqViewData";
@@ -369,6 +370,9 @@ function EsqWorkbench({
   const [dockMobileOpen, setDockMobileOpen] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [windowCtx, setWindowCtx] = useState<EsqWindowContext | null>(null);
+  const [linkRequest, setLinkRequest] = useState<EsqLinkRequest | null>(null);
+  const [reopenLink, setReopenLink] = useState<EsqLinkRequest | null>(null);
+  const clearReopenLink = useCallback((): void => setReopenLink(null), []);
   const toastTimer = useRef<number | null>(null);
 
   useEffect(() => {
@@ -379,7 +383,18 @@ function EsqWorkbench({
 
   function setStepId(id: string): void {
     setStepIdState(id);
+    if (id !== "scope") setLinkRequest(null);
     if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "auto" });
+  }
+
+  function pickSy(request: EsqLinkRequest): void {
+    setLinkRequest(request);
+    setStepId("scope");
+  }
+
+  function backToModel(): void {
+    setReopenLink(linkRequest);
+    setStepId("model");
   }
 
   function flash(msg: string): void {
@@ -437,11 +452,11 @@ function EsqWorkbench({
       case "scope":
         return (
           <>
-            <EsqScopeScreen ccId={ccId} setCcId={setCcId} stage={stage} setStage={setStage} />
+            <EsqScopeScreen ccId={ccId} setCcId={setCcId} stage={stage} setStage={setStage} linkRequest={linkRequest} onBackToModel={backToModel} />
             {renderDocuments?.()}
           </>
         );
-      case "model": return <EsqModelTabs />;
+      case "model": return <EsqModelTabs onPickSy={pickSy} reopenLink={reopenLink} onReopened={clearReopenLink} />;
       case "solve": return <EsqSolveTabs initialNetworkId={requestedNetworkId} initialSourceWorkbookId={requestedSourceWorkbookId} />;
       case "logic": return <EsqLogicTabs />;
       case "barriers": return <EsqBarrierTabs />;

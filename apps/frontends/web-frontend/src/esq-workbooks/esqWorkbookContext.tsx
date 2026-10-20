@@ -2,12 +2,14 @@ import type { RevisionedSaveStatus } from "../workbooks/useRevisionedMefPatch";
 import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { type EsqLinkCode, type EventSequenceQuantification } from "interfaces-mef-types/esq/event-sequence-quantification";
 import { type Workbook } from "interfaces-shared-types";
+import { type SystemsAnalysis } from "interfaces-mef-types/sy/systems-analysis";
 import { type UncertainExpression, type UncertainParameter } from "interfaces-mef-types/core/uncertainty";
 import { syLinkRoots } from "../sy-workbooks/syLinks";
 import { useLinkedScSources } from "../sc-workbooks/scMissionTimeSources";
 import { type LinkRoot } from "../newly-developed-methods/shared/uncertaintyLinks";
 import { liveEsqOf, missionTimeSourcesOf, parameterTableOf } from "./esqModel";
 import { type EsqDaLink } from "./esqDaLinks";
+import { IE_SYNC_IDLE, type EsqIeSyncStatus } from "./esqIeSync";
 import {
   EMPTY_UPSTREAM,
   loadLinkedDa,
@@ -41,7 +43,11 @@ interface EsqWorkbookContextValue extends EsqWorkbookData {
   runtime: EsqWorkbookRuntime;
   mutateEsq: (mutator: EsqMutator) => void;
   upstream: EsqUpstream;
+  ieSync: EsqIeSyncStatus;
+  replaceLinkedSy: (workbookId: string, mef: SystemsAnalysis) => void;
 }
+
+const KEEP_LINKED_SY = (): void => undefined;
 
 const EsqWorkbookContext = createContext<EsqWorkbookContextValue | null>(null);
 
@@ -97,12 +103,14 @@ function useEsqUpstream(esq: EventSequenceQuantification | undefined, options: R
   return useMemo<EsqUpstream>(() => ({ options, es, sy, da, daRevision, hr, ie, pos, sc, ri, hs, scReferenced }), [options, es, sy, da, daRevision, hr, ie, pos, sc, ri, hs, scReferenced]);
 }
 
-function EsqWorkbookProvider({ data, editable, runtime, mutateEsq, upstream = EMPTY_UPSTREAM, children }: {
+function EsqWorkbookProvider({ data, editable, runtime, mutateEsq, upstream = EMPTY_UPSTREAM, ieSync = IE_SYNC_IDLE, replaceLinkedSy = KEEP_LINKED_SY, children }: {
   data: EsqWorkbookData;
   editable: boolean;
   runtime?: EsqWorkbookRuntime;
   mutateEsq: (mutator: EsqMutator) => void;
   upstream?: EsqUpstream;
+  ieSync?: EsqIeSyncStatus;
+  replaceLinkedSy?: (workbookId: string, mef: SystemsAnalysis) => void;
   children: React.ReactNode;
 }): JSX.Element {
   const value = useMemo<EsqWorkbookContextValue>(
@@ -113,8 +121,10 @@ function EsqWorkbookProvider({ data, editable, runtime, mutateEsq, upstream = EM
       runtime: runtime ?? { workbookId: null, projectId: null, revision: null, saveStatus: "saved" },
       mutateEsq,
       upstream,
+      ieSync,
+      replaceLinkedSy,
     }),
-    [data, editable, mutateEsq, runtime, upstream],
+    [data, editable, mutateEsq, runtime, upstream, ieSync, replaceLinkedSy],
   );
   return <EsqWorkbookContext.Provider value={value}>{children}</EsqWorkbookContext.Provider>;
 }

@@ -1,7 +1,7 @@
 import type { EsqInitiatorRecord, EsqTypedInitiator, EventSequenceQuantification } from "interfaces-mef-types/esq/event-sequence-quantification";
-import type { InitiatingEventGroup, InitiatingEventsAnalysis } from "interfaces-mef-types/ie/initiating-event-analysis";
+import type { InitiatingEventFrequencyQuantification, InitiatingEventGroup, InitiatingEventsAnalysis, InitiatorDefinition } from "interfaces-mef-types/ie/initiating-event-analysis";
 import { FrequencyUnit, type UncertainFrequency } from "interfaces-mef-types/core/events";
-import { initiatorFingerprint, planIeSync, withEsqInitiators, withSyncedInitiators } from "../esqIeSync";
+import { initiatorFingerprint, planIeSync, withEsqInitiators, withRenamedGroups, withSyncedInitiators } from "../esqIeSync";
 import { ieGroupRecord, withTypedTrees } from "../esqModel";
 import { EMPTY_UPSTREAM } from "../esqLinks";
 import { createEmptyEventTree } from "../../newly-developed-methods/event-tree";
@@ -34,7 +34,11 @@ function matching(): InitiatingEventGroup {
 }
 
 function ieOf(groups: InitiatingEventGroup[]): InitiatingEventsAnalysis {
-  return { initiatingEventGroups: groups, quantifications: [], linkedWorkbooks: {} } as InitiatingEventsAnalysis;
+  return { initiatingEventGroups: groups, initiators: [], quantifications: [], screeningRecords: [], linkedWorkbooks: {} } as InitiatingEventsAnalysis;
+}
+
+function quantification(initiatorOrGroupId: string): InitiatingEventFrequencyQuantification {
+  return { initiatorOrGroupId, frequency: FREQUENCY, basis: "GENERIC_DATA", plantCalendarYearBasis: false, posTimeFractionApplied: false, dataSourceJustification: "", recoveryActionsIncluded: false, implementsSrs: [] };
 }
 
 function only<T>(items: readonly T[]): T {
@@ -114,7 +118,7 @@ describe("ESQ initiating events written to the linked IE workbook", () => {
 
   it("does not bring back an IE group deleted after the last push", () => {
     const pushed: EsqTypedInitiator = { ...TYPED, synced: { workbookId: "ie-1", fingerprint: initiatorFingerprint(TYPED) } };
-    expect(planIeSync([pushed], ieOf([]), "ie-1")).toEqual({ push: [], updates: [] });
+    expect(planIeSync([pushed], ieOf([]), "ie-1")).toEqual({ push: [], updates: [], renames: [] });
   });
 
   it("marks a push as synced only when ESQ did not change while it ran", () => {
@@ -123,6 +127,29 @@ describe("ESQ initiating events written to the linked IE workbook", () => {
     expect(withSyncedInitiators(esqWith([TYPED]), [update]).modelDecisions?.typedInitiators).toEqual([{ ...TYPED, synced: { workbookId: "ie-1", fingerprint } }]);
     const changed = esqWith([{ ...TYPED, name: "Edited during the push" }]);
     expect(withSyncedInitiators(changed, [update])).toBe(changed);
+  });
+
+  it("renames the IE group and every IE entry that points at it when ESQ changes the code", () => {
+    const renamed: EsqTypedInitiator = { ...TYPED, id: "IEG-LOFC", synced: { workbookId: "ie-1", fingerprint: initiatorFingerprint(TYPED), groupId: "IEG-ESQ-01" } };
+    const ie: InitiatingEventsAnalysis = {
+      ...ieOf([{ ...matching(), groupingBasis: "Same mitigation.", memberInitiatorIds: ["IE-7"] }]),
+      initiators: [{ uuid: "IE-7", groupId: "IEG-ESQ-01" } as InitiatorDefinition],
+      quantifications: [quantification("IEG-ESQ-01")],
+      screeningRecords: [{ initiatorOrGroupId: "IEG-ESQ-01", retained: true, barrierIntegrityPreconditionMet: true, justification: "", implementsSrs: [] }],
+    };
+    const plan = planIeSync([renamed], ie, "ie-1");
+    expect(plan.renames).toEqual([{ from: "IEG-ESQ-01", to: "IEG-LOFC" }]);
+    expect(plan.push).toEqual([renamed]);
+    const next = withEsqInitiators(withRenamedGroups(ie, plan.renames), plan.push, undefined);
+    expect(only(next.initiatingEventGroups)).toMatchObject({ uuid: "IEG-LOFC", groupingBasis: "Same mitigation.", memberInitiatorIds: ["IE-7"] });
+    expect(next.initiators.map((initiator) => initiator.groupId)).toEqual(["IEG-LOFC"]);
+    expect(next.quantifications.map((entry) => entry.initiatorOrGroupId)).toEqual(["IEG-LOFC"]);
+    expect(next.screeningRecords.map((entry) => entry.initiatorOrGroupId)).toEqual(["IEG-LOFC"]);
+  });
+
+  it("does not rename onto a code the IE workbook already uses", () => {
+    const ie = ieOf([matching(), group({ uuid: "IEG-LOFC", name: "Loss of offsite power" })]);
+    expect(withRenamedGroups(ie, [{ from: "IEG-ESQ-01", to: "IEG-LOFC" }])).toBe(ie);
   });
 
   it("adopts an IE edit into the ESQ record and every model view of it", () => {

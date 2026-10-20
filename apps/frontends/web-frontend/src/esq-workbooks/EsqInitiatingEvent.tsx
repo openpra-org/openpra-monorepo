@@ -1,4 +1,4 @@
-import { JSX, useId } from "react";
+import { JSX, useId, useState } from "react";
 import { FrequencyUnit } from "interfaces-mef-types/core/events";
 import type { UncertainExpression } from "interfaces-mef-types/core/uncertainty";
 import { holdsEstimate } from "interfaces-mef-types/da/data-analysis";
@@ -8,7 +8,7 @@ import { applyEventTreeOperation } from "../newly-developed-methods/event-tree";
 import { ExpressionEditor, type ParameterOption } from "../newly-developed-methods/shared/uncertainEditor";
 import { expressionText } from "../newly-developed-methods/shared/uncertainText";
 import { WorkbookInput, WorkbookTextarea } from "../workbooks/commitOnDeactivateFields";
-import { initiatorRecordOf, linkOf, newTypedInitiator, nextTypedInitiatorCode, typedTreesOf, withTypedInitiator, withTypedInitiatorRecord, withTypedTrees } from "./esqModel";
+import { initiatorCodeLock, initiatorCodeTaken, initiatorRecordOf, linkOf, newTypedInitiator, nextTypedInitiatorCode, typedTreesOf, withInitiatorCode, withTypedInitiator, withTypedInitiatorRecord, withTypedTrees, type EsqInitiatorCodeLock } from "./esqModel";
 import { useEsqWorkbook } from "./esqWorkbookContext";
 import { FREQUENCY_UNIT_OPTIONS } from "./esqViewData";
 import "./css/esqInitiatingEvent.css";
@@ -34,6 +34,12 @@ function withoutHolder(record: EsqInitiatorRecord): EsqInitiatorRecord {
   return rest;
 }
 
+function lockText(lock: EsqInitiatorCodeLock | undefined): string | null {
+  if (lock === "IE") return "IE owns this code. Change it in the IE workbook.";
+  if (lock === "ES") return "ES trees start with this code. Change it in the ES workbook.";
+  return null;
+}
+
 function EsqInitiatingEventEditor({ tree, drawn, states, frequencyOptions, label }: {
   tree: EsqTreeRecord;
   drawn: boolean;
@@ -43,7 +49,11 @@ function EsqInitiatingEventEditor({ tree, drawn, states, frequencyOptions, label
 }): JSX.Element {
   const { esq, editable, mutateEsq, upstream, ieSync } = useEsqWorkbook();
   const fieldId = useId();
+  const [codeProblem, setCodeProblem] = useState<string | null>(null);
+  const [codeAttempt, setCodeAttempt] = useState(0);
   const id = tree.initiatorId;
+  const lock = initiatorCodeLock(esq, id);
+  const lockReason = lockText(lock);
   const record = initiatorRecordOf(esq, id);
   const source = sourceOf(record);
   const daParameters = (esq.model?.parameters ?? []).filter((parameter) => parameter.quantificationModel === "FREQUENCY" && holdsEstimate(parameter.quantificationModel));
@@ -69,6 +79,19 @@ function EsqInitiatingEventEditor({ tree, drawn, states, frequencyOptions, label
     save((current) => ({ ...current, heldBy: "DA", holderId: parameterId, frequency: { expression, basis: current.frequency?.basis ?? FrequencyUnit.PER_PLANT_YEAR } }));
   }
 
+  function rename(value: string): void {
+    const code = value.trim();
+    if (!editable || lock !== undefined || code === id) return;
+    if (code.length === 0 || initiatorCodeTaken(esq, code, id, upstream.ie)) {
+      setCodeProblem(code.length === 0 ? "Type a code." : `${code} is already used.`);
+      setCodeAttempt((count) => count + 1);
+      return;
+    }
+    setCodeProblem(null);
+    const now = new Date().toISOString();
+    mutateEsq((draft) => withInitiatorCode(draft, id, code, upstream, now));
+  }
+
   function toggleState(stateId: string, on: boolean): void {
     save((current) => ({ ...current, stateIds: on ? [...current.stateIds.filter((known) => known !== stateId), stateId] : current.stateIds.filter((known) => known !== stateId) }));
   }
@@ -87,6 +110,12 @@ function EsqInitiatingEventEditor({ tree, drawn, states, frequencyOptions, label
   return (
     <div className="esq-ie-editor">
       <span className="esq-ie-editor__eyebrow">Initiating event · {esqItemCode(id, record.name, "Unnamed")}</span>
+      <label className="esq-ie-editor__field" htmlFor={`${fieldId}-code`}>
+        <span>Code</span>
+        <WorkbookInput key={codeAttempt} id={`${fieldId}-code`} className="posfield__input posmono" value={id} disabled={!editable || lock !== undefined} onChange={(event) => rename(event.target.value)} />
+      </label>
+      {editable && lockReason !== null && <p className="esq-ie-editor__note">{lockReason}</p>}
+      {codeProblem !== null && <p className="esq-ie-editor__notice" role="alert">{codeProblem}</p>}
       <label className="esq-ie-editor__field" htmlFor={`${fieldId}-name`}>
         <span>Name</span>
         <WorkbookInput id={`${fieldId}-name`} className="posfield__input" value={record.name} disabled={!editable} onChange={(event) => {

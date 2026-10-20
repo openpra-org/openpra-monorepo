@@ -301,10 +301,12 @@ export interface EsqInitiatorRecord {
 export interface EsqIeSync {
   workbookId: string;
   fingerprint: string;
+  groupId?: string;
 }
 
 export interface EsqTypedInitiator extends EsqInitiatorRecord {
   synced?: EsqIeSync;
+  ieOwned?: boolean;
 }
 
 export interface EsqStateRecord {

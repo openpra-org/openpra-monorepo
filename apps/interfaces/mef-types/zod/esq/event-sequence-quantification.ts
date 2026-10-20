@@ -246,7 +246,8 @@ export const EsqInitiatorRecordSchema = z.object({
 });
 
 export const EsqTypedInitiatorSchema = EsqInitiatorRecordSchema.extend({
-  synced: z.object({ workbookId: z.string(), fingerprint: z.string() }).optional(),
+  synced: z.object({ workbookId: z.string(), fingerprint: z.string(), groupId: z.string().optional() }).optional(),
+  ieOwned: z.boolean().optional(),
 });
 
 export const EsqStateRecordSchema = z.object({

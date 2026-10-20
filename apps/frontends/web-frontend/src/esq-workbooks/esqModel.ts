@@ -126,6 +126,8 @@ type EsqModelWindowKind = "esqSequence" | "esqTree" | "esqFamily" | "esqFunction
 
 type EsqFindingSeverity = "error" | "warning" | "note";
 
+type EsqInitiatorCodeLock = "IE" | "ES";
+
 interface EsqModelFinding {
   severity: EsqFindingSeverity;
   check: string;
@@ -1036,7 +1038,7 @@ function typedInitiatorsOf(esq: EventSequenceQuantification): EsqTypedInitiator[
 
 function withMergedInitiators(model: EsqModel, esq: EventSequenceQuantification): EsqModel {
   const typed = typedInitiatorsOf(esq).map((entry): EsqInitiatorRecord => {
-    const { synced: _synced, ...record } = entry;
+    const { synced: _synced, ieOwned: _ieOwned, ...record } = entry;
     return { ...record, typed: true };
   });
   const imported = model.initiators.filter((record) => record.typed !== true && !typed.some((entry) => sameItem(entry.id, record.id)));
@@ -1058,7 +1060,9 @@ function withTypedInitiatorRecord(esq: EventSequenceQuantification, record: EsqI
   return withDecisions(esq, (decisions) => {
     const current = decisions.typedInitiators ?? [];
     const known = current.find((entry) => sameItem(entry.id, record.id));
-    const next: EsqTypedInitiator = known?.synced === undefined ? fields : { ...fields, synced: known.synced };
+    const ieOwned = known === undefined ? esq.model?.initiators.some((entry) => entry.typed !== true && sameItem(entry.id, record.id)) === true : known.ieOwned === true;
+    const owned: EsqTypedInitiator = ieOwned ? { ...fields, ieOwned: true } : fields;
+    const next: EsqTypedInitiator = known?.synced === undefined ? owned : { ...owned, synced: known.synced };
     const choices = (decisions.initiatorChoices ?? []).flatMap((choice): EsqInitiatorChoice[] => {
       if (!sameItem(choice.groupId, record.id) || choice.source === "IE") return [choice];
       return choice.shares === undefined || choice.shares.length === 0 ? [] : [{ groupId: choice.groupId, source: "IE", shares: choice.shares }];
@@ -1079,15 +1083,82 @@ function newTypedInitiator(id: string, stateId: string | undefined): EsqInitiato
   return { id, name: NEW_INITIATOR_NAME, stateIds: stateId === undefined ? [] : [stateId] };
 }
 
-function nextTypedInitiatorCode(esq: EventSequenceQuantification, ie?: InitiatingEventsAnalysis): string {
-  const taken = new Set([
+function initiatorCodesOf(esq: EventSequenceQuantification, ie?: InitiatingEventsAnalysis): string[] {
+  return [
     ...(esq.model?.initiators ?? []).map((record) => record.id),
     ...typedInitiatorsOf(esq).map((record) => record.id),
     ...(esq.model?.trees ?? []).map((tree) => tree.initiatorId),
     ...typedTreesOf(esq).map((tree) => tree.initiatingEventId),
     ...esq.modelIntegration.scopeCoverage.initiatingEventGroups,
+    ...(esq.modelIntegration.scopeExclusions ?? []).flatMap((exclusion) => (exclusion.aspect === "INITIATOR_GROUP" ? [exclusion.item] : [])),
     ...(ie?.initiatingEventGroups ?? []).map((group) => group.uuid),
-  ].map((id) => id.trim().toLowerCase()));
+  ];
+}
+
+function initiatorCodeTaken(esq: EventSequenceQuantification, code: string, current: string, ie?: InitiatingEventsAnalysis): boolean {
+  return initiatorCodesOf(esq, ie).some((id) => sameItem(id, code) && !sameItem(id, current));
+}
+
+function initiatorCodeLock(esq: EventSequenceQuantification, id: string): EsqInitiatorCodeLock | undefined {
+  const typed = typedInitiatorsOf(esq).find((entry) => sameItem(entry.id, id));
+  const imported = esq.model?.initiators.some((record) => record.typed !== true && sameItem(record.id, id)) === true;
+  if (typed?.ieOwned === true || (typed === undefined && imported)) return "IE";
+  if ((esq.model?.trees ?? []).some((tree) => tree.typed !== true && !tree.transferEntry && sameItem(tree.initiatorId, id))) return "ES";
+  return undefined;
+}
+
+function renamedIds(ids: readonly string[], from: string, to: string): string[] {
+  return ids.map((id) => (sameItem(id, from) ? to : id));
+}
+
+function withInitiatorCode(esq: EventSequenceQuantification, from: string, to: string, upstream: EsqUpstream, now: string): EventSequenceQuantification {
+  const code = to.trim();
+  if (code.length === 0 || code === from) return esq;
+  const ieWorkbookId = linkOf(esq, "IE");
+  const owned = typedInitiatorsOf(esq).some((entry) => sameItem(entry.id, from)) ? esq : withTypedInitiatorRecord(esq, initiatorRecordOf(esq, from));
+  const decisions = owned.modelDecisions ?? {};
+  const typedInitiators = typedInitiatorsOf(owned).map((entry): EsqTypedInitiator => {
+    if (!sameItem(entry.id, from)) return entry;
+    const synced = entry.synced === undefined || entry.synced.workbookId !== ieWorkbookId ? entry.synced : { ...entry.synced, groupId: entry.synced.groupId ?? entry.id };
+    const renamed: EsqTypedInitiator = { ...entry, id: code, name: sameItem(entry.name, from) ? code : entry.name };
+    return synced === undefined ? renamed : { ...renamed, synced };
+  });
+  const integration = owned.modelIntegration;
+  const exclusions = integration.scopeExclusions;
+  const logic = owned.logic;
+  const post = owned.postWork;
+  const review = owned.review;
+  const model = owned.model;
+  const next: EventSequenceQuantification = {
+    ...owned,
+    modelDecisions: {
+      ...decisions,
+      typedInitiators,
+      ...(decisions.typedTrees === undefined ? {} : { typedTrees: decisions.typedTrees.map((tree) => (sameItem(tree.initiatingEventId, from) ? { ...tree, initiatingEventId: code } : tree)) }),
+      ...(decisions.initiatorChoices === undefined ? {} : { initiatorChoices: decisions.initiatorChoices.map((choice) => (sameItem(choice.groupId, from) ? { ...choice, groupId: code } : choice)) }),
+      ...(decisions.functionLinks === undefined ? {} : { functionLinks: decisions.functionLinks.map((link) => (link.rules === undefined ? link : { ...link, rules: link.rules.map((rule) => ({ ...rule, groupIds: renamedIds(rule.groupIds, from, code) })) })) }),
+    },
+    modelIntegration: {
+      ...integration,
+      scopeCoverage: { ...integration.scopeCoverage, initiatingEventGroups: renamedIds(integration.scopeCoverage.initiatingEventGroups, from, code) },
+      ...(exclusions === undefined ? {} : { scopeExclusions: exclusions.map((exclusion) => (exclusion.aspect === "INITIATOR_GROUP" && sameItem(exclusion.item, from) ? { ...exclusion, item: code } : exclusion)) }),
+    },
+    ...(logic?.flags === undefined ? {} : { logic: { ...logic, flags: logic.flags.map((flag) => ({ ...flag, groupIds: renamedIds(flag.groupIds, from, code) })) } }),
+    ...(post === undefined ? {} : {
+      postWork: {
+        ...post,
+        ...(post.recoveries === undefined ? {} : { recoveries: post.recoveries.map((rule) => ({ ...rule, groupIds: renamedIds(rule.groupIds, from, code) })) }),
+        ...(post.combinations === undefined ? {} : { combinations: post.combinations.map((combination) => ({ ...combination, groupIds: renamedIds(combination.groupIds, from, code) })) }),
+      },
+    }),
+    ...(review?.screened === undefined ? {} : { review: { ...review, screened: review.screened.map((bound) => (sameItem(bound.groupId, from) ? { ...bound, groupId: code } : bound)) } }),
+    ...(model === undefined ? {} : { model: { ...model, initiators: model.initiators.filter((record) => record.typed === true || !sameItem(record.id, from)) } }),
+  };
+  return withTypedModel(next, upstream, now);
+}
+
+function nextTypedInitiatorCode(esq: EventSequenceQuantification, ie?: InitiatingEventsAnalysis): string {
+  const taken = new Set(initiatorCodesOf(esq, ie).map((id) => id.trim().toLowerCase()));
   let n = 1;
   while (taken.has(`ieg-esq-${String(n).padStart(2, "0")}`)) n += 1;
   return `IEG-ESQ-${String(n).padStart(2, "0")}`;
@@ -2118,6 +2189,9 @@ export {
   withTypedInitiator,
   newTypedInitiator,
   nextTypedInitiatorCode,
+  initiatorCodeTaken,
+  initiatorCodeLock,
+  withInitiatorCode,
   initiatorRecordOf,
   linkOf,
   effectiveMissionTime,
@@ -2140,6 +2214,7 @@ export {
   type EsqSequenceView,
   type EsqFamilyView,
   type EsqFunctionView,
+  type EsqInitiatorCodeLock,
   type EsqInitiatorView,
   type EsqInitiatorStateView,
   type EsqValueView,

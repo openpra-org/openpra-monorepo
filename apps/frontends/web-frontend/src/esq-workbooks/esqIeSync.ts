@@ -20,9 +20,15 @@ interface EsqInitiatorSyncUpdate {
   record?: EsqInitiatorRecord;
 }
 
+interface EsqGroupRename {
+  from: string;
+  to: string;
+}
+
 interface EsqIeSyncPlan {
   push: EsqTypedInitiator[];
   updates: EsqInitiatorSyncUpdate[];
+  renames: EsqGroupRename[];
 }
 
 type EsqMutate = (mutator: (esq: EventSequenceQuantification) => EventSequenceQuantification) => void;
@@ -97,15 +103,37 @@ function withEsqInitiators(ie: InitiatingEventsAnalysis, records: readonly EsqIn
   return { ...ie, initiatingEventGroups: groups, quantifications, ...(needsDa ? { linkedWorkbooks: { ...ie.linkedWorkbooks, DA: daWorkbookId } } : {}) };
 }
 
+function withRenamedGroups(ie: InitiatingEventsAnalysis, renames: readonly EsqGroupRename[]): InitiatingEventsAnalysis {
+  const held = (id: string): boolean => ie.initiatingEventGroups.some((group) => group.uuid === id);
+  const applicable = renames.filter((rename) => held(rename.from) && !held(rename.to));
+  if (applicable.length === 0) return ie;
+  const renamed = (id: string): string => applicable.find((rename) => rename.from === id)?.to ?? id;
+  return {
+    ...ie,
+    initiatingEventGroups: ie.initiatingEventGroups.map((group) => (renamed(group.uuid) === group.uuid ? group : { ...group, uuid: renamed(group.uuid) })),
+    initiators: ie.initiators.map((initiator) => (initiator.groupId === undefined || renamed(initiator.groupId) === initiator.groupId ? initiator : { ...initiator, groupId: renamed(initiator.groupId) })),
+    quantifications: ie.quantifications.map((entry) => (renamed(entry.initiatorOrGroupId) === entry.initiatorOrGroupId ? entry : { ...entry, initiatorOrGroupId: renamed(entry.initiatorOrGroupId) })),
+    screeningRecords: ie.screeningRecords.map((entry) => (renamed(entry.initiatorOrGroupId) === entry.initiatorOrGroupId ? entry : { ...entry, initiatorOrGroupId: renamed(entry.initiatorOrGroupId) })),
+  };
+}
+
 function planIeSync(typed: readonly EsqTypedInitiator[], ie: InitiatingEventsAnalysis, workbookId: string): EsqIeSyncPlan {
   const push: EsqTypedInitiator[] = [];
   const updates: EsqInitiatorSyncUpdate[] = [];
+  const renames: EsqGroupRename[] = [];
+  const holds = (id: string): boolean => ie.initiatingEventGroups.some((group) => group.uuid === id);
   for (const entry of typed) {
     const expected = initiatorFingerprint(entry);
+    const pushedHere = entry.synced?.workbookId === workbookId;
+    const from = pushedHere ? entry.synced?.groupId : undefined;
+    if (from !== undefined && from !== entry.id && holds(from) && !holds(entry.id)) {
+      renames.push({ from, to: entry.id });
+      push.push(entry);
+      continue;
+    }
     const group = ie.initiatingEventGroups.find((candidate) => candidate.uuid === entry.id);
     const held = group === undefined ? undefined : ieGroupRecord(group);
     const heldPrint = held === undefined ? undefined : initiatorFingerprint(held);
-    const pushedHere = entry.synced?.workbookId === workbookId;
     if (heldPrint === expected) {
       if (!pushedHere || entry.synced?.fingerprint !== expected) updates.push({ id: entry.id, expected, synced: { workbookId, fingerprint: expected } });
       continue;
@@ -116,7 +144,7 @@ function planIeSync(typed: readonly EsqTypedInitiator[], ie: InitiatingEventsAna
     }
     push.push(entry);
   }
-  return { push, updates };
+  return { push, updates, renames };
 }
 
 function withSyncedInitiators(esq: EventSequenceQuantification, updates: readonly EsqInitiatorSyncUpdate[]): EventSequenceQuantification {
@@ -133,7 +161,7 @@ function withSyncedInitiators(esq: EventSequenceQuantification, updates: readonl
     if (update === undefined) return entry;
     if (update.record === undefined) return { ...entry, synced: update.synced };
     const { typed: _typed, ...fields } = update.record;
-    return { ...fields, synced: update.synced };
+    return { ...fields, ...(entry.ieOwned === true ? { ieOwned: true } : {}), synced: update.synced };
   });
   const next: EventSequenceQuantification = { ...esq, modelDecisions: { ...(esq.modelDecisions ?? {}), typedInitiators } };
   const model = next.model;
@@ -181,7 +209,7 @@ function useEsqIeSync(esq: EventSequenceQuantification | undefined, ie: Initiati
       return { id: entry.id, expected: fingerprint, synced: { workbookId, fingerprint } };
     });
     getIeWorkbook(workbookId)
-      .then((fresh) => patchIeWorkbook(workbookId, fresh.mef, withEsqInitiators(fresh.mef, plan.push, daWorkbookId)))
+      .then((fresh) => patchIeWorkbook(workbookId, fresh.mef, withEsqInitiators(withRenamedGroups(fresh.mef, plan.renames), plan.push, daWorkbookId)))
       .then((response) => {
         setLatest({ workbookId, mef: response.mef });
         mutateEsq((draft) => withSyncedInitiators(draft, pushed));
@@ -206,6 +234,7 @@ export {
   IE_SYNC_IDLE,
   initiatorFingerprint,
   withEsqInitiators,
+  withRenamedGroups,
   planIeSync,
   withSyncedInitiators,
   ieWritable,
@@ -213,5 +242,6 @@ export {
   type EsqIeSyncState,
   type EsqIeSyncStatus,
   type EsqInitiatorSyncUpdate,
+  type EsqGroupRename,
   type EsqIeSyncPlan,
 };

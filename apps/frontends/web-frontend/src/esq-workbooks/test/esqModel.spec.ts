@@ -5,6 +5,8 @@ import { FrequencyUnit, type UncertainFrequency } from "interfaces-mef-types/cor
 import type { InitiatingEventsAnalysis } from "interfaces-mef-types/ie/initiating-event-analysis";
 import { treeFrequency } from "interfaces-mef-types/esq/esq-run-inputs";
 import {
+  initiatorCodeLock,
+  initiatorCodeTaken,
   initiatorRecordOf,
   modelComplete,
   modelViewOf,
@@ -13,10 +15,12 @@ import {
   withFamilyChoice,
   withFunctionLink,
   withInitiatorChoice,
+  withInitiatorCode,
   withModelImported,
   withSequenceChoice,
   withTreeMissionTime,
   withTypedInitiator,
+  withTypedInitiatorRecord,
   withTypedTrees,
   withValueBinding,
 } from "../esqModel";
@@ -414,6 +418,42 @@ describe("ESQ Step 02 initiating events typed in ESQ", () => {
   it("words the checks of an ESQ initiating event without naming IE", () => {
     const detail = modelViewOf(typedHere(["POS-01", "POS-02"]))?.findings.find((finding) => finding.check === "State without a tree")?.detail;
     expect(detail).toBe("IEG-ESQ-01 applies to POS-02, but no tree starts with it there.");
+  });
+
+  it("renames an initiating event code everywhere ESQ uses it and marks the IE group for renaming", () => {
+    let esq = withInitiatorChoice(typedHere(["POS-01"]), "IEG-ESQ-01", { groupId: "IEG-ESQ-01", source: "IE", shares: [{ stateId: "POS-01", percent: 100 }] });
+    esq = {
+      ...esq,
+      modelIntegration: { ...esq.modelIntegration, scopeCoverage: { ...esq.modelIntegration.scopeCoverage, initiatingEventGroups: ["IEG-ESQ-01"] } },
+      logic: { flags: [{ id: "FL-1", name: "Long outage", state: true, groupIds: ["IEG-ESQ-01"], stateIds: [], basis: "" }] },
+      modelDecisions: { ...esq.modelDecisions, typedInitiators: (esq.modelDecisions?.typedInitiators ?? []).map((entry) => ({ ...entry, synced: { workbookId: "ie-1", fingerprint: "pushed" } })) },
+    };
+    const renamed = withInitiatorCode(esq, "IEG-ESQ-01", "IEG-LOFC", EMPTY_UPSTREAM, NOW);
+    expect(renamed.modelDecisions?.typedTrees?.map((tree) => tree.initiatingEventId)).toEqual(["IEG-LOFC"]);
+    expect(renamed.model?.trees.find((tree) => tree.code === "ET-ESQ-01")?.initiatorId).toBe("IEG-LOFC");
+    expect(renamed.model?.initiators.map((record) => record.id)).toEqual(["IEG-LOFC"]);
+    expect(renamed.modelDecisions?.initiatorChoices).toEqual([{ groupId: "IEG-LOFC", source: "IE", shares: [{ stateId: "POS-01", percent: 100 }] }]);
+    expect(renamed.modelIntegration.scopeCoverage.initiatingEventGroups).toEqual(["IEG-LOFC"]);
+    expect(renamed.logic?.flags?.[0]?.groupIds).toEqual(["IEG-LOFC"]);
+    expect(renamed.modelDecisions?.typedInitiators?.[0]).toMatchObject({ id: "IEG-LOFC", name: "Loss of forced cooling", synced: { workbookId: "ie-1", fingerprint: "pushed", groupId: "IEG-ESQ-01" } });
+  });
+
+  it("moves a name that was only the code along with the code", () => {
+    const esq = withTypedTrees(linkedEsq(), [{ ...createEmptyEventTree("IE-1"), label: "ET-ESQ-01" }], EMPTY_UPSTREAM, NOW);
+    const renamed = withInitiatorCode(esq, "IE-1", "LOFC", EMPTY_UPSTREAM, NOW);
+    expect(renamed.modelDecisions?.typedInitiators).toEqual([expect.objectContaining({ id: "LOFC", name: "LOFC" })]);
+    expect(renamed.model?.trees.find((tree) => tree.code === "ET-ESQ-01")?.initiatorId).toBe("LOFC");
+  });
+
+  it("refuses a code in use and locks codes that IE or ES own", () => {
+    const esq = typedHere();
+    expect(initiatorCodeTaken(esq, "ieg-esq-01", "IE-9")).toBe(true);
+    expect(initiatorCodeTaken(esq, "IEG-LOFC", "IEG-ESQ-01")).toBe(false);
+    expect(initiatorCodeLock(esq, "IEG-ESQ-01")).toBeUndefined();
+    const fromIe = imported();
+    expect(initiatorCodeLock(fromIe, "IEG-01")).toBe("IE");
+    expect(withTypedInitiatorRecord(fromIe, initiatorRecordOf(fromIe, "IEG-01")).modelDecisions?.typedInitiators?.[0]?.ieOwned).toBe(true);
+    expect(initiatorCodeLock(liveImport(linkedEsq(), { ...modelUpstream(), ie: undefined }, NOW), "IEG-01")).toBe("ES");
   });
 
   it("lists the typed frequency as a value made in ESQ until the IE workbook holds it", () => {

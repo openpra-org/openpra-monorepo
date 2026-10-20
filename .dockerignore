@@ -4,6 +4,7 @@ node_modules
 **/node_modules
 **/node_modules/**
 .env
+**/.env
 .nx
 build
 **/build
@@ -68,4 +69,18 @@ idea.properties
 *.iml
 
 # Large fixture files (uncomment if not needed)
-fixtures/models/
+fixtures
+
+.claude
+.codex
+HCL_MH
+output
+outputs
+docker-context
+resources
+plans
+registry
+traefik
+apps/solvers/ftrex
+apps/solvers/zebra
+apps/solvers/saphsolve

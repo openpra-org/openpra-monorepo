@@ -6,9 +6,22 @@ Welcome to the OpenPRA monorepo. This is the unified codebase for the OpenPRA Ap
 
 This README is a complete deployment guide:
 
-1. [Local development](#5-run-the-app-locally-development-mode). Infrastructure in Docker, apps running natively with hot reload.
-2. [Docker](#6-docker-deployment). The production container images, built and run on one machine.
+1. [Docker](#6-docker-deployment). The whole app on one machine, built from source with one command.
+2. [Local development](#5-run-the-app-locally-development-mode). Infrastructure in Docker, apps running natively with hot reload.
 3. [Cluster](#7-cluster-deployment-docker-swarm). Docker Swarm behind Traefik, driven by GitHub Actions.
+4. [Offline](#8-offline-deployment-air-gapped-machines). A self-contained bundle for machines with no internet access.
+
+## Quick start
+
+You need Git with [Git LFS](https://git-lfs.com/) activated (`git lfs install`) and Docker with at least 8 GB of memory. Then run:
+
+```bash
+git clone https://github.com/openpra-org/openpra-monorepo.git
+cd openpra-monorepo
+docker compose -f deploy/compose.yml up -d --build
+```
+
+The first build takes a while. Then open http://localhost:8080 and register an account. [Section 6](#6-docker-deployment) covers settings, updates and stopping the stack.
 
 ## Repository layout
 
@@ -35,10 +48,10 @@ All maintained projects live under `apps/`.
 | web-frontend (dev server) | 4201        | Proxies `/api` to the backend                    |
 | web-backend               | 8000        | All routes under the `/api` prefix               |
 | praetor manager           | 3000        | Swagger UI at `/q/docs`                          |
-| MongoDB                   | 27017       | No auth in local dev                             |
+| MongoDB                   | 27017       | No auth, localhost only                          |
 | RabbitMQ                  | 5672, 15672 | Management UI on 15672, login `guest`/`guest`    |
 | MinIO                     | 9000, 9001  | Console on 9001, login `minioadmin`/`minioadmin` |
-| Full-Docker frontend      | 8080        | Only in the Docker deployment mode               |
+| Docker frontend           | 8080        | Docker mode. Serves the app and proxies `/api`   |
 
 ---
 
@@ -207,60 +220,21 @@ A GitHub OAuth app holds a single callback URL. Create one app per environment (
 
 Make sure the Docker engine is actually running first. On macOS and Windows that means Docker Desktop is open. `docker compose version` succeeds even when the engine is down, so verify with `docker info` instead. If the engine is down you will see a `cannot connect to the Docker API` or npipe error on the next command.
 
-`docker-compose.infra.yml` is gitignored, just like the backend `.env`, so a fresh clone does not contain it. Create it at the repo root with this content:
-
-```yaml
-services:
-  mongodb:
-    image: mongo:latest
-    restart: unless-stopped
-    ports:
-      - "27017:27017"
-    volumes:
-      - mongo_data:/data/db
-
-  rabbitmq:
-    image: rabbitmq:management-alpine
-    restart: unless-stopped
-    ports:
-      - "5672:5672"
-      - "15672:15672"
-    volumes:
-      - rabbitmq_data:/var/lib/rabbitmq
-      - ./docker/configs/rabbitmq/enabled_plugins:/etc/rabbitmq/enabled_plugins
-
-  minio:
-    image: quay.io/minio/minio
-    restart: unless-stopped
-    ports:
-      - "9000:9000"
-      - "9001:9001"
-    environment:
-      MINIO_ROOT_USER: minioadmin
-      MINIO_ROOT_PASSWORD: minioadmin
-    volumes:
-      - minio_data:/data
-    command: server /data --console-address ":9001"
-
-volumes:
-  mongo_data:
-  rabbitmq_data:
-  minio_data:
-```
-
-Then start the stack:
+The tracked file `deploy/compose.yml` holds every service. Development needs only three of them:
 
 ```bash
-docker compose -f docker-compose.infra.yml up -d
+docker compose -f deploy/compose.yml up -d mongodb rabbitmq minio
 ```
 
-This starts MongoDB (27017), RabbitMQ (5672 and 15672), and MinIO (9000 and 9001) with persistent volumes. Verify:
+This starts MongoDB on 27017, RabbitMQ on 5672 and 15672, and MinIO on 9000 and 9001. They listen on localhost only, and their data lives in Docker volumes. Verify:
 
 ```bash
-docker compose -f docker-compose.infra.yml ps
+docker compose -f deploy/compose.yml ps
 ```
 
-All three should be `running`. The MinIO console is at http://localhost:9001 and the RabbitMQ UI at http://localhost:15672.
+All three should show `healthy` within a minute. The MinIO console is at http://localhost:9001 and the RabbitMQ UI at http://localhost:15672. Stop them with `docker compose -f deploy/compose.yml stop`.
+
+MinIO no longer publishes public images, so the `minio` service runs Silo, a maintained fork of MinIO. Silo takes the same environment variables, command, ports and console, and it reads the same data format.
 
 ### 5.2 Start the backend
 
@@ -293,72 +267,68 @@ The manager listens on port 3000 with Swagger at http://localhost:3000/q/docs. B
 
 ## 6. Docker deployment
 
-This mode builds and runs the same production images that CI ships. Stop the dev infrastructure first so ports do not clash:
+This mode runs the whole app on one machine from `deploy/compose.yml`: the frontend, the backend, PRAETOR with its workers, MongoDB, RabbitMQ and MinIO. Docker builds the frontend, backend and PRAETOR images from your checkout, so the machine needs only Git with Git LFS and Docker. Node.js, pnpm and the submodules are not needed. The other images are pinned in the same file.
+
+Give Docker at least 8 GB of memory. On macOS that is Docker Desktop's Settings, Resources. On Windows with the WSL 2 backend, set `memory` under `[wsl2]` in `%UserProfile%\.wslconfig`, then run `wsl --shutdown`. The first build takes a while, because PRAETOR compiles its C++ and Rust solvers. Later builds reuse the cache. On Apple Silicon, PRAETOR builds and runs as `linux/amd64` under emulation, which is slower still.
+
+### 6.1 Run the stack
+
+From the repo root:
 
 ```bash
-docker compose -f docker-compose.infra.yml down
+docker compose -f deploy/compose.yml up -d --build
 ```
 
-### 6.1 Build the images
-
-The steps below mirror `.github/workflows/cd-apps.yml`. Run them in bash from the repo root. On Windows use Git Bash or WSL.
+Open http://localhost:8080 and register an account. Check the services with:
 
 ```bash
-pnpm nx build backends-web-backend --configuration=production
-pnpm nx build frontends-web-frontend --configuration=production
-
-mkdir -p docker-context/web-backend
-cp dist/apps/backends/web-backend/main.js docker-context/web-backend/main.js
-cp apps/backends/web-backend/package.json docker-context/web-backend/package.json
-node -e '
-  const fs = require("fs");
-  const path = "docker-context/web-backend/package.json";
-  const pkg = JSON.parse(fs.readFileSync(path, "utf8"));
-  for (const key of ["dependencies", "devDependencies"]) {
-    if (!pkg[key]) continue;
-    for (const [name, version] of Object.entries({ ...pkg[key] })) {
-      if (typeof version === "string" && version.startsWith("workspace:")) delete pkg[key][name];
-    }
-  }
-  delete pkg.devDependencies;
-  fs.writeFileSync(path, JSON.stringify(pkg, null, 2));
-'
-cp deploy/web/backend.Dockerfile docker-context/web-backend/Dockerfile
-docker build -t openpra-apps-web-backend:local docker-context/web-backend
-
-mkdir -p docker-context/web-frontend/html
-cp -r dist/apps/frontends/web-frontend/* docker-context/web-frontend/html/
-cp deploy/web/nginx.conf docker-context/web-frontend/nginx.conf
-cp deploy/web/frontend.Dockerfile docker-context/web-frontend/Dockerfile
-docker build -t openpra-apps-web-frontend:local docker-context/web-frontend
+docker compose -f deploy/compose.yml ps
 ```
 
-### 6.2 Run the full stack
+Every service should be `Up`, and MongoDB, RabbitMQ and MinIO should be `healthy`. One PRAETOR worker runs the quantification jobs, one job at a time. To run more jobs at once, set `PRAETOR_WORKERS` to the number of workers you want, for example `PRAETOR_WORKERS=3` in `deploy/.env` (section 6.2). Then run the command above again. Each worker needs its own memory for the models it solves. If the development infrastructure from section 5.1 is running, this command reuses its containers and data. Stop a natively running praetor first, because the Docker manager also takes port 3000.
+
+### 6.2 Settings
+
+Every setting has a local default in `deploy/compose.yml`. To change one, set it in your shell or in `deploy/.env`. Compose reads that file automatically, and git ignores it. Shell values win over the file. For example, `deploy/.env` could hold:
 
 ```bash
-docker compose -f docker/docker-compose.apps.yml up -d
+JWT_SECRET=<generated>
+TFA_ENC_KEY=<generated>
 ```
 
-Open http://localhost:8080. The compose file wires the frontend nginx to proxy `/api` to the backend, plus MongoDB and MinIO. Secrets default to local-only placeholders. Override them through the shell environment when needed, for example:
+Generate each value with `openssl rand -hex 48` or the command in section 4.3.
 
-```bash
-JWT_SECRET=$(node -e "console.log(require('crypto').randomBytes(48).toString('hex'))") \
-docker compose -f docker/docker-compose.apps.yml up -d
-```
+| Variable                                       | Default                 | Purpose                                                                   |
+| ---------------------------------------------- | ----------------------- | ------------------------------------------------------------------------- |
+| `JWT_SECRET`, `TFA_ENC_KEY`                    | Local-only placeholders | Set both before anyone else uses the instance                             |
+| `OPENPRA_HOST`                                 | `localhost`             | Host name that browsers use to reach the app                              |
+| `OPENPRA_PORT`                                 | `8080`                  | Port of the frontend                                                      |
+| `OPENPRA_BIND`                                 | `127.0.0.1`             | Address the frontend and MinIO listen on. `0.0.0.0` serves other machines |
+| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`     | Empty                   | Google login (section 4.5)                                                |
+| `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`     | Empty                   | GitHub login (section 4.6)                                                |
+| `RESEND_API_KEY`, `MAIL_FROM`                  | Placeholders            | Password reset email (section 4.4)                                        |
+| `PRAETOR_WORKERS`                              | `1`                     | Number of PRAETOR workers. Raise it to run more jobs at once              |
+| `IMAGE_MONGO`, `IMAGE_RABBITMQ`, `IMAGE_MINIO` | Pinned versions         | The other images, for example from your own registry                      |
 
-For OAuth in this mode the callback base is `http://localhost:8080/api`, so the OAuth apps need `http://localhost:8080/api/auth/oauth/<provider>/callback` as an additional redirect URI.
+To serve other machines, set `OPENPRA_BIND=0.0.0.0` and set `OPENPRA_HOST` to this machine's address. Then run the command from section 6.1 again. Browsers need ports 8080 and 9000, because MinIO serves avatars and covers directly.
 
-Tear down with `docker compose -f docker/docker-compose.apps.yml down`.
+For OAuth in this mode the callback base is `http://<OPENPRA_HOST>:<OPENPRA_PORT>/api`. With the defaults, the OAuth apps need `http://localhost:8080/api/auth/oauth/<provider>/callback` as an additional redirect URI.
 
 ### 6.3 Praetor in Docker
 
-Praetor has a self-contained stack that builds the image (including the SCRAM native addon) and starts RabbitMQ and MinIO alongside it:
+To run only PRAETOR in Docker, for example next to a natively running backend from section 5, start its two services. Compose starts RabbitMQ and MinIO with them.
 
 ```bash
-docker compose -f deploy/microservices/praetor/docker-compose.yml up --build -d
+docker compose -f deploy/compose.yml up -d --build praetor-manager praetor-engine
 ```
 
-The build takes a while on the first run because it compiles the C++ addon. The manager is at http://localhost:3000/q/docs. Stop other stacks first to free the RabbitMQ and MinIO ports.
+The manager is at http://localhost:3000/q/docs.
+
+### 6.4 Update and stop
+
+After `git pull`, run the command from section 6.1 again. Compose rebuilds what changed and restarts those services.
+
+`docker compose -f deploy/compose.yml down` stops and removes the containers and keeps the data. Add `-v` to delete the data volumes as well.
 
 ## 7. Cluster deployment (Docker Swarm)
 
@@ -414,7 +384,7 @@ export HOST_URL=app.example.org
 export IMAGE_BACKEND=openpra-apps-web-backend:local
 export IMAGE_FRONTEND=openpra-apps-web-frontend:local
 export IMAGE_MONGO=mongo:latest
-export IMAGE_MINIO=quay.io/minio/minio:latest
+export IMAGE_MINIO=pgsty/silo:RELEASE.2026-09-16T00-00-00Z
 export JWT_SECRET=<generated>
 export TFA_ENC_KEY=<generated>
 export RESEND_API_KEY=<key or placeholder>
@@ -488,11 +458,15 @@ Offline behavior to communicate to users: password reset emails cannot send, Goo
 
 **`permission denied while trying to connect to the Docker daemon socket` on Linux.** Any image pull or compose command fails this way when your user cannot access `/var/run/docker.sock`. Make sure the daemon runs (`sudo systemctl enable --now docker`), add yourself to the docker group (`sudo usermod -aG docker $USER`), then log out and back in or run `newgrp docker`. Verify with `docker info` without sudo. Avoid running compose under sudo, since root then owns the containers and volumes.
 
+**Pulling `quay.io/minio/minio` or `minio/minio` fails with `401 UNAUTHORIZED` or `pull access denied`.** MinIO no longer publishes public images. Your `docker-compose.infra.yml` came from an older copy of this README. Stop that stack with `docker compose -f docker-compose.infra.yml down`, delete the file, and start the infrastructure from `deploy/compose.yml` as in section 5.1.
+
+**The Docker build stops with `JavaScript heap out of memory`, `Killed signal terminated program cc1plus` or exit code 137.** Docker ran out of memory, usually because the web images and PRAETOR build at the same time. Give Docker more memory (section 6), or build PRAETOR alone first with `docker compose -f deploy/compose.yml build praetor-manager`. Then run `docker compose -f deploy/compose.yml up -d --build` again.
+
 **PDF files are one-line pointer files, or `git push` fails in the LFS hook.** Install Git LFS, run `git lfs install`, then `git lfs pull`.
 
 **`fixtures/models/*` directories are empty.** Run `git submodule update --init --recursive`.
 
-**Ports already in use.** The dev infra stack, the praetor Docker stack, and the full-Docker stack all bind MongoDB, RabbitMQ, or MinIO ports. Run one stack at a time, or `docker compose ... down` the others first.
+**Ports already in use.** `deploy/compose.yml` binds 27017, 5672, 15672, 9000, 9001, 3000 and 8080. Stop whatever else holds them, such as an older compose stack or a natively running praetor. `OPENPRA_PORT` moves the frontend off 8080 (section 6.2).
 
 **Swarm service stuck in `pending`.** A placement constraint references a node that does not exist. Edit the `placement.constraints` in the stack file (section 7.3).
 

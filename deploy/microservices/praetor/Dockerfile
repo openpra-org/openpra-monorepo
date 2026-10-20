@@ -33,7 +33,7 @@ COPY . .
 
 # Install workspace dependencies, then build both native addons explicitly.
 RUN pnpm install
-RUN pnpm --filter scram-node build
+RUN pnpm --filter scram-node exec cmake-js -C --parallel "$(nproc)" rebuild --CDBUILD_TESTS=OFF
 RUN pnpm --filter praxis-node build:linux
 
 # Stage only the runtime PRAXIS package files; Rust targets and sources stay in

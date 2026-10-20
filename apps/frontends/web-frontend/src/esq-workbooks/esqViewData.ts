@@ -69,6 +69,12 @@ const CAPABILITY_CATEGORIES: CapabilityCategory[] = [
 ];
 
 type Stage = "pre_operational" | "operational";
+
+interface EsqLinkRequest {
+  treeId: string;
+  functionalEventId: string;
+  name: string;
+}
 type ConformanceStatus = "ok" | "warn" | "blocked" | "na";
 
 interface ConformanceItem {
@@ -384,6 +390,7 @@ export type {
   ConformanceItem,
   ConformanceStatus,
   Stage,
+  EsqLinkRequest,
   EsqLinkTile,
   EsqScopeAspectSpec,
   EsqPlanKey,

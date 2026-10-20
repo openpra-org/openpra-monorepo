@@ -1,7 +1,7 @@
 import type { Workbook } from "interfaces-shared-types";
 import type { DataAnalysis } from "interfaces-mef-types/da/data-analysis";
 import type { EventSequenceAnalysis } from "interfaces-mef-types/es/event-sequence-analysis";
-import type { EsqLinkCode } from "interfaces-mef-types/esq/event-sequence-quantification";
+import type { EsqLinkCode, EsqLinkedWorkbooks, EventSequenceQuantification } from "interfaces-mef-types/esq/event-sequence-quantification";
 import type { HazardsScreeningAnalysis } from "interfaces-mef-types/hazards-screening/hazards-screening-analysis";
 import type { HumanReliabilityAnalysis } from "interfaces-mef-types/hr/human-reliability-analysis";
 import type { InitiatingEventsAnalysis } from "interfaces-mef-types/ie/initiating-event-analysis";
@@ -21,7 +21,7 @@ import { getRiWorkbook } from "../ri-workbooks/riWorkbookApi";
 import { getScWorkbook } from "../sc-workbooks/scWorkbookApi";
 import { getSyWorkbook } from "../sy-workbooks/syWorkbookApi";
 import { type ScMissionTimeSource } from "../sc-workbooks/scMissionTimeSources";
-import { exampleLinkVariant } from "./esqViewData";
+import { ESQ_LINK_TILES, exampleLinkVariant } from "./esqViewData";
 
 interface EsqLinkedDa {
   mef: DataAnalysis;
@@ -119,6 +119,16 @@ async function loadLinkedRi(id: string): Promise<RiskIntegration> {
   return (await getRiWorkbook(id)).mef;
 }
 
+function withLinkedWorkbook(esq: EventSequenceQuantification, code: EsqLinkCode, id: string): EventSequenceQuantification {
+  const current: EsqLinkedWorkbooks = esq.linkedWorkbooks ?? {};
+  const next: EsqLinkedWorkbooks = {};
+  for (const tile of ESQ_LINK_TILES) {
+    const value = tile.code === code ? id : current[tile.code];
+    if (value !== undefined && value.length > 0) next[tile.code] = value;
+  }
+  return { ...esq, linkedWorkbooks: next };
+}
+
 async function loadLinkedHs(id: string): Promise<HazardsScreeningAnalysis> {
   const variant = exampleLinkVariant(id);
   if (variant !== undefined) return (await fetchJson<{ hazardsScreeningAnalysis: { mef: HazardsScreeningAnalysis } }>(`/api/example-workbooks/hazards-screening-analysis-bundle?example=${variant}`)).hazardsScreeningAnalysis.mef;
@@ -138,6 +148,7 @@ export {
   loadLinkedRi,
   loadLinkedSc,
   loadLinkedSy,
+  withLinkedWorkbook,
   type EsqLinkedDa,
   type EsqUpstream,
 };

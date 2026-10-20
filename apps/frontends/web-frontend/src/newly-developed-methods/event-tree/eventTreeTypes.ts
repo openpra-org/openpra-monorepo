@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import type {
   EventSequence,
   EventTree,
@@ -73,6 +74,11 @@ interface EventTreeSequenceValue {
   annualFrequency: number;
 }
 
+interface EventTreeInitiatingEventInspector {
+  content: ReactNode;
+  editable: boolean;
+}
+
 interface EventTreeEditorProps {
   model: EventTree;
   eventSequences: EventSequence[];
@@ -116,6 +122,7 @@ interface EventTreeEditorProps {
   onOpenReference?: (reference: FaultTreeTopEventReference | { targetEventTreeId: string }) => void;
   breadcrumb?: TransferBreadcrumb;
   onRun?: () => void;
+  initiatingEventInspector?: EventTreeInitiatingEventInspector;
 }
 
 interface EventTreeSequenceView {
@@ -177,6 +184,7 @@ export type {
   EventTreeEditorProps,
   EventTreeEndStateOption,
   EventTreeFunctionalEventView,
+  EventTreeInitiatingEventInspector,
   EventTreeInitiatingEventOption,
   EventTreeLeafReference,
   EventTreeNodeView,

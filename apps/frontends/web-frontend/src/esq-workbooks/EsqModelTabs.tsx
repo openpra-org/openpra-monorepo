@@ -1,4 +1,5 @@
-import { JSX, useId, useMemo, useState } from "react";
+import { JSX, useEffect, useId, useMemo, useState } from "react";
+import type { Workbook } from "interfaces-shared-types";
 import type { EventTree, FunctionalEvent, FunctionalEventNetworkNode } from "interfaces-mef-types/es/event-sequence-analysis";
 import type {
   EsqFamilyChoice,
@@ -9,14 +10,14 @@ import type {
   EsqModel,
   EsqParameterRecord,
   EsqSplitFractionTarget,
+  EsqTopRecord,
   EsqTreeRecord,
   EsqValueHolder,
   EventSequenceQuantification,
 } from "interfaces-mef-types/esq/event-sequence-quantification";
 import type { FaultTreeTopEventReference } from "interfaces-mef-types/modeling";
-import type { UncertainExpression, UncertainParameter } from "interfaces-mef-types/core/uncertainty";
-import { FrequencyUnit } from "interfaces-mef-types/core/events";
-import { holdsEstimate, isComponentModel } from "interfaces-mef-types/da/data-analysis";
+import { canonicalJson, type UncertainExpression, type UncertainParameter } from "interfaces-mef-types/core/uncertainty";
+import { isComponentModel } from "interfaces-mef-types/da/data-analysis";
 import { parameterLaw, parameterUnit } from "interfaces-mef-types/esq/esq-measure-inputs";
 import { barrierWorkOf } from "interfaces-mef-types/esq/esq-barrier-inputs";
 import { legacyExpression } from "interfaces-mef-types/core/legacy-uncertainty-adapter";
@@ -38,16 +39,21 @@ import { PAGE, Pager, TabBar, paged } from "../es-workbooks/EsTiming";
 import { cellRecordText } from "./esqBarriers";
 import { FaultTreeDiagram, FaultTreeWindow, pointText, sciText, useExpressionPoints, type EsqPointEntry } from "./esqShared";
 import { useEsqWorkbook } from "./esqWorkbookContext";
-import { END_STATE_LABELS, FREQUENCY_UNIT_OPTIONS } from "./esqViewData";
+import { EsqInitiatingEventEditor } from "./EsqInitiatingEvent";
+import { loadLinkedSy, withLinkedWorkbook, type EsqUpstream } from "./esqLinks";
+import { END_STATE_LABELS, FREQUENCY_UNIT_OPTIONS, exampleLinkLabel, exampleLinkVariant, type EsqLinkRequest } from "./esqViewData";
 import {
   daParameterOptionsOf,
   familyIdTaken,
   missionTimeSourcesOf,
   missionTimeTableOf,
+  linkOf,
   modelImportReady,
   modelLinked,
   modelViewOf,
+  newTypedInitiator,
   nextFamilyId,
+  nextTypedInitiatorCode,
   nextTypedTreeCode,
   parameterLabelOf,
   parameterTableOf,
@@ -59,6 +65,7 @@ import {
   stateWeightingOf,
   topOf,
   treeRuleOf,
+  topRecords,
   typedTreesOf,
   withDefaultLink,
   withDefaultLinkReason,
@@ -74,6 +81,7 @@ import {
   withSplitTarget,
   withTreeLink,
   withTreeMissionTime,
+  withTypedInitiatorRecord,
   withTypedTreeRemoved,
   withTypedTrees,
   withValueBinding,
@@ -124,8 +132,6 @@ const SEVERITY_TEXT: Record<EsqFindingSeverity, string> = { error: "Error", warn
 const SPLIT = "split";
 
 const START_SPLIT: UncertainExpression = { node: "VALUE", value: { unit: "PROBABILITY", law: { family: "POINT", value: 0.5 } } };
-
-const START_FREQUENCY: UncertainExpression = { node: "VALUE", value: { unit: "PER_YEAR", law: { family: "POINT", value: 1e-2 } } };
 
 const START_VALUE: UncertainExpression = { node: "VALUE", value: { unit: "PROBABILITY", law: { family: "POINT", value: 1e-3 } } };
 
@@ -256,8 +262,11 @@ function valueText(value: EsqValueView, point: string): string {
 function initiatorFromText(entry: EsqInitiatorView): string {
   if (entry.source === "TYPED") return "Typed";
   if (entry.source === "DA") return `DA · ${entry.choice?.parameterId ?? "not set"}`;
-  if (entry.record === undefined) return "Not in IE";
-  return entry.record.heldBy === "DA" && entry.record.holderId !== undefined ? `IE · ${entry.record.holderId}` : "IE";
+  const record = entry.record;
+  if (record === undefined) return "Not in IE";
+  const holder = record.heldBy === "DA" ? record.holderId : undefined;
+  if (record.typed === true) return holder === undefined ? "ESQ" : `ESQ · DA · ${holder}`;
+  return holder === undefined ? "IE" : `IE · ${holder}`;
 }
 
 function splitFromText(target: EsqSplitFractionTarget): string {
@@ -319,6 +328,7 @@ function TreePanel({ tree, initiators, states, onOpenTree, onOpenFaultTree, onLi
   onLink: (treeId: string, event: FunctionalEvent) => void;
 }): JSX.Element | null {
   const { esq, editable, mutateEsq, upstream, runtime } = useEsqWorkbook();
+  const { label } = useParameterTools();
   const [representation, setRepresentation] = useState<EventTreeRepresentation>("event-tree");
   const [selection, setSelection] = useState<string | null>(null);
   const model = esq.model;
@@ -382,6 +392,7 @@ function TreePanel({ tree, initiators, states, onOpenTree, onOpenFaultTree, onLi
       onSelectionChange={setSelection}
       faultTreeName={faultTreeName}
       networkNodeName={networkNodeName}
+      initiatingEventInspector={{ content: <EsqInitiatingEventEditor key={tree.initiatorId} tree={tree} drawn={typed} states={states} frequencyOptions={frequencyOptions(esq)} label={label} />, editable }}
       {...(author ? { onSelectLink: (event: FunctionalEvent) => onLink(source.uuid, event) } : {})}
       {...(endStates.length === 0 ? {} : { endStateOptions: endStates })}
       onOpenReference={(reference) => {
@@ -392,8 +403,18 @@ function TreePanel({ tree, initiators, states, onOpenTree, onOpenFaultTree, onLi
   );
 }
 
-function LinkDialog({ treeId, functionalEventId, name, onClose }: { treeId: string; functionalEventId: string; name: string; onClose: () => void }): JSX.Element {
-  const { esq, editable, mutateEsq, upstream } = useEsqWorkbook();
+function syNameOf(id: string, options: readonly Workbook[]): string {
+  return options.find((workbook) => workbook.id === id)?.name ?? exampleLinkLabel(id) ?? "The linked SY workbook";
+}
+
+function LinkDialog({ treeId, functionalEventId, name, onClose, onPickSy }: {
+  treeId: string;
+  functionalEventId: string;
+  name: string;
+  onClose: () => void;
+  onPickSy?: () => void;
+}): JSX.Element {
+  const { esq, editable, mutateEsq, upstream, replaceLinkedSy } = useEsqWorkbook();
   const fieldId = useId();
   const tree = typedTreesOf(esq).find((candidate) => candidate.uuid === treeId);
   const functionalEvent = Object.values(tree?.functionalEvents ?? {}).find((candidate) => candidate.uuid === functionalEventId);
@@ -405,7 +426,11 @@ function LinkDialog({ treeId, functionalEventId, name, onClose }: { treeId: stri
   const [nodeId, setNodeId] = useState(currentNode?.bayesianNetworkNode.entityId ?? "");
   const [failingStateIds, setFailingStateIds] = useState<readonly string[]>(currentNode?.trueStateIds ?? []);
   const model = esq.model;
-  const tops = model?.tops ?? [];
+  const syId = linkOf(esq, "SY");
+  const liveSy = syId === undefined ? undefined : upstream.sy;
+  const tops = useMemo<EsqTopRecord[]>(() => (syId === undefined ? [] : liveSy === undefined ? model?.tops ?? [] : topRecords(liveSy)), [liveSy, model, syId]);
+  const syChoices = upstream.options.SY;
+  const syName = syId === undefined ? "" : syNameOf(syId, syChoices);
   const workbookId = model === undefined ? "" : syWorkbookOf(esq, model);
   const networks = upstream.sy?.dependencyBayesianNetworks ?? [];
   const network = networks.find((candidate) => candidate.modelId === networkId) ?? networks[0];
@@ -414,8 +439,21 @@ function LinkDialog({ treeId, functionalEventId, name, onClose }: { treeId: stri
   const failing = node === undefined ? [] : failingStateIds.filter((stateId) => node.states.some((state) => state.id === stateId));
   const nodeReady = workbookId.length > 0 && network !== undefined && node !== undefined && failing.length > 0 && failing.length < node.states.length;
   const chosen = tops.find((record) => topKey(record.modelId, record.gateId) === value);
+  const needsImport = canonicalJson(tops) !== canonicalJson(model?.tops ?? []);
+  const importReady = !needsImport || modelImportReady(esq, upstream);
+  const noLink = syChoices.length === 0 ? "No SY workbook in this project" : "No SY workbook linked";
+  const emptyText = syId === undefined ? noLink : liveSy === undefined ? "Loading fault trees…" : `${syName} has no fault trees`;
 
-  function change(operation: EventTreeOperation): void {
+  useEffect(() => {
+    if (syId === undefined || exampleLinkVariant(syId) !== undefined) return;
+    let cancelled = false;
+    loadLinkedSy(syId)
+      .then((mef) => { if (!cancelled) replaceLinkedSy(syId, mef); })
+      .catch(() => undefined);
+    return () => { cancelled = true; };
+  }, [replaceLinkedSy, syId]);
+
+  function apply(operation: EventTreeOperation, refresh: EsqUpstream | null): void {
     if (!editable) return;
     const now = new Date().toISOString();
     mutateEsq((draft) => {
@@ -423,32 +461,40 @@ function LinkDialog({ treeId, functionalEventId, name, onClose }: { treeId: stri
       const known = trees.find((candidate) => candidate.uuid === treeId);
       if (known === undefined) return draft;
       const next = applyEventTreeOperation(known, operation);
-      return withTypedTrees(draft, trees.map((candidate) => (candidate.uuid === treeId ? next : candidate)), upstream, now);
+      const linked = withTypedTrees(draft, trees.map((candidate) => (candidate.uuid === treeId ? next : candidate)), upstream, now);
+      return refresh !== null && modelImportReady(linked, refresh) ? withModelImported(linked, refresh, now) : linked;
     });
-    onClose();
   }
 
   function save(): void {
     if (kind === "FAULT_TREE") {
-      if (chosen === undefined) return;
-      change({ kind: "SET_FAULT_TREE_REFERENCE", functionalEventId, reference: { referenceType: "FAULT_TREE_TOP_EVENT", workbookId, modelId: chosen.modelId, entityId: chosen.gateId } });
+      if (chosen === undefined || syId === undefined) return;
+      apply({ kind: "SET_FAULT_TREE_REFERENCE", functionalEventId, reference: { referenceType: "FAULT_TREE_TOP_EVENT", workbookId: syId, modelId: chosen.modelId, entityId: chosen.gateId } }, needsImport ? upstream : null);
+      onClose();
       return;
     }
     if (!nodeReady || network === undefined || node === undefined) return;
-    change({
+    apply({
       kind: "SET_NETWORK_NODE",
       functionalEventId,
       link: {
         bayesianNetworkNode: { referenceType: "BAYESIAN_NETWORK_NODE", workbookId, modelId: network.modelId, entityId: node.id },
         trueStateIds: node.states.filter((state) => failing.includes(state.id)).map((state) => state.id),
       },
-    });
+    }, null);
+    onClose();
   }
 
   function remove(): void {
-    change(currentNode === undefined
+    apply(currentNode === undefined
       ? { kind: "SET_FAULT_TREE_REFERENCE", functionalEventId, reference: undefined }
-      : { kind: "SET_NETWORK_NODE", functionalEventId, link: undefined });
+      : { kind: "SET_NETWORK_NODE", functionalEventId, link: undefined }, null);
+    onClose();
+  }
+
+  function linkSy(id: string): void {
+    if (!editable) return;
+    mutateEsq((draft) => withLinkedWorkbook(draft, "SY", id));
   }
 
   function showModel(modelId: string): void {
@@ -471,6 +517,14 @@ function LinkDialog({ treeId, functionalEventId, name, onClose }: { treeId: stri
     setFailingStateIds((known) => (known.includes(stateId) ? known.filter((id) => id !== stateId) : [...known, stateId]));
   }
 
+  function topAction(): JSX.Element | null {
+    if (!editable || syId !== undefined) return null;
+    const only = syChoices.length === 1 ? syChoices[0] : undefined;
+    if (only !== undefined) return <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={() => linkSy(only.id)}>{`Link ${only.name}`}</button>;
+    if (syChoices.length > 1 && onPickSy !== undefined) return <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={onPickSy}>Pick SY workbook in Step 01</button>;
+    return null;
+  }
+
   return (
     <DialogShell label="Link" onClose={onClose} fit>
       <DialogHead cap="Link · ESQ-A2" title={name} onClose={onClose} />
@@ -485,10 +539,13 @@ function LinkDialog({ treeId, functionalEventId, name, onClose }: { treeId: stri
           {kind === "FAULT_TREE" ? (
             <div className="posfield posfield-grid--span2">
               <label className="posfield__label" htmlFor={`${fieldId}-top`}>Fault tree top</label>
-              <select id={`${fieldId}-top`} className="posfield__select" value={value} disabled={!editable || tops.length === 0} onChange={(event) => setValue(event.target.value)}>
-                <option value="">Not linked</option>
-                {tops.map((top) => <option key={topKey(top.modelId, top.gateId)} value={topKey(top.modelId, top.gateId)}>{topLabel(top)}</option>)}
-              </select>
+              <div className="esq-link-pick">
+                <select id={`${fieldId}-top`} className="posfield__select" value={tops.length === 0 ? "" : value} disabled={!editable || tops.length === 0} onChange={(event) => setValue(event.target.value)}>
+                  <option value="">{tops.length === 0 ? emptyText : "Not linked"}</option>
+                  {tops.map((top) => <option key={topKey(top.modelId, top.gateId)} value={topKey(top.modelId, top.gateId)}>{topLabel(top)}</option>)}
+                </select>
+                {topAction()}
+              </div>
             </div>
           ) : (
             <>
@@ -523,7 +580,7 @@ function LinkDialog({ treeId, functionalEventId, name, onClose }: { treeId: stri
         {editable && (
           <div className="posrow es-dialog-actions">
             {(current !== undefined || currentNode !== undefined) && <button type="button" className="posnav__btn posnav__btn--sm" onClick={remove}>Remove link</button>}
-            <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" disabled={kind === "FAULT_TREE" ? chosen === undefined : !nodeReady} onClick={save}>Save</button>
+            <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" disabled={kind === "FAULT_TREE" ? chosen === undefined || !importReady : !nodeReady} onClick={save}>Save</button>
           </div>
         )}
       </div>
@@ -940,32 +997,20 @@ function numberFrom(text: string, apply: (value: number | undefined) => void): v
 function InitiatorDialog({ id, view, onClose }: { id: string; view: EsqModelView; onClose: () => void }): JSX.Element | null {
   const { esq, editable, mutateEsq } = useEsqWorkbook();
   const { label, scOptions } = useParameterTools();
-  const fieldId = useId();
   const entry = view.initiators.find((candidate) => candidate.id === id);
   if (entry === undefined) return null;
   const choice = entry.choice;
   const weighting = stateWeightingOf(esq);
-  const parameters = view.model.parameters.filter((parameter) => parameter.quantificationModel === "FREQUENCY" && holdsEstimate(parameter.quantificationModel));
-  const options = frequencyOptions(esq);
   const base: EsqInitiatorChoice = choice ?? { groupId: id, source: "IE" };
-  const typedStart = base.expression ?? entry.record?.frequency?.expression ?? START_FREQUENCY;
   const applicable = entry.states.filter((state) => state.applicable);
   const trees = reachedTreesOf(view.model, entry.trees);
-  const sourceValue = base.source === "DA" ? `da:${base.parameterId ?? ""}` : base.source === "TYPED" ? "typed" : "ie";
-  const ieUnit = FREQUENCY_UNIT_OPTIONS.find((option) => option.id === entry.record?.frequency?.basis)?.label.toLowerCase() ?? "";
-  const ieText = entry.record?.frequency === undefined ? "Imported from IE" : `Imported from IE · ${expressionText(entry.record.frequency.expression, label)} ${ieUnit}`.trim();
+  const unit = FREQUENCY_UNIT_OPTIONS.find((option) => option.id === entry.unit)?.label.toLowerCase() ?? "";
+  const frequency = entry.given === undefined ? "Not set" : `${expressionText(entry.given, label)} ${unit}`.trim();
 
   function save(next: EsqInitiatorChoice): void {
     if (!editable) return;
     const empty = next.source === "IE" && (next.shares ?? []).length === 0;
     mutateEsq((draft) => withInitiatorChoice(draft, id, empty ? undefined : next));
-  }
-
-  function setSource(value: string): void {
-    const shares = base.shares === undefined ? {} : { shares: base.shares };
-    if (value === "ie") save({ groupId: id, source: "IE", ...shares });
-    else if (value === "typed") save({ groupId: id, source: "TYPED", ...shares, expression: typedStart, unit: base.unit ?? FREQUENCY_UNIT_OPTIONS.find((option) => option.id === entry?.record?.frequency?.basis)?.id ?? FrequencyUnit.PER_REACTOR_YEAR, ...(base.basis === undefined ? {} : { basis: base.basis }) });
-    else save({ groupId: id, source: "DA", parameterId: value.slice(3), ...shares });
   }
 
   function setShare(stateId: string, percent: number | undefined): void {
@@ -984,35 +1029,13 @@ function InitiatorDialog({ id, view, onClose }: { id: string; view: EsqModelView
       <div className="modal__body esq-model-dialog">
         <div className="posfield-grid esq-model-fields">
           <div className="posfield posfield-grid--span2">
-            <label className="posfield__label" htmlFor={`${fieldId}-from`}>Frequency from</label>
-            <select id={`${fieldId}-from`} className="posfield__select" value={sourceValue} disabled={!editable} onChange={(event) => setSource(event.target.value)}>
-              <option value="ie">{ieText}</option>
-              {parameters.map((parameter) => <option key={parameter.id} value={`da:${parameter.id}`}>{`Imported from DA · ${parameter.id} · ${parameter.estimate === undefined ? "no estimate" : expressionText(parameter.estimate, label)}`}</option>)}
-              {base.source === "DA" && base.parameterId !== undefined && !parameters.some((parameter) => parameter.id === base.parameterId) && <option value={sourceValue}>{`DA · ${base.parameterId} · not imported`}</option>}
-              <option value="typed">Typed</option>
-            </select>
+            <span className="posfield__label">Frequency</span>
+            <span className="posmono">{frequency}</span>
           </div>
-          {base.source === "TYPED" && (
-            <>
-              <div className="posfield posfield-grid--span2">
-                <span className="posfield__label">Frequency</span>
-                <ExpressionEditor expression={typedStart} unit="PER_YEAR" options={options} disabled={!editable} onChange={(expression) => save({ ...base, expression })} />
-              </div>
-              <div className="posfield">
-                <label className="posfield__label" htmlFor={`${fieldId}-unit`}>Unit</label>
-                <select id={`${fieldId}-unit`} className="posfield__select" value={base.unit ?? FrequencyUnit.PER_REACTOR_YEAR} disabled={!editable} onChange={(event) => {
-                  const unit = FREQUENCY_UNIT_OPTIONS.find((option) => option.id === event.target.value)?.id;
-                  if (unit !== undefined) save({ ...base, unit });
-                }}>
-                  {FREQUENCY_UNIT_OPTIONS.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}
-                </select>
-              </div>
-              <div className="posfield posfield-grid--span2">
-                <label className="posfield__label" htmlFor={`${fieldId}-basis`}>Basis</label>
-                <WorkbookTextarea id={`${fieldId}-basis`} className="posfield__textarea" rows={2} fitContent value={base.basis ?? ""} disabled={!editable} onChange={(event) => save({ ...base, basis: event.target.value })} />
-              </div>
-            </>
-          )}
+          <div className="posfield">
+            <span className="posfield__label">From</span>
+            <span>{initiatorFromText(entry)}</span>
+          </div>
         </div>
         {weighting === "TYPED_SHARES" && applicable.length > 1 && (
           <div className="esq-model-section">
@@ -1347,7 +1370,11 @@ function ChecksPanel({ findings, opens, onOpen }: { findings: readonly EsqModelF
   );
 }
 
-function EsqModelTabs(): JSX.Element {
+function EsqModelTabs({ onPickSy, reopenLink = null, onReopened }: {
+  onPickSy?: (request: EsqLinkRequest) => void;
+  reopenLink?: EsqLinkRequest | null;
+  onReopened?: () => void;
+}): JSX.Element {
   const { esq, editable, mutateEsq, upstream } = useEsqWorkbook();
   const fieldId = useId();
   const [tab, setTab] = useState<ModelTab>("trees");
@@ -1381,12 +1408,25 @@ function EsqModelTabs(): JSX.Element {
 
   function addTree(): void {
     if (!canAdd) return;
-    const initiator = axes.initiators[0]?.id ?? "IE-1";
-    const created: EventTree = { ...createEmptyEventTree(initiator, axes.states[0]?.id), label: nextTypedTreeCode(esq) };
+    const known = axes.initiators[0]?.id;
+    const initiator = known ?? nextTypedInitiatorCode(esq, upstream.ie);
+    const state = axes.states[0]?.id;
+    const created: EventTree = { ...createEmptyEventTree(initiator, state), label: nextTypedTreeCode(esq) };
     const now = new Date().toISOString();
-    mutateEsq((draft) => withTypedTrees(draft, [...typedTreesOf(draft), created], upstream, now));
+    mutateEsq((draft) => {
+      const withInitiator = known === undefined ? withTypedInitiatorRecord(draft, newTypedInitiator(initiator, state)) : draft;
+      return withTypedTrees(withInitiator, [...typedTreesOf(withInitiator), created], upstream, now);
+    });
     openTree(created.uuid);
   }
+
+  useEffect(() => {
+    if (reopenLink === null) return;
+    setTab("trees");
+    setTreeId(reopenLink.treeId);
+    setDialog({ kind: "link", treeId: reopenLink.treeId, functionalEventId: reopenLink.functionalEventId, name: reopenLink.name });
+    onReopened?.();
+  }, [onReopened, reopenLink]);
 
   function removeTree(id: string): void {
     if (!editable) return;
@@ -1452,7 +1492,18 @@ function EsqModelTabs(): JSX.Element {
   function renderDialog(): JSX.Element | null {
     if (dialog === null) return null;
     const close = (): void => setDialog(null);
-    if (dialog.kind === "link") return <LinkDialog treeId={dialog.treeId} functionalEventId={dialog.functionalEventId} name={dialog.name} onClose={close} />;
+    if (dialog.kind === "link") {
+      const request: EsqLinkRequest = { treeId: dialog.treeId, functionalEventId: dialog.functionalEventId, name: dialog.name };
+      return (
+        <LinkDialog
+          treeId={dialog.treeId}
+          functionalEventId={dialog.functionalEventId}
+          name={dialog.name}
+          onClose={close}
+          {...(onPickSy === undefined ? {} : { onPickSy: () => { setDialog(null); onPickSy(request); } })}
+        />
+      );
+    }
     if (dialog.kind === "faultTreeView") return <FaultTreeWindow key={dialog.modelIds.join(",")} modelIds={dialog.modelIds} eventIds={[]} onClose={close} />;
     if (view === undefined) return null;
     switch (dialog.kind) {

@@ -13,6 +13,7 @@ import { HandoffImports, readableId } from "../workbooks/workbookHandoff";
 import { DialogHead, DialogShell } from "../es-workbooks/EsScope";
 import { Badge, FormRow, sciText } from "./esqShared";
 import { useEsqWorkbook } from "./esqWorkbookContext";
+import { withLinkedWorkbook } from "./esqLinks";
 import {
   CAPABILITY_CATEGORIES,
   ESQ_LINK_TILES,
@@ -21,6 +22,7 @@ import {
   PLANT_STAGES,
   STATE_WEIGHTING_OPTIONS,
   exampleLinkLabel,
+  type EsqLinkRequest,
   type EsqPlanKey,
   type Stage,
 } from "./esqViewData";
@@ -70,9 +72,9 @@ function sameValue(left: number, right: number): boolean {
   return Math.abs(left - right) <= Math.abs(right) * 1e-9;
 }
 
-function EsqInterfaces(): JSX.Element {
+function EsqInterfaces({ request, onBack }: { request: EsqLinkRequest | null; onBack?: () => void }): JSX.Element {
   const { esq, editable, mutateEsq, upstream } = useEsqWorkbook();
-  const [selected, setSelected] = useState<EsqLinkCode | null>("ES");
+  const [selected, setSelected] = useState<EsqLinkCode | null>(request === null ? "ES" : "SY");
   const selectId = useId();
   const links: EsqLinkedWorkbooks = esq.linkedWorkbooks ?? {};
   const tile = ESQ_LINK_TILES.find((candidate) => candidate.code === selected);
@@ -84,15 +86,7 @@ function EsqInterfaces(): JSX.Element {
 
   function onLink(code: EsqLinkCode, id: string): void {
     if (!editable) return;
-    mutateEsq((draft) => {
-      const current: EsqLinkedWorkbooks = draft.linkedWorkbooks ?? {};
-      const next: EsqLinkedWorkbooks = {};
-      for (const candidate of ESQ_LINK_TILES) {
-        const value = candidate.code === code ? id : current[candidate.code];
-        if (value !== undefined && value.length > 0) next[candidate.code] = value;
-      }
-      return { ...draft, linkedWorkbooks: next };
-    });
+    mutateEsq((draft) => withLinkedWorkbook(draft, code, id));
   }
 
   return (
@@ -128,6 +122,12 @@ function EsqInterfaces(): JSX.Element {
               {linkedId !== undefined && linked === undefined && exampleLabel === undefined && <option value={linkedId}>{`${tile.label} workbook not in this project`}</option>}
             </select>
           </div>
+          {request !== null && tile.code === "SY" && (
+            <div className="esq-scope-request" role="status">
+              <span>{`Step 02 needs an SY workbook to link ${request.name} to a fault tree. Pick it here, then go back.`}</span>
+              {onBack !== undefined && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={onBack}>Back to Step 02</button>}
+            </div>
+          )}
           {tile.code !== "HS" && <HandoffImports consumer="ESQ" producer={tile.code} />}
         </div>
       )}
@@ -475,11 +475,13 @@ function PlanCard(): JSX.Element {
   );
 }
 
-function EsqScopeScreen({ ccId, setCcId, stage, setStage }: {
+function EsqScopeScreen({ ccId, setCcId, stage, setStage, linkRequest = null, onBackToModel }: {
   ccId: string;
   setCcId: (id: string) => void;
   stage: Stage;
   setStage: (stage: Stage) => void;
+  linkRequest?: EsqLinkRequest | null;
+  onBackToModel?: () => void;
 }): JSX.Element {
   const { esq, editable, mutateEsq } = useEsqWorkbook();
   const [dialog, setDialog] = useState<EsqScopeAspect | null>(null);
@@ -501,7 +503,7 @@ function EsqScopeScreen({ ccId, setCcId, stage, setStage }: {
       <div className="poscard">
         <div className="poscard__head"><WorkbookSectionHeading title="Interfaces" level={3} /></div>
         <p className="poscard__sub">Links are optional. A linked workbook fills the coverage and the quantification plan below, which you can also type by hand.</p>
-        <EsqInterfaces />
+        <EsqInterfaces request={linkRequest} {...(onBackToModel === undefined ? {} : { onBack: onBackToModel })} />
       </div>
 
       <div className="poscard">

@@ -2,6 +2,7 @@
 .esq-scope-lane { display: flex; width: 100%; flex-direction: column; gap: 12px; margin-top: 16px; overflow-x: auto; }
 .esq-scope-link { display: flex; max-width: 420px; flex-direction: column; gap: 5px; }
 .esq-scope-link .posfield__select { width: 100%; min-width: 0; }
+.esq-scope-request { display: flex; max-width: 720px; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 6px 0 6px 10px; border-left: 3px solid var(--color-primary); font-size: 13px; color: var(--color-text); }
 .esq-scope-text { box-sizing: border-box; width: 100%; min-height: 76px; }
 .esq-scope-edit { width: 1%; text-align: right; white-space: nowrap; }
 .esq-scope-table th:nth-child(1) { width: 26%; }

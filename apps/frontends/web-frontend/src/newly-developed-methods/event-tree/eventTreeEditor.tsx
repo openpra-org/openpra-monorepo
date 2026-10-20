@@ -115,6 +115,7 @@ function EventTreeEditor(props: EventTreeEditorProps): JSX.Element {
     onOpenReference,
     breadcrumb,
     onRun,
+    initiatingEventInspector,
   } = props;
   const [hoveredSequenceId, setHoveredSequenceId] = useState<string | null>(null);
   const [past, setPast] = useState<typeof model[]>([]);
@@ -125,6 +126,7 @@ function EventTreeEditor(props: EventTreeEditorProps): JSX.Element {
   const [fileError, setFileError] = useState<string | null>(null);
   const [operationError, setOperationError] = useState<string | null>(null);
   const [exportingImage, setExportingImage] = useState(false);
+  const [initiatorOpen, setInitiatorOpen] = useState(false);
   const diagramRef = useRef<HTMLDivElement>(null);
   const { requestConfirmation, confirmationDialog } = useEditorConfirmation();
   const events = useMemo(() => orderedFunctionalEvents(model), [model]);
@@ -149,16 +151,27 @@ function EventTreeEditor(props: EventTreeEditorProps): JSX.Element {
   const selectedLinkedSequence = selectedModelSequence?.eventSequenceId === undefined
     ? undefined
     : eventSequences.find((sequence) => sequence.uuid === selectedModelSequence.eventSequenceId);
+  const inspectingInitiator = initiatorOpen && initiatingEventInspector !== undefined && selectedEvent === undefined && selectedSequence === undefined;
 
   useEffect(() => {
     setPast([]);
     setFuture([]);
+    setInitiatorOpen(false);
     onSelectionChange(null);
   }, [model.uuid]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    if (selection !== null) setSelectedBranch(null);
+    if (selection === null) return;
+    setSelectedBranch(null);
+    setInitiatorOpen(false);
   }, [selection]);
+
+  const openInitiator = (): void => {
+    setContextMenu(null);
+    setSelectedBranch(null);
+    onSelectionChange(null);
+    setInitiatorOpen(true);
+  };
 
   useEffect(() => {
     if (contextMenu === null) return;
@@ -424,6 +437,19 @@ function EventTreeEditor(props: EventTreeEditorProps): JSX.Element {
     commit({ kind: "UPDATE_TREE", changes: { initiatingEventFrequency: { expression, annualization: changes.annualization ?? annualization } } });
   };
 
+  const initiatingSelect = (
+    <select className="posfield__select" aria-label="Initiating event" value={model.initiatingEventId} disabled={!capabilities.author} onChange={(event) => {
+      const selected = availableInitiatingEvents.find((option) => option.id === event.target.value);
+      commit({ kind: "UPDATE_TREE", changes: {
+        initiatingEventId: event.target.value,
+        ...(frequency === undefined && selected?.frequency !== undefined ? { initiatingEventFrequency: selected.frequency } : {}),
+      } });
+    }}>
+      {!availableInitiatingEvents.some((option) => option.id === model.initiatingEventId) && <option value={model.initiatingEventId}>{model.initiatingEventId}</option>}
+      {availableInitiatingEvents.map((option) => <option key={option.id} value={option.id}>{option.id}</option>)}
+    </select>
+  );
+
   const showFrequency = analysisResult !== null || sequenceValues !== undefined;
   const resultByEndState = new Map((analysisResult?.endStateAggregates ?? []).map((aggregate) => [aggregate.endStateId, aggregate.annualFrequency]));
   const endStateLabel = (endStateId: string): string => {
@@ -466,19 +492,20 @@ function EventTreeEditor(props: EventTreeEditorProps): JSX.Element {
             }}
           />
         </label>
-        <label className="posfield">
-          <span className="posfield__label">Initiating event</span>
-          <select className="posfield__select" aria-label="Initiating event" value={model.initiatingEventId} disabled={!capabilities.author} onChange={(event) => {
-            const selected = availableInitiatingEvents.find((option) => option.id === event.target.value);
-            commit({ kind: "UPDATE_TREE", changes: {
-              initiatingEventId: event.target.value,
-              ...(frequency === undefined && selected?.frequency !== undefined ? { initiatingEventFrequency: selected.frequency } : {}),
-            } });
-          }}>
-            {!availableInitiatingEvents.some((option) => option.id === model.initiatingEventId) && <option value={model.initiatingEventId}>{model.initiatingEventId}</option>}
-            {availableInitiatingEvents.map((option) => <option key={option.id} value={option.id}>{option.id}</option>)}
-          </select>
-        </label>
+        {initiatingEventInspector === undefined ? (
+          <label className="posfield">
+            <span className="posfield__label">Initiating event</span>
+            {initiatingSelect}
+          </label>
+        ) : (
+          <div className="posfield">
+            <span className="posfield__label">Initiating event</span>
+            <div className="et-editor__ie-pick">
+              {initiatingSelect}
+              <button type="button" className="posnav__btn posnav__btn--sm" aria-pressed={inspectingInitiator} onClick={openInitiator}>{initiatingEventInspector.editable ? "Edit" : "View"}</button>
+            </div>
+          </div>
+        )}
         {availableOperatingStates !== undefined && (
           <label className="posfield">
             <span className="posfield__label">Operating state</span>
@@ -526,7 +553,7 @@ function EventTreeEditor(props: EventTreeEditorProps): JSX.Element {
         </>}
       </div>
 
-      <div className={`et-editor__workspace${selectedEvent !== undefined || selectedSequence !== undefined ? " et-editor__workspace--inspecting" : ""}`}>
+      <div className={`et-editor__workspace${selectedEvent !== undefined || selectedSequence !== undefined || inspectingInitiator ? " et-editor__workspace--inspecting" : ""}`}>
         <div className="et-editor__main">
           {events.length === 0 ? (
             <div className="et-editor__empty">
@@ -548,6 +575,7 @@ function EventTreeEditor(props: EventTreeEditorProps): JSX.Element {
               if (target instanceof Element && target.closest("button, input, select, textarea") === null) {
                 setContextMenu(null);
                 setSelectedBranch(null);
+                setInitiatorOpen(false);
                 onSelectionChange(null);
               }
             }}>
@@ -588,8 +616,8 @@ function EventTreeEditor(props: EventTreeEditorProps): JSX.Element {
               <div className="estree__body">
                 {capabilities.author && renderRail()}
                 <div className="estree__view">
-                  {representation === "event-tree" && <ClassicEventTreeDiagram view={presentation} activeSequenceId={activeSequenceId} selectedEntityId={selection} showFrequency={showFrequency} frequencyParameters={frequencyParameters} canEdit={capabilities.author} onHover={setHoveredSequenceId} onSelect={selectSequence} onSelectFunctionalEvent={selectFunctionalEvent} onFunctionalEventContext={openFunctionalEventContext} onSequenceContext={openSequenceContext} onReorderFunctionalEvent={(functionalEventId, targetIndex) => commit({ kind: "REORDER_FUNCTIONAL_EVENT", functionalEventId, targetIndex })} selectedBranchKey={selectedBranch?.key ?? null} onSelectBranch={(branch) => { setContextMenu(null); onSelectionChange(null); setSelectedBranch(branch); }} onBranchContext={(branch, x, y) => { onSelectionChange(null); setSelectedBranch(branch); setContextMenu({ kind: "branch", branch, x: Math.max(8, Math.min(x, window.innerWidth - 250)), y: Math.max(8, Math.min(y, window.innerHeight - 200)) }); }} />}
-                  {representation === "event-sequence-diagram" && <EventSequenceDiagram view={presentation} activeSequenceId={activeSequenceId} selectedEntityId={selection} onHover={setHoveredSequenceId} onSelectSequence={selectSequence} onSelectFunctionalEvent={selectFunctionalEvent} onFunctionalEventContext={openFunctionalEventContext} onSequenceContext={openSequenceContext} />}
+                  {representation === "event-tree" && <ClassicEventTreeDiagram view={presentation} activeSequenceId={activeSequenceId} selectedEntityId={selection} showFrequency={showFrequency} frequencyParameters={frequencyParameters} canEdit={capabilities.author} onHover={setHoveredSequenceId} onSelect={selectSequence} onSelectFunctionalEvent={selectFunctionalEvent} onFunctionalEventContext={openFunctionalEventContext} onSequenceContext={openSequenceContext} onReorderFunctionalEvent={(functionalEventId, targetIndex) => commit({ kind: "REORDER_FUNCTIONAL_EVENT", functionalEventId, targetIndex })} selectedBranchKey={selectedBranch?.key ?? null} onSelectBranch={(branch) => { setContextMenu(null); setInitiatorOpen(false); onSelectionChange(null); setSelectedBranch(branch); }} onBranchContext={(branch, x, y) => { setInitiatorOpen(false); onSelectionChange(null); setSelectedBranch(branch); setContextMenu({ kind: "branch", branch, x: Math.max(8, Math.min(x, window.innerWidth - 250)), y: Math.max(8, Math.min(y, window.innerHeight - 200)) }); }} onSelectInitiatingEvent={initiatingEventInspector === undefined ? undefined : openInitiator} initiatingEventSelected={inspectingInitiator} />}
+                  {representation === "event-sequence-diagram" && <EventSequenceDiagram view={presentation} activeSequenceId={activeSequenceId} selectedEntityId={selection} onHover={setHoveredSequenceId} onSelectSequence={selectSequence} onSelectFunctionalEvent={selectFunctionalEvent} onFunctionalEventContext={openFunctionalEventContext} onSequenceContext={openSequenceContext} onSelectInitiatingEvent={initiatingEventInspector === undefined ? undefined : openInitiator} initiatingEventSelected={inspectingInitiator} />}
                   {representation === "table" && (
                     <PagedResults items={presentation.sequences} label="Event-tree sequences" resetKey={`${model.uuid}:${analysisResult?.runId ?? "unquantified"}`} >{(page) => <div className="et-editor__table-wrap"><table className="postable et-editor__table"><thead><tr><th>Sequence</th><th>Path</th><th>Result</th><th>Probability</th><th>Frequency</th></tr></thead><tbody>{page.map((sequence) => <tr key={sequence.id} className={selection === sequence.id ? "et-editor__table-row--selected" : ""} onMouseEnter={() => setHoveredSequenceId(sequence.id)} onMouseLeave={() => setHoveredSequenceId(null)} onClick={() => selectSequence(sequence.id)} onContextMenu={(contextEvent) => { contextEvent.preventDefault(); contextEvent.stopPropagation(); openSequenceContext(sequence.id, contextEvent.clientX, contextEvent.clientY); }}><td className="posmono">{sequence.name}</td><td><div className="et-editor__path">{events.map((event) => { const state = pathState(sequence.path[event.uuid]); return <span key={event.uuid} className={`et-editor__path-step et-editor__path-step--${state.className}`}>{event.label ?? event.name} {state.short}</span>; })}</div></td><td>{sequence.transferTargetId === undefined ? (sequence.endState === "SUCCESSFUL_MITIGATION" ? "Safe state" : "Release") : `Transfer to ${sequence.transferTargetId}`}</td><td className="posmono">{formatExponential(sequence.conditionalProbability)}</td><td className="posmono">{formatExponential(sequence.annualFrequency)}</td></tr>)}</tbody></table></div>}</PagedResults>
                   )}
@@ -600,9 +628,10 @@ function EventTreeEditor(props: EventTreeEditorProps): JSX.Element {
           <EventTreeTransferResults model={model} availableTransfers={availableTransfers} analysisResult={analysisResult} />
         </div>
 
-        {(selectedEvent !== undefined || selectedSequence !== undefined) && (
+        {(selectedEvent !== undefined || selectedSequence !== undefined || inspectingInitiator) && (
           <aside className="et-editor__inspector" aria-label="Event-tree selection inspector">
-            <button type="button" className="et-editor__inspector-close" onClick={() => onSelectionChange(null)} aria-label="Close inspector">×</button>
+            <button type="button" className="et-editor__inspector-close" onClick={() => { setInitiatorOpen(false); onSelectionChange(null); }} aria-label="Close inspector">×</button>
+            {inspectingInitiator && initiatingEventInspector?.content}
             {selectedEvent !== undefined && (
               <>
                 <span className="et-editor__eyebrow">Functional event · {selectedEvent.label ?? selectedEvent.uuid}</span>

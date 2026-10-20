@@ -1,18 +1,32 @@
 import type { EventSequenceQuantification } from "interfaces-mef-types/esq/event-sequence-quantification";
 import { EsqEventRecordSchema, EsqParameterRecordSchema } from "interfaces-mef-types/zod/esq/event-sequence-quantification";
 import type { CcfFactorModel, UncertainExpression, UncertainParameter, UncertainUnit } from "interfaces-mef-types/core/uncertainty";
+import { FrequencyUnit, type UncertainFrequency } from "interfaces-mef-types/core/events";
+import type { InitiatingEventsAnalysis } from "interfaces-mef-types/ie/initiating-event-analysis";
+import { treeFrequency } from "interfaces-mef-types/esq/esq-run-inputs";
 import {
+  initiatorCodeLock,
+  initiatorCodeTaken,
+  initiatorRecordOf,
   modelComplete,
   modelViewOf,
+  nextTypedInitiatorCode,
   parameterTableOf,
   withFamilyChoice,
   withFunctionLink,
   withInitiatorChoice,
+  withInitiatorCode,
   withModelImported,
   withSequenceChoice,
   withTreeMissionTime,
+  withTypedInitiator,
+  withTypedInitiatorRecord,
+  withTypedTrees,
   withValueBinding,
 } from "../esqModel";
+import { createdValues } from "../esqHandoff";
+import { EMPTY_UPSTREAM } from "../esqLinks";
+import { createEmptyEventTree } from "../../newly-developed-methods/event-tree";
 import { stepsFromMef } from "../esqSelectors";
 import { parametersFor } from "../../newly-developed-methods/shared/useUncertainty";
 import { pointsOf } from "../../newly-developed-methods/shared/uncertaintyPoints";
@@ -168,6 +182,19 @@ describe("ESQ Step 02 model import", () => {
     expect(checks(esq).filter((entry) => entry.endsWith(":IEG-01"))).toEqual([]);
     esq = withInitiatorChoice(esq, "IEG-01", { groupId: "IEG-01", source: "DA", parameterId: "P-SF" });
     expect(checks(esq)).toContain("error:No DA estimate:IEG-01");
+  });
+
+  it("gives a tree drawn in a new project its typed frequency when no operating state exists", () => {
+    const typed: UncertainExpression = { node: "VALUE", value: { unit: "PER_YEAR", law: { family: "POINT", value: 0.5 } } };
+    let esq = withTypedTrees(linkedEsq(), [{ ...createEmptyEventTree("IE-1"), label: "ET-ESQ-01" }], EMPTY_UPSTREAM, NOW);
+    esq = withInitiatorChoice(esq, "IE-1", { groupId: "IE-1", source: "TYPED", expression: typed, unit: FrequencyUnit.PER_REACTOR_YEAR, basis: "Fleet data." });
+    const model = esq.model;
+    const tree = model?.trees.find((candidate) => candidate.code === "ET-ESQ-01");
+    if (model === undefined || tree === undefined) throw new Error("the drawn tree is not in the model");
+    expect(tree.stateId).toBeUndefined();
+    expect(treeFrequency(esq, model, tree)).toEqual(typed);
+    expect(checks(esq)).toContain("warning:No operating state:IE-1");
+    expect(checks(esq)).not.toContain("error:No operating state:IE-1");
   });
 
   it("resolves each tree from a rule, then the ESQ default, then the ES link", () => {
@@ -345,5 +372,95 @@ describe("ESQ Step 02 model import", () => {
     expect(checks(esq).filter((entry) => entry.startsWith("error"))).toEqual([]);
     expect(modelComplete(esq)).toBe(true);
     expect(stepsFromMef(esq, "preparer").find((step) => step.id === "model")?.status).toBe("complete");
+  });
+});
+
+describe("ESQ Step 02 initiating events typed in ESQ", () => {
+  const frequency: UncertainFrequency = { expression: { node: "VALUE", value: { unit: "PER_YEAR", law: { family: "POINT", value: 0.02 } } }, basis: FrequencyUnit.PER_REACTOR_YEAR };
+
+  function drawn(stateId?: string): EventSequenceQuantification {
+    return withTypedTrees(linkedEsq(), [{ ...createEmptyEventTree("IEG-ESQ-01", stateId), label: "ET-ESQ-01" }], EMPTY_UPSTREAM, NOW);
+  }
+
+  function typedHere(stateIds: string[] = []): EventSequenceQuantification {
+    return withTypedInitiator(drawn(stateIds[0]), { id: "IEG-ESQ-01", name: "Loss of forced cooling", stateIds, frequency, heldBy: "TYPED" }, EMPTY_UPSTREAM, NOW);
+  }
+
+  it("quantifies a drawn tree from the initiating event typed in its tree", () => {
+    const esq = typedHere();
+    const model = esq.model;
+    const tree = model?.trees.find((candidate) => candidate.code === "ET-ESQ-01");
+    if (model === undefined || tree === undefined) throw new Error("the drawn tree is not in the model");
+    expect(model.initiators).toEqual([{ id: "IEG-ESQ-01", name: "Loss of forced cooling", stateIds: [], frequency, heldBy: "TYPED", typed: true }]);
+    expect(treeFrequency(esq, model, tree)).toEqual(frequency.expression);
+    expect(checks(esq).filter((entry) => entry.startsWith("error") && entry.endsWith(":IEG-ESQ-01"))).toEqual([]);
+    expect(checks(esq)).toContain("warning:No distribution:IEG-ESQ-01");
+  });
+
+  it("replaces the IE record and the old typed choice when an IE initiating event is edited in its tree", () => {
+    const shares = [{ stateId: "POS-01", percent: 90 }, { stateId: "POS-02", percent: 10 }];
+    let esq = withInitiatorChoice(imported(), "IEG-01", { groupId: "IEG-01", source: "TYPED", expression: frequency.expression, unit: FrequencyUnit.PER_REACTOR_YEAR, basis: "Fleet data.", shares });
+    const record = initiatorRecordOf(esq, "IEG-01");
+    expect(record).toMatchObject({ id: "IEG-01", name: "Loss of cooling", heldBy: "TYPED", frequency });
+    esq = withTypedInitiator(esq, { ...record, name: "Loss of cooling in both loops" }, modelUpstream(), NOW);
+    expect(esq.modelDecisions?.initiatorChoices).toEqual([{ groupId: "IEG-01", source: "IE", shares }]);
+    expect(esq.model?.initiators.filter((entry) => entry.id === "IEG-01")).toEqual([expect.objectContaining({ name: "Loss of cooling in both loops", typed: true, frequency })]);
+    expect(withModelImported(esq, modelUpstream(), NOW).model?.initiators.filter((entry) => entry.id === "IEG-01")).toEqual([expect.objectContaining({ name: "Loss of cooling in both loops", typed: true })]);
+  });
+
+  it("picks the next ESQ code that no tree, coverage item or IE group uses", () => {
+    const esq = drawn();
+    expect(nextTypedInitiatorCode(esq)).toBe("IEG-ESQ-02");
+    const ie = { initiatingEventGroups: [{ uuid: "ieg-esq-02" }] } as InitiatingEventsAnalysis;
+    expect(nextTypedInitiatorCode(esq, ie)).toBe("IEG-ESQ-03");
+  });
+
+  it("words the checks of an ESQ initiating event without naming IE", () => {
+    const detail = modelViewOf(typedHere(["POS-01", "POS-02"]))?.findings.find((finding) => finding.check === "State without a tree")?.detail;
+    expect(detail).toBe("IEG-ESQ-01 applies to POS-02, but no tree starts with it there.");
+  });
+
+  it("renames an initiating event code everywhere ESQ uses it and marks the IE group for renaming", () => {
+    let esq = withInitiatorChoice(typedHere(["POS-01"]), "IEG-ESQ-01", { groupId: "IEG-ESQ-01", source: "IE", shares: [{ stateId: "POS-01", percent: 100 }] });
+    esq = {
+      ...esq,
+      modelIntegration: { ...esq.modelIntegration, scopeCoverage: { ...esq.modelIntegration.scopeCoverage, initiatingEventGroups: ["IEG-ESQ-01"] } },
+      logic: { flags: [{ id: "FL-1", name: "Long outage", state: true, groupIds: ["IEG-ESQ-01"], stateIds: [], basis: "" }] },
+      modelDecisions: { ...esq.modelDecisions, typedInitiators: (esq.modelDecisions?.typedInitiators ?? []).map((entry) => ({ ...entry, synced: { workbookId: "ie-1", fingerprint: "pushed" } })) },
+    };
+    const renamed = withInitiatorCode(esq, "IEG-ESQ-01", "IEG-LOFC", EMPTY_UPSTREAM, NOW);
+    expect(renamed.modelDecisions?.typedTrees?.map((tree) => tree.initiatingEventId)).toEqual(["IEG-LOFC"]);
+    expect(renamed.model?.trees.find((tree) => tree.code === "ET-ESQ-01")?.initiatorId).toBe("IEG-LOFC");
+    expect(renamed.model?.initiators.map((record) => record.id)).toEqual(["IEG-LOFC"]);
+    expect(renamed.modelDecisions?.initiatorChoices).toEqual([{ groupId: "IEG-LOFC", source: "IE", shares: [{ stateId: "POS-01", percent: 100 }] }]);
+    expect(renamed.modelIntegration.scopeCoverage.initiatingEventGroups).toEqual(["IEG-LOFC"]);
+    expect(renamed.logic?.flags?.[0]?.groupIds).toEqual(["IEG-LOFC"]);
+    expect(renamed.modelDecisions?.typedInitiators?.[0]).toMatchObject({ id: "IEG-LOFC", name: "Loss of forced cooling", synced: { workbookId: "ie-1", fingerprint: "pushed", groupId: "IEG-ESQ-01" } });
+  });
+
+  it("moves a name that was only the code along with the code", () => {
+    const esq = withTypedTrees(linkedEsq(), [{ ...createEmptyEventTree("IE-1"), label: "ET-ESQ-01" }], EMPTY_UPSTREAM, NOW);
+    const renamed = withInitiatorCode(esq, "IE-1", "LOFC", EMPTY_UPSTREAM, NOW);
+    expect(renamed.modelDecisions?.typedInitiators).toEqual([expect.objectContaining({ id: "LOFC", name: "LOFC" })]);
+    expect(renamed.model?.trees.find((tree) => tree.code === "ET-ESQ-01")?.initiatorId).toBe("LOFC");
+  });
+
+  it("refuses a code in use and locks codes that IE or ES own", () => {
+    const esq = typedHere();
+    expect(initiatorCodeTaken(esq, "ieg-esq-01", "IE-9")).toBe(true);
+    expect(initiatorCodeTaken(esq, "IEG-LOFC", "IEG-ESQ-01")).toBe(false);
+    expect(initiatorCodeLock(esq, "IEG-ESQ-01")).toBeUndefined();
+    const fromIe = imported();
+    expect(initiatorCodeLock(fromIe, "IEG-01")).toBe("IE");
+    expect(withTypedInitiatorRecord(fromIe, initiatorRecordOf(fromIe, "IEG-01")).modelDecisions?.typedInitiators?.[0]?.ieOwned).toBe(true);
+    expect(initiatorCodeLock(liveImport(linkedEsq(), { ...modelUpstream(), ie: undefined }, NOW), "IEG-01")).toBe("ES");
+  });
+
+  it("lists the typed frequency as a value made in ESQ until the IE workbook holds it", () => {
+    let esq = typedHere();
+    expect(createdValues(esq).filter((entry) => entry.key === "initiator:IEG-ESQ-01")).toEqual([{ key: "initiator:IEG-ESQ-01", item: "IEG-ESQ-01", expression: frequency.expression, where: "Step 02 initiating event frequency", source: "" }]);
+    const typedInitiators = (esq.modelDecisions?.typedInitiators ?? []).map((entry) => ({ ...entry, synced: { workbookId: "ie-1", fingerprint: "pushed" } }));
+    esq = { ...esq, modelDecisions: { ...esq.modelDecisions, typedInitiators } };
+    expect(createdValues(esq).some((entry) => entry.key === "initiator:IEG-ESQ-01")).toBe(false);
   });
 });

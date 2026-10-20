@@ -22,6 +22,7 @@ import {
   type EsqHumanRecord,
   type EsqInitiatorChoice,
   type EsqInitiatorRecord,
+  type EsqTypedInitiator,
   type EsqLinkCode,
   type EsqModel,
   type EsqModelChange,
@@ -54,7 +55,8 @@ import { carriesUncertainExpression, type CommonCauseFailureGroup, type SystemBa
 import { systemFaultTreeBasicEventIds } from "interfaces-mef-types/sy/system-models";
 import { isComponentModel, type DataAnalysis } from "interfaces-mef-types/da/data-analysis";
 import { type HumanReliabilityAnalysis } from "interfaces-mef-types/hr/human-reliability-analysis";
-import { type InitiatingEventsAnalysis } from "interfaces-mef-types/ie/initiating-event-analysis";
+import { type InitiatingEventGroup, type InitiatingEventsAnalysis } from "interfaces-mef-types/ie/initiating-event-analysis";
+import { FrequencyUnit } from "interfaces-mef-types/core/events";
 import { type PlantOperatingStatesAnalysis } from "interfaces-mef-types/pos/plant-operating-state-analysis";
 import {
   canonicalJson,
@@ -75,6 +77,7 @@ import { sequenceFamilyOf } from "interfaces-mef-types/esq/esq-solve-inputs";
 import { type BayesianNetworkNodeReference, type QuantificationTimeUnit } from "interfaces-mef-types/modeling";
 import { type Workbook } from "interfaces-shared-types";
 import {
+  daParameterExpression,
   esqParameterLinks,
   excludedBy,
   functionLinkOf,
@@ -117,9 +120,13 @@ const EXAMPLE_SC_PREFIX = "example-sc-";
 
 const RUNNING_MODES = new Set(["FAILURE_TO_RUN"]);
 
+const NEW_INITIATOR_NAME = "New initiating event";
+
 type EsqModelWindowKind = "esqSequence" | "esqTree" | "esqFamily" | "esqFunction" | "esqInitiator" | "esqValue";
 
 type EsqFindingSeverity = "error" | "warning" | "note";
+
+type EsqInitiatorCodeLock = "IE" | "ES";
 
 interface EsqModelFinding {
   severity: EsqFindingSeverity;
@@ -482,16 +489,20 @@ function topRecords(sy: SystemsAnalysis): EsqTopRecord[] {
   });
 }
 
+function ieGroupRecord(group: InitiatingEventGroup): EsqInitiatorRecord {
+  const record: EsqInitiatorRecord = { id: group.uuid, name: textOf(group.name) ?? group.uuid, stateIds: texts(group.applicableStates) };
+  const description = textOf(group.description);
+  if (description !== undefined) record.description = description;
+  const frequency = group.frequency ?? undefined;
+  if (frequency !== undefined) record.frequency = structuredClone(frequency);
+  const holderId = textOf(group.controlledDataSource?.entityId);
+  record.heldBy = holderId === undefined ? "TYPED" : "DA";
+  if (holderId !== undefined) record.holderId = holderId;
+  return record;
+}
+
 function initiatorRecords(ie: InitiatingEventsAnalysis): EsqInitiatorRecord[] {
-  return ie.initiatingEventGroups.map((group) => {
-    const record: EsqInitiatorRecord = { id: group.uuid, name: textOf(group.name) ?? group.uuid, stateIds: texts(group.applicableStates) };
-    const frequency = group.frequency ?? undefined;
-    if (frequency !== undefined) record.frequency = structuredClone(frequency);
-    const holderId = textOf(group.controlledDataSource?.entityId);
-    record.heldBy = holderId === undefined ? "TYPED" : "DA";
-    if (holderId !== undefined) record.holderId = holderId;
-    return record;
-  });
+  return ie.initiatingEventGroups.map(ieGroupRecord);
 }
 
 function stateRecords(pos: PlantOperatingStatesAnalysis): EsqStateRecord[] {
@@ -1018,14 +1029,154 @@ function withTypedRecords(model: EsqModel, esq: EventSequenceQuantification, nod
     if (known === undefined) functions.push(record);
     else functions[index] = withNodeLinks({ ...known, treeIds: [...known.treeIds, ...record.treeIds], esLinks: [...known.esLinks, ...record.esLinks] }, [...(known.nodeLinks ?? []), ...(record.nodeLinks ?? [])]);
   }
-  return { ...model, trees: [...keptTrees, ...trees], sequences: [...keptSequences, ...sequenceRecords(source)], functions };
+  return withMergedInitiators({ ...model, trees: [...keptTrees, ...trees], sequences: [...keptSequences, ...sequenceRecords(source)], functions }, esq);
+}
+
+function typedInitiatorsOf(esq: EventSequenceQuantification): EsqTypedInitiator[] {
+  return esq.modelDecisions?.typedInitiators ?? [];
+}
+
+function withMergedInitiators(model: EsqModel, esq: EventSequenceQuantification): EsqModel {
+  const typed = typedInitiatorsOf(esq).map((entry): EsqInitiatorRecord => {
+    const { synced: _synced, ieOwned: _ieOwned, ...record } = entry;
+    return { ...record, typed: true };
+  });
+  const imported = model.initiators.filter((record) => record.typed !== true && !typed.some((entry) => sameItem(entry.id, record.id)));
+  return { ...model, initiators: [...imported, ...typed] };
+}
+
+function withTypedModel(esq: EventSequenceQuantification, upstream: EsqUpstream, now: string): EventSequenceQuantification {
+  const model = esq.model;
+  if (model?.importedAt === undefined) return withModelImported(esq, upstream, now);
+  return { ...esq, model: withTypedRecords(model, esq, nodeLabelOf(esq, upstream)) };
 }
 
 function withTypedTrees(esq: EventSequenceQuantification, trees: EventTree[], upstream: EsqUpstream, now: string): EventSequenceQuantification {
-  const next: EventSequenceQuantification = { ...esq, modelDecisions: { ...(esq.modelDecisions ?? {}), typedTrees: trees } };
-  const model = next.model;
-  if (model?.importedAt === undefined) return withModelImported(next, upstream, now);
-  return { ...next, model: withTypedRecords(model, next, nodeLabelOf(next, upstream)) };
+  return withTypedModel({ ...esq, modelDecisions: { ...(esq.modelDecisions ?? {}), typedTrees: trees } }, upstream, now);
+}
+
+function withTypedInitiatorRecord(esq: EventSequenceQuantification, record: EsqInitiatorRecord): EventSequenceQuantification {
+  const { typed: _typed, ...fields } = record;
+  return withDecisions(esq, (decisions) => {
+    const current = decisions.typedInitiators ?? [];
+    const known = current.find((entry) => sameItem(entry.id, record.id));
+    const ieOwned = known === undefined ? esq.model?.initiators.some((entry) => entry.typed !== true && sameItem(entry.id, record.id)) === true : known.ieOwned === true;
+    const owned: EsqTypedInitiator = ieOwned ? { ...fields, ieOwned: true } : fields;
+    const next: EsqTypedInitiator = known?.synced === undefined ? owned : { ...owned, synced: known.synced };
+    const choices = (decisions.initiatorChoices ?? []).flatMap((choice): EsqInitiatorChoice[] => {
+      if (!sameItem(choice.groupId, record.id) || choice.source === "IE") return [choice];
+      return choice.shares === undefined || choice.shares.length === 0 ? [] : [{ groupId: choice.groupId, source: "IE", shares: choice.shares }];
+    });
+    return {
+      ...decisions,
+      initiatorChoices: choices,
+      typedInitiators: known === undefined ? [...current, next] : current.map((entry) => (entry === known ? next : entry)),
+    };
+  });
+}
+
+function withTypedInitiator(esq: EventSequenceQuantification, record: EsqInitiatorRecord, upstream: EsqUpstream, now: string): EventSequenceQuantification {
+  return withTypedModel(withTypedInitiatorRecord(esq, record), upstream, now);
+}
+
+function newTypedInitiator(id: string, stateId: string | undefined): EsqInitiatorRecord {
+  return { id, name: NEW_INITIATOR_NAME, stateIds: stateId === undefined ? [] : [stateId] };
+}
+
+function initiatorCodesOf(esq: EventSequenceQuantification, ie?: InitiatingEventsAnalysis): string[] {
+  return [
+    ...(esq.model?.initiators ?? []).map((record) => record.id),
+    ...typedInitiatorsOf(esq).map((record) => record.id),
+    ...(esq.model?.trees ?? []).map((tree) => tree.initiatorId),
+    ...typedTreesOf(esq).map((tree) => tree.initiatingEventId),
+    ...esq.modelIntegration.scopeCoverage.initiatingEventGroups,
+    ...(esq.modelIntegration.scopeExclusions ?? []).flatMap((exclusion) => (exclusion.aspect === "INITIATOR_GROUP" ? [exclusion.item] : [])),
+    ...(ie?.initiatingEventGroups ?? []).map((group) => group.uuid),
+  ];
+}
+
+function initiatorCodeTaken(esq: EventSequenceQuantification, code: string, current: string, ie?: InitiatingEventsAnalysis): boolean {
+  return initiatorCodesOf(esq, ie).some((id) => sameItem(id, code) && !sameItem(id, current));
+}
+
+function initiatorCodeLock(esq: EventSequenceQuantification, id: string): EsqInitiatorCodeLock | undefined {
+  const typed = typedInitiatorsOf(esq).find((entry) => sameItem(entry.id, id));
+  const imported = esq.model?.initiators.some((record) => record.typed !== true && sameItem(record.id, id)) === true;
+  if (typed?.ieOwned === true || (typed === undefined && imported)) return "IE";
+  if ((esq.model?.trees ?? []).some((tree) => tree.typed !== true && !tree.transferEntry && sameItem(tree.initiatorId, id))) return "ES";
+  return undefined;
+}
+
+function renamedIds(ids: readonly string[], from: string, to: string): string[] {
+  return ids.map((id) => (sameItem(id, from) ? to : id));
+}
+
+function withInitiatorCode(esq: EventSequenceQuantification, from: string, to: string, upstream: EsqUpstream, now: string): EventSequenceQuantification {
+  const code = to.trim();
+  if (code.length === 0 || code === from) return esq;
+  const ieWorkbookId = linkOf(esq, "IE");
+  const owned = typedInitiatorsOf(esq).some((entry) => sameItem(entry.id, from)) ? esq : withTypedInitiatorRecord(esq, initiatorRecordOf(esq, from));
+  const decisions = owned.modelDecisions ?? {};
+  const typedInitiators = typedInitiatorsOf(owned).map((entry): EsqTypedInitiator => {
+    if (!sameItem(entry.id, from)) return entry;
+    const synced = entry.synced === undefined || entry.synced.workbookId !== ieWorkbookId ? entry.synced : { ...entry.synced, groupId: entry.synced.groupId ?? entry.id };
+    const renamed: EsqTypedInitiator = { ...entry, id: code, name: sameItem(entry.name, from) ? code : entry.name };
+    return synced === undefined ? renamed : { ...renamed, synced };
+  });
+  const integration = owned.modelIntegration;
+  const exclusions = integration.scopeExclusions;
+  const logic = owned.logic;
+  const post = owned.postWork;
+  const review = owned.review;
+  const model = owned.model;
+  const next: EventSequenceQuantification = {
+    ...owned,
+    modelDecisions: {
+      ...decisions,
+      typedInitiators,
+      ...(decisions.typedTrees === undefined ? {} : { typedTrees: decisions.typedTrees.map((tree) => (sameItem(tree.initiatingEventId, from) ? { ...tree, initiatingEventId: code } : tree)) }),
+      ...(decisions.initiatorChoices === undefined ? {} : { initiatorChoices: decisions.initiatorChoices.map((choice) => (sameItem(choice.groupId, from) ? { ...choice, groupId: code } : choice)) }),
+      ...(decisions.functionLinks === undefined ? {} : { functionLinks: decisions.functionLinks.map((link) => (link.rules === undefined ? link : { ...link, rules: link.rules.map((rule) => ({ ...rule, groupIds: renamedIds(rule.groupIds, from, code) })) })) }),
+    },
+    modelIntegration: {
+      ...integration,
+      scopeCoverage: { ...integration.scopeCoverage, initiatingEventGroups: renamedIds(integration.scopeCoverage.initiatingEventGroups, from, code) },
+      ...(exclusions === undefined ? {} : { scopeExclusions: exclusions.map((exclusion) => (exclusion.aspect === "INITIATOR_GROUP" && sameItem(exclusion.item, from) ? { ...exclusion, item: code } : exclusion)) }),
+    },
+    ...(logic?.flags === undefined ? {} : { logic: { ...logic, flags: logic.flags.map((flag) => ({ ...flag, groupIds: renamedIds(flag.groupIds, from, code) })) } }),
+    ...(post === undefined ? {} : {
+      postWork: {
+        ...post,
+        ...(post.recoveries === undefined ? {} : { recoveries: post.recoveries.map((rule) => ({ ...rule, groupIds: renamedIds(rule.groupIds, from, code) })) }),
+        ...(post.combinations === undefined ? {} : { combinations: post.combinations.map((combination) => ({ ...combination, groupIds: renamedIds(combination.groupIds, from, code) })) }),
+      },
+    }),
+    ...(review?.screened === undefined ? {} : { review: { ...review, screened: review.screened.map((bound) => (sameItem(bound.groupId, from) ? { ...bound, groupId: code } : bound)) } }),
+    ...(model === undefined ? {} : { model: { ...model, initiators: model.initiators.filter((record) => record.typed === true || !sameItem(record.id, from)) } }),
+  };
+  return withTypedModel(next, upstream, now);
+}
+
+function nextTypedInitiatorCode(esq: EventSequenceQuantification, ie?: InitiatingEventsAnalysis): string {
+  const taken = new Set(initiatorCodesOf(esq, ie).map((id) => id.trim().toLowerCase()));
+  let n = 1;
+  while (taken.has(`ieg-esq-${String(n).padStart(2, "0")}`)) n += 1;
+  return `IEG-ESQ-${String(n).padStart(2, "0")}`;
+}
+
+function initiatorRecordOf(esq: EventSequenceQuantification, id: string): EsqInitiatorRecord {
+  const record = esq.model?.initiators.find((candidate) => sameItem(candidate.id, id));
+  const base: EsqInitiatorRecord = record === undefined ? { id, name: id, stateIds: [] } : { ...record };
+  const choice = initiatorChoiceOf(esq, id);
+  if (choice?.source === "TYPED" && choice.expression !== undefined) {
+    const { holderId: _holderId, ...rest } = base;
+    return { ...rest, frequency: { expression: choice.expression, basis: choice.unit ?? FrequencyUnit.PER_REACTOR_YEAR }, heldBy: "TYPED" };
+  }
+  if (choice?.source === "DA" && choice.parameterId !== undefined) {
+    const expression = daParameterExpression(esq, choice.parameterId);
+    if (expression !== undefined) return { ...base, frequency: { expression, basis: FrequencyUnit.PER_PLANT_YEAR }, heldBy: "DA", holderId: choice.parameterId };
+  }
+  return base;
 }
 
 function withTypedTreeRemoved(esq: EventSequenceQuantification, treeId: string, upstream: EsqUpstream, now: string): EventSequenceQuantification {
@@ -1615,8 +1766,10 @@ function initiatorFindings(esq: EventSequenceQuantification, model: EsqModel, in
   const cc = esq.capabilityCategory;
   for (const view of initiators) {
     const target = { kind: "esqInitiator" as const, id: view.id };
+    const typedHere = view.source === "IE" && view.record?.typed === true;
     if (view.source === "IE" && view.record === undefined) {
-      findings.push({ severity: "error", check: "Not in IE", item: view.id, detail: model.sources.some((source) => source.element === "IE") ? `ES starts trees with ${view.id}, but IE does not list it. Type its frequency or take it from DA.` : `Link IE in Step 01 and import, or type the frequency of ${view.id}.`, target });
+      const ieImported = model.sources.some((source) => source.element === "IE");
+      findings.push({ severity: "error", check: ieImported ? "Not in IE" : "Not defined", item: view.id, detail: `${ieImported ? `IE does not list ${view.id}.` : `${view.id} is not defined.`} Open a tree that starts with it and fill in its initiating event.`, target });
     } else if (view.source === "DA" && view.parameter === undefined) {
       findings.push({ severity: "error", check: "DA parameter missing", item: view.id, detail: view.choice?.parameterId === undefined ? "Pick the DA parameter." : `The imported DA workbook does not hold ${view.choice.parameterId}.`, target });
     } else if (view.source === "DA" && view.parameter?.estimate === undefined) {
@@ -1624,7 +1777,7 @@ function initiatorFindings(esq: EventSequenceQuantification, model: EsqModel, in
     } else if (view.source === "DA" && linkOf(esq, "DA") === undefined) {
       findings.push({ severity: "error", check: "DA workbook not linked", item: view.id, detail: "Link the DA workbook in Step 01 to take the frequency from it.", target });
     } else if (view.given === undefined) {
-      findings.push({ severity: "error", check: "No frequency", item: view.id, detail: `${view.id} has no frequency. Take it from IE or DA, or type it.`, target });
+      findings.push({ severity: "error", check: "No frequency", item: view.id, detail: `${view.id} has no frequency. Open a tree that starts with it and give its initiating event a frequency.`, target });
     }
     if (view.given !== undefined) {
       for (const problem of referenceProblems(esq, model, view.given, view.id)) findings.push({ severity: "error", check: problem.check, item: view.id, detail: problem.detail, target });
@@ -1633,11 +1786,14 @@ function initiatorFindings(esq: EventSequenceQuantification, model: EsqModel, in
       if (blank(view.choice?.basis)) findings.push({ severity: "warning", check: "No basis", item: view.id, detail: "Give the basis of the typed frequency.", target });
       if (cc === "CC-II" && view.given !== undefined && !hasUncertainty(inlinedExpression(view.given, table))) findings.push({ severity: "warning", check: "No distribution", item: view.id, detail: "CC-II propagates a distribution. Give the typed frequency a law (ESQ-A8).", target });
     }
-    if (view.unit === "per-critical-year" && view.given !== undefined && view.expression === undefined) findings.push({ severity: "error", check: "Frequency unit", item: view.id, detail: `${view.source === "IE" ? "IE gives this frequency" : "This frequency is"} per critical year. POS gives no hours for its operating states, so ESQ cannot turn it into per reactor-year.`, target });
+    if (typedHere && view.record?.heldBy !== "DA" && cc === "CC-II" && view.given !== undefined && !hasUncertainty(inlinedExpression(view.given, table))) {
+      findings.push({ severity: "warning", check: "No distribution", item: view.id, detail: "CC-II propagates a distribution. Give the typed frequency a law in its tree (ESQ-A8).", target });
+    }
+    if (view.unit === "per-critical-year" && view.given !== undefined && view.expression === undefined) findings.push({ severity: "error", check: "Frequency unit", item: view.id, detail: `${view.source === "IE" && !typedHere ? "IE gives this frequency" : "This frequency is"} per critical year. POS gives no hours for its operating states, so ESQ cannot turn it into per reactor-year.`, target });
     if (view.unit === "per-demand") findings.push({ severity: "error", check: "Frequency unit", item: view.id, detail: "IE gives this value per demand. An initiator needs a frequency.", target });
     const applicable = view.states.filter((state) => state.applicable);
     if (applicable.length < 2) {
-      if (applicable.length === 0) findings.push({ severity: "error", check: "No operating state", item: view.id, detail: `Neither IE nor ES places ${view.id} in an operating state.`, target });
+      if (applicable.length === 0) findings.push({ severity: "warning", check: "No operating state", item: view.id, detail: typedHere ? `${view.id} has no operating state, so its whole frequency applies to its trees.` : `Neither IE nor ES places ${view.id} in an operating state, so its whole frequency applies to its trees.`, target });
     } else if (weighting === "POS_HOURS") {
       const missing = applicable.filter((state) => state.hours === undefined).map((state) => state.stateId);
       if (missing.length > 0) findings.push({ severity: "error", check: "No hours", item: view.id, detail: posImported ? `POS gives no hours for ${listText(missing)}.` : "Link POS in Step 01 and import, or type the share of each state.", target });
@@ -1653,10 +1809,15 @@ function initiatorFindings(esq: EventSequenceQuantification, model: EsqModel, in
     const unmodeled = applicable.filter((state) => model.trees.every((tree) => tree.transferEntry || !sameItem(tree.initiatorId, view.id) || tree.stateId !== state.stateId) && !excludedBy(esq, "OPERATING_STATE", [state.stateId, stateName.get(state.stateId) ?? ""]));
     for (const state of unmodeled) {
       const share = state.share === undefined ? "" : ` Its ${Number((state.share * 100).toPrecision(3))}% of the frequency is not modeled.`;
-      findings.push({ severity: "warning", check: "State without a tree", item: view.id, detail: `IE lists ${state.stateId} for ${view.id}, but ES has no tree for it.${share}`, target });
+      findings.push({ severity: "warning", check: "State without a tree", item: view.id, detail: typedHere ? `${view.id} applies to ${state.stateId}, but no tree starts with it there.${share}` : `IE lists ${state.stateId} for ${view.id}, but ES has no tree for it.${share}`, target });
     }
     const stray = view.states.filter((state) => !state.applicable && state.treeIds.length > 0).map((state) => state.stateId);
-    if (stray.length > 0 && view.record !== undefined) findings.push({ severity: "warning", check: "State not in IE", item: view.id, detail: `ES has a tree for ${view.id} in ${listText(stray)}, but IE does not list ${stray.length === 1 ? "that state" : "those states"}. ${stray.length === 1 ? "It gets" : "They get"} no frequency.`, target });
+    if (stray.length > 0 && view.record !== undefined) {
+      const detail = typedHere
+        ? `A tree for ${view.id} is in ${listText(stray)}, but its initiating event does not list ${stray.length === 1 ? "that state" : "those states"}. ${stray.length === 1 ? "It gets" : "They get"} no frequency.`
+        : `ES has a tree for ${view.id} in ${listText(stray)}, but IE does not list ${stray.length === 1 ? "that state" : "those states"}. ${stray.length === 1 ? "It gets" : "They get"} no frequency.`;
+      findings.push({ severity: "warning", check: typedHere ? "State not listed" : "State not in IE", item: view.id, detail, target });
+    }
   }
   return findings;
 }
@@ -2020,6 +2181,19 @@ export {
   typedTreesOf,
   withTypedTrees,
   withTypedTreeRemoved,
+  ieGroupRecord,
+  topRecords,
+  typedInitiatorsOf,
+  withMergedInitiators,
+  withTypedInitiatorRecord,
+  withTypedInitiator,
+  newTypedInitiator,
+  nextTypedInitiatorCode,
+  initiatorCodeTaken,
+  initiatorCodeLock,
+  withInitiatorCode,
+  initiatorRecordOf,
+  linkOf,
   effectiveMissionTime,
   treeRuleOf,
   withDefaultLink,
@@ -2040,6 +2214,7 @@ export {
   type EsqSequenceView,
   type EsqFamilyView,
   type EsqFunctionView,
+  type EsqInitiatorCodeLock,
   type EsqInitiatorView,
   type EsqInitiatorStateView,
   type EsqValueView,

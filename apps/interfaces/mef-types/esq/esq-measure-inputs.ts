@@ -130,6 +130,8 @@ function ccfInputKey(esq: EventSequenceQuantification, model: EsqModel, groupId:
 function initiatorInputKey(esq: EventSequenceQuantification, groupId: string): string {
   const choice = esq.modelDecisions?.initiatorChoices?.find((entry) => sameItem(entry.groupId, groupId));
   if (choice?.source === "DA" && choice.parameterId !== undefined) return `PARAMETER:${choice.parameterId}`;
+  const record = esq.model?.initiators.find((entry) => sameItem(entry.id, groupId));
+  if (choice?.source !== "TYPED" && record?.typed === true && record.heldBy === "DA" && record.holderId !== undefined) return `PARAMETER:${record.holderId}`;
   return `INITIATOR:${groupId}`;
 }
 
@@ -233,10 +235,10 @@ function sampledInputsOf(esq: EventSequenceQuantification): EsqSampledInput[] {
     const record = model.initiators.find((entry) => sameItem(entry.id, groupId));
     const input: EsqSampledInput = { key, kind: "INITIATOR", ref: groupId, label: esqItemLabel(record?.name, groupId, "Unresolved initiator group"), unit: "PER_YEAR", uncertain: false, users: [] };
     if (view.given === undefined) {
-      use({ ...input, missing: "The initiator group has no frequency. Take it from IE or DA, or type it in Step 02." }, `initiator:${groupId}`);
+      use({ ...input, missing: "The initiator group has no frequency. Give its initiating event a frequency in a Step 02 tree that starts with it." }, `initiator:${groupId}`);
       continue;
     }
-    const fromIe = view.source === "IE";
+    const fromIe = view.source === "IE" && record?.typed !== true;
     const next: EsqSampledInput = { ...input, expression: view.given, uncertain: hasUncertainty(view.given), source: fromIe ? "IE" : "STEP_02" };
     if (!next.uncertain) next.missing = fromIe ? "IE gives this frequency no uncertainty. Give it a law in IE." : "The typed frequency has no uncertainty. Give it a law in Step 02.";
     use(next, `initiator:${groupId}`);

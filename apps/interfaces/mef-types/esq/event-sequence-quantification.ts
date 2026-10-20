@@ -290,10 +290,23 @@ export interface EsqTopRecord {
 export interface EsqInitiatorRecord {
   id: string;
   name: string;
+  description?: string;
   stateIds: string[];
   frequency?: UncertainFrequency;
   heldBy?: "DA" | "TYPED";
   holderId?: string;
+  typed?: boolean;
+}
+
+export interface EsqIeSync {
+  workbookId: string;
+  fingerprint: string;
+  groupId?: string;
+}
+
+export interface EsqTypedInitiator extends EsqInitiatorRecord {
+  synced?: EsqIeSync;
+  ieOwned?: boolean;
 }
 
 export interface EsqStateRecord {
@@ -599,6 +612,7 @@ export interface EsqModelDecisions {
   sequenceChoices?: EsqSequenceChoice[];
   valueBindings?: EsqValueBinding[];
   typedTrees?: EventTree[];
+  typedInitiators?: EsqTypedInitiator[];
 }
 
 export type EsqFlagTargetKind = "HOUSE" | "EVENT" | "GATE";

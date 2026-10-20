@@ -10,7 +10,7 @@ import {
 import { type EventSequenceAnalysis } from "interfaces-mef-types/es/event-sequence-analysis";
 import { type RiskIntegration } from "interfaces-mef-types/ri/risk-integration";
 import { EMPTY_UPSTREAM, type EsqUpstream } from "./esqLinks";
-import { modelComplete, sameItem, transferEntryInitiators } from "./esqModel";
+import { modelComplete, sameItem, transferEntryInitiators, typedInitiatorsOf } from "./esqModel";
 import { logicComplete } from "./esqLogic";
 import { barriersComplete } from "./esqBarriers";
 import { solveComplete } from "./esqSolve";
@@ -150,7 +150,7 @@ function esStateIds(es: EventSequenceAnalysis): string[] {
   ]);
 }
 
-function scopeCandidates(upstream: EsqUpstream, aspect: EsqScopeAspect): ScopeCandidate[] {
+function scopeCandidates(esq: EventSequenceQuantification, upstream: EsqUpstream, aspect: EsqScopeAspect): ScopeCandidate[] {
   const out: ScopeCandidate[] = [];
   function add(key: string, label: string): void {
     if (key.trim().length === 0) return;
@@ -177,6 +177,7 @@ function scopeCandidates(upstream: EsqUpstream, aspect: EsqScopeAspect): ScopeCa
   if (aspect === "INITIATOR_GROUP") {
     for (const group of upstream.ie?.initiatingEventGroups ?? []) add(group.uuid, group.name);
     if (upstream.es !== undefined) for (const id of esInitiatorIds(upstream.es)) add(id, id);
+    for (const record of typedInitiatorsOf(esq)) add(record.id, record.name);
   }
   return out;
 }
@@ -197,7 +198,7 @@ function scopeExclusionsOf(esq: EventSequenceQuantification): EsqScopeExclusion[
 function scopeRowsView(esq: EventSequenceQuantification, upstream: EsqUpstream, aspect: EsqScopeAspect): EsqScopeRow[] {
   const included = includedList(esq, aspect);
   const exclusions = scopeExclusionsOf(esq).filter((exclusion) => exclusion.aspect === aspect);
-  const candidates = scopeCandidates(upstream, aspect);
+  const candidates = scopeCandidates(esq, upstream, aspect);
   const extras: ScopeCandidate[] = [];
   for (const item of [...included, ...exclusions.map((exclusion) => exclusion.item)]) {
     if (candidates.some((candidate) => rowMatches(candidate, item)) || extras.some((candidate) => rowMatches(candidate, item))) continue;

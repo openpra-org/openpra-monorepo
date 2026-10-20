@@ -237,10 +237,17 @@ export const EsqTopRecordSchema = z.object({
 export const EsqInitiatorRecordSchema = z.object({
   id: z.string(),
   name: z.string(),
+  description: z.string().optional(),
   stateIds: z.array(z.string()),
   frequency: UncertainFrequencySchema.optional(),
   heldBy: z.enum(["DA", "TYPED"]).optional(),
   holderId: z.string().optional(),
+  typed: z.boolean().optional(),
+});
+
+export const EsqTypedInitiatorSchema = EsqInitiatorRecordSchema.extend({
+  synced: z.object({ workbookId: z.string(), fingerprint: z.string(), groupId: z.string().optional() }).optional(),
+  ieOwned: z.boolean().optional(),
 });
 
 export const EsqStateRecordSchema = z.object({
@@ -546,6 +553,7 @@ export const EsqModelDecisionsSchema = z.object({
     )
     .optional(),
   typedTrees: z.array(EventTreeSchema).optional(),
+  typedInitiators: z.array(EsqTypedInitiatorSchema).optional(),
 });
 
 export const EsqLogicSchema = z.object({

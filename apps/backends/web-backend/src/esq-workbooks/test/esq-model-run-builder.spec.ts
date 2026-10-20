@@ -620,6 +620,59 @@ describe("ESQ event tree run builder", () => {
     expect(buildError(() => build(noFrequency))).toBe("ET-T1 has no initiator frequency. Complete the Initiators tab of Step 02.");
   });
 
+  function changed(change: (esq: EventSequenceQuantification, model: EsqModel) => void): EventSequenceQuantification {
+    const esq = workbook();
+    if (esq.model === undefined) throw new Error("fixture has no model");
+    change(esq, esq.model);
+    return esq;
+  }
+
+  function withoutState(model: EsqModel): void {
+    model.trees = model.trees.map((tree) => {
+      if (tree.id !== "T1") return tree;
+      const { stateId: _stateId, ...rest } = tree;
+      return rest;
+    });
+  }
+
+  it("gives a drawn tree the whole typed frequency when no operating state exists", () => {
+    const drawn = changed((_esq, model) => {
+      model.initiators = [];
+      model.states = [];
+      withoutState(model);
+      model.trees = model.trees.map((tree) => (tree.id === "T1" ? { ...tree, initiatorId: "IE-1", typed: true } : tree));
+    });
+    expect(buildError(() => build(drawn))).toBe("ET-T1 has no initiator frequency. Complete the Initiators tab of Step 02.");
+    drawn.modelDecisions = { ...drawn.modelDecisions, initiatorChoices: [{ groupId: "IE-1", source: "TYPED", expression: point("PER_YEAR", 0.5), unit: FrequencyUnit.PER_REACTOR_YEAR }] };
+    const run = build(drawn);
+    expect(run.frequency).toEqual(point("PER_YEAR", 0.5));
+    expect(run.eventTreeSnapshots[0]?.["initiatingEventFrequency"]).toEqual({ expression: point("PER_YEAR", 0.5) });
+  });
+
+  it("names why a tree gets none of its group frequency", () => {
+    const stateless = changed((_esq, model) => {
+      model.initiators = model.initiators.map((initiator) => ({ ...initiator, stateIds: ["S1", "S2"] }));
+      model.states = [...model.states, { id: "S2", name: "Shutdown", hours: 760 }];
+      withoutState(model);
+    });
+    expect(buildError(() => build(stateless))).toBe("ET-T1 has no operating state, and IE1 applies to several. Pick the operating state where the tree is drawn.");
+    const elsewhere = changed((_esq, model) => {
+      model.initiators = model.initiators.map((initiator) => ({ ...initiator, stateIds: ["S2"] }));
+      model.states = [...model.states, { id: "S2", name: "Shutdown", hours: 760 }];
+    });
+    expect(buildError(() => build(elsewhere))).toBe("IE1 does not apply to the operating state of ET-T1, so the tree gets none of its frequency. Add that state to the group in IE, or change the state of the tree.");
+    const unshared = changed((_esq, model) => {
+      model.initiators = model.initiators.map((initiator) => ({ ...initiator, stateIds: ["S1", "S2"] }));
+      model.states = [{ id: "S1", name: "Power operation" }, { id: "S2", name: "Shutdown" }];
+    });
+    expect(buildError(() => build(unshared))).toBe("ET-T1 gets no share of the frequency of IE1. Give its operating states hours in POS or typed shares in the Initiators tab of Step 02.");
+    const critical = changed((esq, model) => {
+      model.states = [{ id: "S1", name: "Power operation" }];
+      esq.modelDecisions = { ...esq.modelDecisions, initiatorChoices: [{ groupId: "IE1", source: "TYPED", expression: point("PER_YEAR", 2), unit: FrequencyUnit.PER_CRITICAL_YEAR }] };
+    });
+    expect(buildError(() => build(critical))).toBe("The frequency of IE1 is per critical year, and POS gives no hours to turn it into per reactor-year. Give its operating states hours in POS, or type the frequency per reactor-year in the Initiators tab of Step 02.");
+  });
+
   describe("Step 06 post-processing as logic", () => {
     function humanSystems(): SystemsAnalysis {
       const sy = systems();

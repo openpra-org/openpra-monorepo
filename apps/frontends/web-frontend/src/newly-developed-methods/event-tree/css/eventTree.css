@@ -114,10 +114,15 @@ button.et-editor__crumb:hover { background: var(--color-primary-soft); }
 .estree__head-label { display: -webkit-box; margin-top: 1px; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 3; color: var(--color-text); font-size: 12.5px; font-weight: 700; line-height: 1.2; overflow-wrap: anywhere; }
 .estree__link-state { display: inline-flex; margin-top: 3px; color: var(--color-text-subtle); font: 10.5px var(--font-ui), sans-serif; }
 .estree__link-state--linked { color: var(--color-text-subtle); }
-.estree__ie { position: absolute; left: 0; width: 86px; transform: translateY(-50%); text-align: left; }
+.estree__ie { position: absolute; width: max-content; transform: translate(-100%, -50%); text-align: left; }
 .estree__ie-cap, .esdg__ie-cap { color: var(--color-text-subtle); font: 700 9px var(--font-ui), sans-serif; letter-spacing: .08em; text-transform: uppercase; }
-.estree__ie-id, .esdg__ie-id { color: var(--color-text); font: 700 12px var(--font-data), ui-monospace, monospace; }
+.estree__ie-id, .esdg__ie-id { color: var(--color-text); font: 700 12px var(--font-data), ui-monospace, monospace; overflow-wrap: anywhere; }
 .estree__ie-freq { color: var(--color-primary); font: 10.5px var(--font-data), ui-monospace, monospace; }
+.estree__ie--button, .esdg__ie--button { padding: 0; border: 0; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.estree__ie--selected, .esdg__ie--selected { border-radius: 8px; box-shadow: 0 0 0 3px var(--color-primary-focus); }
+.et-editor__ie-pick { display: flex; align-items: stretch; gap: 6px; min-width: 0; }
+.et-editor__ie-pick .posfield__select { flex: 1 1 auto; min-width: 0; }
+.et-editor__ie-pick .posnav__btn { flex: none; justify-content: center; }
 .estree__svg { position: absolute; inset: 0; overflow: visible; pointer-events: none; }
 .estree__seg { fill: none; stroke: var(--color-border-strong); stroke-width: 1.6; }
 .estree__seg--hot { stroke: var(--color-primary); stroke-width: 2.4; }

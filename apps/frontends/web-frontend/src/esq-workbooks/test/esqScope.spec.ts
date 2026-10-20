@@ -2,7 +2,7 @@ import { ESQ_PLAN_DEFAULTS, type EventSequenceQuantification } from "interfaces-
 import type { EventSequenceAnalysis } from "interfaces-mef-types/es/event-sequence-analysis";
 import type { InitiatingEventsAnalysis } from "interfaces-mef-types/ie/initiating-event-analysis";
 import type { PlantOperatingStatesAnalysis } from "interfaces-mef-types/pos/plant-operating-state-analysis";
-import { EMPTY_UPSTREAM, type EsqUpstream } from "../esqLinks";
+import { EMPTY_UPSTREAM, withLinkedWorkbook, type EsqUpstream } from "../esqLinks";
 import { blankEsq } from "./esqFixtures";
 import {
   filterConformance,
@@ -93,6 +93,17 @@ describe("ESQ scope coverage", () => {
       eventSequences: [{ initiatingEventId: "SBO-TRANSFER-ENTRY", plantOperatingStateId: "POS-01" }],
     } as EventSequenceAnalysis;
     expect(scopeRowsView(blankEsq(), { ...EMPTY_UPSTREAM, es: linked }, "INITIATOR_GROUP").map((row) => row.key)).toEqual(["IEG-LOOP"]);
+  });
+
+  it("links a workbook the same way from Step 01 and from the Step 02 Link window", () => {
+    const esq: EventSequenceQuantification = { ...blankEsq(), linkedWorkbooks: { DA: "da-1", ES: "" } };
+    expect(withLinkedWorkbook(esq, "SY", "sy-1").linkedWorkbooks).toEqual({ SY: "sy-1", DA: "da-1" });
+    expect(withLinkedWorkbook(esq, "DA", "").linkedWorkbooks).toEqual({});
+  });
+
+  it("lists the initiating events made in ESQ Step 02 as initiator groups", () => {
+    const esq = { ...blankEsq(), modelDecisions: { typedInitiators: [{ id: "IEG-ESQ-01", name: "Loss of forced cooling in both loops", stateIds: [] }] } };
+    expect(scopeRowsView(esq, EMPTY_UPSTREAM, "INITIATOR_GROUP").map((row) => [row.key, row.label, row.state, row.byHand])).toEqual([["IEG-ESQ-01", "Loss of forced cooling in both loops", "unset", false]]);
   });
 
   it("takes operating states and sources from POS and marks the sources ES lists", () => {

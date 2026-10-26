@@ -13,6 +13,8 @@ A release has these files:
 
 The target machine needs Linux on x86_64, at least 8 GB of memory and about 30 GB of free disk.
 
+If the machine already runs OpenPRA from an earlier bundle, skip steps 1 to 6 and follow [Upgrade from an earlier bundle](#upgrade-from-an-earlier-bundle). It keeps all data.
+
 ## Step 1. Check and unpack the bundle
 
 Put the parts and the checksum file in one folder. Then check and unpack them:
@@ -77,7 +79,7 @@ echo "JWT_SECRET=$(openssl rand -hex 48)" >> .env
 echo "TFA_ENC_KEY=$(openssl rand -hex 48)" >> .env
 ```
 
-Changing `JWT_SECRET` later logs everyone out. Changing `TFA_ENC_KEY` later breaks existing two-factor enrollments. If you upgrade from an earlier bundle, read the upgrade section first.
+Changing `JWT_SECRET` later logs everyone out. Changing `TFA_ENC_KEY` later breaks existing two-factor enrollments. If you upgrade from an earlier bundle, follow the upgrade section instead.
 
 ## Step 5. Start the app
 
@@ -120,25 +122,120 @@ Section 6.2 of `README.md` in the source lists every other setting. For example,
 
 ## Upgrade from an earlier bundle
 
-The stack keeps the name `openpra-offline`, so a new bundle reuses the data of the old one. First stop the old stack. Run this in the folder that holds its compose file:
+Use this section instead of steps 1 to 6 when the machine already runs OpenPRA from an earlier bundle. It keeps every account, project, workbook and file. They live in two Docker volumes, `openpra-offline_mongo_data` and `openpra-offline_minio_data`. The new bundle opens the same volumes, because its stack has the same name, `openpra-offline`. The steps still back up the data and the old images first, so you can always go back.
+
+### Upgrade step 1. Check the machine
+
+The new version needs at least 8 GB of memory. The disk needs about 30 GB free, plus room for a backup of the data and the old images. Check all three:
+
+```bash
+free -g
+df -h /var/lib/docker $HOME
+docker system df -v | grep openpra-offline_
+```
+
+The last command lists the data volumes and their sizes. You should see `openpra-offline_mongo_data` and `openpra-offline_minio_data`.
+
+Note the settings of the old install. The first bundle (`offline-v1`) read `TFA_ENC_KEY`, `JWT_SECRET` and `OPENPRA_HOST` from the shell, for example `TFA_ENC_KEY=... docker compose up -d`. If you never set `TFA_ENC_KEY`, it is `offline-tfa-key-change-me`. Later bundles keep every setting in `deploy/.env`.
+
+### Upgrade step 2. Stop the old stack
+
+Go to the folder with the old compose file. For the first bundle that is its `openpra-offline` folder. For later bundles it is `openpra-offline/deploy`. Then stop the stack:
 
 ```bash
 docker compose down
 ```
 
-This keeps the data. Then unpack the new bundle in a new folder and load its images (steps 1 and 3). Copy the old `deploy/.env` over the new one, if the old bundle has one.
+This keeps the data. Never add `-v`, which deletes it.
 
-The first bundle (`offline-v1`) has no `deploy/.env`. It read the secrets from the shell. Keep its two-factor key, so existing two-factor enrollments keep working. If you never set one, it was `offline-tfa-key-change-me`. Generate a new `JWT_SECRET`, which only logs everyone out once:
+### Upgrade step 3. Back up the data and the old images
+
+Stay in the same folder and run:
 
 ```bash
-cd openpra-offline/deploy
+mkdir -p $HOME/openpra-backup
+docker save -o $HOME/openpra-backup/images.tar $(docker compose config --images)
+docker run --rm -v openpra-offline_mongo_data:/data:ro -v $HOME/openpra-backup:/backup openpra-apps-web-backend:local tar --numeric-owner -czf /backup/mongo_data.tar.gz -C /data .
+docker run --rm -v openpra-offline_minio_data:/data:ro -v $HOME/openpra-backup:/backup openpra-apps-web-backend:local tar --numeric-owner -czf /backup/minio_data.tar.gz -C /data .
+tar -tzf $HOME/openpra-backup/mongo_data.tar.gz > /dev/null && echo "MongoDB backup OK"
+tar -tzf $HOME/openpra-backup/minio_data.tar.gz > /dev/null && echo "MinIO backup OK"
+```
+
+Both checks must print `OK`. If the folder has a `.env` file, copy it into the backup as well with `cp .env $HOME/openpra-backup/`. Keep the backup and the old bundle's folder until the new version has run well for a while.
+
+### Upgrade step 4. Unpack the new bundle in a new folder
+
+Make a new folder for the new bundle. Never use the old bundle's folder, because both bundles unpack to a folder named `openpra-offline`.
+
+```bash
+mkdir ~/openpra-new
+```
+
+If `mkdir` reports that the folder exists, an earlier upgrade used that name. Pick another name and use it in the commands below. Copy the new parts and their checksum file into the new folder. Then check and unpack them:
+
+```bash
+cd ~/openpra-new
+sha256sum -c openpra-offline-bundle.sha256
+cat openpra-offline-bundle.tar.gz.part-* | tar -xz
+```
+
+### Upgrade step 5. Load the new images
+
+```bash
+cd ~/openpra-new/openpra-offline
+docker load -i openpra-images.tar
+```
+
+### Upgrade step 6. Carry over the settings
+
+If the old bundle has a `deploy/.env`, copy it into the new bundle:
+
+```bash
+cp $HOME/openpra-backup/.env ~/openpra-new/openpra-offline/deploy/.env
+```
+
+For the first bundle, write the settings into the new `deploy/.env` instead. Replace the key with your own if you set one. A new `JWT_SECRET` only logs everyone out once.
+
+```bash
+cd ~/openpra-new/openpra-offline/deploy
 echo "TFA_ENC_KEY=offline-tfa-key-change-me" >> .env
 echo "JWT_SECRET=$(openssl rand -hex 48)" >> .env
 ```
 
-The first bundle also served other machines without any setting. If other machines used it, add `OPENPRA_BIND` and `OPENPRA_HOST` as in the network section. Then start the app (step 5).
+The first bundle served other machines without any setting. If other machines used it, add this server's IP address or host name too:
 
-Browsers may still hold the page of the first bundle. After the upgrade, each user reloads the app once with Ctrl+Shift+R, or Cmd+Shift+R on macOS.
+```bash
+echo "OPENPRA_BIND=0.0.0.0" >> .env
+echo "OPENPRA_HOST=192.168.1.50" >> .env
+```
+
+### Upgrade step 7. Start the new version
+
+```bash
+cd ~/openpra-new/openpra-offline/deploy
+docker compose up -d
+docker compose ps
+```
+
+Every service should be `Up`, and MongoDB, RabbitMQ and MinIO should be `healthy`. On the first start the backend converts old workbooks to the current format and keeps a copy of each original. Sign in and open a project to check your data. Then each user reloads the app once with Ctrl+Shift+R, or Cmd+Shift+R on macOS, because browsers may still hold the old page.
+
+### Go back to the old version
+
+If the new version does not work, restore the backup and the old images. Each restore command first reads its backup file in full, and only then replaces the content of the volume.
+
+```bash
+cd ~/openpra-new/openpra-offline/deploy
+docker compose down
+docker run --rm -v openpra-offline_mongo_data:/data -v $HOME/openpra-backup:/backup openpra-apps-web-backend:local sh -c "tar -tzf /backup/mongo_data.tar.gz > /dev/null && find /data -mindepth 1 -delete && tar --numeric-owner -xzf /backup/mongo_data.tar.gz -C /data"
+docker run --rm -v openpra-offline_minio_data:/data -v $HOME/openpra-backup:/backup openpra-apps-web-backend:local sh -c "tar -tzf /backup/minio_data.tar.gz > /dev/null && find /data -mindepth 1 -delete && tar --numeric-owner -xzf /backup/minio_data.tar.gz -C /data"
+docker load -i $HOME/openpra-backup/images.tar
+```
+
+Then go to the folder with the old compose file and start the old stack with the same settings as before:
+
+```bash
+docker compose up -d
+```
 
 ## Known offline limitations
 

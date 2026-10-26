@@ -439,7 +439,7 @@ cd deploy
 docker compose up -d
 ```
 
-The app is then at http://localhost:8080. `INSTALL.md` also covers the secrets, serving other machines on the network, upgrading from an earlier bundle and restoring the source from the git bundle.
+The app is then at http://localhost:8080. `INSTALL.md` also covers the secrets, serving other machines on the network, upgrading from an earlier bundle with a backup and a way back, and restoring the source from the git bundle.
 
 Offline behavior to communicate to users: password reset emails cannot send, Google and GitHub login are unavailable so accounts use username and password, and 2FA verifies against the server clock. The bundle's `deploy/.env` sets `TFA_TIME_URL` to empty, so the backend never tries to reach the internet.
 

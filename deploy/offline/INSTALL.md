@@ -138,6 +138,8 @@ echo "JWT_SECRET=$(openssl rand -hex 48)" >> .env
 
 The first bundle also served other machines without any setting. If other machines used it, add `OPENPRA_BIND` and `OPENPRA_HOST` as in the network section. Then start the app (step 5).
 
+Browsers may still hold the page of the first bundle. After the upgrade, each user reloads the app once with Ctrl+Shift+R, or Cmd+Shift+R on macOS.
+
 ## Known offline limitations
 
 Password reset emails cannot send, so an admin recovers accounts instead. Google and GitHub sign-in are unavailable, so accounts use a username and password. Two-factor codes are checked against the server clock, so keep the server time accurate. The Docs link in the app and the links to published sources open internet pages, so they work only on machines with internet access.

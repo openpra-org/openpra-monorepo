@@ -23,7 +23,7 @@ import { DaProvenanceChip, DaTabs, DetailRow, DetailToggle, FieldList, FormFoot,
 import { DistributionChart, useElementWidth, type DistributionSeries } from "./daDistributionChart";
 import { BFR_PARTS, KIND_LABELS, preciseText, MODEL_LABELS, ccfEventCount, ccfFindings, ccfLabelOf, ccfResult, ccfVectorLabel, factorsText, inlineFactors, kindOf, memberParameterIds, modelOfEstimate, shareFromNeeds, type DaCcfLevel, type DaCcfResult } from "./daCcf";
 import { KIND_MODEL, ccfSurvey, evidenceChoiceRows, rowIdsFor, sizesFit, sizesText, type DaCcfEvidenceChoice, type DaCcfModel, type DaCcfSurvey } from "./daCcfRows";
-import { lawSummary } from "./daLaws";
+import { hasSpread, lawSummary } from "./daLaws";
 import { libraryEntries, nextCode, withStoredEntry } from "./daSourcing";
 import { useDaWorkbook } from "./daWorkbookContext";
 import { BOUNDARY_MATCH_LABELS, CCF_METHOD_LABELS, CCF_TESTING_LABELS, EVIDENCE_ORIGIN_LABELS } from "./daViewData";
@@ -82,7 +82,8 @@ function pageOf<T>(rows: readonly T[], page: number, size = NEED_PAGE): { curren
 }
 
 function levelText(level: DaCcfLevel): string {
-  const range = level.p05 === undefined || level.p95 === undefined ? "" : `, 5th ${factorText(level.p05)}, 95th ${factorText(level.p95)}`;
+  const point = level.law?.family === "POINT" || (level.expression !== undefined && !hasSpread(level.expression));
+  const range = level.p05 === undefined || level.p95 === undefined ? "" : `, 5th ${point ? "—" : factorText(level.p05)}, 95th ${point ? "—" : factorText(level.p95)}`;
   const published = level.published === undefined ? "" : `, printed ${factorText(level.published)}`;
   return `${factorText(level.mean)}${range}${level.prior === undefined ? "" : `, published ${factorText(level.prior)}`}${published}`;
 }

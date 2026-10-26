@@ -182,8 +182,8 @@ function RestorationDetail({ parameter }: { parameter: DataAnalysisParameter }):
   if (method === "RECORDS" || (method === "SOURCES" && estimate.times.length + estimate.censored.length > 0)) items.push({ label: "Plant times", value: `${estimate.times.length} completed, ${estimate.censored.length} still open` });
   items.push({ label: "Estimate", value: estimateText(estimate.estimate) });
   items.push({ label: "Mean", value: statText(spread?.mean) });
-  items.push({ label: "5th percentile", value: statText(spread?.p05) });
-  items.push({ label: "95th percentile", value: statText(spread?.p95) });
+  items.push({ label: "5th percentile", value: spread?.point === true ? "—" : statText(spread?.p05) });
+  items.push({ label: "95th percentile", value: spread?.point === true ? "—" : statText(spread?.p95) });
   if (method === "SOURCES") items.push({ label: "Comparison mean", value: statText(estimate.comparisonMean) });
   const subject = subjectText.length > 0 ? subjectText.toLowerCase() : "the function";
   const note = estimate.problem ?? (estimate.pending || curves.pending ? "Waiting for PRAXIS." : waitNote([typed]));

@@ -83,13 +83,14 @@ function ComponentDistributionDetail({ parameter }: { parameter: DataAnalysisPar
   const estimate = parameter.estimate;
   const curve = estimate?.node === "VALUE" ? lawSummary(estimate.value.unit, estimate.value.law, true) : undefined;
   const sampled = summary.sampled === true ? ", sampled" : "";
+  const point = withoutSpread(parameter, summary);
   const note = summary.pending === true ? "Waiting for PRAXIS." : summary.problem !== undefined ? `PRAXIS failed: ${summary.problem}` : waitNote([curve]);
   return (
     <>
       <FieldList items={[
         { label: "Estimate", value: estimateText(estimate) },
         { label: "Mean", value: `${summaryText(summary, summary.mean)} ${unit}${sampled}` },
-        { label: "Percentiles", value: summary.pending === true || summary.problem !== undefined || summary.mean === undefined ? summaryText(summary, undefined) : `5th ${statText(summary.p05)}, median ${statText(summary.median)}, 95th ${statText(summary.p95)}${sampled}` },
+        { label: "Percentiles", value: summary.pending === true || summary.problem !== undefined || summary.mean === undefined ? summaryText(summary, undefined) : `5th ${point ? "—" : statText(summary.p05)}, median ${statText(summary.median)}, 95th ${point ? "—" : statText(summary.p95)}${sampled}` },
         { label: "95th over median", value: factorText(summary.errorFactor) },
         { label: "Coefficient of variation", value: factorText(summary.cv) },
         { label: "Risk significant", value: parameter.isRiskSignificant === true ? "Yes" : "No" },
@@ -107,12 +108,13 @@ function DistributionDetail({ parameter }: { parameter: DataAnalysisParameter })
   if (lawParameter(parameter)) return <ComponentDistributionDetail parameter={parameter} />;
   const summary = distributionSummary(da, parameter);
   const unit = unitOf(parameter);
+  const point = withoutSpread(parameter, summary);
   return (
     <>
       <FieldList items={[
         { label: "Value", value: `${statText(parameter.value)} ${unit}, ${parameter.valueType === "POINT_ESTIMATE" ? "a point value" : "a mean"}` },
         { label: "Distribution", value: summary.distribution === undefined ? "None" : summary.family },
-        { label: "Percentiles", value: summary.mean === undefined ? "—" : `5th ${statText(summary.p05)}, median ${statText(summary.median)}, 95th ${statText(summary.p95)}` },
+        { label: "Percentiles", value: summary.mean === undefined ? "—" : `5th ${point ? "—" : statText(summary.p05)}, median ${statText(summary.median)}, 95th ${point ? "—" : statText(summary.p95)}` },
         { label: "95th over median", value: factorText(summary.errorFactor) },
         { label: "Coefficient of variation", value: factorText(summary.cv) },
         { label: "Risk significant", value: parameter.isRiskSignificant === true ? "Yes" : "No" },

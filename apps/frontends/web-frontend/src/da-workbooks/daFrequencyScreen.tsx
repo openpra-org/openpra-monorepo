@@ -165,11 +165,11 @@ function EvidenceDetail({ parameter }: { parameter: DataAnalysisParameter }): JS
   return items.length === 0 ? <p className="posmuted">No events counted. The estimate rests on its sources.</p> : <FieldList items={items} />;
 }
 
-function summaryText(state: UncertaintyState<UncertaintyLawSummary> | undefined): string {
+function summaryText(state: UncertaintyState<UncertaintyLawSummary> | undefined, point: boolean): string {
   if (state === undefined) return "—";
   if (state.status === "pending") return "…";
   if (state.status === "failed") return `PRAXIS failed: ${state.error}`;
-  return `mean ${statText(state.value.mean)}, 5th ${statText(quantileOf(state.value, 0.05))}, 95th ${statText(quantileOf(state.value, 0.95))}`;
+  return `mean ${statText(state.value.mean)}, 5th ${point ? "—" : statText(quantileOf(state.value, 0.05))}, 95th ${point ? "—" : statText(quantileOf(state.value, 0.95))}`;
 }
 
 function partItems(da: DataAnalysis, estimate: DaFrequencyEstimate, part: DaFrequencyPartEstimate): { label: string; value: string }[] {
@@ -178,8 +178,8 @@ function partItems(da: DataAnalysis, estimate: DaFrequencyEstimate, part: DaFreq
   const share = part.part.per === "CALENDAR_YEAR" ? "no state share" : `share ${Number(((part.share.share ?? 0) * 100).toPrecision(3))}% (${part.share.counted.join(", ")})`;
   return [
     { label: part.part.label, value: part.problem ?? `${part.uses.length === 0 ? "No source" : part.uses.map((use) => useText(da, use)).join(" + ")}, ${PRIOR_FORM_LABELS[part.form].toLowerCase()}, ${part.method === undefined ? "no method" : FREQUENCY_METHOD_LABELS[part.method].toLowerCase()}${part.computation === undefined ? "" : `, ${COMPUTATION_LABELS[part.computation].toLowerCase()}`}` },
-    { label: `${part.part.label}, ${perLabel(part.part.per)}`, value: summaryText(basis) },
-    { label: `${part.part.label}, to the plant`, value: part.factor === undefined ? "—" : `${share}${estimate.siteWide ? ", site-wide" : `, × ${estimate.modules} modules`}, ${summaryText(plant)}` },
+    { label: `${part.part.label}, ${perLabel(part.part.per)}`, value: summaryText(basis, part.posterior?.family === "POINT") },
+    { label: `${part.part.label}, to the plant`, value: part.factor === undefined ? "—" : `${share}${estimate.siteWide ? ", site-wide" : `, × ${estimate.modules} modules`}, ${summaryText(plant, part.law?.family === "POINT")}` },
   ];
 }
 

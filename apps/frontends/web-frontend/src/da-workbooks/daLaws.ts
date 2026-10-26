@@ -10,7 +10,7 @@ import type {
   DaTransferFactor,
 } from "interfaces-mef-types/da/data-analysis";
 import { entryHoldsLaw, holdsEstimate } from "interfaces-mef-types/da/data-analysis";
-import { canonicalJson, parameterReferenceKey, lawBounds, lawWithinUnit, unitBounds, type Law, type MixtureComponent, type UncertainExpression, type UncertainParameter, type UncertainUnit } from "interfaces-mef-types/core/uncertainty";
+import { canonicalJson, parameterReferenceKey, lawBounds, lawWithinUnit, modelArguments, unitBounds, type Law, type MixtureComponent, type UncertainExpression, type UncertainParameter, type UncertainUnit } from "interfaces-mef-types/core/uncertainty";
 import { legacyLaw } from "interfaces-mef-types/core/legacy-uncertainty-adapter";
 import type {
   UncertaintyExpressionSummary,
@@ -46,6 +46,7 @@ interface DaSpread {
   median?: number;
   p95?: number;
   sampled: boolean;
+  point: boolean;
 }
 
 const ESTIMATE_UNITS: Partial<Record<DaQuantificationModel, UncertainUnit>> = {
@@ -183,11 +184,25 @@ function withExtra(extra: ReadonlyMap<string, UncertainParameter> | undefined): 
   return new Map([...parameterTable, ...extra]);
 }
 
+function hasSpread(expression: UncertainExpression): boolean {
+  switch (expression.node) {
+    case "VALUE":
+      return expression.value.law.family !== "POINT";
+    case "PARAMETER":
+      return true;
+    case "OPERATION":
+      return expression.operands.some(hasSpread);
+    case "MODEL":
+      return modelArguments(expression.model).some(hasSpread);
+  }
+}
+
 function expressionSpread(expression: UncertainExpression, unit: UncertainUnit, extra?: ReadonlyMap<string, UncertainParameter>): UncertaintyState<DaSpread> {
+  const point = !hasSpread(expression);
   if (expression.node === "VALUE") {
     const state = lawSummary(expression.value.unit, expression.value.law);
     if (state.status !== "ready") return state;
-    return { status: "ready", value: { mean: state.value.mean, standardDeviation: state.value.standardDeviation ?? undefined, p05: quantileOf(state.value, 0.05), median: quantileOf(state.value, 0.5), p95: quantileOf(state.value, 0.95), sampled: false } };
+    return { status: "ready", value: { mean: state.value.mean, standardDeviation: state.value.standardDeviation ?? undefined, p05: quantileOf(state.value, 0.05), median: quantileOf(state.value, 0.5), p95: quantileOf(state.value, 0.95), sampled: false, point } };
   }
   const query: ExpressionQuery = { expression, unit, probabilities: SUMMARY_PROBABILITIES, parameters: parametersFor([expression], withExtra(extra)), sampling: SPREAD_SAMPLING };
   const state = peekExpression(query);
@@ -198,7 +213,7 @@ function expressionSpread(expression: UncertainExpression, unit: UncertainUnit, 
   if (state.status === "failed") return state;
   const sampled = state.value.sampled;
   if (sampled === null) return { status: "failed", error: "PRAXIS gave no samples." };
-  return { status: "ready", value: { mean: sampled.mean, standardDeviation: sampled.standardDeviation, p05: quantileOf(sampled, 0.05), median: quantileOf(sampled, 0.5), p95: quantileOf(sampled, 0.95), sampled: true } };
+  return { status: "ready", value: { mean: sampled.mean, standardDeviation: sampled.standardDeviation, p05: quantileOf(sampled, 0.05), median: quantileOf(sampled, 0.5), p95: quantileOf(sampled, 0.95), sampled: true, point } };
 }
 
 function componentUnit(parameter: DataAnalysisParameter): UncertainUnit | undefined {
@@ -419,6 +434,7 @@ export {
   entryLaw,
   expressionPoint,
   expressionQuery,
+  hasSpread,
   lawQuery,
   lawSummary,
   operationAnswer,

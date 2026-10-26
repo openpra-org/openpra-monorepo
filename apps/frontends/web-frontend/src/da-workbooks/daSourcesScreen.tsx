@@ -33,7 +33,7 @@ import { ClampCell, DaProvenanceChip, DaTabs, DetailRow, FieldList, FormFoot, Fo
 import { distributionQuantile, judgmentComponent } from "./daDistributions";
 import { DistributionChart, useElementWidth, type DistributionSeries } from "./daDistributionChart";
 import { useDaWorkbook } from "./daWorkbookContext";
-import { elicitationLaw, lawParameter, lawSummary, operationLaw, parameterPriorLaw, quantileOf, quantityUnit, sourceUseLaw, type DaLawState } from "./daLaws";
+import { elicitationLaw, lawParameter, lawSummary, operationLaw, parameterPriorLaw, quantileOf, quantityUnit, sourceUseLaw, type DaLawState, type DaUseState } from "./daLaws";
 import {
   BOUNDARY_MATCH_LABELS,
   EVIDENCE_KIND_LABELS,
@@ -246,6 +246,7 @@ function LawEstimateDetail({ source, entry }: { source: DaSource; entry: DaSourc
   useUncertaintyVersion();
   const state = entryLawSummary(entry, true);
   const note = waitNote([state]);
+  const point = entry.law?.family === "POINT";
   return (
     <>
       <FieldList items={[
@@ -253,8 +254,8 @@ function LawEstimateDetail({ source, entry }: { source: DaSource; entry: DaSourc
         { label: "Estimate type", value: ESTIMATE_TYPE_LABELS[entry.estimateType] },
         { label: "Spread", value: SPREAD_LABELS[entry.spread] },
         { label: "Distribution", value: entry.law === undefined ? "—" : lawText(entry.law) },
-        { label: "5th percentile", value: praxisText(summaryValue(state, (summary) => quantileOf(summary, 0.05))) },
-        { label: "95th percentile", value: praxisText(summaryValue(state, (summary) => quantileOf(summary, 0.95))) },
+        { label: "5th percentile", value: point ? "—" : praxisText(summaryValue(state, (summary) => quantileOf(summary, 0.05))) },
+        { label: "95th percentile", value: point ? "—" : praxisText(summaryValue(state, (summary) => quantileOf(summary, 0.95))) },
         { label: "Data", value: dataText(entry) },
         { label: "Method", value: entry.method ?? "—" },
       ]} />
@@ -298,8 +299,7 @@ function sourceUseDetail(parameter: DataAnalysisParameter, use: DaSourceUse): st
   return [use.id === parameter.priorUseId ? "Prior" : "", VERDICT_LABELS[use.verdict], use.verdict === "SCALED" ? "nominal factors" : ""].filter((part) => part.length > 0).join(", ");
 }
 
-function priorLawSummary(da: DataAnalysis, parameter: DataAnalysisParameter, curve: boolean): UncertaintyState<UncertaintyLawSummary> | undefined {
-  const state = parameterPriorLaw(da, parameter);
+function priorLawSummary(state: DaUseState, curve: boolean): UncertaintyState<UncertaintyLawSummary> | undefined {
   if (state.status === "missing") return undefined;
   if (state.status !== "ready") return state;
   return lawSummary(quantityUnit(state.value.quantity), state.value.law, curve);
@@ -317,13 +317,15 @@ function LawParameterDetail({ parameter }: { parameter: DataAnalysisParameter })
   const results = states.flatMap(({ use, state }) => (state.status === "ready" ? [{ use, quantity: state.value.quantity, law: state.value.law }] : []));
   const focusKey = focus !== undefined && results.some((item) => item.use.id === focus) ? focus : results.find((item) => item.use.id === parameter.priorUseId)?.use.id ?? results[0]?.use.id;
   const anchor = results.find((item) => item.use.id === focusKey);
-  const prior = priorLawSummary(da, parameter, false);
+  const priorLaw = parameterPriorLaw(da, parameter);
+  const prior = priorLawSummary(priorLaw, false);
+  const point = priorLaw.status === "ready" && priorLaw.value.law.family === "POINT";
   const fields = (
     <FieldList items={[
       { label: "Model", value: modelSpecOf(parameter.quantificationModel)?.label ?? "Not set" },
       { label: "Evidence", value: parameter.evidenceKind === undefined ? "—" : EVIDENCE_KIND_LABELS[parameter.evidenceKind] },
-      { label: "5th percentile", value: praxisText(summaryValue(prior, (summary) => quantileOf(summary, 0.05))) },
-      { label: "95th percentile", value: praxisText(summaryValue(prior, (summary) => quantileOf(summary, 0.95))) },
+      { label: "5th percentile", value: point ? "—" : praxisText(summaryValue(prior, (summary) => quantileOf(summary, 0.05))) },
+      { label: "95th percentile", value: point ? "—" : praxisText(summaryValue(prior, (summary) => quantileOf(summary, 0.95))) },
       { label: "Considered", value: String((parameter.sourceUses ?? []).length) },
     ]} />
   );
@@ -362,12 +364,13 @@ function ParameterDetail({ parameter }: { parameter: DataAnalysisParameter }): J
   const focusKey = focus !== undefined && results.some((item) => item.use.id === focus) ? focus : results.find((item) => item.use.id === parameter.priorUseId)?.use.id ?? results[0]?.use.id;
   const anchor = results.find((item) => item.use.id === focusKey);
   const prior = parameterPrior(da, parameter);
+  const point = prior?.distribution.type === DistributionType.POINT_ESTIMATE;
   const fields = (
     <FieldList items={[
       { label: "Model", value: modelSpecOf(parameter.quantificationModel)?.label ?? "Not set" },
       { label: "Evidence", value: parameter.evidenceKind === undefined ? "—" : EVIDENCE_KIND_LABELS[parameter.evidenceKind] },
-      { label: "5th percentile", value: statText(prior?.p05) },
-      { label: "95th percentile", value: statText(prior?.p95) },
+      { label: "5th percentile", value: point ? "—" : statText(prior?.p05) },
+      { label: "95th percentile", value: point ? "—" : statText(prior?.p95) },
       { label: "Considered", value: String((parameter.sourceUses ?? []).length) },
     ]} />
   );

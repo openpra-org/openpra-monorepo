@@ -13,7 +13,6 @@ import type {
 import {
   canonicalJson,
   evidenceFailures,
-  modelArguments,
   type BaseLaw,
   type DiscreteOutcome,
   type EmpiricalBayesLaw,
@@ -27,7 +26,7 @@ import {
 } from "interfaces-mef-types/core/uncertainty";
 import type { UncertaintyLawSummary } from "interfaces-shared-types/newly-developed-methods/shared";
 import { uncertaintyVersion, type UncertaintyState } from "../newly-developed-methods/shared/useUncertainty";
-import { constrainedLaw, daParameterTableVersion, expressionPoint, lawSummary, parameterPriorLaw, quantileOf, useLabel } from "./daLaws";
+import { constrainedLaw, daParameterTableVersion, expressionPoint, hasSpread, lawSummary, parameterPriorLaw, quantileOf, useLabel } from "./daLaws";
 import { priorParts } from "./daSourcing";
 import { conflictCheck, countEvidence, countTerm, countedRecords, decimalYear, highestCount, homogeneityCheck, recordCount, recordTrendCheck, termsFailures, typedCount, type DaCounted } from "./daEvidenceChecks";
 import type { DaFindingSeverity, DaNeedFinding } from "./daSelectors";
@@ -579,19 +578,6 @@ function peakCount(summary: UncertaintyLawSummary): number {
     if (between.length > 0 && Math.min(...between) < 0.8 * Math.min(left.density, right.density)) count += 1;
   }
   return count;
-}
-
-function hasSpread(expression: UncertainExpression): boolean {
-  switch (expression.node) {
-    case "VALUE":
-      return expression.value.law.family !== "POINT";
-    case "PARAMETER":
-      return true;
-    case "OPERATION":
-      return expression.operands.some(hasSpread);
-    case "MODEL":
-      return modelArguments(expression.model).some(hasSpread);
-  }
 }
 
 function sameExpression(left: UncertainExpression | undefined, right: UncertainExpression | undefined): boolean {

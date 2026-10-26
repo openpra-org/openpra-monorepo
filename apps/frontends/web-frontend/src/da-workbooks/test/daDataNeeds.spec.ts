@@ -493,7 +493,7 @@ describe("sources and priors", () => {
   });
 
   it("ships every built-in estimate of a catalog source, each passing the entry checks", async () => {
-    expect(DA_SOURCE_CATALOG.map((source) => source.id).sort()).toEqual(["CCF-2020", "CREDO", "EBR-II-PRA", "EGG-SSRE-8875", "IAEA-TECDOC-478", "IAEA-TECDOC-719", "ICDE", "INL-2020", "MIL-HDBK-217F", "NASCORD", "NSWC-11", "NUCLARR", "NUREG-1715", "NUREG-1829", "NUREG-CR-4550", "NUREG-CR-5496", "NUREG-CR-5750", "NUREG-CR-6890", "SAND2020-10828", "SAND2022-14164", "WSRC-TR-93-262"].sort());
+    expect(DA_SOURCE_CATALOG.map((source) => source.id).sort()).toEqual(["CCF-2020", "CREDO", "EBR-II-PRA", "EGG-SSRE-8875", "IAEA-TECDOC-1922", "IAEA-TECDOC-478", "IAEA-TECDOC-719", "IAEA-TECDOC-749", "ICDE", "INL-2020", "MIL-HDBK-217F", "NASCORD", "NSWC-11", "NUCLARR", "NUREG-1715", "NUREG-1829", "NUREG-CR-4550", "NUREG-CR-5496", "NUREG-CR-5750", "NUREG-CR-6890", "SAND2020-10828", "SAND2022-14164", "WSRC-TR-93-262"].sort());
     const assets = readFileSync(join(__dirname, "../daCatalogAssets.mjs"), "utf-8");
     for (const catalog of DA_SOURCE_CATALOG) {
       const name = catalog.dataset;

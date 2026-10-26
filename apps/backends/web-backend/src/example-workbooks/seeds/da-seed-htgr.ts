@@ -3321,6 +3321,8 @@ const sources: DaSource[] = [
       { id: "HR-AT-006", component: "Refuelling line-up", failureMode: "Operator fuel-handling mis-positioning during refuelling, per refuelling move", quantity: "PROBABILITY", estimateType: "PRIOR", spread: "MEAN", law: { family: "LOGNORMAL", mean: 0.001, errorFactor: 5, level: 0.95 }, mean: 0.001, method: "HR detailed assessment HEPQ-HR-AT-006, mean 1.0E-3 with an error factor of 5, before the Data Analysis update." },
     ],
   },
+  catalogSource("IAEA-TECDOC-749", "SRC-25", []),
+  catalogSource("IAEA-TECDOC-1922", "SRC-26", []),
 ];
 
 function publishedVectors(estimates: readonly CcfParameterEstimation[], rows: readonly DaSourceEntry[]): DaCcfVector[] {

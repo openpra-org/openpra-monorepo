@@ -82,7 +82,7 @@ function percentileText(parameter: DataAnalysisParameter, probability: 0.05 | 0.
   const state = parameterSpread(parameter);
   if (state === undefined || state.status === "pending") return "—";
   if (state.status === "failed") return "PRAXIS failed";
-  return val(probability === 0.05 ? state.value.p05 : state.value.p95);
+  return state.value.point ? "—" : val(probability === 0.05 ? state.value.p05 : state.value.p95);
 }
 
 function nextTask(): Promise<void> {

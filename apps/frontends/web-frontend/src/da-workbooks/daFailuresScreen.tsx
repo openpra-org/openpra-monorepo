@@ -206,6 +206,7 @@ function PriorDetail({ parameter }: { parameter: DataAnalysisParameter }): JSX.E
   const [focus, setFocus] = useState("USED");
   const estimate = parameterEstimate(da, parameter);
   const used = priorSummary(estimate);
+  const point = estimate.prior?.family === "POINT";
   const published = estimate.form === "AS_PUBLISHED" ? undefined : publishedSummary(estimate);
   const series: DistributionSeries[] = [];
   if (used?.status === "ready") series.push({ key: "USED", label: "Prior used", detail: PRIOR_FORM_LABELS[estimate.form], summary: used.value });
@@ -217,8 +218,8 @@ function PriorDetail({ parameter }: { parameter: DataAnalysisParameter }): JSX.E
         { label: "Model", value: modelSpecOf(parameter.quantificationModel)?.label ?? "Not set" },
         { label: "Prior from", value: estimate.published?.label ?? "—" },
         { label: "Distribution", value: priorText(estimate) },
-        { label: "5th percentile", value: praxisText(summaryValue(used, (summary) => quantileOf(summary, 0.05))) },
-        { label: "95th percentile", value: praxisText(summaryValue(used, (summary) => quantileOf(summary, 0.95))) },
+        { label: "5th percentile", value: point ? "—" : praxisText(summaryValue(used, (summary) => quantileOf(summary, 0.05))) },
+        { label: "95th percentile", value: point ? "—" : praxisText(summaryValue(used, (summary) => quantileOf(summary, 0.95))) },
         { label: "Worth", value: worthText(estimate) },
       ]} />
       <p className="da-needs__meta">Worth is the evidence the prior is equal to. Plant or technology counts of that size move the estimate halfway to the data.</p>

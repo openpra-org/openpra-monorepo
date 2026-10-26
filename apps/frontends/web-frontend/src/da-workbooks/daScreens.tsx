@@ -490,9 +490,9 @@ function spreadFields(state: UncertaintyState<DaSpread> | undefined): { label: s
   if (state.status === "failed") return [{ label: "Percentiles", value: `PRAXIS failed: ${state.error}` }];
   const sampled = state.value.sampled ? ", sampled" : "";
   return [
-    { label: "5th percentile", value: `${statText(state.value.p05)}${sampled}` },
+    { label: "5th percentile", value: state.value.point ? "—" : `${statText(state.value.p05)}${sampled}` },
     { label: "Median", value: `${statText(state.value.median)}${sampled}` },
-    { label: "95th percentile", value: `${statText(state.value.p95)}${sampled}` },
+    { label: "95th percentile", value: state.value.point ? "—" : `${statText(state.value.p95)}${sampled}` },
   ];
 }
 

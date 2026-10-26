@@ -16,6 +16,8 @@ export const daCatalogUrls = {
   "source-nureg-cr-5750.json": new URL("../../../../interfaces/mef-types/da/source-nureg-cr-5750.json", import.meta.url).toString(),
   "source-iaea-tecdoc-478.json": new URL("../../../../interfaces/mef-types/da/source-iaea-tecdoc-478.json", import.meta.url).toString(),
   "source-iaea-tecdoc-719.json": new URL("../../../../interfaces/mef-types/da/source-iaea-tecdoc-719.json", import.meta.url).toString(),
+  "source-iaea-tecdoc-749.json": new URL("../../../../interfaces/mef-types/da/source-iaea-tecdoc-749.json", import.meta.url).toString(),
+  "source-iaea-tecdoc-1922.json": new URL("../../../../interfaces/mef-types/da/source-iaea-tecdoc-1922.json", import.meta.url).toString(),
   "source-nureg-cr-4550.json": new URL("../../../../interfaces/mef-types/da/source-nureg-cr-4550.json", import.meta.url).toString(),
   "source-ebr-ii-pra.json": new URL("../../../../interfaces/mef-types/da/source-ebr-ii-pra.json", import.meta.url).toString(),
   "source-egg-ssre-8875.json": new URL("../../../../interfaces/mef-types/da/source-egg-ssre-8875.json", import.meta.url).toString(),

@@ -4,69 +4,58 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 OUT="${1:-$ROOT/openpra-offline-out}"
 STAGE="$OUT/openpra-offline"
+PART_SIZE="${PART_SIZE:-1900m}"
+DOCUMENTS="apps/backends/web-backend/example-documents"
+PRAETOR_ENV="deploy/microservices/praetor/configs/cd.stack.env"
+
+export DOCKER_DEFAULT_PLATFORM=linux/amd64
+
+if command -v sha256sum >/dev/null 2>&1; then
+  SHA256=(sha256sum)
+else
+  SHA256=(shasum -a 256)
+fi
 
 cd "$ROOT"
-rm -rf "$STAGE"
-mkdir -p "$STAGE"
 
-echo "==> Building production bundles"
-pnpm nx build backends-web-backend --configuration=production
-pnpm nx build frontends-web-frontend --configuration=production
+if grep -rlF "version https://git-lfs.github.com/spec/v1" "$DOCUMENTS" >/dev/null; then
+  echo "The example documents are Git LFS pointers. Run git lfs pull, then run this script again."
+  exit 1
+fi
 
-echo "==> Assembling backend image context"
-rm -rf docker-context/web-backend docker-context/web-frontend
-mkdir -p docker-context/web-backend
-cp dist/apps/backends/web-backend/main.js docker-context/web-backend/main.js
-cp apps/backends/web-backend/package.json docker-context/web-backend/package.json
-node -e '
-  const fs = require("fs");
-  const path = "docker-context/web-backend/package.json";
-  const pkg = JSON.parse(fs.readFileSync(path, "utf8"));
-  for (const key of ["dependencies", "devDependencies"]) {
-    if (!pkg[key]) continue;
-    for (const [name, version] of Object.entries({ ...pkg[key] })) {
-      if (typeof version === "string" && version.startsWith("workspace:")) delete pkg[key][name];
-    }
-  }
-  delete pkg.devDependencies;
-  fs.writeFileSync(path, JSON.stringify(pkg, null, 2));
-'
-cp deploy/web/backend.Dockerfile docker-context/web-backend/Dockerfile
+rm -rf "$STAGE" "$OUT"/openpra-offline-bundle.tar.gz.part-* "$OUT/openpra-offline-bundle.sha256"
+mkdir -p "$STAGE/$(dirname "$PRAETOR_ENV")" "$STAGE/$(dirname "$DOCUMENTS")"
 
-echo "==> Building backend image"
-docker build -t openpra-apps-web-backend:local docker-context/web-backend
+echo "==> Writing the offline settings"
+printf '%s\n' "COMPOSE_PROJECT_NAME=openpra-offline" "TFA_TIME_URL=" > "$STAGE/deploy/.env"
 
-echo "==> Assembling frontend image context"
-mkdir -p docker-context/web-frontend/html
-cp -r dist/apps/frontends/web-frontend/. docker-context/web-frontend/html/
-cp deploy/web/nginx.conf docker-context/web-frontend/nginx.conf
-cp deploy/web/frontend.Dockerfile docker-context/web-frontend/Dockerfile
+COMPOSE=(docker compose --env-file "$STAGE/deploy/.env" -f deploy/compose.yml)
 
-echo "==> Building frontend image"
-docker build -t openpra-apps-web-frontend:local docker-context/web-frontend
+echo "==> Building the app images one service at a time"
+for service in $("${COMPOSE[@]}" config --services); do
+  "${COMPOSE[@]}" build "$service"
+done
 
-echo "==> Pulling infrastructure images"
-docker pull mongo:latest
-docker pull pgsty/silo:RELEASE.2026-09-16T00-00-00Z
+echo "==> Pulling the pinned infrastructure images"
+"${COMPOSE[@]}" pull --ignore-buildable
 
-echo "==> Saving all images to one tar"
-docker save -o "$STAGE/openpra-images.tar" \
-  openpra-apps-web-backend:local \
-  openpra-apps-web-frontend:local \
-  mongo:latest \
-  pgsty/silo:RELEASE.2026-09-16T00-00-00Z
+echo "==> Saving every image to one tar"
+docker save -o "$STAGE/openpra-images.tar" $("${COMPOSE[@]}" config --images | sort -u)
 
-echo "==> Collecting runtime files"
-cp deploy/offline/docker-compose.offline.yml "$STAGE/docker-compose.yml"
+echo "==> Collecting the runtime files"
+cp deploy/compose.yml "$STAGE/deploy/compose.yml"
+cp "$PRAETOR_ENV" "$STAGE/$PRAETOR_ENV"
+cp -r "$DOCUMENTS" "$STAGE/$DOCUMENTS"
 cp deploy/offline/INSTALL.md "$STAGE/INSTALL.md"
-cp docker/nginx-frontend.conf "$STAGE/nginx-frontend.conf"
-cp -r dist/apps/backends/web-backend/example-documents "$STAGE/example-documents"
 
 echo "==> Bundling the repository source"
-git bundle create "$STAGE/openpra-repo.bundle" main
+git bundle create "$STAGE/openpra-repo.bundle" HEAD
 
-echo "==> Creating final tarball"
-tar -czf "$OUT/openpra-offline-bundle.tar.gz" -C "$OUT" openpra-offline
+echo "==> Packing the bundle in parts of $PART_SIZE"
+tar -czf - -C "$OUT" openpra-offline | split -b "$PART_SIZE" - "$OUT/openpra-offline-bundle.tar.gz.part-"
+
+echo "==> Writing the checksums"
+(cd "$OUT" && "${SHA256[@]}" openpra-offline-bundle.tar.gz.part-* > openpra-offline-bundle.sha256)
 
 echo "==> Done"
-du -h "$OUT/openpra-offline-bundle.tar.gz"
+du -h "$OUT"/openpra-offline-bundle.tar.gz.part-*

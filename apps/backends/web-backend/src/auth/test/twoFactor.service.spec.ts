@@ -98,5 +98,17 @@ describe("TwoFactorService", () => {
       const systemToken = await generate({ secret, epoch: Math.floor(Date.now() / 1000) });
       await expect(svc.verifyTotp(secret, systemToken)).resolves.toBe(true);
     });
+
+    it("uses the system clock without any request when TFA_TIME_URL is empty", async () => {
+      process.env["TFA_TIME_URL"] = "";
+      const fetchSpy = jest.spyOn(global, "fetch");
+      const svc = new TwoFactorService();
+      svc.onModuleInit();
+      const secret = svc.createSecret();
+
+      const systemToken = await generate({ secret });
+      await expect(svc.verifyTotp(secret, systemToken)).resolves.toBe(true);
+      expect(fetchSpy).not.toHaveBeenCalled();
+    });
   });
 });

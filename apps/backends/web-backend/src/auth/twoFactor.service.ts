@@ -19,7 +19,8 @@ export class TwoFactorService implements OnModuleInit {
     const raw = process.env["TFA_ENC_KEY"];
     if (!raw) throw new Error("TFA_ENC_KEY is required but not set");
     this.key = createHash("sha256").update(raw).digest();
-    this.timeUrl = process.env["TFA_TIME_URL"] ?? null;
+    const timeUrl = process.env["TFA_TIME_URL"];
+    this.timeUrl = timeUrl === undefined || timeUrl === "" ? null : timeUrl;
   }
 
   createSecret(): string {

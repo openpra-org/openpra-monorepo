@@ -1,12 +1,13 @@
 # Docker offline install
 
-Use this only if the offline machine does not already have Docker. It installs the official static Docker binaries and the compose plugin. They work on any x86_64 Linux with a reasonably recent kernel, regardless of distribution, and need no package manager.
+Use this only if the offline machine does not already have Docker. It installs the official static Docker binaries and the compose plugin. They work on any x86_64 Linux with a reasonably recent kernel, regardless of distribution, and need no package manager. Docker also needs the `iptables` command on the machine.
 
 ## Install
 
-Copy the tarball to the machine, then:
+Copy the tarball and its checksum file to the machine, then:
 
 ```bash
+sha256sum -c docker-engine-offline.sha256
 tar -xzf docker-engine-offline.tar.gz
 cd docker-engine-offline
 sudo bash install-docker.sh

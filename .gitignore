@@ -12,6 +12,7 @@ node_modules
 .pnpm-store
 /hyperfine
 docker-context
+/openpra-offline-out
 
 .project
 .classpath

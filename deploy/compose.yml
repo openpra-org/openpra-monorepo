@@ -115,7 +115,7 @@ services:
       MAIL_FROM_NAME: "OpenPRA"
       TFA_ENC_KEY: "${TFA_ENC_KEY:-local-only-tfa-encryption-key}"
       TFA_ISSUER: "OpenPRA"
-      TFA_TIME_URL: "${TFA_TIME_URL:-https://www.google.com/generate_204}"
+      TFA_TIME_URL: "${TFA_TIME_URL-https://www.google.com/generate_204}"
       ADMIN_BOOTSTRAP_EMAILS: "${ADMIN_BOOTSTRAP_EMAILS:-}"
       MINIO_ENDPOINT: "minio"
       MINIO_PORT: "9000"

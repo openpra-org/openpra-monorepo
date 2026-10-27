@@ -1,12 +1,18 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-DOCKER_VERSION="${DOCKER_VERSION:-29.6.1}"
-COMPOSE_VERSION="${COMPOSE_VERSION:-5.3.1}"
+DOCKER_VERSION="${DOCKER_VERSION:-29.9.2}"
+COMPOSE_VERSION="${COMPOSE_VERSION:-5.6.1}"
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 OUT="${1:-$ROOT/openpra-offline-out}"
 STAGE="$OUT/docker-engine-offline"
+
+if command -v sha256sum >/dev/null 2>&1; then
+  SHA256=(sha256sum)
+else
+  SHA256=(shasum -a 256)
+fi
 
 rm -rf "$STAGE"
 mkdir -p "$STAGE"
@@ -22,6 +28,9 @@ cp "$ROOT/deploy/offline/INSTALL-DOCKER.md" "$STAGE/INSTALL-DOCKER.md"
 
 echo "==> Creating tarball"
 tar -czf "$OUT/docker-engine-offline.tar.gz" -C "$OUT" docker-engine-offline
+
+echo "==> Writing the checksum"
+(cd "$OUT" && "${SHA256[@]}" docker-engine-offline.tar.gz > docker-engine-offline.sha256)
 
 echo "==> Done"
 du -h "$OUT/docker-engine-offline.tar.gz"

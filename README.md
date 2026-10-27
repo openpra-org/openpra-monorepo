@@ -308,6 +308,7 @@ Generate each value with `openssl rand -hex 48` or the command in section 4.3.
 | `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`     | Empty                   | GitHub login (section 4.6)                                                |
 | `RESEND_API_KEY`, `MAIL_FROM`                  | Placeholders            | Password reset email (section 4.4)                                        |
 | `PRAETOR_WORKERS`                              | `1`                     | Number of PRAETOR workers. Raise it to run more jobs at once              |
+| `TFA_TIME_URL`                                 | A Google endpoint       | Online clock for two-factor codes. Empty uses the server clock            |
 | `IMAGE_MONGO`, `IMAGE_RABBITMQ`, `IMAGE_MINIO` | Pinned versions         | The other images, for example from your own registry                      |
 
 To serve other machines, set `OPENPRA_BIND=0.0.0.0` and set `OPENPRA_HOST` to this machine's address. Then run the command from section 6.1 again. Browsers need ports 8080 and 9000, because MinIO serves avatars and covers directly.
@@ -409,15 +410,15 @@ Praetor has its own Swarm stack at `deploy/microservices/praetor/cd-stack.yml`. 
 
 ## 8. Offline deployment (air-gapped machines)
 
-For a machine with no internet access, nothing can be pulled or installed there. Instead, one connected machine builds a single self-contained tarball, and the offline machine only loads and runs it. Docker images carry everything, so the offline machine needs only Docker Engine with the compose plugin and a user in the docker group.
+For a machine with no internet access, nothing can be pulled or installed there. Instead, one connected machine builds a self-contained bundle from `deploy/compose.yml`, and the offline machine only loads and runs it. The bundle runs the same stack as section 6, PRAETOR included. Docker images carry everything, so the offline machine needs only Docker Engine with the compose plugin and a user in the docker group.
 
-Build the bundle on a connected machine (Linux, or Docker Desktop on Windows and macOS, images are built for linux/amd64):
+Ready bundles are attached to the `offline-v*` releases on GitHub. To build one yourself, use a connected machine with Git LFS and Docker (Linux, or Docker Desktop on Windows and macOS). The images are built for linux/amd64.
 
 ```bash
 bash deploy/offline/make-bundle.sh /path/to/output
 ```
 
-The bundle covers the web app only: frontend, backend, MongoDB, and MinIO. Praetor and the solver engines are excluded, since they are not needed by the web app. The script builds the backend and frontend images, pulls mongo and minio, saves all four images into one tar, and packs them with a self-contained compose file, the nginx proxy config, the example documents, an INSTALL.md, and a git bundle of the source. The result is `openpra-offline-bundle.tar.gz`.
+The script builds the frontend, backend and PRAETOR images one at a time, pulls the pinned MongoDB, RabbitMQ and MinIO images, and saves all of them into one tar. It packs them with `deploy/compose.yml`, an offline `deploy/.env`, the example documents, `INSTALL.md` and a git bundle of the source. The result is `openpra-offline-bundle.tar.gz` in parts below 2 GB, which fit GitHub release assets, plus `openpra-offline-bundle.sha256`. Set `PART_SIZE` to change the part size, for example `PART_SIZE=4000m`.
 
 If the offline machine might not have Docker at all, also build the Docker installer archive:
 
@@ -427,18 +428,20 @@ bash deploy/offline/make-docker-bundle.sh /path/to/output
 
 This downloads the official static Docker binaries and the compose plugin, which work on any x86_64 Linux regardless of distribution, and packs them with an installer script as `docker-engine-offline.tar.gz` next to the app bundle. On the target machine, untar it and run `sudo bash install-docker.sh` first, then proceed with the app bundle.
 
-On the offline machine:
+On the offline machine, follow [`deploy/offline/INSTALL.md`](deploy/offline/INSTALL.md), which is also inside the bundle. In short:
 
 ```bash
-tar -xzf openpra-offline-bundle.tar.gz
+sha256sum -c openpra-offline-bundle.sha256
+cat openpra-offline-bundle.tar.gz.part-* | tar -xz
 cd openpra-offline
 docker load -i openpra-images.tar
+cd deploy
 docker compose up -d
 ```
 
-The app is then at http://localhost:8080. The bundled `INSTALL.md` covers serving other machines on the network (`OPENPRA_HOST=<server-ip>`), overriding `JWT_SECRET` and `TFA_ENC_KEY`, and restoring the source from the git bundle.
+The app is then at http://localhost:8080. `INSTALL.md` also covers the secrets, serving other machines on the network, upgrading from an earlier bundle with a backup and a way back, and restoring the source from the git bundle.
 
-Offline behavior to communicate to users: password reset emails cannot send, Google and GitHub login are unavailable so accounts use username and password, and 2FA verifies against the server clock. `TFA_TIME_URL` is deliberately unset in the offline compose so the backend never tries to reach the internet.
+Offline behavior to communicate to users: password reset emails cannot send, Google and GitHub login are unavailable so accounts use username and password, and 2FA verifies against the server clock. The bundle's `deploy/.env` sets `TFA_TIME_URL` to empty, so the backend never tries to reach the internet.
 
 ## 9. Troubleshooting
 

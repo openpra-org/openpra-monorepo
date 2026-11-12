@@ -1,0 +1,3424 @@
+[
+{
+"source": "v: 1e-4\n",
+"expected": {
+"v": "1e-4"
+}
+},
+{
+"source": "- 1e-4\n",
+"expected": [
+"1e-4"
+]
+},
+{
+"source": "v: [1e-4, 1e-4]\n",
+"expected": {
+"v": [
+"1e-4",
+"1e-4"
+]
+}
+},
+{
+"source": "1e-4: 1\n",
+"expected": {
+"1e-4": 1
+}
+},
+{
+"source": "v: 1.0e-4\n",
+"expected": {
+"v": 0.0001
+}
+},
+{
+"source": "- 1.0e-4\n",
+"expected": [
+0.0001
+]
+},
+{
+"source": "v: [1.0e-4, 1.0e-4]\n",
+"expected": {
+"v": [
+0.0001,
+0.0001
+]
+}
+},
+{
+"source": "1.0e-4: 1\n",
+"expected": {
+"0.0001": 1
+}
+},
+{
+"source": "v: 1.0e+4\n",
+"expected": {
+"v": 10000.0
+}
+},
+{
+"source": "- 1.0e+4\n",
+"expected": [
+10000.0
+]
+},
+{
+"source": "v: [1.0e+4, 1.0e+4]\n",
+"expected": {
+"v": [
+10000.0,
+10000.0
+]
+}
+},
+{
+"source": "1.0e+4: 1\n",
+"expected": {
+"10000.0": 1
+}
+},
+{
+"source": "v: 1.5E-3\n",
+"expected": {
+"v": 0.0015
+}
+},
+{
+"source": "- 1.5E-3\n",
+"expected": [
+0.0015
+]
+},
+{
+"source": "v: [1.5E-3, 1.5E-3]\n",
+"expected": {
+"v": [
+0.0015,
+0.0015
+]
+}
+},
+{
+"source": "1.5E-3: 1\n",
+"expected": {
+"0.0015": 1
+}
+},
+{
+"source": "v: 1.e+2\n",
+"expected": {
+"v": 100.0
+}
+},
+{
+"source": "- 1.e+2\n",
+"expected": [
+100.0
+]
+},
+{
+"source": "v: [1.e+2, 1.e+2]\n",
+"expected": {
+"v": [
+100.0,
+100.0
+]
+}
+},
+{
+"source": "1.e+2: 1\n",
+"expected": {
+"100.0": 1
+}
+},
+{
+"source": "v: yes\n",
+"expected": {
+"v": true
+}
+},
+{
+"source": "- yes\n",
+"expected": [
+true
+]
+},
+{
+"source": "v: [yes, yes]\n",
+"expected": {
+"v": [
+true,
+true
+]
+}
+},
+{
+"source": "yes: 1\n",
+"expected": {
+"True": 1
+}
+},
+{
+"source": "v: Yes\n",
+"expected": {
+"v": true
+}
+},
+{
+"source": "- Yes\n",
+"expected": [
+true
+]
+},
+{
+"source": "v: [Yes, Yes]\n",
+"expected": {
+"v": [
+true,
+true
+]
+}
+},
+{
+"source": "Yes: 1\n",
+"expected": {
+"True": 1
+}
+},
+{
+"source": "v: YES\n",
+"expected": {
+"v": true
+}
+},
+{
+"source": "- YES\n",
+"expected": [
+true
+]
+},
+{
+"source": "v: [YES, YES]\n",
+"expected": {
+"v": [
+true,
+true
+]
+}
+},
+{
+"source": "YES: 1\n",
+"expected": {
+"True": 1
+}
+},
+{
+"source": "v: no\n",
+"expected": {
+"v": false
+}
+},
+{
+"source": "- no\n",
+"expected": [
+false
+]
+},
+{
+"source": "v: [no, no]\n",
+"expected": {
+"v": [
+false,
+false
+]
+}
+},
+{
+"source": "no: 1\n",
+"expected": {
+"False": 1
+}
+},
+{
+"source": "v: No\n",
+"expected": {
+"v": false
+}
+},
+{
+"source": "- No\n",
+"expected": [
+false
+]
+},
+{
+"source": "v: [No, No]\n",
+"expected": {
+"v": [
+false,
+false
+]
+}
+},
+{
+"source": "No: 1\n",
+"expected": {
+"False": 1
+}
+},
+{
+"source": "v: NO\n",
+"expected": {
+"v": false
+}
+},
+{
+"source": "- NO\n",
+"expected": [
+false
+]
+},
+{
+"source": "v: [NO, NO]\n",
+"expected": {
+"v": [
+false,
+false
+]
+}
+},
+{
+"source": "NO: 1\n",
+"expected": {
+"False": 1
+}
+},
+{
+"source": "v: on\n",
+"expected": {
+"v": true
+}
+},
+{
+"source": "- on\n",
+"expected": [
+true
+]
+},
+{
+"source": "v: [on, on]\n",
+"expected": {
+"v": [
+true,
+true
+]
+}
+},
+{
+"source": "on: 1\n",
+"expected": {
+"True": 1
+}
+},
+{
+"source": "v: On\n",
+"expected": {
+"v": true
+}
+},
+{
+"source": "- On\n",
+"expected": [
+true
+]
+},
+{
+"source": "v: [On, On]\n",
+"expected": {
+"v": [
+true,
+true
+]
+}
+},
+{
+"source": "On: 1\n",
+"expected": {
+"True": 1
+}
+},
+{
+"source": "v: ON\n",
+"expected": {
+"v": true
+}
+},
+{
+"source": "- ON\n",
+"expected": [
+true
+]
+},
+{
+"source": "v: [ON, ON]\n",
+"expected": {
+"v": [
+true,
+true
+]
+}
+},
+{
+"source": "ON: 1\n",
+"expected": {
+"True": 1
+}
+},
+{
+"source": "v: off\n",
+"expected": {
+"v": false
+}
+},
+{
+"source": "- off\n",
+"expected": [
+false
+]
+},
+{
+"source": "v: [off, off]\n",
+"expected": {
+"v": [
+false,
+false
+]
+}
+},
+{
+"source": "off: 1\n",
+"expected": {
+"False": 1
+}
+},
+{
+"source": "v: Off\n",
+"expected": {
+"v": false
+}
+},
+{
+"source": "- Off\n",
+"expected": [
+false
+]
+},
+{
+"source": "v: [Off, Off]\n",
+"expected": {
+"v": [
+false,
+false
+]
+}
+},
+{
+"source": "Off: 1\n",
+"expected": {
+"False": 1
+}
+},
+{
+"source": "v: OFF\n",
+"expected": {
+"v": false
+}
+},
+{
+"source": "- OFF\n",
+"expected": [
+false
+]
+},
+{
+"source": "v: [OFF, OFF]\n",
+"expected": {
+"v": [
+false,
+false
+]
+}
+},
+{
+"source": "OFF: 1\n",
+"expected": {
+"False": 1
+}
+},
+{
+"source": "v: true\n",
+"expected": {
+"v": true
+}
+},
+{
+"source": "- true\n",
+"expected": [
+true
+]
+},
+{
+"source": "v: [true, true]\n",
+"expected": {
+"v": [
+true,
+true
+]
+}
+},
+{
+"source": "true: 1\n",
+"expected": {
+"True": 1
+}
+},
+{
+"source": "v: True\n",
+"expected": {
+"v": true
+}
+},
+{
+"source": "- True\n",
+"expected": [
+true
+]
+},
+{
+"source": "v: [True, True]\n",
+"expected": {
+"v": [
+true,
+true
+]
+}
+},
+{
+"source": "True: 1\n",
+"expected": {
+"True": 1
+}
+},
+{
+"source": "v: TRUE\n",
+"expected": {
+"v": true
+}
+},
+{
+"source": "- TRUE\n",
+"expected": [
+true
+]
+},
+{
+"source": "v: [TRUE, TRUE]\n",
+"expected": {
+"v": [
+true,
+true
+]
+}
+},
+{
+"source": "TRUE: 1\n",
+"expected": {
+"True": 1
+}
+},
+{
+"source": "v: false\n",
+"expected": {
+"v": false
+}
+},
+{
+"source": "- false\n",
+"expected": [
+false
+]
+},
+{
+"source": "v: [false, false]\n",
+"expected": {
+"v": [
+false,
+false
+]
+}
+},
+{
+"source": "false: 1\n",
+"expected": {
+"False": 1
+}
+},
+{
+"source": "v: False\n",
+"expected": {
+"v": false
+}
+},
+{
+"source": "- False\n",
+"expected": [
+false
+]
+},
+{
+"source": "v: [False, False]\n",
+"expected": {
+"v": [
+false,
+false
+]
+}
+},
+{
+"source": "False: 1\n",
+"expected": {
+"False": 1
+}
+},
+{
+"source": "v: FALSE\n",
+"expected": {
+"v": false
+}
+},
+{
+"source": "- FALSE\n",
+"expected": [
+false
+]
+},
+{
+"source": "v: [FALSE, FALSE]\n",
+"expected": {
+"v": [
+false,
+false
+]
+}
+},
+{
+"source": "FALSE: 1\n",
+"expected": {
+"False": 1
+}
+},
+{
+"source": "v: y\n",
+"expected": {
+"v": "y"
+}
+},
+{
+"source": "- y\n",
+"expected": [
+"y"
+]
+},
+{
+"source": "v: [y, y]\n",
+"expected": {
+"v": [
+"y",
+"y"
+]
+}
+},
+{
+"source": "y: 1\n",
+"expected": {
+"y": 1
+}
+},
+{
+"source": "v: Y\n",
+"expected": {
+"v": "Y"
+}
+},
+{
+"source": "- Y\n",
+"expected": [
+"Y"
+]
+},
+{
+"source": "v: [Y, Y]\n",
+"expected": {
+"v": [
+"Y",
+"Y"
+]
+}
+},
+{
+"source": "Y: 1\n",
+"expected": {
+"Y": 1
+}
+},
+{
+"source": "v: n\n",
+"expected": {
+"v": "n"
+}
+},
+{
+"source": "- n\n",
+"expected": [
+"n"
+]
+},
+{
+"source": "v: [n, n]\n",
+"expected": {
+"v": [
+"n",
+"n"
+]
+}
+},
+{
+"source": "n: 1\n",
+"expected": {
+"n": 1
+}
+},
+{
+"source": "v: N\n",
+"expected": {
+"v": "N"
+}
+},
+{
+"source": "- N\n",
+"expected": [
+"N"
+]
+},
+{
+"source": "v: [N, N]\n",
+"expected": {
+"v": [
+"N",
+"N"
+]
+}
+},
+{
+"source": "N: 1\n",
+"expected": {
+"N": 1
+}
+},
+{
+"source": "v: 010\n",
+"expected": {
+"v": 8
+}
+},
+{
+"source": "- 010\n",
+"expected": [
+8
+]
+},
+{
+"source": "v: [010, 010]\n",
+"expected": {
+"v": [
+8,
+8
+]
+}
+},
+{
+"source": "010: 1\n",
+"expected": {
+"8": 1
+}
+},
+{
+"source": "v: 0o10\n",
+"expected": {
+"v": "0o10"
+}
+},
+{
+"source": "- 0o10\n",
+"expected": [
+"0o10"
+]
+},
+{
+"source": "v: [0o10, 0o10]\n",
+"expected": {
+"v": [
+"0o10",
+"0o10"
+]
+}
+},
+{
+"source": "0o10: 1\n",
+"expected": {
+"0o10": 1
+}
+},
+{
+"source": "v: 08\n",
+"expected": {
+"v": "08"
+}
+},
+{
+"source": "- 08\n",
+"expected": [
+"08"
+]
+},
+{
+"source": "v: [08, 08]\n",
+"expected": {
+"v": [
+"08",
+"08"
+]
+}
+},
+{
+"source": "08: 1\n",
+"expected": {
+"08": 1
+}
+},
+{
+"source": "v: 0\n",
+"expected": {
+"v": 0
+}
+},
+{
+"source": "- 0\n",
+"expected": [
+0
+]
+},
+{
+"source": "v: [0, 0]\n",
+"expected": {
+"v": [
+0,
+0
+]
+}
+},
+{
+"source": "0: 1\n",
+"expected": {
+"0": 1
+}
+},
+{
+"source": "v: 00\n",
+"expected": {
+"v": 0
+}
+},
+{
+"source": "- 00\n",
+"expected": [
+0
+]
+},
+{
+"source": "v: [00, 00]\n",
+"expected": {
+"v": [
+0,
+0
+]
+}
+},
+{
+"source": "00: 1\n",
+"expected": {
+"0": 1
+}
+},
+{
+"source": "v: 0_7\n",
+"expected": {
+"v": 7
+}
+},
+{
+"source": "- 0_7\n",
+"expected": [
+7
+]
+},
+{
+"source": "v: [0_7, 0_7]\n",
+"expected": {
+"v": [
+7,
+7
+]
+}
+},
+{
+"source": "0_7: 1\n",
+"expected": {
+"7": 1
+}
+},
+{
+"source": "v: 1_000\n",
+"expected": {
+"v": 1000
+}
+},
+{
+"source": "- 1_000\n",
+"expected": [
+1000
+]
+},
+{
+"source": "v: [1_000, 1_000]\n",
+"expected": {
+"v": [
+1000,
+1000
+]
+}
+},
+{
+"source": "1_000: 1\n",
+"expected": {
+"1000": 1
+}
+},
+{
+"source": "v: 1_000.5\n",
+"expected": {
+"v": 1000.5
+}
+},
+{
+"source": "- 1_000.5\n",
+"expected": [
+1000.5
+]
+},
+{
+"source": "v: [1_000.5, 1_000.5]\n",
+"expected": {
+"v": [
+1000.5,
+1000.5
+]
+}
+},
+{
+"source": "1_000.5: 1\n",
+"expected": {
+"1000.5": 1
+}
+},
+{
+"source": "v: ~\n",
+"expected": {
+"v": null
+}
+},
+{
+"source": "- ~\n",
+"expected": [
+null
+]
+},
+{
+"source": "v: [~, ~]\n",
+"expected": {
+"v": [
+null,
+null
+]
+}
+},
+{
+"source": "~: 1\n",
+"expected": {
+"None": 1
+}
+},
+{
+"source": "v: null\n",
+"expected": {
+"v": null
+}
+},
+{
+"source": "- null\n",
+"expected": [
+null
+]
+},
+{
+"source": "v: [null, null]\n",
+"expected": {
+"v": [
+null,
+null
+]
+}
+},
+{
+"source": "null: 1\n",
+"expected": {
+"None": 1
+}
+},
+{
+"source": "v: Null\n",
+"expected": {
+"v": null
+}
+},
+{
+"source": "- Null\n",
+"expected": [
+null
+]
+},
+{
+"source": "v: [Null, Null]\n",
+"expected": {
+"v": [
+null,
+null
+]
+}
+},
+{
+"source": "Null: 1\n",
+"expected": {
+"None": 1
+}
+},
+{
+"source": "v: NULL\n",
+"expected": {
+"v": null
+}
+},
+{
+"source": "- NULL\n",
+"expected": [
+null
+]
+},
+{
+"source": "v: [NULL, NULL]\n",
+"expected": {
+"v": [
+null,
+null
+]
+}
+},
+{
+"source": "NULL: 1\n",
+"expected": {
+"None": 1
+}
+},
+{
+"source": "v: nul\n",
+"expected": {
+"v": "nul"
+}
+},
+{
+"source": "- nul\n",
+"expected": [
+"nul"
+]
+},
+{
+"source": "v: [nul, nul]\n",
+"expected": {
+"v": [
+"nul",
+"nul"
+]
+}
+},
+{
+"source": "nul: 1\n",
+"expected": {
+"nul": 1
+}
+},
+{
+"source": "v: .5\n",
+"expected": {
+"v": 0.5
+}
+},
+{
+"source": "- .5\n",
+"expected": [
+0.5
+]
+},
+{
+"source": "v: [.5, .5]\n",
+"expected": {
+"v": [
+0.5,
+0.5
+]
+}
+},
+{
+"source": ".5: 1\n",
+"expected": {
+"0.5": 1
+}
+},
+{
+"source": "v: -.5\n",
+"expected": {
+"v": "-.5"
+}
+},
+{
+"source": "- -.5\n",
+"expected": [
+"-.5"
+]
+},
+{
+"source": "v: [-.5, -.5]\n",
+"expected": {
+"v": [
+"-.5",
+"-.5"
+]
+}
+},
+{
+"source": "-.5: 1\n",
+"expected": {
+"-.5": 1
+}
+},
+{
+"source": "v: +.5\n",
+"expected": {
+"v": "+.5"
+}
+},
+{
+"source": "- +.5\n",
+"expected": [
+"+.5"
+]
+},
+{
+"source": "v: [+.5, +.5]\n",
+"expected": {
+"v": [
+"+.5",
+"+.5"
+]
+}
+},
+{
+"source": "+.5: 1\n",
+"expected": {
+"+.5": 1
+}
+},
+{
+"source": "v: .5e+3\n",
+"expected": {
+"v": 500.0
+}
+},
+{
+"source": "- .5e+3\n",
+"expected": [
+500.0
+]
+},
+{
+"source": "v: [.5e+3, .5e+3]\n",
+"expected": {
+"v": [
+500.0,
+500.0
+]
+}
+},
+{
+"source": ".5e+3: 1\n",
+"expected": {
+"500.0": 1
+}
+},
+{
+"source": "v: 5.\n",
+"expected": {
+"v": 5.0
+}
+},
+{
+"source": "- 5.\n",
+"expected": [
+5.0
+]
+},
+{
+"source": "v: [5., 5.]\n",
+"expected": {
+"v": [
+5.0,
+5.0
+]
+}
+},
+{
+"source": "5.: 1\n",
+"expected": {
+"5.0": 1
+}
+},
+{
+"source": "v: +1\n",
+"expected": {
+"v": 1
+}
+},
+{
+"source": "- +1\n",
+"expected": [
+1
+]
+},
+{
+"source": "v: [+1, +1]\n",
+"expected": {
+"v": [
+1,
+1
+]
+}
+},
+{
+"source": "+1: 1\n",
+"expected": {
+"1": 1
+}
+},
+{
+"source": "v: -1\n",
+"expected": {
+"v": -1
+}
+},
+{
+"source": "- -1\n",
+"expected": [
+-1
+]
+},
+{
+"source": "v: [-1, -1]\n",
+"expected": {
+"v": [
+-1,
+-1
+]
+}
+},
+{
+"source": "-1: 1\n",
+"expected": {
+"-1": 1
+}
+},
+{
+"source": "v: +0\n",
+"expected": {
+"v": 0
+}
+},
+{
+"source": "- +0\n",
+"expected": [
+0
+]
+},
+{
+"source": "v: [+0, +0]\n",
+"expected": {
+"v": [
+0,
+0
+]
+}
+},
+{
+"source": "+0: 1\n",
+"expected": {
+"0": 1
+}
+},
+{
+"source": "v: -0\n",
+"expected": {
+"v": 0
+}
+},
+{
+"source": "- -0\n",
+"expected": [
+0
+]
+},
+{
+"source": "v: [-0, -0]\n",
+"expected": {
+"v": [
+0,
+0
+]
+}
+},
+{
+"source": "-0: 1\n",
+"expected": {
+"0": 1
+}
+},
+{
+"source": "v: 0x1F\n",
+"expected": {
+"v": 31
+}
+},
+{
+"source": "- 0x1F\n",
+"expected": [
+31
+]
+},
+{
+"source": "v: [0x1F, 0x1F]\n",
+"expected": {
+"v": [
+31,
+31
+]
+}
+},
+{
+"source": "0x1F: 1\n",
+"expected": {
+"31": 1
+}
+},
+{
+"source": "v: -0x1f\n",
+"expected": {
+"v": -31
+}
+},
+{
+"source": "- -0x1f\n",
+"expected": [
+-31
+]
+},
+{
+"source": "v: [-0x1f, -0x1f]\n",
+"expected": {
+"v": [
+-31,
+-31
+]
+}
+},
+{
+"source": "-0x1f: 1\n",
+"expected": {
+"-31": 1
+}
+},
+{
+"source": "v: 0b101\n",
+"expected": {
+"v": 5
+}
+},
+{
+"source": "- 0b101\n",
+"expected": [
+5
+]
+},
+{
+"source": "v: [0b101, 0b101]\n",
+"expected": {
+"v": [
+5,
+5
+]
+}
+},
+{
+"source": "0b101: 1\n",
+"expected": {
+"5": 1
+}
+},
+{
+"source": "v: 0b102\n",
+"expected": {
+"v": "0b102"
+}
+},
+{
+"source": "- 0b102\n",
+"expected": [
+"0b102"
+]
+},
+{
+"source": "v: [0b102, 0b102]\n",
+"expected": {
+"v": [
+"0b102",
+"0b102"
+]
+}
+},
+{
+"source": "0b102: 1\n",
+"expected": {
+"0b102": 1
+}
+},
+{
+"source": "v: 0x\n",
+"expected": {
+"v": "0x"
+}
+},
+{
+"source": "- 0x\n",
+"expected": [
+"0x"
+]
+},
+{
+"source": "v: [0x, 0x]\n",
+"expected": {
+"v": [
+"0x",
+"0x"
+]
+}
+},
+{
+"source": "0x: 1\n",
+"expected": {
+"0x": 1
+}
+},
+{
+"source": "v: 1:30\n",
+"expected": {
+"v": 90
+}
+},
+{
+"source": "- 1:30\n",
+"expected": [
+90
+]
+},
+{
+"source": "v: [1:30, 1:30]\n",
+"expected": {
+"v": [
+90,
+90
+]
+}
+},
+{
+"source": "1:30: 1\n",
+"expected": {
+"90": 1
+}
+},
+{
+"source": "v: 1:30:45\n",
+"expected": {
+"v": 5445
+}
+},
+{
+"source": "- 1:30:45\n",
+"expected": [
+5445
+]
+},
+{
+"source": "v: [1:30:45, 1:30:45]\n",
+"expected": {
+"v": [
+5445,
+5445
+]
+}
+},
+{
+"source": "1:30:45: 1\n",
+"expected": {
+"5445": 1
+}
+},
+{
+"source": "v: -1:30\n",
+"expected": {
+"v": -90
+}
+},
+{
+"source": "- -1:30\n",
+"expected": [
+-90
+]
+},
+{
+"source": "v: [-1:30, -1:30]\n",
+"expected": {
+"v": [
+-90,
+-90
+]
+}
+},
+{
+"source": "-1:30: 1\n",
+"expected": {
+"-90": 1
+}
+},
+{
+"source": "v: 1:30.5\n",
+"expected": {
+"v": 90.5
+}
+},
+{
+"source": "- 1:30.5\n",
+"expected": [
+90.5
+]
+},
+{
+"source": "v: [1:30.5, 1:30.5]\n",
+"expected": {
+"v": [
+90.5,
+90.5
+]
+}
+},
+{
+"source": "1:30.5: 1\n",
+"expected": {
+"90.5": 1
+}
+},
+{
+"source": "v: 190:20:30.15\n",
+"expected": {
+"v": 685230.15
+}
+},
+{
+"source": "- 190:20:30.15\n",
+"expected": [
+685230.15
+]
+},
+{
+"source": "v: [190:20:30.15, 190:20:30.15]\n",
+"expected": {
+"v": [
+685230.15,
+685230.15
+]
+}
+},
+{
+"source": "190:20:30.15: 1\n",
+"expected": {
+"685230.15": 1
+}
+},
+{
+"source": "v: 1:60\n",
+"expected": {
+"v": "1:60"
+}
+},
+{
+"source": "- 1:60\n",
+"expected": [
+"1:60"
+]
+},
+{
+"source": "v: [1:60, 1:60]\n",
+"expected": {
+"v": [
+"1:60",
+"1:60"
+]
+}
+},
+{
+"source": "1:60: 1\n",
+"expected": {
+"1:60": 1
+}
+},
+{
+"source": "v: 2026-01-01\n",
+"expected": {
+"v": "2026-01-01"
+}
+},
+{
+"source": "- 2026-01-01\n",
+"expected": [
+"2026-01-01"
+]
+},
+{
+"source": "v: [2026-01-01, 2026-01-01]\n",
+"expected": {
+"v": [
+"2026-01-01",
+"2026-01-01"
+]
+}
+},
+{
+"source": "2026-01-01: 1\n",
+"expected": {
+"2026-01-01": 1
+}
+},
+{
+"source": "v: 2026-1-1\n",
+"expected": {
+"v": "2026-1-1"
+}
+},
+{
+"source": "- 2026-1-1\n",
+"expected": [
+"2026-1-1"
+]
+},
+{
+"source": "v: [2026-1-1, 2026-1-1]\n",
+"expected": {
+"v": [
+"2026-1-1",
+"2026-1-1"
+]
+}
+},
+{
+"source": "2026-1-1: 1\n",
+"expected": {
+"2026-1-1": 1
+}
+},
+{
+"source": "v: 5\n",
+"expected": {
+"v": 5
+}
+},
+{
+"source": "- 5\n",
+"expected": [
+5
+]
+},
+{
+"source": "v: [5, 5]\n",
+"expected": {
+"v": [
+5,
+5
+]
+}
+},
+{
+"source": "5: 1\n",
+"expected": {
+"5": 1
+}
+},
+{
+"source": "v: 5.0\n",
+"expected": {
+"v": 5.0
+}
+},
+{
+"source": "- 5.0\n",
+"expected": [
+5.0
+]
+},
+{
+"source": "v: [5.0, 5.0]\n",
+"expected": {
+"v": [
+5.0,
+5.0
+]
+}
+},
+{
+"source": "5.0: 1\n",
+"expected": {
+"5.0": 1
+}
+},
+{
+"source": "v: -5.25\n",
+"expected": {
+"v": -5.25
+}
+},
+{
+"source": "- -5.25\n",
+"expected": [
+-5.25
+]
+},
+{
+"source": "v: [-5.25, -5.25]\n",
+"expected": {
+"v": [
+-5.25,
+-5.25
+]
+}
+},
+{
+"source": "-5.25: 1\n",
+"expected": {
+"-5.25": 1
+}
+},
+{
+"source": "v: 1e5\n",
+"expected": {
+"v": "1e5"
+}
+},
+{
+"source": "- 1e5\n",
+"expected": [
+"1e5"
+]
+},
+{
+"source": "v: [1e5, 1e5]\n",
+"expected": {
+"v": [
+"1e5",
+"1e5"
+]
+}
+},
+{
+"source": "1e5: 1\n",
+"expected": {
+"1e5": 1
+}
+},
+{
+"source": "v: 1E+3\n",
+"expected": {
+"v": "1E+3"
+}
+},
+{
+"source": "- 1E+3\n",
+"expected": [
+"1E+3"
+]
+},
+{
+"source": "v: [1E+3, 1E+3]\n",
+"expected": {
+"v": [
+"1E+3",
+"1E+3"
+]
+}
+},
+{
+"source": "1E+3: 1\n",
+"expected": {
+"1E+3": 1
+}
+},
+{
+"source": "v: 12e03\n",
+"expected": {
+"v": "12e03"
+}
+},
+{
+"source": "- 12e03\n",
+"expected": [
+"12e03"
+]
+},
+{
+"source": "v: [12e03, 12e03]\n",
+"expected": {
+"v": [
+"12e03",
+"12e03"
+]
+}
+},
+{
+"source": "12e03: 1\n",
+"expected": {
+"12e03": 1
+}
+},
+{
+"source": "v: 1.2.3\n",
+"expected": {
+"v": "1.2.3"
+}
+},
+{
+"source": "- 1.2.3\n",
+"expected": [
+"1.2.3"
+]
+},
+{
+"source": "v: [1.2.3, 1.2.3]\n",
+"expected": {
+"v": [
+"1.2.3",
+"1.2.3"
+]
+}
+},
+{
+"source": "1.2.3: 1\n",
+"expected": {
+"1.2.3": 1
+}
+},
+{
+"source": "v: .inf\n",
+"expected": {
+"v": {
+"__float__": "inf"
+}
+}
+},
+{
+"source": "- .inf\n",
+"expected": [
+{
+"__float__": "inf"
+}
+]
+},
+{
+"source": "v: [.inf, .inf]\n",
+"expected": {
+"v": [
+{
+"__float__": "inf"
+},
+{
+"__float__": "inf"
+}
+]
+}
+},
+{
+"source": ".inf: 1\n",
+"expected": {
+"inf": 1
+}
+},
+{
+"source": "v: -.inf\n",
+"expected": {
+"v": {
+"__float__": "-inf"
+}
+}
+},
+{
+"source": "- -.inf\n",
+"expected": [
+{
+"__float__": "-inf"
+}
+]
+},
+{
+"source": "v: [-.inf, -.inf]\n",
+"expected": {
+"v": [
+{
+"__float__": "-inf"
+},
+{
+"__float__": "-inf"
+}
+]
+}
+},
+{
+"source": "-.inf: 1\n",
+"expected": {
+"-inf": 1
+}
+},
+{
+"source": "v: +.INF\n",
+"expected": {
+"v": {
+"__float__": "inf"
+}
+}
+},
+{
+"source": "- +.INF\n",
+"expected": [
+{
+"__float__": "inf"
+}
+]
+},
+{
+"source": "v: [+.INF, +.INF]\n",
+"expected": {
+"v": [
+{
+"__float__": "inf"
+},
+{
+"__float__": "inf"
+}
+]
+}
+},
+{
+"source": "+.INF: 1\n",
+"expected": {
+"inf": 1
+}
+},
+{
+"source": "v: .Inf\n",
+"expected": {
+"v": {
+"__float__": "inf"
+}
+}
+},
+{
+"source": "- .Inf\n",
+"expected": [
+{
+"__float__": "inf"
+}
+]
+},
+{
+"source": "v: [.Inf, .Inf]\n",
+"expected": {
+"v": [
+{
+"__float__": "inf"
+},
+{
+"__float__": "inf"
+}
+]
+}
+},
+{
+"source": ".Inf: 1\n",
+"expected": {
+"inf": 1
+}
+},
+{
+"source": "v: .nan\n",
+"expected": {
+"v": {
+"__float__": "nan"
+}
+}
+},
+{
+"source": "- .nan\n",
+"expected": [
+{
+"__float__": "nan"
+}
+]
+},
+{
+"source": "v: [.nan, .nan]\n",
+"expected": {
+"v": [
+{
+"__float__": "nan"
+},
+{
+"__float__": "nan"
+}
+]
+}
+},
+{
+"source": ".nan: 1\n",
+"expected": {
+"nan": 1
+}
+},
+{
+"source": "v: .NaN\n",
+"expected": {
+"v": {
+"__float__": "nan"
+}
+}
+},
+{
+"source": "- .NaN\n",
+"expected": [
+{
+"__float__": "nan"
+}
+]
+},
+{
+"source": "v: [.NaN, .NaN]\n",
+"expected": {
+"v": [
+{
+"__float__": "nan"
+},
+{
+"__float__": "nan"
+}
+]
+}
+},
+{
+"source": ".NaN: 1\n",
+"expected": {
+"nan": 1
+}
+},
+{
+"source": "v: .NAN\n",
+"expected": {
+"v": {
+"__float__": "nan"
+}
+}
+},
+{
+"source": "- .NAN\n",
+"expected": [
+{
+"__float__": "nan"
+}
+]
+},
+{
+"source": "v: [.NAN, .NAN]\n",
+"expected": {
+"v": [
+{
+"__float__": "nan"
+},
+{
+"__float__": "nan"
+}
+]
+}
+},
+{
+"source": ".NAN: 1\n",
+"expected": {
+"nan": 1
+}
+},
+{
+"source": "v: -.nan\n",
+"expected": {
+"v": "-.nan"
+}
+},
+{
+"source": "- -.nan\n",
+"expected": [
+"-.nan"
+]
+},
+{
+"source": "v: [-.nan, -.nan]\n",
+"expected": {
+"v": [
+"-.nan",
+"-.nan"
+]
+}
+},
+{
+"source": "-.nan: 1\n",
+"expected": {
+"-.nan": 1
+}
+},
+{
+"source": "v: abc\n",
+"expected": {
+"v": "abc"
+}
+},
+{
+"source": "- abc\n",
+"expected": [
+"abc"
+]
+},
+{
+"source": "v: [abc, abc]\n",
+"expected": {
+"v": [
+"abc",
+"abc"
+]
+}
+},
+{
+"source": "abc: 1\n",
+"expected": {
+"abc": 1
+}
+},
+{
+"source": "v: a b\n",
+"expected": {
+"v": "a b"
+}
+},
+{
+"source": "- a b\n",
+"expected": [
+"a b"
+]
+},
+{
+"source": "v: [a b, a b]\n",
+"expected": {
+"v": [
+"a b",
+"a b"
+]
+}
+},
+{
+"source": "a b: 1\n",
+"expected": {
+"a b": 1
+}
+},
+{
+"source": "v: PGA_1\n",
+"expected": {
+"v": "PGA_1"
+}
+},
+{
+"source": "- PGA_1\n",
+"expected": [
+"PGA_1"
+]
+},
+{
+"source": "v: [PGA_1, PGA_1]\n",
+"expected": {
+"v": [
+"PGA_1",
+"PGA_1"
+]
+}
+},
+{
+"source": "PGA_1: 1\n",
+"expected": {
+"PGA_1": 1
+}
+},
+{
+"source": "v: 0.1g\n",
+"expected": {
+"v": "0.1g"
+}
+},
+{
+"source": "- 0.1g\n",
+"expected": [
+"0.1g"
+]
+},
+{
+"source": "v: [0.1g, 0.1g]\n",
+"expected": {
+"v": [
+"0.1g",
+"0.1g"
+]
+}
+},
+{
+"source": "0.1g: 1\n",
+"expected": {
+"0.1g": 1
+}
+},
+{
+"source": "v: 1.\n",
+"expected": {
+"v": 1.0
+}
+},
+{
+"source": "- 1.\n",
+"expected": [
+1.0
+]
+},
+{
+"source": "v: [1., 1.]\n",
+"expected": {
+"v": [
+1.0,
+1.0
+]
+}
+},
+{
+"source": "1.: 1\n",
+"expected": {
+"1.0": 1
+}
+},
+{
+"source": "v: 1._\n",
+"expected": {
+"v": 1.0
+}
+},
+{
+"source": "- 1._\n",
+"expected": [
+1.0
+]
+},
+{
+"source": "v: [1._, 1._]\n",
+"expected": {
+"v": [
+1.0,
+1.0
+]
+}
+},
+{
+"source": "1._: 1\n",
+"expected": {
+"1.0": 1
+}
+},
+{
+"source": "v: ._5\n",
+"expected": {
+"v": "._5"
+}
+},
+{
+"source": "- ._5\n",
+"expected": [
+"._5"
+]
+},
+{
+"source": "v: [._5, ._5]\n",
+"expected": {
+"v": [
+"._5",
+"._5"
+]
+}
+},
+{
+"source": "._5: 1\n",
+"expected": {
+"._5": 1
+}
+},
+{
+"source": "v: _1\n",
+"expected": {
+"v": "_1"
+}
+},
+{
+"source": "- _1\n",
+"expected": [
+"_1"
+]
+},
+{
+"source": "v: [_1, _1]\n",
+"expected": {
+"v": [
+"_1",
+"_1"
+]
+}
+},
+{
+"source": "_1: 1\n",
+"expected": {
+"_1": 1
+}
+},
+{
+"source": "v: 1_\n",
+"expected": {
+"v": 1
+}
+},
+{
+"source": "- 1_\n",
+"expected": [
+1
+]
+},
+{
+"source": "v: [1_, 1_]\n",
+"expected": {
+"v": [
+1,
+1
+]
+}
+},
+{
+"source": "1_: 1\n",
+"expected": {
+"1": 1
+}
+},
+{
+"source": "v: 1__0\n",
+"expected": {
+"v": 10
+}
+},
+{
+"source": "- 1__0\n",
+"expected": [
+10
+]
+},
+{
+"source": "v: [1__0, 1__0]\n",
+"expected": {
+"v": [
+10,
+10
+]
+}
+},
+{
+"source": "1__0: 1\n",
+"expected": {
+"10": 1
+}
+},
+{
+"source": "v: 0.\n",
+"expected": {
+"v": 0.0
+}
+},
+{
+"source": "- 0.\n",
+"expected": [
+0.0
+]
+},
+{
+"source": "v: [0., 0.]\n",
+"expected": {
+"v": [
+0.0,
+0.0
+]
+}
+},
+{
+"source": "0.: 1\n",
+"expected": {
+"0.0": 1
+}
+},
+{
+"source": "v: 0.0\n",
+"expected": {
+"v": 0.0
+}
+},
+{
+"source": "- 0.0\n",
+"expected": [
+0.0
+]
+},
+{
+"source": "v: [0.0, 0.0]\n",
+"expected": {
+"v": [
+0.0,
+0.0
+]
+}
+},
+{
+"source": "0.0: 1\n",
+"expected": {
+"0.0": 1
+}
+},
+{
+"source": "v: -0.0\n",
+"expected": {
+"v": -0.0
+}
+},
+{
+"source": "- -0.0\n",
+"expected": [
+-0.0
+]
+},
+{
+"source": "v: [-0.0, -0.0]\n",
+"expected": {
+"v": [
+-0.0,
+-0.0
+]
+}
+},
+{
+"source": "-0.0: 1\n",
+"expected": {
+"-0.0": 1
+}
+},
+{
+"source": "v: 1e\n",
+"expected": {
+"v": "1e"
+}
+},
+{
+"source": "- 1e\n",
+"expected": [
+"1e"
+]
+},
+{
+"source": "v: [1e, 1e]\n",
+"expected": {
+"v": [
+"1e",
+"1e"
+]
+}
+},
+{
+"source": "1e: 1\n",
+"expected": {
+"1e": 1
+}
+},
+{
+"source": "v: e5\n",
+"expected": {
+"v": "e5"
+}
+},
+{
+"source": "- e5\n",
+"expected": [
+"e5"
+]
+},
+{
+"source": "v: [e5, e5]\n",
+"expected": {
+"v": [
+"e5",
+"e5"
+]
+}
+},
+{
+"source": "e5: 1\n",
+"expected": {
+"e5": 1
+}
+},
+{
+"source": "v: .e5\n",
+"expected": {
+"v": ".e5"
+}
+},
+{
+"source": "- .e5\n",
+"expected": [
+".e5"
+]
+},
+{
+"source": "v: [.e5, .e5]\n",
+"expected": {
+"v": [
+".e5",
+".e5"
+]
+}
+},
+{
+"source": ".e5: 1\n",
+"expected": {
+".e5": 1
+}
+},
+{
+"source": "v: 1.5e\n",
+"expected": {
+"v": "1.5e"
+}
+},
+{
+"source": "- 1.5e\n",
+"expected": [
+"1.5e"
+]
+},
+{
+"source": "v: [1.5e, 1.5e]\n",
+"expected": {
+"v": [
+"1.5e",
+"1.5e"
+]
+}
+},
+{
+"source": "1.5e: 1\n",
+"expected": {
+"1.5e": 1
+}
+},
+{
+"source": "v: 1.5e+\n",
+"expected": {
+"v": "1.5e+"
+}
+},
+{
+"source": "- 1.5e+\n",
+"expected": [
+"1.5e+"
+]
+},
+{
+"source": "v: [1.5e+, 1.5e+]\n",
+"expected": {
+"v": [
+"1.5e+",
+"1.5e+"
+]
+}
+},
+{
+"source": "1.5e+: 1\n",
+"expected": {
+"1.5e+": 1
+}
+},
+{
+"source": "v: True1\n",
+"expected": {
+"v": "True1"
+}
+},
+{
+"source": "- True1\n",
+"expected": [
+"True1"
+]
+},
+{
+"source": "v: [True1, True1]\n",
+"expected": {
+"v": [
+"True1",
+"True1"
+]
+}
+},
+{
+"source": "True1: 1\n",
+"expected": {
+"True1": 1
+}
+},
+{
+"source": "v: none\n",
+"expected": {
+"v": "none"
+}
+},
+{
+"source": "- none\n",
+"expected": [
+"none"
+]
+},
+{
+"source": "v: [none, none]\n",
+"expected": {
+"v": [
+"none",
+"none"
+]
+}
+},
+{
+"source": "none: 1\n",
+"expected": {
+"none": 1
+}
+},
+{
+"source": "v: None\n",
+"expected": {
+"v": "None"
+}
+},
+{
+"source": "- None\n",
+"expected": [
+"None"
+]
+},
+{
+"source": "v: [None, None]\n",
+"expected": {
+"v": [
+"None",
+"None"
+]
+}
+},
+{
+"source": "None: 1\n",
+"expected": {
+"None": 1
+}
+},
+{
+"source": "v: NULL1\n",
+"expected": {
+"v": "NULL1"
+}
+},
+{
+"source": "- NULL1\n",
+"expected": [
+"NULL1"
+]
+},
+{
+"source": "v: [NULL1, NULL1]\n",
+"expected": {
+"v": [
+"NULL1",
+"NULL1"
+]
+}
+},
+{
+"source": "NULL1: 1\n",
+"expected": {
+"NULL1": 1
+}
+},
+{
+"source": "v: =\n",
+"error": true
+},
+{
+"source": "- =\n",
+"error": true
+},
+{
+"source": "v: [=, =]\n",
+"error": true
+},
+{
+"source": "=: 1\n",
+"expected": {
+"=": 1
+}
+},
+{
+"source": "v: <<x\n",
+"expected": {
+"v": "<<x"
+}
+},
+{
+"source": "- <<x\n",
+"expected": [
+"<<x"
+]
+},
+{
+"source": "v: [<<x, <<x]\n",
+"expected": {
+"v": [
+"<<x",
+"<<x"
+]
+}
+},
+{
+"source": "<<x: 1\n",
+"expected": {
+"<<x": 1
+}
+},
+{
+"source": "v: 3.14159\n",
+"expected": {
+"v": 3.14159
+}
+},
+{
+"source": "- 3.14159\n",
+"expected": [
+3.14159
+]
+},
+{
+"source": "v: [3.14159, 3.14159]\n",
+"expected": {
+"v": [
+3.14159,
+3.14159
+]
+}
+},
+{
+"source": "3.14159: 1\n",
+"expected": {
+"3.14159": 1
+}
+},
+{
+"source": "v: 6.02e+23\n",
+"expected": {
+"v": 6.02e+23
+}
+},
+{
+"source": "- 6.02e+23\n",
+"expected": [
+6.02e+23
+]
+},
+{
+"source": "v: [6.02e+23, 6.02e+23]\n",
+"expected": {
+"v": [
+6.02e+23,
+6.02e+23
+]
+}
+},
+{
+"source": "6.02e+23: 1\n",
+"expected": {
+"6.02e+23": 1
+}
+},
+{
+"source": "v: 1.0E-10\n",
+"expected": {
+"v": 1e-10
+}
+},
+{
+"source": "- 1.0E-10\n",
+"expected": [
+1e-10
+]
+},
+{
+"source": "v: [1.0E-10, 1.0E-10]\n",
+"expected": {
+"v": [
+1e-10,
+1e-10
+]
+}
+},
+{
+"source": "1.0E-10: 1\n",
+"expected": {
+"1e-10": 1
+}
+},
+{
+"source": "v: 0123\n",
+"expected": {
+"v": 83
+}
+},
+{
+"source": "- 0123\n",
+"expected": [
+83
+]
+},
+{
+"source": "v: [0123, 0123]\n",
+"expected": {
+"v": [
+83,
+83
+]
+}
+},
+{
+"source": "0123: 1\n",
+"expected": {
+"83": 1
+}
+},
+{
+"source": "v: 0777\n",
+"expected": {
+"v": 511
+}
+},
+{
+"source": "- 0777\n",
+"expected": [
+511
+]
+},
+{
+"source": "v: [0777, 0777]\n",
+"expected": {
+"v": [
+511,
+511
+]
+}
+},
+{
+"source": "0777: 1\n",
+"expected": {
+"511": 1
+}
+},
+{
+"source": "v: -010\n",
+"expected": {
+"v": -8
+}
+},
+{
+"source": "- -010\n",
+"expected": [
+-8
+]
+},
+{
+"source": "v: [-010, -010]\n",
+"expected": {
+"v": [
+-8,
+-8
+]
+}
+},
+{
+"source": "-010: 1\n",
+"expected": {
+"-8": 1
+}
+},
+{
+"source": "v: 0_\n",
+"expected": {
+"v": 0
+}
+},
+{
+"source": "- 0_\n",
+"expected": [
+0
+]
+},
+{
+"source": "v: [0_, 0_]\n",
+"expected": {
+"v": [
+0,
+0
+]
+}
+},
+{
+"source": "0_: 1\n",
+"expected": {
+"0": 1
+}
+},
+{
+"source": "v: 0b_1\n",
+"expected": {
+"v": 1
+}
+},
+{
+"source": "- 0b_1\n",
+"expected": [
+1
+]
+},
+{
+"source": "v: [0b_1, 0b_1]\n",
+"expected": {
+"v": [
+1,
+1
+]
+}
+},
+{
+"source": "0b_1: 1\n",
+"expected": {
+"1": 1
+}
+},
+{
+"source": "v: 0x_F\n",
+"expected": {
+"v": 15
+}
+},
+{
+"source": "- 0x_F\n",
+"expected": [
+15
+]
+},
+{
+"source": "v: [0x_F, 0x_F]\n",
+"expected": {
+"v": [
+15,
+15
+]
+}
+},
+{
+"source": "0x_F: 1\n",
+"expected": {
+"15": 1
+}
+},
+{
+"source": "v: 1,000\n",
+"expected": {
+"v": "1,000"
+}
+},
+{
+"source": "- 1,000\n",
+"expected": [
+"1,000"
+]
+},
+{
+"source": "v: [1,000, 1,000]\n",
+"expected": {
+"v": [
+1,
+0,
+1,
+0
+]
+}
+},
+{
+"source": "1,000: 1\n",
+"expected": {
+"1,000": 1
+}
+},
+{
+"source": "v: 1 000\n",
+"expected": {
+"v": "1 000"
+}
+},
+{
+"source": "- 1 000\n",
+"expected": [
+"1 000"
+]
+},
+{
+"source": "v: [1 000, 1 000]\n",
+"expected": {
+"v": [
+"1 000",
+"1 000"
+]
+}
+},
+{
+"source": "1 000: 1\n",
+"expected": {
+"1 000": 1
+}
+},
+{
+"source": "v: +\n",
+"expected": {
+"v": "+"
+}
+},
+{
+"source": "- +\n",
+"expected": [
+"+"
+]
+},
+{
+"source": "v: [+, +]\n",
+"expected": {
+"v": [
+"+",
+"+"
+]
+}
+},
+{
+"source": "+: 1\n",
+"expected": {
+"+": 1
+}
+},
+{
+"source": "v: -\n",
+"error": true
+},
+{
+"source": "- -\n",
+"expected": [
+[
+null
+]
+]
+},
+{
+"source": "-: 1\n",
+"expected": {
+"-": 1
+}
+},
+{
+"source": "v: .\n",
+"expected": {
+"v": "."
+}
+},
+{
+"source": "- .\n",
+"expected": [
+"."
+]
+},
+{
+"source": "v: [., .]\n",
+"expected": {
+"v": [
+".",
+"."
+]
+}
+},
+{
+"source": ".: 1\n",
+"expected": {
+".": 1
+}
+},
+{
+"source": "v: ..\n",
+"expected": {
+"v": ".."
+}
+},
+{
+"source": "- ..\n",
+"expected": [
+".."
+]
+},
+{
+"source": "v: [.., ..]\n",
+"expected": {
+"v": [
+"..",
+".."
+]
+}
+},
+{
+"source": "..: 1\n",
+"expected": {
+"..": 1
+}
+},
+{
+"source": "v: 0:0\n",
+"expected": {
+"v": "0:0"
+}
+},
+{
+"source": "- 0:0\n",
+"expected": [
+"0:0"
+]
+},
+{
+"source": "v: [0:0, 0:0]\n",
+"expected": {
+"v": [
+"0:0",
+"0:0"
+]
+}
+},
+{
+"source": "0:0: 1\n",
+"expected": {
+"0:0": 1
+}
+},
+{
+"source": "v: 1:5\n",
+"expected": {
+"v": 65
+}
+},
+{
+"source": "- 1:5\n",
+"expected": [
+65
+]
+},
+{
+"source": "v: [1:5, 1:5]\n",
+"expected": {
+"v": [
+65,
+65
+]
+}
+},
+{
+"source": "1:5: 1\n",
+"expected": {
+"65": 1
+}
+},
+{
+"source": "v: 1:05\n",
+"expected": {
+"v": 65
+}
+},
+{
+"source": "- 1:05\n",
+"expected": [
+65
+]
+},
+{
+"source": "v: [1:05, 1:05]\n",
+"expected": {
+"v": [
+65,
+65
+]
+}
+},
+{
+"source": "1:05: 1\n",
+"expected": {
+"65": 1
+}
+},
+{
+"source": "v: 10:59:59\n",
+"expected": {
+"v": 39599
+}
+},
+{
+"source": "- 10:59:59\n",
+"expected": [
+39599
+]
+},
+{
+"source": "v: [10:59:59, 10:59:59]\n",
+"expected": {
+"v": [
+39599,
+39599
+]
+}
+},
+{
+"source": "10:59:59: 1\n",
+"expected": {
+"39599": 1
+}
+},
+{
+"source": "a: \"5\"\nb: 'yes'\nc: |\n  text\n  more\nd: >\n  folded\n  line\ne: !!str 5\nf: !!int \"7\"\ng: !!float 3\n",
+"expected": {
+"a": "5",
+"b": "yes",
+"c": "text\nmore\n",
+"d": "folded line\n",
+"e": "5",
+"f": 7,
+"g": 3.0
+}
+},
+{
+"source": "base: &b {x: 1, y: 2}\nuse:\n  <<: *b\n  y: 3\n  z: 4\n",
+"expected": {
+"base": {
+"x": 1,
+"y": 2
+},
+"use": {
+"x": 1,
+"y": 3,
+"z": 4
+}
+}
+},
+{
+"source": "m1: &m1 {a: 1, b: 2}\nm2: &m2 {b: 20, c: 30}\nuse:\n  k: 0\n  <<: [*m1, *m2]\n  c: 300\n",
+"expected": {
+"m1": {
+"a": 1,
+"b": 2
+},
+"m2": {
+"b": 20,
+"c": 30
+},
+"use": {
+"b": 2,
+"c": 300,
+"a": 1,
+"k": 0
+}
+}
+},
+{
+"source": "list: &l [1, 2, 3]\nagain: *l\nnested: {p: {q: [yes, no, ~]}}\n",
+"expected": {
+"list": [
+1,
+2,
+3
+],
+"again": [
+1,
+2,
+3
+],
+"nested": {
+"p": {
+"q": [
+true,
+false,
+null
+]
+}
+}
+}
+},
+{
+"source": "dup: 1\ndup: 2\nother: x\n",
+"expected": {
+"dup": 2,
+"other": "x"
+}
+},
+{
+"source": "",
+"expected": {}
+},
+{
+"source": "# only a comment\n",
+"expected": {}
+},
+{
+"source": "- a\n- b: 1\n  c: [x, {d: 0.5}]\n",
+"expected": [
+"a",
+{
+"b": 1,
+"c": [
+"x",
+{
+"d": 0.5
+}
+]
+}
+]
+},
+{
+"source": "k:\nj: \"\"\n",
+"expected": {
+"k": null,
+"j": ""
+}
+},
+{
+"source": "{a: 1, \"b\": 2, 3: c, 4.5: d, yes: e, ~: f}\n",
+"expected": {
+"a": 1,
+"b": 2,
+"3": "c",
+"4.5": "d",
+"True": "e",
+"None": "f"
+}
+},
+{
+"source": "uni: \"caf\u00e9\"\nquoted: \"a b\"\n",
+"expected": {
+"uni": "caf\u00e9",
+"quoted": "a b"
+}
+},
+{
+"source": "? complex\n: value\n",
+"expected": {
+"complex": "value"
+}
+},
+{
+"source": "a: 1\n---\nb: 2\n",
+"error": true
+},
+{
+"source": "a: [1, 2\n",
+"error": true
+},
+{
+"source": "a: !custom 5\n",
+"error": true
+}
+]

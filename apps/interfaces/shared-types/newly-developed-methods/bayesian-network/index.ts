@@ -1,3 +1,4 @@
+export * from "./bayesian-network-builder";
 export * from "./bayesian-network-model";
 export * from "./bayesian-network-requests";
 export * from "./bayesian-network-results";

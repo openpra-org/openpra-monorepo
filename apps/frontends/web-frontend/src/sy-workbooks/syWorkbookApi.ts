@@ -13,7 +13,10 @@ import type {
   BayesianNetworkBatchAnalysisResult,
   BayesianNetworkQueryScenario,
   BayesianNetworkExecuteResult,
+  BayesianNetworkBuilderFormat,
+  BayesianNetworkBuilderResponse,
 } from "interfaces-shared-types/newly-developed-methods/bayesian-network";
+import { BayesianNetworkBuilderResponseSchema } from "interfaces-shared-types/newly-developed-methods/bayesian-network";
 import type {
   BayesianNetworkEvidenceConfiguration,
   FaultTreeTopEventReference,
@@ -287,6 +290,15 @@ export {
   type SyExampleOption,
   type SyDocumentEntry,
 };
+
+export async function buildBayesianNetworkFromSpecification(
+  format: BayesianNetworkBuilderFormat, source: string,
+): Promise<string> {
+  const response = BayesianNetworkBuilderResponseSchema.parse(
+    await postJson<BayesianNetworkBuilderResponse>("/api/bayesian-network/network-builder", { format, source }),
+  );
+  return response.networkFile;
+}
 
 export async function generateSyHclScenarios(
   workbookId: string, configurationId: string, workbookRevision: number,

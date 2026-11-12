@@ -44,6 +44,7 @@ import {
   runSyHclFaultTree,
   runSyHclFaultTreeBatch,
   generateSyHclScenarios,
+  buildBayesianNetworkFromSpecification,
 } from "./syWorkbookApi";
 
 interface EsqWorkbookLink {
@@ -450,6 +451,7 @@ function SyBayesianNetworkWorkspace({
           onRunHclEventTreeBatch={() => undefined}
           onRun={() => { void runExactQuery(); }}
           onRunBatch={(scenarios) => { void runExactQueryBatch(scenarios); }}
+          onBuildFromSpecification={buildBayesianNetworkFromSpecification}
         />
       )}
       {confirmationDialog}

@@ -76,52 +76,130 @@ function singleArrayInsertionIndex(before: unknown[], after: unknown[]): number 
   return index;
 }
 
+interface WorkbookPatchDraft {
+  operations: WorkbookPatchOperation[];
+  size: number;
+}
+
+const VALUE_FIELD_SIZE = ',"value":'.length;
+const SEPARATOR_SIZE = ",".length;
+const BRACKETS_SIZE = "[]".length;
+const NULL_SIZE = "null".length;
+
+type JsonSizes = WeakMap<object, number>;
+
+function jsonSizeWithin(value: unknown, limit: number, sizes: JsonSizes): number {
+  if (value === null || typeof value !== "object") return JSON.stringify(value)?.length ?? NULL_SIZE;
+  const known = sizes.get(value);
+  if (known !== undefined) return known;
+  let size = BRACKETS_SIZE;
+  if (Array.isArray(value)) {
+    for (let index = 0; index < value.length; index += 1) {
+      if (index > 0) size += SEPARATOR_SIZE;
+      size += jsonSizeWithin(value[index], limit - size, sizes);
+      if (size > limit) return size;
+    }
+  } else if (isRecord(value)) {
+    let written = 0;
+    for (const key of Object.keys(value)) {
+      if (value[key] === undefined) continue;
+      if (written > 0) size += SEPARATOR_SIZE;
+      written += 1;
+      size += JSON.stringify(key).length + SEPARATOR_SIZE + jsonSizeWithin(value[key], limit - size, sizes);
+      if (size > limit) return size;
+    }
+  }
+  sizes.set(value, size);
+  return size;
+}
+
+function operationSize(op: WorkbookPatchOperation["op"], path: WorkbookPatchPathSegment[]): number {
+  return JSON.stringify({ op, path }).length + SEPARATOR_SIZE + (op === "remove" ? 0 : VALUE_FIELD_SIZE);
+}
+
 function createWorkbookPatch<T>(current: T, next: T): WorkbookPatchOperation[] {
-  const operations: WorkbookPatchOperation[] = [];
+  const sizes: JsonSizes = new WeakMap();
+  const unchanged: WorkbookPatchDraft = { operations: [], size: 0 };
 
-  function visit(before: unknown, after: unknown, path: WorkbookPatchPathSegment[]): void {
-    if (Object.is(before, after)) return;
-
-    if (Array.isArray(before) && Array.isArray(after)) {
-      const removalIndex = singleArrayRemovalIndex(before, after);
-      if (removalIndex !== null) {
-        operations.push({ op: "remove", path: [...path, removalIndex] });
-        return;
-      }
-      const insertionIndex = singleArrayInsertionIndex(before, after);
-      if (insertionIndex !== null) {
-        operations.push({ op: "add", path: [...path, insertionIndex], value: cloneJsonValue(after[insertionIndex]) });
-        return;
-      }
-      const sharedLength = Math.min(before.length, after.length);
-      for (let index = 0; index < sharedLength; index += 1) visit(before[index], after[index], [...path, index]);
-      for (let index = before.length - 1; index >= after.length; index -= 1) operations.push({ op: "remove", path: [...path, index] });
-      for (let index = sharedLength; index < after.length; index += 1) operations.push({ op: "add", path: [...path, index], value: cloneJsonValue(after[index]) });
-      return;
-    }
-
-    if (isRecord(before) && isRecord(after)) {
-      const beforeKeys = Object.keys(before).filter((key) => before[key] !== undefined);
-      const afterKeys = Object.keys(after).filter((key) => after[key] !== undefined);
-      const afterKeySet = new Set(afterKeys);
-      const beforeKeySet = new Set(beforeKeys);
-
-      for (const key of beforeKeys) {
-        if (!afterKeySet.has(key)) operations.push({ op: "remove", path: [...path, key] });
-      }
-      for (const key of afterKeys) {
-        if (!beforeKeySet.has(key)) operations.push({ op: "add", path: [...path, key], value: cloneJsonValue(after[key]) });
-        else visit(before[key], after[key], [...path, key]);
-      }
-      return;
-    }
-
-    if (path.length === 0) throw new Error("Workbook patches cannot replace the complete MEF root");
-    operations.push({ op: "replace", path, value: cloneJsonValue(after) });
+  function removal(path: WorkbookPatchPathSegment[], draft: WorkbookPatchDraft): void {
+    draft.operations.push({ op: "remove", path });
+    draft.size += operationSize("remove", path);
   }
 
-  visit(current, next, []);
-  return operations;
+  function addition(path: WorkbookPatchPathSegment[], value: unknown, draft: WorkbookPatchDraft): void {
+    draft.operations.push({ op: "add", path, value });
+    draft.size += operationSize("add", path) + jsonSizeWithin(value, Number.POSITIVE_INFINITY, sizes);
+  }
+
+  function merge(source: WorkbookPatchDraft, draft: WorkbookPatchDraft): void {
+    if (source.operations.length === 0) return;
+    for (const operation of source.operations) draft.operations.push(operation);
+    draft.size += source.size;
+  }
+
+  function visitArray(before: unknown[], after: unknown[], path: WorkbookPatchPathSegment[]): WorkbookPatchDraft {
+    const draft: WorkbookPatchDraft = { operations: [], size: 0 };
+    const removalIndex = singleArrayRemovalIndex(before, after);
+    if (removalIndex !== null) {
+      removal([...path, removalIndex], draft);
+      return draft;
+    }
+    const insertionIndex = singleArrayInsertionIndex(before, after);
+    if (insertionIndex !== null) {
+      addition([...path, insertionIndex], after[insertionIndex], draft);
+      return draft;
+    }
+    const sharedLength = Math.min(before.length, after.length);
+    for (let index = 0; index < sharedLength; index += 1) merge(visit(before[index], after[index], [...path, index]), draft);
+    for (let index = before.length - 1; index >= after.length; index -= 1) removal([...path, index], draft);
+    for (let index = sharedLength; index < after.length; index += 1) addition([...path, index], after[index], draft);
+    return draft;
+  }
+
+  function visitRecord(
+    before: Record<string, unknown>,
+    after: Record<string, unknown>,
+    path: WorkbookPatchPathSegment[],
+  ): WorkbookPatchDraft {
+    const draft: WorkbookPatchDraft = { operations: [], size: 0 };
+    const beforeKeys = Object.keys(before).filter((key) => before[key] !== undefined);
+    const afterKeys = Object.keys(after).filter((key) => after[key] !== undefined);
+    const afterKeySet = new Set(afterKeys);
+    const beforeKeySet = new Set(beforeKeys);
+
+    for (const key of beforeKeys) {
+      if (!afterKeySet.has(key)) removal([...path, key], draft);
+    }
+    for (const key of afterKeys) {
+      if (!beforeKeySet.has(key)) addition([...path, key], after[key], draft);
+      else merge(visit(before[key], after[key], [...path, key]), draft);
+    }
+    return draft;
+  }
+
+  function visit(before: unknown, after: unknown, path: WorkbookPatchPathSegment[]): WorkbookPatchDraft {
+    if (Object.is(before, after)) return unchanged;
+
+    let parts: WorkbookPatchDraft | null = null;
+    if (Array.isArray(before) && Array.isArray(after)) parts = visitArray(before, after, path);
+    else if (isRecord(before) && isRecord(after)) parts = visitRecord(before, after, path);
+
+    if (path.length === 0) {
+      if (parts === null) throw new Error("Workbook patches cannot replace the complete MEF root");
+      return parts;
+    }
+    if (parts !== null && parts.operations.length === 0) return unchanged;
+
+    const replacementOverhead = operationSize("replace", path);
+    const partsLimit = parts === null ? Number.POSITIVE_INFINITY : parts.size - replacementOverhead;
+    const replacementSize = replacementOverhead + jsonSizeWithin(after, partsLimit, sizes);
+    if (parts !== null && parts.size <= replacementSize) return parts;
+    return { operations: [{ op: "replace", path, value: after }], size: replacementSize };
+  }
+
+  return visit(current, next, []).operations.map((operation) =>
+    operation.op === "remove" ? operation : { ...operation, value: cloneJsonValue(operation.value) },
+  );
 }
 
 function applyWorkbookPatch<T>(current: T, rawOperations: unknown): T {

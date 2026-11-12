@@ -52,7 +52,7 @@ describe("workbook path patches", () => {
     expect(applyWorkbookPatch(next, insertionOperations)).toEqual(current);
   });
 
-  test("sends only changed coordinates when a method node moves", () => {
+  test("sends only the moved position when a method node moves", () => {
     const current = {
       systemLogicModels: [{
         id: "ft-1",
@@ -70,12 +70,30 @@ describe("workbook path patches", () => {
     const operations = createWorkbookPatch(current, next);
 
     expect(operations).toEqual([
-      { op: "replace", path: ["systemLogicModels", 0, "nodePositions", 0, "position", "x"], value: 240 },
-      { op: "replace", path: ["systemLogicModels", 0, "nodePositions", 0, "position", "y"], value: 160 },
+      { op: "replace", path: ["systemLogicModels", 0, "nodePositions", 0, "position"], value: { x: 240, y: 160 } },
     ]);
     expect(JSON.stringify(operations)).not.toContain("layout");
     expect(JSON.stringify(operations)).not.toContain("nodeId");
     expect(applyWorkbookPatch(current, operations)).toEqual(next);
+  });
+
+  test("sends one replacement when a large part changes throughout", () => {
+    const table = (prefix: string): { id: string; values: number[] }[] =>
+      Array.from({ length: 6000 }, (_, index) => ({ id: `${prefix}-${index}`, values: [index, index + 1] }));
+    const current = { name: "Workbook", networks: [{ code: "BN-1", rows: table("old") }] };
+    const next = { name: "Workbook", networks: [{ code: "BN-1", rows: table("new") }] };
+
+    const operations = createWorkbookPatch(current, next);
+
+    expect(operations).toHaveLength(1);
+    expect(operations[0]).toMatchObject({ op: "replace", path: ["networks", 0, "rows"] });
+    expect(() => WorkbookPatchBodySchema.parse({ operations })).not.toThrow();
+    expect(applyWorkbookPatch(current, operations)).toEqual(next);
+  });
+
+  test("sends nothing for a copy with the same content", () => {
+    const current = { records: [{ id: "A", values: [1, 2, 3] }], settings: { mode: "MANUAL" } };
+    expect(createWorkbookPatch(current, JSON.parse(JSON.stringify(current)))).toEqual([]);
   });
 
   test("rejects empty, root, unsafe, and malformed patches", () => {

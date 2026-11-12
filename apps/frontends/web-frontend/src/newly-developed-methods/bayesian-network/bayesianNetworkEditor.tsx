@@ -295,6 +295,7 @@ function BayesianNetworkEditor(props: BayesianNetworkEditorProps): JSX.Element {
     onRunHclEventTreeBatch,
     onRun,
     onRunBatch,
+    onBuildFromSpecification,
   } = props;
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(model.nodes[0]?.id ?? null);
   const [displayZoom, setDisplayZoom] = useState(() => clampZoom(model.layout.viewport.zoom));
@@ -330,7 +331,7 @@ function BayesianNetworkEditor(props: BayesianNetworkEditorProps): JSX.Element {
   const [submodelScope, setSubmodelScope] = useState<string | null>(null);
   const dragMovedRef = useRef(false);
   const [moduleDrafts, setModuleDrafts] = useState<Record<string, ModuleInstanceDraft>>({});
-  const importKind = useRef<"XDSL" | "JSON">("XDSL");
+  const importKind = useRef<"XDSL" | "JSON" | "SPECIFICATION">("XDSL");
   const modelIdRef = useRef(model.modelId);
   const selectedNode = model.nodes.find((node) => node.id === selectedNodeId);
   const [nodeIdentityDraft, setNodeIdentityDraft] = useState<NodeIdentityDraft | null>(() =>
@@ -1093,9 +1094,14 @@ function BayesianNetworkEditor(props: BayesianNetworkEditorProps): JSX.Element {
   async function importFile(file: File): Promise<void> {
     try {
       const source = await file.text();
-      const imported = importKind.current === "XDSL"
-        ? importBayesianNetworkXdsl(source, model)
-        : { ...importBayesianNetworkJson(source, model), modelId: model.modelId };
+      const kind = importKind.current;
+      if (kind === "SPECIFICATION" && onBuildFromSpecification === undefined) return;
+      const imported = kind === "SPECIFICATION" && onBuildFromSpecification !== undefined
+        ? importBayesianNetworkXdsl(
+          await onBuildFromSpecification(file.name.toLowerCase().endsWith(".json") ? "JSON" : "YAML", source), model)
+        : kind === "XDSL"
+          ? importBayesianNetworkXdsl(source, model)
+          : { ...importBayesianNetworkJson(source, model), modelId: model.modelId };
       requestConfirmation({
         title: "Replace this Bayesian network?",
         message: "The imported model will replace the current network, nodes, connections, states, and probability tables. Existing submodels will be replaced. Saved evidence and HCL links may need repair.",
@@ -1313,6 +1319,13 @@ function BayesianNetworkEditor(props: BayesianNetworkEditorProps): JSX.Element {
                     importRef.current?.click();
                   }}>Import JSON</button>
                 )}
+                {editable && onBuildFromSpecification !== undefined && (
+                  <button type="button" role="menuitem" onClick={(event) => {
+                    event.currentTarget.closest("details")?.removeAttribute("open");
+                    importKind.current = "SPECIFICATION";
+                    importRef.current?.click();
+                  }}>Build from specification</button>
+                )}
               </div>
             </details>
             {editable ? (
@@ -1390,7 +1403,7 @@ function BayesianNetworkEditor(props: BayesianNetworkEditorProps): JSX.Element {
               <button type="button" className="bneditor__icon-btn" aria-label="Reusable templates" title="Reusable templates" disabled><EditorIcon name="modules" /></button>
             )}
             {editable && (
-              <input ref={importRef} hidden type="file" accept=".xdsl,.xml,.json,application/xml,application/json" onChange={(event) => {
+              <input ref={importRef} hidden type="file" accept=".xdsl,.xml,.json,.yaml,.yml,application/xml,application/json" onChange={(event) => {
                 const file = event.target.files?.[0];
                 if (file !== undefined) void importFile(file);
               }} />

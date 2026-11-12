@@ -65,6 +65,7 @@ interface BayesianNetworkEditorProps {
   onRunHclEventTreeBatch: (configuration: WorkbookHclConfiguration, eventTree: HclEventTreeOption, scenarioIds: string[], integrateHazardGrid: boolean, calculationType: HclCalculationType) => void;
   onRun: () => void;
   onRunBatch?: (scenarios: HclEvidenceScenario[]) => void;
+  onBuildFromSpecification?: (format: "JSON" | "YAML", source: string) => Promise<string>;
 }
 
 export type {

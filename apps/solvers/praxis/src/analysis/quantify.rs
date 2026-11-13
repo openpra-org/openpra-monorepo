@@ -2,7 +2,8 @@ use std::collections::HashMap;
 use std::time::Duration;
 
 use crate::algorithms::build::{
-    build_bdd_with_variable_order, enumerate_event_names, BuildOptions, VariableOrder,
+    build_bdd_with_variable_order, build_merged_bdd_with_variable_order, enumerate_event_names,
+    BuildOptions, VariableOrder,
 };
 use crate::algorithms::direct_zbdd::{
     build_zbdd_delterm_named_with_order, build_zbdd_direct_from_pdag_with_order,
@@ -204,14 +205,16 @@ pub fn quantify(fault_tree: &FaultTree, settings: &Settings) -> Result<QuantResu
                 reorder_budget: settings.reorder_budget,
                 ..Default::default()
             };
-            let built = build_bdd_with_variable_order(ft, options, settings.variable_order)?;
             let value = if settings.limit_order.is_some() || settings.cut_off.is_some() {
+                let built = build_bdd_with_variable_order(ft, options, settings.variable_order)?;
                 built.bdd.probability_with_limits(
                     built.root,
                     settings.limit_order,
                     settings.cut_off,
                 )
             } else {
+                let built =
+                    build_merged_bdd_with_variable_order(ft, options, settings.variable_order)?;
                 built.bdd.probability(built.root)
             };
             result.probability = Some(ProbabilityOut {

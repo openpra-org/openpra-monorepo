@@ -395,21 +395,27 @@ fn run_pre_event_tree_impl(
         if verbose {
             eprintln!("Computing top event probability using BDD...");
         }
-        let (_pdag, _order, mut bdd_engine, root) = build_pdag_and_bdd(
-            &fault_tree,
-            cli_build_options(cli),
-            cli.effective_variable_order(),
-        )?;
         let p = if cli.limit_order.is_some() || cli.cut_off.is_some() {
-            bdd_engine.probability_with_limits(
+            let (_pdag, _order, mut bdd_engine, root) = build_pdag_and_bdd(
+                &fault_tree,
+                cli_build_options(cli),
+                cli.effective_variable_order(),
+            )?;
+            let limited = bdd_engine.probability_with_limits(
                 root,
                 cli.limit_order.map(|n| n as usize),
                 cli.cut_off,
-            )
+            );
+            bdd_engine.freeze();
+            limited
         } else {
-            bdd_engine.probability(root)
+            let built = praxis::algorithms::build::build_merged_bdd_with_variable_order(
+                &fault_tree,
+                cli_build_options(cli),
+                cli.effective_variable_order(),
+            )?;
+            built.bdd.probability(built.root)
         };
-        bdd_engine.freeze();
         result.top_event_probability = p;
         if verbose {
             eprintln!("BDD analysis complete!");

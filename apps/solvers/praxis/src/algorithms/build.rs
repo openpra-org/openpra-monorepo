@@ -5,8 +5,9 @@ use tracing::info;
 
 use crate::algorithms::bdd_engine::{Bdd, BddRef};
 use crate::algorithms::ordering;
-use crate::algorithms::pdag::{Connective, NodeIndex, Pdag};
+use crate::algorithms::pdag::{Connective, NodeIndex, Pdag, PdagNode};
 use crate::algorithms::reorder::{best_order, ReorderMethod};
+use crate::algorithms::role_groups::{merge_same_role_events, merging_enabled};
 use crate::algorithms::simplify;
 use crate::algorithms::zbdd_engine::{ZbddEngine, ZbddRef};
 use crate::analysis::width::compute_dfs_metadata_pdag;
@@ -94,7 +95,7 @@ pub struct BddBuild {
 }
 
 pub fn build_bdd(fault_tree: &FaultTree, opts: BuildOptions) -> Result<BddBuild> {
-    build_bdd_internal(fault_tree, opts, None, None)
+    build_bdd_internal(fault_tree, opts, None, None, false)
 }
 
 pub fn build_bdd_with_variable_order(
@@ -102,7 +103,21 @@ pub fn build_bdd_with_variable_order(
     opts: BuildOptions,
     variable_order: VariableOrder,
 ) -> Result<BddBuild> {
-    build_bdd_internal(fault_tree, opts, None, Some(variable_order))
+    build_bdd_internal(fault_tree, opts, None, Some(variable_order), false)
+}
+
+pub fn build_merged_bdd_with_variable_order(
+    fault_tree: &FaultTree,
+    opts: BuildOptions,
+    variable_order: VariableOrder,
+) -> Result<BddBuild> {
+    build_bdd_internal(
+        fault_tree,
+        opts,
+        None,
+        Some(variable_order),
+        merging_enabled(),
+    )
 }
 
 /// Builds a BDD with an exact caller-provided basic-event order.
@@ -114,7 +129,49 @@ pub fn build_bdd_with_order(
     opts: BuildOptions,
     variable_order: &[String],
 ) -> Result<BddBuild> {
-    build_bdd_internal(fault_tree, opts, Some(variable_order), None)
+    build_bdd_internal(fault_tree, opts, Some(variable_order), None, false)
+}
+
+fn merge_same_role_variables(
+    pdag: &mut Pdag,
+    fault_tree: &FaultTree,
+) -> Result<HashMap<String, f64>> {
+    let mut values: HashMap<String, f64> = HashMap::new();
+    let mut value_of: HashMap<NodeIndex, f64> = HashMap::new();
+    let mut mergeable: HashSet<NodeIndex> = HashSet::new();
+    for node in pdag.nodes().values() {
+        let PdagNode::BasicEvent { id, index } = node else {
+            continue;
+        };
+        let Some(event) = fault_tree.get_basic_event(id) else {
+            continue;
+        };
+        let probability = event.probability();
+        values.insert(id.clone(), probability);
+        value_of.insert(*index, probability);
+        if !event.is_initiator() && probability > 0.0 && probability < 1.0 {
+            mergeable.insert(*index);
+        }
+    }
+    let groups = merge_same_role_events(pdag, |event| mergeable.contains(&event))?;
+    let mut members = 0usize;
+    for group in &groups {
+        members += group.members.len();
+        let probability = group.role.probability(
+            group
+                .members
+                .iter()
+                .filter_map(|member| value_of.get(member).copied()),
+        );
+        if let Some(name) = pdag.get_node(group.merged).and_then(PdagNode::id) {
+            values.insert(name.to_string(), probability);
+        }
+    }
+    info!(
+        groups = groups.len(),
+        members, "build_bdd: same-role events merged"
+    );
+    Ok(values)
 }
 
 fn build_bdd_internal(
@@ -122,6 +179,7 @@ fn build_bdd_internal(
     opts: BuildOptions,
     variable_order: Option<&[String]>,
     variable_order_method: Option<VariableOrder>,
+    merge: bool,
 ) -> Result<BddBuild> {
     let started = Instant::now();
     let mut pdag = Pdag::from_fault_tree(fault_tree)?;
@@ -132,6 +190,11 @@ fn build_bdd_internal(
     if opts.splice_null_gates {
         simplify::splice_null_and_not(&mut pdag)?;
     }
+    let merged_values = if merge {
+        Some(merge_same_role_variables(&mut pdag, fault_tree)?)
+    } else {
+        None
+    };
 
     let ordering = Instant::now();
     let order = if let Some(explicit) = variable_order {
@@ -156,7 +219,10 @@ fn build_bdd_internal(
         var_of.insert(idx.abs(), pos);
     }
 
-    let var_probs = pdag.level_var_probs(fault_tree, &var_of)?;
+    let var_probs = match &merged_values {
+        Some(values) => pdag.level_var_probs_from_map(values, &var_of),
+        None => pdag.level_var_probs(fault_tree, &var_of)?,
+    };
     let constructing = Instant::now();
     let (bdd, root) = Bdd::from_pdag_with_order_and_probs(&pdag, &var_of, var_probs)?;
     info!(
@@ -287,4 +353,165 @@ pub fn enumerate_event_names(
         event_sets.push(events);
     });
     event_sets
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::io::parser::parse_fault_tree;
+    use std::collections::BTreeSet;
+
+    const SAME_ROLE_MODEL: &str = r#"<?xml version="1.0"?>
+<opsa-mef>
+  <define-fault-tree name="PLANT">
+    <define-gate name="TOP"><or><gate name="SEQ1"/><gate name="SEQ2"/></or></define-gate>
+    <define-gate name="SEQ1"><and><basic-event name="IE1"/><gate name="TRAIN-A"/><gate name="TRAIN-B"/></and></define-gate>
+    <define-gate name="SEQ2"><and><basic-event name="IE2"/><basic-event name="IE3"/><gate name="PAIR"/><not><gate name="TRAIN-B"/></not></and></define-gate>
+    <define-gate name="TRAIN-A"><or><basic-event name="A1"/><gate name="A-MORE"/><basic-event name="SUP"/></or></define-gate>
+    <define-gate name="A-MORE"><or><basic-event name="A2"/><basic-event name="A3"/></or></define-gate>
+    <define-gate name="TRAIN-B"><or><basic-event name="B1"/><basic-event name="B2"/><basic-event name="SUP"/></or></define-gate>
+    <define-gate name="PAIR"><and><basic-event name="P"/><basic-event name="Q"/><basic-event name="FLAG"/></and></define-gate>
+  </define-fault-tree>
+  <model-data>
+    <define-basic-event name="IE1"><attributes><attribute name="initiator" value="true"/></attributes><float value="0.1"/></define-basic-event>
+    <define-basic-event name="IE2"><attributes><attribute name="initiator" value="true"/></attributes><float value="0.5"/></define-basic-event>
+    <define-basic-event name="IE3"><attributes><attribute name="initiator" value="true"/></attributes><float value="0.25"/></define-basic-event>
+    <define-basic-event name="A1"><float value="1e-2"/></define-basic-event>
+    <define-basic-event name="A2"><float value="2e-3"/></define-basic-event>
+    <define-basic-event name="A3"><float value="3e-5"/></define-basic-event>
+    <define-basic-event name="B1"><float value="2e-2"/></define-basic-event>
+    <define-basic-event name="B2"><float value="3e-4"/></define-basic-event>
+    <define-basic-event name="SUP"><float value="1e-3"/></define-basic-event>
+    <define-basic-event name="P"><float value="0.2"/></define-basic-event>
+    <define-basic-event name="Q"><float value="0.3"/></define-basic-event>
+    <define-basic-event name="FLAG"><float value="1.0"/></define-basic-event>
+  </model-data>
+</opsa-mef>"#;
+
+    const NO_GROUP_MODEL: &str = r#"<?xml version="1.0"?>
+<opsa-mef>
+  <define-fault-tree name="PLANT">
+    <define-gate name="TOP"><or><gate name="VOTE"/><gate name="BLOCK"/></or></define-gate>
+    <define-gate name="VOTE"><atleast min="2"><basic-event name="X"/><basic-event name="Y"/><basic-event name="Z"/></atleast></define-gate>
+    <define-gate name="BLOCK"><and><basic-event name="U"/><not><basic-event name="V"/></not></and></define-gate>
+  </define-fault-tree>
+  <model-data>
+    <define-basic-event name="X"><float value="0.1"/></define-basic-event>
+    <define-basic-event name="Y"><float value="0.2"/></define-basic-event>
+    <define-basic-event name="Z"><float value="0.3"/></define-basic-event>
+    <define-basic-event name="U"><float value="0.4"/></define-basic-event>
+    <define-basic-event name="V"><float value="0.05"/></define-basic-event>
+  </model-data>
+</opsa-mef>"#;
+
+    fn same_role_model_probability() -> f64 {
+        let train_a = 1.0 - (1.0 - 1e-2) * (1.0 - 2e-3) * (1.0 - 3e-5);
+        let train_b = 1.0 - (1.0 - 2e-2) * (1.0 - 3e-4);
+        let support = 1e-3;
+        let first = 0.1;
+        let second = 0.5 * 0.25 * 0.2 * 0.3;
+        support * first + (1.0 - support) * (train_b * first * train_a + (1.0 - train_b) * second)
+    }
+
+    fn variable_names(built: &BddBuild) -> BTreeSet<String> {
+        built
+            .order
+            .iter()
+            .filter_map(|&variable| built.pdag.get_node(variable))
+            .filter_map(PdagNode::id)
+            .map(str::to_string)
+            .collect()
+    }
+
+    fn close(left: f64, right: f64) -> bool {
+        (left - right).abs() <= 1e-13 * right.abs()
+    }
+
+    #[test]
+    fn same_role_events_share_one_variable_and_keep_the_probability() {
+        let fault_tree = parse_fault_tree(SAME_ROLE_MODEL).unwrap();
+        let options = BuildOptions::default();
+        let plain =
+            build_bdd_with_variable_order(&fault_tree, options, VariableOrder::Dfs).unwrap();
+        let merged =
+            build_bdd_internal(&fault_tree, options, None, Some(VariableOrder::Dfs), true).unwrap();
+
+        let expected = same_role_model_probability();
+        assert!(close(plain.bdd.probability(plain.root), expected));
+        assert!(close(merged.bdd.probability(merged.root), expected));
+
+        assert_eq!(plain.order.len(), 12);
+        let names: BTreeSet<String> = [
+            "FLAG",
+            "IE1",
+            "IE2",
+            "IE3",
+            "SUP",
+            "merged-events-0",
+            "merged-events-1",
+            "merged-events-2",
+        ]
+        .iter()
+        .map(|name| name.to_string())
+        .collect();
+        assert_eq!(variable_names(&merged), names);
+        assert!(merged.bdd.node_count() < plain.bdd.node_count());
+    }
+
+    #[test]
+    fn merged_events_keep_the_probability_under_every_variable_order() {
+        let fault_tree = parse_fault_tree(SAME_ROLE_MODEL).unwrap();
+        let expected = same_role_model_probability();
+        for order in [
+            VariableOrder::Dfs,
+            VariableOrder::Force,
+            VariableOrder::Sloan,
+            VariableOrder::DfsScram,
+            VariableOrder::DfsPlain,
+            VariableOrder::Reverse,
+            VariableOrder::Sift,
+            VariableOrder::Gsift,
+            VariableOrder::Ils,
+        ] {
+            let merged = build_bdd_internal(
+                &fault_tree,
+                BuildOptions::default(),
+                None,
+                Some(order),
+                true,
+            )
+            .unwrap();
+            assert!(
+                close(merged.bdd.probability(merged.root), expected),
+                "{order:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn negated_and_counted_events_stay_separate_variables() {
+        let fault_tree = parse_fault_tree(NO_GROUP_MODEL).unwrap();
+        let merged = build_bdd_internal(
+            &fault_tree,
+            BuildOptions::default(),
+            None,
+            Some(VariableOrder::Dfs),
+            true,
+        )
+        .unwrap();
+
+        let vote = 0.1 * 0.2 + 0.1 * 0.3 + 0.2 * 0.3 - 2.0 * 0.1 * 0.2 * 0.3;
+        let block = 0.4 * (1.0 - 0.05);
+        let expected = 1.0 - (1.0 - vote) * (1.0 - block);
+        assert_eq!(merged.order.len(), 5);
+        assert!(close(merged.bdd.probability(merged.root), expected));
+    }
+
+    #[test]
+    fn a_plain_build_keeps_every_event_as_its_own_variable() {
+        let fault_tree = parse_fault_tree(SAME_ROLE_MODEL).unwrap();
+        let plain = build_bdd(&fault_tree, BuildOptions::default()).unwrap();
+        assert_eq!(plain.order.len(), 12);
+        assert!(plain.pdag.get_index("merged-events-0").is_none());
+    }
 }

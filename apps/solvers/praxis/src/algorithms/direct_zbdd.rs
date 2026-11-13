@@ -12,7 +12,7 @@ use crate::algorithms::noncoherent_mocus::{
 };
 use crate::algorithms::pdag::{Connective, NodeIndex, Pdag, PdagNode};
 use crate::algorithms::role_groups::{
-    carve_failure_side_groups, merge_same_role_events, Role, RoleGroup,
+    carve_failure_side_groups, merge_same_role_events, merging_enabled, Role, RoleGroup,
 };
 use crate::algorithms::zbdd_engine::{MergedVariable, ZbddEngine, ZbddRef, ZBDD_BASE, ZBDD_EMPTY};
 use crate::core::fault_tree::FaultTree;
@@ -140,10 +140,6 @@ fn merged_probability(group: &RoleGroup, data: &HashMap<NodeIndex, (f64, bool)>)
             (product * (1.0 + slack)).min(1.0)
         }
     }
-}
-
-fn merging_enabled() -> bool {
-    std::env::var("PRAXIS_NOMERGE").is_err()
 }
 
 fn subtracting_in_build() -> bool {

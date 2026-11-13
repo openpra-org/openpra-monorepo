@@ -26,13 +26,6 @@ pub struct MergedModel {
     pub merged_events: Vec<MergedEvent>,
 }
 
-fn merged_probability(role: MergedRole, probabilities: impl Iterator<Item = f64>) -> f64 {
-    match role {
-        MergedRole::Any => -probabilities.map(|p| (-p).ln_1p()).sum::<f64>().exp_m1(),
-        MergedRole::All => probabilities.product(),
-    }
-}
-
 fn is_taken(fault_tree: &FaultTree, name: &str) -> bool {
     fault_tree.get_gate(name).is_some()
         || fault_tree.get_basic_event(name).is_some()
@@ -58,7 +51,7 @@ pub fn merge_same_role_events(fault_tree: &FaultTree) -> Result<MergedModel> {
                     && event.probability() < 1.0
             })
     };
-    let mut found: Vec<(MergedRole, Vec<String>)> = find_same_role_groups(&pdag, eligible)
+    let mut found: Vec<(Role, Vec<String>)> = find_same_role_groups(&pdag, eligible)
         .into_iter()
         .map(|(role, members)| {
             let mut names: Vec<String> = members
@@ -67,10 +60,6 @@ pub fn merge_same_role_events(fault_tree: &FaultTree) -> Result<MergedModel> {
                 .map(str::to_string)
                 .collect();
             names.sort();
-            let role = match role {
-                Role::Any => MergedRole::Any,
-                Role::All => MergedRole::All,
-            };
             (role, names)
         })
         .collect();
@@ -87,8 +76,7 @@ pub fn merge_same_role_events(fault_tree: &FaultTree) -> Result<MergedModel> {
             name = format!("merged-events-{serial}");
         }
         serial += 1;
-        let probability = merged_probability(
-            role,
+        let probability = role.probability(
             members
                 .iter()
                 .filter_map(|member| fault_tree.get_basic_event(member))
@@ -100,7 +88,10 @@ pub fn merge_same_role_events(fault_tree: &FaultTree) -> Result<MergedModel> {
         }
         merged_events.push(MergedEvent {
             name,
-            role,
+            role: match role {
+                Role::Any => MergedRole::Any,
+                Role::All => MergedRole::All,
+            },
             members,
             probability,
         });

@@ -17,6 +17,19 @@ pub(crate) struct RoleGroup {
     pub members: Vec<NodeIndex>,
 }
 
+impl Role {
+    pub(crate) fn probability(self, members: impl Iterator<Item = f64>) -> f64 {
+        match self {
+            Role::Any => -members.map(|p| (-p).ln_1p()).sum::<f64>().exp_m1(),
+            Role::All => members.product(),
+        }
+    }
+}
+
+pub(crate) fn merging_enabled() -> bool {
+    std::env::var("PRAXIS_NOMERGE").is_err()
+}
+
 fn role_of(connective: Connective) -> Option<Role> {
     match connective {
         Connective::Or | Connective::Nor => Some(Role::Any),

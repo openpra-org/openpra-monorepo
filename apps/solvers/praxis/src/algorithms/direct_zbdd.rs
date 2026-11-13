@@ -5,12 +5,16 @@ use tracing::{debug, trace};
 use crate::algorithms::build::{
     select_variable_order as select_configured_variable_order, VariableOrder,
 };
+use crate::algorithms::gate_logic::GateLogic;
 use crate::algorithms::modules::{decompose, Decomposition};
 use crate::algorithms::noncoherent_mocus::{
     combinations, gate_expansion, normalize_xor_iff, Expansion,
 };
 use crate::algorithms::pdag::{Connective, NodeIndex, Pdag, PdagNode};
-use crate::algorithms::zbdd_engine::{ZbddEngine, ZbddRef, ZBDD_BASE, ZBDD_EMPTY};
+use crate::algorithms::role_groups::{
+    carve_failure_side_groups, merge_same_role_events, Role, RoleGroup,
+};
+use crate::algorithms::zbdd_engine::{MergedVariable, ZbddEngine, ZbddRef, ZBDD_BASE, ZBDD_EMPTY};
 use crate::core::fault_tree::FaultTree;
 use crate::error::PraxisError;
 use crate::Result;
@@ -57,6 +61,95 @@ fn has_negative_basic_literal(pdag: &Pdag) -> bool {
     false
 }
 
+fn delete_target(pdag: &Pdag, ci: NodeIndex) -> Option<NodeIndex> {
+    if ci > 0 {
+        if let Some(PdagNode::Gate {
+            connective: Connective::Not,
+            operands,
+            ..
+        }) = pdag.get_node(ci)
+        {
+            let t = *operands.first()?;
+            if t > 0 {
+                if let Some(PdagNode::Gate { .. }) = pdag.get_node(t) {
+                    return Some(t);
+                }
+            }
+        }
+        None
+    } else if let Some(PdagNode::Gate { .. }) = pdag.get_node(ci.abs()) {
+        Some(ci.abs())
+    } else {
+        None
+    }
+}
+
+fn negatively_built_events(pdag: &Pdag) -> HashSet<NodeIndex> {
+    let mut negative: HashSet<NodeIndex> = HashSet::new();
+    let Some(root) = pdag.root() else {
+        return negative;
+    };
+    let effective_root = if pdag.complement() { -root } else { root };
+    let mut pending = vec![effective_root];
+    let mut visited: HashSet<NodeIndex> = HashSet::new();
+    while let Some(node) = pending.pop() {
+        if !visited.insert(node) {
+            continue;
+        }
+        match pdag.get_node(node.abs()) {
+            Some(PdagNode::BasicEvent { .. }) => {
+                if node < 0 {
+                    negative.insert(node.abs());
+                }
+            }
+            Some(PdagNode::Gate {
+                connective,
+                operands,
+                min_number,
+                ..
+            }) => match gate_expansion(*connective, node < 0, operands, *min_number) {
+                Expansion::Conjunction(refs) | Expansion::AtLeast(_, refs) => {
+                    for child in refs {
+                        pending.push(delete_target(pdag, child).unwrap_or(child));
+                    }
+                }
+                Expansion::Disjunction(refs) => pending.extend(refs),
+                Expansion::Unsupported => {
+                    for &child in operands {
+                        pending.push(child);
+                        pending.push(-child);
+                    }
+                }
+            },
+            Some(PdagNode::Constant { .. }) | None => {}
+        }
+    }
+    negative
+}
+
+fn merged_probability(group: &RoleGroup, data: &HashMap<NodeIndex, (f64, bool)>) -> f64 {
+    let probabilities = group
+        .members
+        .iter()
+        .map(|member| data.get(member).map_or(0.0, |entry| entry.0));
+    match group.role {
+        Role::Any => probabilities.fold(0.0, f64::max),
+        Role::All => {
+            let product: f64 = probabilities.product();
+            let slack = (2 * group.members.len()) as f64 * f64::EPSILON;
+            (product * (1.0 + slack)).min(1.0)
+        }
+    }
+}
+
+fn merging_enabled() -> bool {
+    std::env::var("PRAXIS_NOMERGE").is_err()
+}
+
+fn subtracting_in_build() -> bool {
+    std::env::var("PRAXIS_SUBTRACT").is_ok()
+}
+
 fn select_variable_order(pdag: &Pdag) -> Result<Vec<NodeIndex>> {
     let which = std::env::var("PRAXIS_ORDER").unwrap_or_default();
     let method = match which.as_str() {
@@ -90,7 +183,7 @@ fn is_commutative(conn: Connective) -> bool {
     )
 }
 
-fn structural_canon(pdag: &Pdag) -> HashMap<NodeIndex, NodeIndex> {
+fn structural_canon(pdag: &Pdag, unique: Option<NodeIndex>) -> HashMap<NodeIndex, NodeIndex> {
     let mut canon: HashMap<NodeIndex, NodeIndex> = HashMap::new();
     let root = match pdag.root() {
         Some(r) => r.abs(),
@@ -127,7 +220,7 @@ fn structural_canon(pdag: &Pdag) -> HashMap<NodeIndex, NodeIndex> {
                 operands,
                 min_number,
                 ..
-            }) => {
+            }) if unique != Some(n) => {
                 let conn = *connective;
                 let mut cops: Vec<NodeIndex> = operands
                     .iter()
@@ -176,14 +269,26 @@ struct Builder {
     mutex_node: Option<NodeIndex>,
     progress: u64,
     explored: u64,
-    budget_cache: HashMap<(NodeIndex, i32, bool), ZbddRef>,
-    maxcs_memo: HashMap<NodeIndex, f64>,
+    budget_cache: HashMap<(NodeIndex, bool), Vec<(i32, ZbddRef)>>,
+    maxcs_memo: HashMap<(NodeIndex, bool), f64>,
     decomposition: Option<Decomposition>,
     initiators: HashSet<usize>,
+    initiator_vars: Vec<bool>,
+    initiator_cones: HashMap<NodeIndex, bool>,
     has_xor: bool,
     has_negative_literals: bool,
     canon: HashMap<NodeIndex, NodeIndex>,
     gc_cache: usize,
+    held: Vec<ZbddRef>,
+    parents: Option<HashMap<NodeIndex, u32>>,
+    plan: HashMap<NodeIndex, i32>,
+    proxy_of: HashMap<NodeIndex, usize>,
+    proxy_order: Vec<(usize, NodeIndex, ZbddRef)>,
+    solving: Option<NodeIndex>,
+    marker_of: HashMap<NodeIndex, usize>,
+    merged: HashMap<usize, MergedVariable>,
+    grouped: HashMap<usize, MergedVariable>,
+    uses_left: HashMap<NodeIndex, u32>,
 }
 
 impl Builder {
@@ -192,13 +297,21 @@ impl Builder {
         fault_tree: &FaultTree,
         cut_off: Option<f64>,
         limit_order: Option<usize>,
+        merge: bool,
     ) -> Result<Self> {
-        Self::new_with_probability_source(pdag, cut_off, limit_order, true, None, None, |id| {
-            match fault_tree.get_basic_event(id) {
+        Self::new_with_probability_source(
+            pdag,
+            cut_off,
+            limit_order,
+            true,
+            merge,
+            None,
+            None,
+            |id| match fault_tree.get_basic_event(id) {
                 Some(be) => (be.probability(), be.is_initiator()),
                 None => (0.0, false),
-            }
-        })
+            },
+        )
     }
 
     fn new_with_order(
@@ -208,12 +321,14 @@ impl Builder {
         limit_order: Option<usize>,
         variable_order: VariableOrder,
         reorder_budget: std::time::Duration,
+        merge: bool,
     ) -> Result<Self> {
         Self::new_with_probability_source(
             pdag,
             cut_off,
             limit_order,
             true,
+            merge,
             None,
             Some((variable_order, reorder_budget)),
             |id| match fault_tree.get_basic_event(id) {
@@ -234,9 +349,16 @@ impl Builder {
         // their synthetic OR scope can absorb a variable that is still needed
         // by one of those component roots, leaving it outside the DFS variable
         // order. Keep those component graphs stable.
-        Self::new_with_probability_source(pdag, cut_off, limit_order, false, None, None, |id| {
-            (probabilities.get(id).copied().unwrap_or(0.0), false)
-        })
+        Self::new_with_probability_source(
+            pdag,
+            cut_off,
+            limit_order,
+            false,
+            false,
+            None,
+            None,
+            |id| (probabilities.get(id).copied().unwrap_or(0.0), false),
+        )
     }
 
     fn new_with_probability_source<F>(
@@ -244,6 +366,7 @@ impl Builder {
         cut_off: Option<f64>,
         limit_order: Option<usize>,
         propagate: bool,
+        merge: bool,
         order_override: Option<Vec<NodeIndex>>,
         order_method: Option<(VariableOrder, std::time::Duration)>,
         mut probability_of: F,
@@ -269,6 +392,36 @@ impl Builder {
             crate::algorithms::simplify::propagate_constants(&mut owned)?;
         }
 
+        let mut event_data: HashMap<NodeIndex, (f64, bool)> = HashMap::new();
+        let mut groups: Vec<RoleGroup> = Vec::new();
+        let mut carved: Vec<RoleGroup> = Vec::new();
+        if merge {
+            for node in owned.nodes().values() {
+                if let PdagNode::BasicEvent { id, index } = node {
+                    event_data.insert(*index, probability_of(id));
+                }
+            }
+            let negative = negatively_built_events(&owned);
+            groups = merge_same_role_events(&mut owned, |event| {
+                !negative.contains(&event)
+                    && event_data
+                        .get(&event)
+                        .is_some_and(|&(p, initiator)| !initiator && p > 0.0 && p < 1.0)
+            })?;
+            for group in &groups {
+                let probability = merged_probability(group, &event_data);
+                event_data.insert(group.merged, (probability, false));
+            }
+            if !has_xor && !subtracting_in_build() {
+                carved = carve_failure_side_groups(&mut owned, |event| {
+                    !negative.contains(&event)
+                        && event_data
+                            .get(&event)
+                            .is_some_and(|&(p, initiator)| !initiator && p > 0.0 && p < 1.0)
+                })?;
+            }
+        }
+
         let has_negative_literals = has_negative_basic_literal(&owned);
 
         let order = match order_override {
@@ -279,31 +432,107 @@ impl Builder {
             },
         };
 
-        let mut level = HashMap::new();
-        let mut var_probs: Vec<f64> = Vec::with_capacity(order.len() * 2);
-        let mut initiators: HashSet<usize> = HashSet::new();
-        for (l, &raw) in order.iter().enumerate() {
+        let mut group_of_merged: HashMap<NodeIndex, usize> = HashMap::new();
+        let mut is_member: HashSet<NodeIndex> = HashSet::new();
+        for (index, group) in groups.iter().enumerate() {
+            group_of_merged.insert(group.merged, index);
+            is_member.extend(group.members.iter().copied());
+        }
+        let mut carved_of_member: HashMap<NodeIndex, usize> = HashMap::new();
+        for (index, group) in carved.iter().enumerate() {
+            for &member in &group.members {
+                carved_of_member.insert(member, index);
+            }
+        }
+        let mut carved_placed: HashSet<usize> = HashSet::new();
+        let mut sequence: Vec<NodeIndex> =
+            Vec::with_capacity(order.len() + is_member.len() + carved.len());
+        for &raw in &order {
             let e = raw.abs();
+            if is_member.contains(&e) {
+                continue;
+            }
+            let block: Vec<NodeIndex> = match carved_of_member.get(&e) {
+                Some(&index) => {
+                    if !carved_placed.insert(index) {
+                        continue;
+                    }
+                    sequence.push(carved[index].merged);
+                    carved[index].members.clone()
+                }
+                None => vec![e],
+            };
+            for event in block {
+                sequence.push(event);
+                if let Some(&index) = group_of_merged.get(&event) {
+                    sequence.extend(groups[index].members.iter().copied());
+                }
+            }
+        }
+        for group in &carved {
+            let probability = merged_probability(group, &event_data);
+            event_data.insert(group.merged, (probability, false));
+        }
+
+        let mut level = HashMap::new();
+        let mut var_probs: Vec<f64> = Vec::with_capacity(sequence.len() * 2);
+        let mut initiators: HashSet<usize> = HashSet::new();
+        for (l, &e) in sequence.iter().enumerate() {
             level.insert(e, l);
             let p = match owned.get_node(e) {
                 Some(PdagNode::BasicEvent { id, .. }) => {
-                    let (probability, is_initiator) = probability_of(id);
+                    let (probability, is_initiator) = match event_data.get(&e) {
+                        Some(&known) => known,
+                        None => probability_of(id),
+                    };
                     if is_initiator {
                         initiators.insert(l);
                     }
                     probability
                 }
+                Some(PdagNode::Gate { .. }) => event_data.get(&e).map_or(0.0, |known| known.0),
                 _ => 0.0,
             };
             var_probs.push(p);
             var_probs.push(1.0 - p);
         }
-
-        let canon = if std::env::var("PRAXIS_CSE").is_ok() {
-            structural_canon(&owned)
-        } else {
-            HashMap::new()
+        let member_variables = |group: &RoleGroup| -> Option<(usize, MergedVariable)> {
+            let own = *level.get(&group.merged)?;
+            let mut members: Vec<usize> = Vec::with_capacity(group.members.len());
+            for member in &group.members {
+                members.push(2 * *level.get(member)?);
+            }
+            Some((
+                2 * own,
+                match group.role {
+                    Role::Any => MergedVariable::Any(members),
+                    Role::All => MergedVariable::All(members),
+                },
+            ))
         };
+        let merged: HashMap<usize, MergedVariable> =
+            groups.iter().filter_map(&member_variables).collect();
+        let grouped: HashMap<usize, MergedVariable> =
+            carved.iter().filter_map(&member_variables).collect();
+        let mut proxy_of: HashMap<NodeIndex, usize> = HashMap::new();
+        for group in &carved {
+            if let Some(&own) = level.get(&group.merged) {
+                proxy_of.insert(group.merged, own);
+            }
+        }
+        if !groups.is_empty() {
+            tracing::info!(
+                target: "praxis::direct_zbdd",
+                groups = groups.len(),
+                events = is_member.len(),
+                failure_side_groups = carved.len(),
+                "same-role events merged"
+            );
+        }
+        let mut initiator_vars = vec![false; var_probs.len()];
+        for &l in &initiators {
+            initiator_vars[2 * l] = true;
+        }
 
         let mut zbdd = ZbddEngine::new();
         zbdd.set_var_probs(var_probs.clone());
@@ -325,13 +554,25 @@ impl Builder {
             maxcs_memo: HashMap::new(),
             decomposition: None,
             initiators,
+            initiator_vars,
+            initiator_cones: HashMap::new(),
             has_xor,
             has_negative_literals,
-            canon,
+            canon: HashMap::new(),
             gc_cache: std::env::var("PRAXIS_GC_CACHE")
                 .ok()
                 .and_then(|s| s.parse().ok())
                 .unwrap_or(0),
+            held: Vec::new(),
+            parents: None,
+            plan: HashMap::new(),
+            proxy_of,
+            proxy_order: Vec::new(),
+            solving: None,
+            marker_of: HashMap::new(),
+            merged,
+            grouped,
+            uses_left: HashMap::new(),
         })
     }
 
@@ -386,7 +627,9 @@ impl Builder {
     fn truncate(&mut self, f: ZbddRef) -> ZbddRef {
         let mut f = f;
         if let Some(c) = self.cut_off {
-            f = self.zbdd.prune_below_probability(f, c);
+            if self.zbdd.has_product_below(f, c) {
+                f = self.zbdd.prune_below_probability(f, c);
+            }
         }
         if let Some(k) = self.limit_order {
             f = self.zbdd.limit_order(f, k);
@@ -432,11 +675,41 @@ impl Builder {
     }
 
     fn truncate_budgeted(&mut self, f: ZbddRef, min_probability: f64) -> ZbddRef {
-        let mut f = self.zbdd.prune_below_probability(f, min_probability);
+        let mut f = f;
+        if self.zbdd.has_product_below(f, min_probability) {
+            f = self.zbdd.prune_below_probability(f, min_probability);
+        }
         if let Some(max_order) = self.limit_order {
             f = self.zbdd.limit_order(f, max_order);
         }
         f
+    }
+
+    fn join_within(&mut self, left: ZbddRef, right: ZbddRef, budget: f64) -> ZbddRef {
+        match self.limit_order {
+            Some(max_order) => self
+                .zbdd
+                .join_budgeted_limited(left, right, budget, max_order),
+            None => self.zbdd.join_budgeted(left, right, budget),
+        }
+    }
+
+    fn join_uncovered(&mut self, left: ZbddRef, right: ZbddRef, budget: f64) -> ZbddRef {
+        if left.is_terminal() || right.is_terminal() {
+            return self.join_within(left, right, budget);
+        }
+        let open_right = self.zbdd.nonsuperset(right, left);
+        let open_left = self.zbdd.nonsuperset(left, right);
+        let covered_right = self.zbdd.difference(right, open_right);
+        let covered_left = self.zbdd.difference(left, open_left);
+        let covered = self.zbdd.union(covered_left, covered_right);
+        let covered = self.truncate_budgeted(covered, budget);
+        let joined = self.join_within(open_left, open_right, budget);
+        self.zbdd.union(joined, covered)
+    }
+
+    fn subsets_are_at_least_as_likely(&self) -> bool {
+        self.var_probs.iter().all(|&p| p <= 1.0)
     }
 
     fn order_probability_floor(&self, max_order: usize) -> Option<f64> {
@@ -489,26 +762,7 @@ impl Builder {
     }
 
     fn as_delete_target(&self, ci: NodeIndex) -> Option<NodeIndex> {
-        if ci > 0 {
-            if let Some(PdagNode::Gate {
-                connective: Connective::Not,
-                operands,
-                ..
-            }) = self.pdag.get_node(ci)
-            {
-                let t = *operands.first()?;
-                if t > 0 {
-                    if let Some(PdagNode::Gate { .. }) = self.pdag.get_node(t) {
-                        return Some(t);
-                    }
-                }
-            }
-            None
-        } else if let Some(PdagNode::Gate { .. }) = self.pdag.get_node(ci.abs()) {
-            Some(ci.abs())
-        } else {
-            None
-        }
+        delete_target(&self.pdag, ci)
     }
 
     fn delete_covered(&mut self, acc: ZbddRef, dmcs: ZbddRef) -> ZbddRef {
@@ -645,7 +899,9 @@ impl Builder {
         };
         let budget = requested_budget.max(1e-300);
         self.decomposition = Some(decompose(&self.pdag)?);
+        self.canon = structural_canon(&self.pdag, self.mutex_node);
         debug!(target: "praxis::direct_zbdd", root = effective_root, budget, limit_order = ?self.limit_order, "budgeted direct build start");
+        self.plan_requests(effective_root, budget, false);
         let mut result = self.cut_sets_b(effective_root, budget, false)?;
         result = self.truncate_budgeted(result, budget);
         result = self.finish_root(result);
@@ -868,45 +1124,97 @@ impl Builder {
         Ok(r)
     }
 
-    fn maxcs(&mut self, r: NodeIndex) -> f64 {
-        if let Some(&m) = self.maxcs_memo.get(&r) {
+    fn maxcs(&mut self, r: NodeIndex, apply_delete_terms: bool) -> f64 {
+        if let Some(&m) = self.maxcs_memo.get(&(r, apply_delete_terms)) {
             return m;
         }
         let neg = r < 0;
-        let m = match self.kind(r) {
-            NodeKind::Basic(l) => {
-                if neg {
-                    self.var_prob(2 * l + 1)
-                } else {
-                    self.var_prob(2 * l)
+        let m = if self.mutex_node == Some(r.abs()) {
+            0.0
+        } else if apply_delete_terms && r > 0 && self.as_delete_target(r).is_some() {
+            1.0
+        } else {
+            match self.kind(r) {
+                NodeKind::Basic(l) => {
+                    if neg {
+                        self.var_prob(2 * l + 1)
+                    } else {
+                        self.var_prob(2 * l)
+                    }
                 }
+                NodeKind::Constant(value) => {
+                    if value ^ neg {
+                        1.0
+                    } else {
+                        0.0
+                    }
+                }
+                NodeKind::Gate(conn, ops, min) => match gate_expansion(conn, neg, &ops, min) {
+                    Expansion::Conjunction(refs) => {
+                        let mut m = f64::INFINITY;
+                        let mut kept = false;
+                        for c in refs {
+                            if !(apply_delete_terms && self.as_delete_target(c).is_some()) {
+                                kept = true;
+                                m = m.min(self.maxcs(c, apply_delete_terms));
+                            }
+                        }
+                        if kept {
+                            m
+                        } else {
+                            1.0
+                        }
+                    }
+                    Expansion::Disjunction(refs) => {
+                        let mut m = 0.0_f64;
+                        for c in refs {
+                            m = m.max(self.maxcs(c, apply_delete_terms));
+                        }
+                        m
+                    }
+                    Expansion::AtLeast(k, refs) => {
+                        let mut ms: Vec<f64> = Vec::with_capacity(refs.len());
+                        for c in refs {
+                            let m = if apply_delete_terms && self.as_delete_target(c).is_some() {
+                                1.0
+                            } else {
+                                self.maxcs(c, apply_delete_terms)
+                            };
+                            ms.push(m);
+                        }
+                        ms.sort_by(|a, b| b.partial_cmp(a).unwrap_or(std::cmp::Ordering::Equal));
+                        ms.get(k.saturating_sub(1)).copied().unwrap_or(0.0)
+                    }
+                    Expansion::Unsupported => 0.0,
+                },
+                NodeKind::Missing => 0.0,
             }
-            NodeKind::Constant(value) => {
-                if value ^ neg {
-                    1.0
-                } else {
-                    0.0
-                }
-            }
-            NodeKind::Gate(conn, ops, min) => match gate_expansion(conn, neg, &ops, min) {
-                Expansion::Conjunction(refs) => refs
-                    .iter()
-                    .map(|&c| self.maxcs(c))
-                    .fold(f64::INFINITY, f64::min),
-                Expansion::Disjunction(refs) => {
-                    refs.iter().map(|&c| self.maxcs(c)).fold(0.0_f64, f64::max)
-                }
-                Expansion::AtLeast(k, refs) => {
-                    let mut ms: Vec<f64> = refs.iter().map(|&c| self.maxcs(c)).collect();
-                    ms.sort_by(|a, b| b.partial_cmp(a).unwrap_or(std::cmp::Ordering::Equal));
-                    ms.get(k.saturating_sub(1)).copied().unwrap_or(0.0)
-                }
-                Expansion::Unsupported => 0.0,
-            },
-            NodeKind::Missing => 0.0,
         };
-        self.maxcs_memo.insert(r, m);
+        self.maxcs_memo.insert((r, apply_delete_terms), m);
         m
+    }
+
+    fn reaches_initiator(&mut self, r: NodeIndex) -> bool {
+        let key = r.abs();
+        if let Some(&known) = self.initiator_cones.get(&key) {
+            return known;
+        }
+        let reaches = match self.kind(key) {
+            NodeKind::Basic(level) => self.initiators.contains(&level),
+            NodeKind::Gate(_, operands, _) => {
+                let mut any = false;
+                for operand in operands {
+                    if self.reaches_initiator(operand) {
+                        any = true;
+                        break;
+                    }
+                }
+                any
+            }
+            NodeKind::Constant(_) | NodeKind::Missing => false,
+        };
+        self.initiator_cones.insert(key, reaches);
+        reaches
     }
 
     fn canon_ref(&self, r: NodeIndex) -> NodeIndex {
@@ -919,6 +1227,166 @@ impl Builder {
         } else {
             c
         }
+    }
+
+    fn holding<T>(
+        &mut self,
+        family: ZbddRef,
+        request: impl FnOnce(&mut Self) -> Result<T>,
+    ) -> Result<T> {
+        self.held.push(family);
+        let out = request(self);
+        self.held.pop();
+        out
+    }
+
+    fn collect_garbage(&mut self) {
+        let mut roots = self.held.clone();
+        for built in self.budget_cache.values() {
+            roots.extend(built.iter().map(|&(_, family)| family));
+        }
+        roots.extend(self.cache.values().copied());
+        roots.extend(self.proxy_order.iter().map(|&(_, _, family)| family));
+        self.zbdd.collect(&roots);
+    }
+
+    fn worth_caching(&self, key: NodeIndex) -> bool {
+        self.parents
+            .as_ref()
+            .is_none_or(|parents| parents.get(&key).is_some_and(|&count| count > 1))
+    }
+
+    fn plan_requests(&mut self, root: NodeIndex, budget: f64, apply_delete_terms: bool) {
+        let top = self.canon_ref(root);
+        let mut requests: HashMap<NodeIndex, Vec<(NodeIndex, f64)>> = HashMap::new();
+        let mut parents: HashMap<NodeIndex, u32> = HashMap::new();
+        let mut finished: Vec<NodeIndex> = Vec::new();
+        let mut pending: Vec<(NodeIndex, bool)> = vec![(top, false)];
+        while let Some((r, expanded)) = pending.pop() {
+            if expanded {
+                finished.push(r);
+                continue;
+            }
+            if requests.contains_key(&r) {
+                continue;
+            }
+            let children: Vec<(NodeIndex, f64)> = self
+                .requests(r, apply_delete_terms)
+                .into_iter()
+                .map(|(child, credit)| (self.canon_ref(child), credit))
+                .collect();
+            pending.push((r, true));
+            for &(child, _) in &children {
+                *parents.entry(child).or_insert(0) += 1;
+                if !requests.contains_key(&child) {
+                    pending.push((child, false));
+                }
+            }
+            requests.insert(r, children);
+        }
+        let mut plan: HashMap<NodeIndex, i32> = HashMap::new();
+        plan.insert(top, budget_bucket(budget));
+        for r in finished.into_iter().rev() {
+            let Some(&decade) = plan.get(&r) else {
+                continue;
+            };
+            let build_budget = 10f64.powi(decade);
+            for &(child, credit) in requests.get(&r).map(Vec::as_slice).unwrap_or(&[]) {
+                let child_decade = budget_bucket(build_budget / credit);
+                plan.entry(child)
+                    .and_modify(|planned| *planned = (*planned).min(child_decade))
+                    .or_insert(child_decade);
+            }
+        }
+        self.plan = plan;
+        if self.zbdd.reclaims_by_tracing() {
+            self.uses_left = parents.clone();
+            self.parents = Some(parents);
+        }
+    }
+
+    fn requests(&mut self, r: NodeIndex, apply_delete_terms: bool) -> Vec<(NodeIndex, f64)> {
+        if self.mutex_node == Some(r.abs())
+            || (apply_delete_terms && r > 0 && self.as_delete_target(r).is_some())
+            || (r > 0 && self.proxy_of.contains_key(&self.canon_ref(r)))
+        {
+            return Vec::new();
+        }
+        let NodeKind::Gate(conn, ops, min) = self.kind(r) else {
+            return Vec::new();
+        };
+        match gate_expansion(conn, r < 0, &ops, min) {
+            Expansion::Conjunction(refs) => self.conjunction_requests(&refs, apply_delete_terms),
+            Expansion::Disjunction(refs) => refs.into_iter().map(|child| (child, 1.0)).collect(),
+            Expansion::AtLeast(k, refs) if k >= 1 && k <= refs.len() => {
+                let mut out = Vec::new();
+                for combo in combinations(&refs, k) {
+                    out.extend(self.conjunction_requests(&combo, apply_delete_terms));
+                }
+                out
+            }
+            Expansion::AtLeast(..) | Expansion::Unsupported => Vec::new(),
+        }
+    }
+
+    fn conjunction_requests(
+        &mut self,
+        refs: &[NodeIndex],
+        apply_delete_terms: bool,
+    ) -> Vec<(NodeIndex, f64)> {
+        let (order, deletes) = self.conjunction_order(refs, apply_delete_terms);
+        let credits = self.sibling_credits(&order);
+        let mut out: Vec<(NodeIndex, f64)> = order
+            .iter()
+            .zip(credits)
+            .map(|(&(_, operand), credit)| (operand, credit))
+            .collect();
+        for target in deletes {
+            if !self.marker_of.contains_key(&self.canon_ref(target)) {
+                out.push((target, 1.0));
+            }
+        }
+        out
+    }
+
+    fn conjunction_order(
+        &mut self,
+        refs: &[NodeIndex],
+        apply_delete_terms: bool,
+    ) -> (Vec<(f64, NodeIndex)>, Vec<NodeIndex>) {
+        let mut order: Vec<(f64, NodeIndex)> = Vec::new();
+        let mut deletes: Vec<NodeIndex> = Vec::new();
+        for &c in refs {
+            let target = if apply_delete_terms {
+                self.as_delete_target(c)
+            } else {
+                None
+            };
+            match target {
+                Some(t) => deletes.push(t),
+                None => order.push((self.maxcs(c, apply_delete_terms), c)),
+            }
+        }
+        order.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal));
+        (order, deletes)
+    }
+
+    fn sibling_credits(&self, order: &[(f64, NodeIndex)]) -> Vec<f64> {
+        let mut credits = vec![1.0; order.len()];
+        if let Some(dec) = &self.decomposition {
+            for (i, &(_, operand)) in order.iter().enumerate() {
+                let mut others = f64::INFINITY;
+                for (j, &(bound, sibling)) in order.iter().enumerate() {
+                    if j != i && bound > 0.0 && dec.disjoint(sibling, operand) {
+                        others = others.min(bound);
+                    }
+                }
+                if others.is_finite() {
+                    credits[i] = others;
+                }
+            }
+        }
+        credits
     }
 
     fn cut_sets_b(
@@ -943,17 +1411,56 @@ impl Builder {
         {
             self.zbdd.clear_op_caches();
         }
+        if self.zbdd.collection_due() {
+            self.collect_garbage();
+        }
         let b = budget_bucket(budget);
         let ck = self.canon_ref(r);
-        if let Some(&z) = self.budget_cache.get(&(ck, b, apply_delete_terms)) {
-            return Ok(self.truncate_budgeted(z, budget));
+        if ck > 0 && self.solving != Some(ck) {
+            if let Some(&lvl) = self.proxy_of.get(&ck) {
+                let var = 2 * lvl;
+                return Ok(if self.var_prob(var) >= budget {
+                    self.zbdd.multiply(var, ZBDD_BASE)
+                } else {
+                    ZBDD_EMPTY
+                });
+            }
         }
-        let build_budget = 10f64.powi(b);
-        let raw_family = self.compute_b(r, build_budget, apply_delete_terms)?;
-        let family = self.truncate_budgeted(raw_family, build_budget);
-        self.budget_cache
-            .insert((ck, b, apply_delete_terms), family);
+        let key = (ck, apply_delete_terms);
+        let nearest = self.budget_cache.get(&key).and_then(|built| {
+            built
+                .iter()
+                .filter(|(bucket, _)| *bucket <= b)
+                .max_by_key(|(bucket, _)| *bucket)
+                .copied()
+        });
+        let (decade, family) = match nearest {
+            Some((bucket, z)) if bucket == b => {
+                self.note_use(key);
+                return Ok(self.truncate_budgeted(z, budget));
+            }
+            Some((_, z)) => (b, self.truncate_budgeted(z, 10f64.powi(b))),
+            None => {
+                let decade = self.plan.get(&ck).map_or(b, |&planned| planned.min(b));
+                let build_budget = 10f64.powi(decade);
+                let raw_family = self.compute_b(r, build_budget, apply_delete_terms)?;
+                (decade, self.truncate_budgeted(raw_family, build_budget))
+            }
+        };
+        if self.worth_caching(ck) {
+            self.budget_cache.entry(key).or_default().push((decade, family));
+        }
+        self.note_use(key);
         Ok(self.truncate_budgeted(family, budget))
+    }
+
+    fn note_use(&mut self, key: (NodeIndex, bool)) {
+        if let Some(left) = self.uses_left.get_mut(&key.0) {
+            *left = left.saturating_sub(1);
+            if *left == 0 {
+                self.budget_cache.remove(&key);
+            }
+        }
     }
 
     fn compute_b(
@@ -969,17 +1476,11 @@ impl Builder {
             }
         }
         if apply_delete_terms && r > 0 {
-            if let Some(PdagNode::Gate {
-                connective: Connective::Not,
-                operands,
-                ..
-            }) = self.pdag.get_node(r)
-            {
-                if let Some(&t) = operands.first() {
-                    if t > 0 && matches!(self.pdag.get_node(t), Some(PdagNode::Gate { .. })) {
-                        return Ok(ZBDD_BASE);
-                    }
-                }
+            if let Some(target) = self.as_delete_target(r) {
+                return Ok(match self.marker_of.get(&self.canon_ref(target)) {
+                    Some(&level) => self.zbdd.multiply(2 * level, ZBDD_BASE),
+                    None => ZBDD_BASE,
+                });
             }
         }
         let result = match self.kind(r) {
@@ -1007,12 +1508,12 @@ impl Builder {
                     Expansion::Disjunction(refs) => {
                         let mut acc = ZBDD_EMPTY;
                         for op in refs {
-                            let c = self.cut_sets_b(op, budget, apply_delete_terms)?;
+                            let c = self.holding(acc, |builder| {
+                                builder.cut_sets_b(op, budget, apply_delete_terms)
+                            })?;
                             acc = self.zbdd.union(acc, c);
-                            acc = self.truncate_budgeted(acc, budget);
                         }
-                        let acc = self.zbdd.minimize(acc);
-                        self.truncate_budgeted(acc, budget)
+                        self.zbdd.minimize(acc)
                     }
                     Expansion::AtLeast(k, refs) => {
                         if k == 0 {
@@ -1022,12 +1523,12 @@ impl Builder {
                         } else {
                             let mut acc = ZBDD_EMPTY;
                             for combo in combinations(&refs, k) {
-                                let prod = self.and_build_b(&combo, budget, apply_delete_terms)?;
+                                let prod = self.holding(acc, |builder| {
+                                    builder.and_build_b(&combo, budget, apply_delete_terms)
+                                })?;
                                 acc = self.zbdd.union(acc, prod);
-                                acc = self.truncate_budgeted(acc, budget);
                             }
-                            let acc = self.zbdd.minimize(acc);
-                            self.truncate_budgeted(acc, budget)
+                            self.zbdd.minimize(acc)
                         }
                     }
                     Expansion::Unsupported => {
@@ -1048,50 +1549,30 @@ impl Builder {
         budget: f64,
         apply_delete_terms: bool,
     ) -> Result<ZbddRef> {
-        let mut pos: Vec<NodeIndex> = Vec::new();
-        let mut deletes: Vec<NodeIndex> = Vec::new();
-        for &c in refs {
-            if apply_delete_terms {
-                match self.as_delete_target(c) {
-                    Some(t) => deletes.push(t),
-                    None => pos.push(c),
-                }
-            } else {
-                pos.push(c);
-            }
-        }
+        let (order, deletes) = self.conjunction_order(refs, apply_delete_terms);
+        let credits = self.sibling_credits(&order);
 
-        let mut order: Vec<(f64, NodeIndex)> = pos.iter().map(|&c| (self.maxcs(c), c)).collect();
-        order.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal));
-        let n = order.len();
-
-        let mut budgets = vec![budget; n];
-        if let Some(dec) = &self.decomposition {
-            for i in 0..n {
-                let ci = order[i].1;
-                let mut others = f64::INFINITY;
-                for (j, oj) in order.iter().enumerate() {
-                    if j != i && oj.0 > 0.0 && dec.disjoint(oj.1, ci) {
-                        others = others.min(oj.0);
-                    }
-                }
-                if others.is_finite() {
-                    budgets[i] = budget / others;
-                }
-            }
-        }
-
+        let check_initiators = self.initiators.len() >= 2;
+        let skip_covered = self.subsets_are_at_least_as_likely();
+        let mut acc_reaches = false;
         let mut acc = ZBDD_BASE;
-        for i in 0..n {
-            let c = self.cut_sets_b(order[i].1, budgets[i], apply_delete_terms)?;
-            acc = match self.limit_order {
-                Some(max_order) => self.zbdd.join_budgeted_limited(acc, c, budget, max_order),
-                None => self.zbdd.join_budgeted(acc, c, budget),
+        for (&(_, operand), credit) in order.iter().zip(credits) {
+            let operand_budget = budget / credit;
+            let c = self.holding(acc, |builder| {
+                builder.cut_sets_b(operand, operand_budget, apply_delete_terms)
+            })?;
+            let c_reaches = check_initiators && self.reaches_initiator(operand);
+            acc = if skip_covered {
+                self.join_uncovered(acc, c, budget)
+            } else {
+                self.join_within(acc, c, budget)
             };
-            acc = self.truncate_budgeted(acc, budget);
+            if acc_reaches && c_reaches {
+                acc = self.zbdd.drop_exclusive_pairs(acc, &self.initiator_vars);
+            }
+            acc_reaches |= c_reaches;
             acc = self.zbdd.purify(acc);
             acc = self.zbdd.minimize(acc);
-            acc = self.truncate_budgeted(acc, budget);
             if acc == ZBDD_EMPTY {
                 return Ok(ZBDD_EMPTY);
             }
@@ -1101,7 +1582,14 @@ impl Builder {
             if acc == ZBDD_EMPTY {
                 break;
             }
-            let dmcs = self.cut_sets_b(t, budget, apply_delete_terms)?;
+            if let Some(&lvl) = self.marker_of.get(&self.canon_ref(t)) {
+                let marker = self.zbdd.multiply(2 * lvl, ZBDD_BASE);
+                acc = self.zbdd.join_budgeted(acc, marker, budget);
+                continue;
+            }
+            let dmcs = self.holding(acc, |builder| {
+                builder.cut_sets_b(t, budget, apply_delete_terms)
+            })?;
             acc = self.delete_covered(acc, dmcs);
         }
         Ok(acc)
@@ -1135,9 +1623,244 @@ impl Builder {
         };
         let dec = decompose(&self.pdag)?;
         self.decomposition = Some(dec);
+        let started = std::time::Instant::now();
+        self.canon = structural_canon(&self.pdag, self.mutex_node);
+        let group_gates: Vec<(NodeIndex, usize)> = self.proxy_of.drain().collect();
+        for (gate, level) in group_gates {
+            let canonical = self.canon_ref(gate);
+            self.proxy_of.insert(canonical, level);
+        }
+        if !subtracting_in_build() && !self.has_xor {
+            self.stage_markers();
+        }
+        self.plan_requests(eff, budget, true);
+        if std::env::var("PRAXIS_MODULES").is_ok() {
+            self.stage_modules(budget)?;
+        }
         let r = self.cut_sets_b(eff, budget, true)?;
-        let r = self.filter_valid_cut_sets(r, eff)?;
-        Ok(self.truncate_budgeted(r, budget))
+        let mut r = self.truncate_budgeted(r, budget);
+        tracing::info!(
+            target: "praxis::direct_zbdd",
+            candidates = self.zbdd.count_by_order(r).values().sum::<u64>(),
+            nodes = self.zbdd.node_count(),
+            seconds = started.elapsed().as_secs_f64(),
+            "build done"
+        );
+        if !self.proxy_order.is_empty() {
+            let started = std::time::Instant::now();
+            r = self.expand_proxies(r, budget);
+            tracing::info!(
+                target: "praxis::direct_zbdd",
+                seconds = started.elapsed().as_secs_f64(),
+                "modules expanded"
+            );
+        }
+        if !self.grouped.is_empty() {
+            let mut cache = HashMap::new();
+            let expanded = self.zbdd.expand_merged(r, &self.grouped, &mut cache);
+            r = self.truncate_budgeted(expanded, budget);
+            tracing::info!(
+                target: "praxis::direct_zbdd",
+                candidates = self.zbdd.count_by_order(r).values().sum::<u64>(),
+                seconds = started.elapsed().as_secs_f64(),
+                "failure-side groups expanded"
+            );
+        }
+        let mut filtered = if self.marker_of.is_empty() {
+            self.filter_valid_cut_sets(r, eff)?
+        } else {
+            self.filter_marked_cut_sets(r)?
+        };
+        if !self.marker_of.is_empty() {
+            let markers: HashSet<usize> = self.marker_of.values().map(|&lvl| 2 * lvl).collect();
+            let mut cache = HashMap::new();
+            filtered = self.zbdd.project_out_set(filtered, &markers, &mut cache);
+            filtered = self.zbdd.minimize(filtered);
+        }
+        tracing::info!(
+            target: "praxis::direct_zbdd",
+            seconds = started.elapsed().as_secs_f64(),
+            "filter done"
+        );
+        if !self.merged.is_empty() {
+            let mut cache = HashMap::new();
+            let expanded = self.zbdd.expand_merged(filtered, &self.merged, &mut cache);
+            filtered = self.truncate_budgeted(expanded, budget);
+            tracing::info!(
+                target: "praxis::direct_zbdd",
+                seconds = started.elapsed().as_secs_f64(),
+                "merged events expanded"
+            );
+        }
+        Ok(filtered)
+    }
+
+    fn stage_markers(&mut self) {
+        let Some(root) = self.pdag.root() else {
+            return;
+        };
+        let effective_root = if self.pdag.complement() { -root } else { root };
+        let mut targets: Vec<NodeIndex> = Vec::new();
+        let mut seen: HashSet<NodeIndex> = HashSet::new();
+        let mut visited: HashSet<NodeIndex> = HashSet::new();
+        let mut pending: Vec<NodeIndex> = vec![effective_root];
+        while let Some(r) = pending.pop() {
+            if !visited.insert(r) || self.mutex_node == Some(r.abs()) {
+                continue;
+            }
+            if r > 0 {
+                if let Some(t) = self.as_delete_target(r) {
+                    let key = self.canon_ref(t);
+                    if seen.insert(key) {
+                        targets.push(key);
+                    }
+                    continue;
+                }
+            }
+            let NodeKind::Gate(conn, ops, min) = self.kind(r) else {
+                continue;
+            };
+            match gate_expansion(conn, r < 0, &ops, min) {
+                Expansion::Conjunction(refs) | Expansion::AtLeast(_, refs) => {
+                    for c in refs {
+                        match self.as_delete_target(c) {
+                            Some(t) => {
+                                let key = self.canon_ref(t);
+                                if seen.insert(key) {
+                                    targets.push(key);
+                                }
+                            }
+                            None => pending.push(c),
+                        }
+                    }
+                }
+                Expansion::Disjunction(refs) => pending.extend(refs),
+                Expansion::Unsupported => {}
+            }
+        }
+        targets.sort_unstable();
+        for key in targets {
+            let lvl = self.var_probs.len() / 2;
+            self.var_probs.push(1.0);
+            self.var_probs.push(0.0);
+            self.initiator_vars.push(false);
+            self.initiator_vars.push(false);
+            self.marker_of.insert(key, lvl);
+        }
+        self.zbdd.set_var_probs(self.var_probs.clone());
+        tracing::info!(
+            target: "praxis::direct_zbdd",
+            markers = self.marker_of.len(),
+            "negation markers staged"
+        );
+    }
+
+    fn stage_modules(&mut self, budget: f64) -> Result<()> {
+        let started = std::time::Instant::now();
+        let Some(root) = self.pdag.root() else {
+            return Ok(());
+        };
+        let croot = self.canon_ref(root.abs()).abs();
+        let mut canonical = self.pdag.clone();
+        let reps: Vec<NodeIndex> = self
+            .canon
+            .iter()
+            .filter(|&(node, rep)| node == rep)
+            .map(|(&node, _)| node)
+            .collect();
+        for node in reps {
+            if let Some(PdagNode::Gate { operands, .. }) = self.pdag.get_node(node) {
+                let mapped: Vec<NodeIndex> = operands.iter().map(|&op| self.canon_ref(op)).collect();
+                canonical.update_gate_operands(node, mapped)?;
+            }
+        }
+        canonical.set_root(croot)?;
+        let dec = decompose(&canonical)?;
+        let mut picked: Vec<(usize, NodeIndex)> = Vec::new();
+        for &m in dec.modules() {
+            if m <= 0 || m == croot || Some(m) == self.mutex_node {
+                continue;
+            }
+            if !matches!(canonical.get_node(m), Some(PdagNode::Gate { .. })) {
+                continue;
+            }
+            let size = dec.support_size(m);
+            if size < 2 || self.module_has_initiator(&canonical, m) {
+                continue;
+            }
+            picked.push((size, m));
+        }
+        picked.sort_unstable();
+        let mut largest = 0usize;
+        for &(size, m) in &picked {
+            self.solving = Some(m);
+            let family = self.cut_sets_b(m, budget, true)?;
+            self.solving = None;
+            let mut maxp = 0.0f64;
+            for set in self.zbdd.enumerate(family) {
+                let p: f64 = set.iter().map(|&v| self.var_probs[v]).product();
+                maxp = maxp.max(p);
+            }
+            let lvl = self.var_probs.len() / 2;
+            self.var_probs.push(maxp);
+            self.var_probs.push(1.0 - maxp);
+            self.initiator_vars.push(false);
+            self.initiator_vars.push(false);
+            self.zbdd.set_var_probs(self.var_probs.clone());
+            self.proxy_of.insert(m, lvl);
+            self.proxy_order.push((lvl, m, family));
+            largest = largest.max(size);
+        }
+        tracing::info!(
+            target: "praxis::direct_zbdd",
+            modules = dec.modules().len(),
+            staged = picked.len(),
+            largest,
+            seconds = started.elapsed().as_secs_f64(),
+            "modules staged"
+        );
+        Ok(())
+    }
+
+    fn module_has_initiator(&self, pdag: &Pdag, module: NodeIndex) -> bool {
+        let mut seen: HashSet<NodeIndex> = HashSet::new();
+        let mut stack = vec![module];
+        while let Some(node) = stack.pop() {
+            if !seen.insert(node) {
+                continue;
+            }
+            match pdag.get_node(node) {
+                Some(PdagNode::Gate { operands, .. }) => {
+                    stack.extend(operands.iter().map(|op| op.abs()));
+                }
+                Some(PdagNode::BasicEvent { .. }) => {
+                    if let Some(level) = self.level.get(&node) {
+                        if self.initiators.contains(level) {
+                            return true;
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
+        false
+    }
+
+    fn expand_proxies(&mut self, root: ZbddRef, budget: f64) -> ZbddRef {
+        let mut r = root;
+        let order: Vec<(usize, ZbddRef)> = self.proxy_order.iter().rev().map(|&(lvl, _, family)| (lvl, family)).collect();
+        for (lvl, family) in order {
+            let var = 2 * lvl;
+            let with = self.zbdd.include_cofactor(r, var);
+            if with == ZBDD_EMPTY {
+                continue;
+            }
+            let without = self.zbdd.remove_var(r, var);
+            let expanded = self.zbdd.join_budgeted(with, family, budget);
+            r = self.zbdd.union(without, expanded);
+        }
+        let r = self.zbdd.minimize(r);
+        self.truncate_budgeted(r, budget)
     }
 
     fn eval3(
@@ -1301,27 +2024,123 @@ impl Builder {
             inv.insert(lvl, idx);
         }
         let root = self.finish_root(root);
-        let mut out: Vec<Vec<String>> = Vec::new();
-        for cs in self.zbdd.enumerate(root) {
-            let mut names: Vec<String> = Vec::new();
-            for v in cs {
-                let lvl = v / 2;
-                let neg = v % 2 == 1;
-                let name = inv
-                    .get(&lvl)
-                    .and_then(|idx| self.pdag.get_node(*idx))
-                    .and_then(|n| n.id())
-                    .unwrap_or("?")
-                    .to_string();
-                names.push(if neg { format!("~{}", name) } else { name });
-            }
-            names.sort();
-            names.dedup();
-            out.push(names);
+        let mut labels: Vec<String> = Vec::with_capacity(self.var_probs.len());
+        for variable in 0..self.var_probs.len() {
+            let name = inv
+                .get(&(variable / 2))
+                .and_then(|idx| self.pdag.get_node(*idx))
+                .and_then(|n| n.id())
+                .unwrap_or("?");
+            labels.push(if variable % 2 == 1 {
+                format!("~{}", name)
+            } else {
+                name.to_string()
+            });
         }
-        out.sort();
-        out.dedup();
-        Ok(out)
+        let mut by_label: Vec<usize> = (0..labels.len()).collect();
+        by_label.sort_by(|a, b| labels[*a].cmp(&labels[*b]));
+        let mut rank: Vec<u32> = vec![0; labels.len()];
+        let mut label_of_rank: Vec<usize> = Vec::new();
+        for (position, &variable) in by_label.iter().enumerate() {
+            if position == 0 || labels[variable] != labels[by_label[position - 1]] {
+                label_of_rank.push(variable);
+            }
+            rank[variable] = (label_of_rank.len() - 1) as u32;
+        }
+        let mut sets: Vec<Vec<u32>> = Vec::new();
+        self.zbdd.for_each_set(root, |set| {
+            let mut ranks: Vec<u32> = set.iter().map(|&variable| rank[variable]).collect();
+            ranks.sort_unstable();
+            ranks.dedup();
+            sets.push(ranks);
+        });
+        sets.sort_unstable();
+        sets.dedup();
+        Ok(sets
+            .into_iter()
+            .map(|ranks| {
+                ranks
+                    .into_iter()
+                    .map(|position| labels[label_of_rank[position as usize]].clone())
+                    .collect()
+            })
+            .collect())
+    }
+
+    fn filter_marked_cut_sets(&mut self, root: ZbddRef) -> Result<ZbddRef> {
+        let unknown: i8 = -1;
+        let mut targets: Vec<(NodeIndex, usize)> = self
+            .marker_of
+            .iter()
+            .map(|(&gate, &level)| (gate, 2 * level))
+            .collect();
+        targets.sort_unstable();
+        let roots: Vec<NodeIndex> = targets.iter().map(|&(gate, _)| gate).collect();
+        let logic = GateLogic::new(&self.pdag, &roots, &self.level, self.level.len());
+        let first_marker = targets
+            .iter()
+            .map(|&(_, var)| var)
+            .min()
+            .unwrap_or(usize::MAX);
+        let mut gate_of: HashMap<usize, u32> = HashMap::new();
+        for &(gate, var) in &targets {
+            if let Some(id) = logic.id(gate) {
+                gate_of.insert(var, id);
+            }
+        }
+        let cut_sets = self.zbdd.enumerate(root);
+        let logic_ref = &logic;
+        let gate_ref = &gate_of;
+        let workers = std::thread::available_parallelism()
+            .map(|x| x.get())
+            .unwrap_or(4)
+            .min(16);
+        let chunk = cut_sets.len().div_ceil(workers).max(1);
+        let parts: Vec<Vec<Vec<usize>>> = std::thread::scope(|s| {
+            let handles: Vec<_> = cut_sets
+                .chunks(chunk)
+                .map(|slice| {
+                    std::thread::Builder::new()
+                        .stack_size(128 * 1024 * 1024)
+                        .spawn_scoped(s, move || {
+                            let mut state = logic_ref.assignment();
+                            let mut kept: Vec<Vec<usize>> = Vec::new();
+                            for cs in slice {
+                                logic_ref.assign(&mut state, cs);
+                                let broken = cs.iter().any(|variable| {
+                                    *variable >= first_marker
+                                        && gate_ref.get(variable).is_some_and(|&id| {
+                                            logic_ref.evaluate(&mut state, id, unknown) == 1
+                                        })
+                                });
+                                if !broken {
+                                    kept.push(cs.clone());
+                                }
+                            }
+                            kept
+                        })
+                        .expect("spawn filter worker")
+                })
+                .collect();
+            handles
+                .into_iter()
+                .map(|h| h.join().expect("filter worker join"))
+                .collect()
+        });
+        let mut valid: Vec<Vec<usize>> = Vec::new();
+        for kept in parts {
+            valid.extend(kept);
+        }
+        if valid.len() == cut_sets.len() {
+            self.zbdd.protect(root);
+            return Ok(root);
+        }
+        drop(cut_sets);
+        for set in valid.iter_mut() {
+            set.sort_unstable();
+        }
+        valid.sort_unstable();
+        Ok(self.zbdd.from_sorted_sets(&valid))
     }
 
     fn filter_valid_cut_sets(&mut self, root: ZbddRef, eff: NodeIndex) -> Result<ZbddRef> {
@@ -1380,17 +2199,16 @@ impl Builder {
         for lv in parts {
             valid.extend(lv);
         }
-        let mut out = ZBDD_EMPTY;
-        for cs in &valid {
-            let mut vars = cs.clone();
-            vars.sort_by_key(|v| std::cmp::Reverse(*v / 2));
-            let mut prod = ZBDD_BASE;
-            for &v in &vars {
-                prod = self.zbdd.multiply(v, prod);
-            }
-            out = self.zbdd.union(out, prod);
+        if valid.len() == cut_sets.len() {
+            self.zbdd.protect(root);
+            return Ok(root);
         }
-        Ok(out)
+        drop(cut_sets);
+        for set in valid.iter_mut() {
+            set.sort_unstable();
+        }
+        valid.sort_unstable();
+        Ok(self.zbdd.from_sorted_sets(&valid))
     }
 }
 
@@ -1619,6 +2437,7 @@ fn build_end_state_zbdd_from_pdag_internal(
         cut_off,
         limit_order,
         false,
+        false,
         Some(order),
         None,
         |id| (event_probabilities.get(id).copied().unwrap_or(0.0), false),
@@ -1764,7 +2583,7 @@ pub fn build_zbdd_direct_from_pdag(
     cut_off: Option<f64>,
     limit_order: Option<usize>,
 ) -> Result<(ZbddEngine, ZbddRef, Vec<Option<String>>)> {
-    let mut builder = Builder::new(pdag, fault_tree, cut_off, limit_order)?;
+    let mut builder = Builder::new(pdag, fault_tree, cut_off, limit_order, false)?;
     let root = builder.build()?;
     let event_names = builder.event_names();
     Ok((builder.zbdd, root, event_names))
@@ -1785,6 +2604,7 @@ pub fn build_zbdd_direct_from_pdag_with_order(
         limit_order,
         variable_order,
         reorder_budget,
+        false,
     )?;
     let root = builder.build()?;
     let event_names = builder.event_names();
@@ -1818,7 +2638,7 @@ pub fn build_zbdd_topdown(
     limit_order: Option<usize>,
     mutex_gate: Option<&str>,
 ) -> Result<(ZbddEngine, ZbddRef)> {
-    let mut builder = Builder::new(pdag, fault_tree, cut_off, limit_order)?;
+    let mut builder = Builder::new(pdag, fault_tree, cut_off, limit_order, false)?;
     if let Some(name) = mutex_gate {
         builder.setup_mutex(name)?;
     }
@@ -1833,7 +2653,7 @@ pub fn build_zbdd_delterm(
     limit_order: Option<usize>,
     mutex_gate: Option<&str>,
 ) -> Result<(ZbddEngine, ZbddRef)> {
-    let mut builder = Builder::new(pdag, fault_tree, cut_off, limit_order)?;
+    let mut builder = Builder::new(pdag, fault_tree, cut_off, limit_order, merging_enabled())?;
     if let Some(name) = mutex_gate {
         builder.setup_mutex(name)?;
     }
@@ -1848,7 +2668,7 @@ pub fn build_zbdd_delterm_named(
     limit_order: Option<usize>,
     mutex_gate: Option<&str>,
 ) -> Result<Vec<Vec<String>>> {
-    let mut builder = Builder::new(pdag, fault_tree, cut_off, limit_order)?;
+    let mut builder = Builder::new(pdag, fault_tree, cut_off, limit_order, merging_enabled())?;
     if let Some(name) = mutex_gate {
         builder.setup_mutex(name)?;
     }
@@ -1873,6 +2693,7 @@ pub fn build_zbdd_delterm_named_with_order(
         limit_order,
         variable_order,
         reorder_budget,
+        merging_enabled(),
     )?;
     if let Some(name) = mutex_gate {
         builder.setup_mutex(name)?;
@@ -1886,6 +2707,7 @@ pub fn build_zbdd_delterm_named_with_order(
 mod tests {
     use super::*;
     use crate::io::parser::parse_fault_tree;
+    use std::collections::BTreeSet;
 
     const MUTEX_MODEL: &str = r#"<?xml version="1.0"?>
 <opsa-mef>
@@ -1983,6 +2805,450 @@ mod tests {
             enumerate_named_cut_sets(&zbdd, root, &names),
             vec![vec!["A".to_string()]]
         );
+    }
+
+    const SAME_ROLE_MODEL: &str = r#"<?xml version="1.0"?>
+<opsa-mef>
+  <define-fault-tree name="TOP">
+    <define-gate name="TOP"><or><gate name="SEQ1"/><gate name="SEQ2"/></or></define-gate>
+    <define-gate name="SEQ1"><and><basic-event name="IE1"/><gate name="SYSA"/><not><gate name="SYSB"/></not></and></define-gate>
+    <define-gate name="SEQ2"><and><basic-event name="IE2"/><gate name="SYSA"/><gate name="SYSB"/></and></define-gate>
+    <define-gate name="SYSA"><and><gate name="TA1"/><gate name="TA2"/></and></define-gate>
+    <define-gate name="TA1"><or><basic-event name="A1K1"/><basic-event name="A1K2"/><basic-event name="A1K3"/><basic-event name="SUP"/></or></define-gate>
+    <define-gate name="TA2"><or><basic-event name="A2K1"/><gate name="TA2H"/><basic-event name="SUP"/></or></define-gate>
+    <define-gate name="TA2H"><or><basic-event name="A2K2"/></or></define-gate>
+    <define-gate name="SYSB"><or><gate name="PAIR"/><basic-event name="B1"/><basic-event name="B2"/><basic-event name="SUP"/></or></define-gate>
+    <define-gate name="PAIR"><and><basic-event name="X"/><basic-event name="Y"/></and></define-gate>
+  </define-fault-tree>
+  <model-data>
+    <define-basic-event name="IE1"><attributes><attribute name="initiator" value="true"/></attributes><float value="0.1"/></define-basic-event>
+    <define-basic-event name="IE2"><attributes><attribute name="initiator" value="true"/></attributes><float value="0.5"/></define-basic-event>
+    <define-basic-event name="A1K1"><float value="1e-2"/></define-basic-event>
+    <define-basic-event name="A1K2"><float value="1e-3"/></define-basic-event>
+    <define-basic-event name="A1K3"><float value="1e-5"/></define-basic-event>
+    <define-basic-event name="A2K1"><float value="1e-2"/></define-basic-event>
+    <define-basic-event name="A2K2"><float value="1e-4"/></define-basic-event>
+    <define-basic-event name="B1"><float value="2e-2"/></define-basic-event>
+    <define-basic-event name="B2"><float value="3e-4"/></define-basic-event>
+    <define-basic-event name="X"><float value="0.2"/></define-basic-event>
+    <define-basic-event name="Y"><float value="0.3"/></define-basic-event>
+    <define-basic-event name="SUP"><float value="1e-3"/></define-basic-event>
+  </model-data>
+</opsa-mef>"#;
+
+    const TOGETHER_MODEL: &str = r#"<?xml version="1.0"?>
+<opsa-mef>
+  <define-fault-tree name="TOP">
+    <define-gate name="TOP"><or><gate name="G1"/><gate name="G2"/></or></define-gate>
+    <define-gate name="G1"><and><basic-event name="X"/><basic-event name="Y"/><basic-event name="A"/></and></define-gate>
+    <define-gate name="G2"><and><basic-event name="X"/><basic-event name="Y"/><basic-event name="B"/></and></define-gate>
+  </define-fault-tree>
+  <model-data>
+    <define-basic-event name="X"><float value="0.1"/></define-basic-event>
+    <define-basic-event name="Y"><float value="0.2"/></define-basic-event>
+    <define-basic-event name="A"><float value="0.3"/></define-basic-event>
+    <define-basic-event name="B"><float value="0.4"/></define-basic-event>
+  </model-data>
+</opsa-mef>"#;
+
+    fn delterm_sets(
+        model: &str,
+        cut_off: Option<f64>,
+        limit_order: Option<usize>,
+        merge: bool,
+    ) -> (Vec<Vec<String>>, usize) {
+        let ft = parse_fault_tree(model).unwrap();
+        let pdag = Pdag::from_fault_tree(&ft).unwrap();
+        let mut builder = Builder::new(&pdag, &ft, cut_off, limit_order, merge).unwrap();
+        let groups = builder.merged.len();
+        let root = builder.build_delterm().unwrap();
+        (builder.finish_named(root).unwrap(), groups)
+    }
+
+    fn named(sets: &[&[&str]]) -> Vec<Vec<String>> {
+        let mut out: Vec<Vec<String>> = sets
+            .iter()
+            .map(|set| {
+                let mut names: Vec<String> = set.iter().map(|name| name.to_string()).collect();
+                names.sort();
+                names
+            })
+            .collect();
+        out.sort();
+        out
+    }
+
+    const FAILURE_SIDE_MODEL: &str = r#"<?xml version="1.0"?>
+<opsa-mef>
+  <define-fault-tree name="TOP">
+    <define-gate name="TOP"><or><gate name="SEQ1"/><gate name="SEQ2"/></or></define-gate>
+    <define-gate name="SEQ1"><and><basic-event name="IE1"/><gate name="TRAIN"/><not><gate name="CHECK"/></not></and></define-gate>
+    <define-gate name="SEQ2"><and><basic-event name="IE2"/><gate name="TRAIN"/><gate name="OTHER"/><gate name="PAIR"/></and></define-gate>
+    <define-gate name="TRAIN"><or><basic-event name="A"/><basic-event name="B"/><basic-event name="C"/></or></define-gate>
+    <define-gate name="CHECK"><or><basic-event name="A"/><basic-event name="D"/><basic-event name="X"/></or></define-gate>
+    <define-gate name="OTHER"><or><basic-event name="E"/><basic-event name="F"/></or></define-gate>
+    <define-gate name="PAIR"><or><gate name="XY"/><basic-event name="G"/></or></define-gate>
+    <define-gate name="XY"><and><basic-event name="X"/><basic-event name="Y"/></and></define-gate>
+  </define-fault-tree>
+  <model-data>
+    <define-basic-event name="IE1"><attributes><attribute name="initiator" value="true"/></attributes><float value="0.1"/></define-basic-event>
+    <define-basic-event name="IE2"><attributes><attribute name="initiator" value="true"/></attributes><float value="0.5"/></define-basic-event>
+    <define-basic-event name="A"><float value="1e-2"/></define-basic-event>
+    <define-basic-event name="B"><float value="1e-3"/></define-basic-event>
+    <define-basic-event name="C"><float value="1e-5"/></define-basic-event>
+    <define-basic-event name="D"><float value="2e-2"/></define-basic-event>
+    <define-basic-event name="E"><float value="3e-2"/></define-basic-event>
+    <define-basic-event name="F"><float value="4e-4"/></define-basic-event>
+    <define-basic-event name="G"><float value="5e-3"/></define-basic-event>
+    <define-basic-event name="X"><float value="0.2"/></define-basic-event>
+    <define-basic-event name="Y"><float value="0.3"/></define-basic-event>
+  </model-data>
+</opsa-mef>"#;
+
+    fn grouping_counts(model: &str) -> (usize, usize) {
+        let ft = parse_fault_tree(model).unwrap();
+        let pdag = Pdag::from_fault_tree(&ft).unwrap();
+        let builder = Builder::new(&pdag, &ft, Some(1e-30), None, true).unwrap();
+        (builder.merged.len(), builder.grouped.len())
+    }
+
+    #[test]
+    fn failure_side_groups_give_the_same_cut_sets() {
+        assert_eq!(grouping_counts(FAILURE_SIDE_MODEL), (2, 2));
+        let (plain, _) = delterm_sets(FAILURE_SIDE_MODEL, Some(1e-30), None, false);
+        let (grouped, _) = delterm_sets(FAILURE_SIDE_MODEL, Some(1e-30), None, true);
+
+        assert_eq!(grouped, plain);
+        assert_eq!(
+            grouped,
+            named(&[
+                &["B", "IE1"],
+                &["C", "IE1"],
+                &["A", "E", "G", "IE2"],
+                &["A", "F", "G", "IE2"],
+                &["B", "E", "G", "IE2"],
+                &["B", "F", "G", "IE2"],
+                &["C", "E", "G", "IE2"],
+                &["C", "F", "G", "IE2"],
+                &["A", "E", "IE2", "X", "Y"],
+                &["A", "F", "IE2", "X", "Y"],
+                &["B", "E", "IE2", "X", "Y"],
+                &["B", "F", "IE2", "X", "Y"],
+                &["C", "E", "IE2", "X", "Y"],
+                &["C", "F", "IE2", "X", "Y"],
+            ])
+        );
+    }
+
+    #[test]
+    fn failure_side_groups_respect_the_cut_off_and_the_order_limit() {
+        for cut_off in [1e-3, 1e-4, 1e-5, 1e-6, 1e-7, 1e-8, 1e-9, 1e-10, 1e-12] {
+            let (plain, _) = delterm_sets(FAILURE_SIDE_MODEL, Some(cut_off), None, false);
+            let (grouped, _) = delterm_sets(FAILURE_SIDE_MODEL, Some(cut_off), None, true);
+            assert_eq!(grouped, plain, "cut-off {cut_off}");
+        }
+        for limit in 1..=6 {
+            let (plain, _) = delterm_sets(FAILURE_SIDE_MODEL, None, Some(limit), false);
+            let (grouped, _) = delterm_sets(FAILURE_SIDE_MODEL, None, Some(limit), true);
+            assert_eq!(grouped, plain, "order limit {limit}");
+        }
+        let (kept, _) = delterm_sets(FAILURE_SIDE_MODEL, Some(1e-5), None, true);
+        assert!(kept.contains(&named(&[&["B", "IE1"]])[0]));
+        assert!(!kept.contains(&named(&[&["C", "IE1"]])[0]));
+    }
+
+    #[test]
+    fn exclusive_or_models_get_no_failure_side_groups() {
+        assert_eq!(grouping_counts(EXCLUSIVE_OR_MODEL).1, 0);
+    }
+
+    const TEN_EVENTS_MODEL: &str = r#"<?xml version="1.0"?>
+<opsa-mef>
+  <define-fault-tree name="TOP">
+    <define-gate name="TOP"><or><basic-event name="E0"/><basic-event name="E1"/><basic-event name="E2"/><basic-event name="E3"/><basic-event name="E4"/><basic-event name="E5"/><basic-event name="E6"/><basic-event name="E7"/><basic-event name="E8"/><basic-event name="E9"/></or></define-gate>
+  </define-fault-tree>
+  <model-data>
+    <define-basic-event name="E0"><float value="0.5"/></define-basic-event>
+    <define-basic-event name="E1"><float value="0.3"/></define-basic-event>
+    <define-basic-event name="E2"><float value="0.2"/></define-basic-event>
+    <define-basic-event name="E3"><float value="0.1"/></define-basic-event>
+    <define-basic-event name="E4"><float value="0.05"/></define-basic-event>
+    <define-basic-event name="E5"><float value="0.02"/></define-basic-event>
+    <define-basic-event name="E6"><float value="0.01"/></define-basic-event>
+    <define-basic-event name="E7"><float value="0.4"/></define-basic-event>
+    <define-basic-event name="E8"><float value="0.25"/></define-basic-event>
+    <define-basic-event name="E9"><float value="0.125"/></define-basic-event>
+  </model-data>
+</opsa-mef>"#;
+
+    fn next_number(state: &mut u64) -> u64 {
+        *state = state
+            .wrapping_mul(6364136223846793005)
+            .wrapping_add(1442695040888963407);
+        *state >> 33
+    }
+
+    fn sample_family(state: &mut u64, variables: &[usize], sets: usize) -> Vec<Vec<usize>> {
+        let mut family: BTreeSet<Vec<usize>> = BTreeSet::new();
+        for _ in 0..sets {
+            let size = 1 + (next_number(state) % 4) as usize;
+            let mut set: BTreeSet<usize> = BTreeSet::new();
+            for _ in 0..size {
+                set.insert(variables[(next_number(state) % variables.len() as u64) as usize]);
+            }
+            family.insert(set.into_iter().collect());
+        }
+        family.into_iter().collect()
+    }
+
+    fn minimal_sets(sets: &BTreeSet<Vec<usize>>) -> BTreeSet<Vec<usize>> {
+        sets.iter()
+            .filter(|set| {
+                !sets
+                    .iter()
+                    .any(|other| other != *set && other.iter().all(|v| set.contains(v)))
+            })
+            .cloned()
+            .collect()
+    }
+
+    fn minimal_products_within(
+        left: &[Vec<usize>],
+        right: &[Vec<usize>],
+        probabilities: &[f64],
+        budget: f64,
+        limit_order: Option<usize>,
+    ) -> BTreeSet<Vec<usize>> {
+        let mut products: BTreeSet<Vec<usize>> = BTreeSet::new();
+        for a in left {
+            for b in right {
+                let union: BTreeSet<usize> = a.iter().chain(b.iter()).copied().collect();
+                let probability = union
+                    .iter()
+                    .rev()
+                    .fold(1.0, |value, &v| probabilities[v] * value);
+                let short_enough = limit_order.is_none_or(|limit| union.len() <= limit);
+                if probability >= budget && short_enough {
+                    products.insert(union.into_iter().collect());
+                }
+            }
+        }
+        minimal_sets(&products)
+    }
+
+    fn enumerated(builder: &Builder, family: ZbddRef) -> BTreeSet<Vec<usize>> {
+        builder
+            .zbdd
+            .enumerate(family)
+            .into_iter()
+            .map(|mut set| {
+                set.sort_unstable();
+                set
+            })
+            .collect()
+    }
+
+    fn ten_event_builder(limit_order: Option<usize>) -> (Builder, Vec<usize>) {
+        let ft = parse_fault_tree(TEN_EVENTS_MODEL).unwrap();
+        let pdag = Pdag::from_fault_tree(&ft).unwrap();
+        let builder = Builder::new(&pdag, &ft, None, limit_order, false).unwrap();
+        let mut variables: Vec<usize> = builder.level.values().map(|&level| 2 * level).collect();
+        variables.sort_unstable();
+        (builder, variables)
+    }
+
+    #[test]
+    fn a_product_that_skips_covered_sets_gives_the_same_minimal_family() {
+        for limit_order in [None, Some(3)] {
+            let (mut builder, variables) = ten_event_builder(limit_order);
+            assert_eq!(variables.len(), 10);
+            assert!(builder.subsets_are_at_least_as_likely());
+            let probabilities = builder.var_probs.clone();
+            let mut state = 11;
+            let mut skipped_some = 0;
+            for round in 0..300 {
+                let left_sets = sample_family(&mut state, &variables, 1 + round % 14);
+                let right_sets = sample_family(&mut state, &variables, 1 + (round / 3) % 17);
+                let left = builder.zbdd.from_sorted_sets(&left_sets);
+                let right = builder.zbdd.from_sorted_sets(&right_sets);
+                for budget in [0.0, 1e-4, 1e-3, 1e-2, 5e-2, 2e-1] {
+                    let plain = builder.join_within(left, right, budget);
+                    let plain = builder.zbdd.minimize(plain);
+                    let reduced = builder.join_uncovered(left, right, budget);
+                    let reduced = builder.zbdd.minimize(reduced);
+                    assert_eq!(reduced, plain, "round {round} budget {budget}");
+                    let expected = minimal_products_within(
+                        &left_sets,
+                        &right_sets,
+                        &probabilities,
+                        budget,
+                        limit_order,
+                    );
+                    assert_eq!(enumerated(&builder, reduced), expected, "round {round}");
+                }
+                let open = builder.zbdd.nonsuperset(right, left);
+                if open != right {
+                    skipped_some += 1;
+                }
+            }
+            assert!(skipped_some > 100);
+        }
+    }
+
+    #[test]
+    fn covered_sets_are_only_skipped_when_no_event_value_exceeds_one() {
+        let (mut builder, variables) = ten_event_builder(None);
+        assert!(builder.subsets_are_at_least_as_likely());
+        builder.var_probs[variables[0]] = 4.0;
+        assert!(!builder.subsets_are_at_least_as_likely());
+    }
+
+    #[test]
+    fn merged_same_role_events_give_the_same_cut_sets() {
+        let (plain, no_groups) = delterm_sets(SAME_ROLE_MODEL, Some(1e-30), None, false);
+        let (merged, groups) = delterm_sets(SAME_ROLE_MODEL, Some(1e-30), None, true);
+
+        assert_eq!(no_groups, 0);
+        assert_eq!(groups, 4);
+        assert_eq!(merged, plain);
+        assert!(merged.contains(&named(&[&["A1K3", "A2K2", "B2", "IE2"]])[0]));
+        assert!(merged.contains(&named(&[&["A1K1", "A2K1", "IE2", "X", "Y"]])[0]));
+        assert!(merged.contains(&named(&[&["A1K2", "A2K2", "IE1"]])[0]));
+        assert!(!merged.contains(&named(&[&["IE1", "SUP"]])[0]));
+        assert!(merged.contains(&named(&[&["IE2", "SUP"]])[0]));
+    }
+
+    #[test]
+    fn merged_same_role_events_respect_the_cut_off_after_expansion() {
+        for cut_off in [1e-4, 1e-5, 1e-6, 1e-7, 1e-8, 1e-9, 1e-10, 1e-12] {
+            let (plain, _) = delterm_sets(SAME_ROLE_MODEL, Some(cut_off), None, false);
+            let (merged, _) = delterm_sets(SAME_ROLE_MODEL, Some(cut_off), None, true);
+            assert_eq!(merged, plain, "cut-off {cut_off}");
+        }
+        let (merged, _) = delterm_sets(SAME_ROLE_MODEL, Some(1e-6), None, true);
+        assert!(merged.contains(&named(&[&["A1K1", "A2K1", "IE1"]])[0]));
+        assert!(!merged.contains(&named(&[&["A1K3", "A2K1", "IE1"]])[0]));
+    }
+
+    #[test]
+    fn merged_same_role_events_respect_the_order_limit_after_expansion() {
+        for limit in 1..=5 {
+            let (plain, _) = delterm_sets(SAME_ROLE_MODEL, None, Some(limit), false);
+            let (merged, _) = delterm_sets(SAME_ROLE_MODEL, None, Some(limit), true);
+            assert_eq!(merged, plain, "order limit {limit}");
+        }
+        let (two, groups) = delterm_sets(TOGETHER_MODEL, None, Some(2), true);
+        assert_eq!(groups, 1);
+        assert!(two.is_empty());
+        let (three, _) = delterm_sets(TOGETHER_MODEL, None, Some(3), true);
+        assert_eq!(three, named(&[&["A", "X", "Y"], &["B", "X", "Y"]]));
+    }
+
+    const OTHER_SEQUENCE_MODEL: &str = r#"<?xml version="1.0"?>
+<opsa-mef>
+  <define-fault-tree name="TOP">
+    <define-gate name="TOP"><or><gate name="Q1"/><gate name="Q2"/></or></define-gate>
+    <define-gate name="Q1"><and><basic-event name="I"/><basic-event name="X"/><not><basic-event name="B"/></not></and></define-gate>
+    <define-gate name="Q2"><and><basic-event name="I"/><basic-event name="X"/><basic-event name="Y"/><not><gate name="S"/></not></and></define-gate>
+    <define-gate name="S"><or><basic-event name="Y"/><basic-event name="Z"/></or></define-gate>
+  </define-fault-tree>
+  <model-data>
+    <define-basic-event name="I"><float value="0.5"/></define-basic-event>
+    <define-basic-event name="X"><float value="0.1"/></define-basic-event>
+    <define-basic-event name="B"><float value="0.2"/></define-basic-event>
+    <define-basic-event name="Y"><float value="0.3"/></define-basic-event>
+    <define-basic-event name="Z"><float value="0.4"/></define-basic-event>
+  </model-data>
+</opsa-mef>"#;
+
+    const NEGATED_UNDER_OR_MODEL: &str = r#"<?xml version="1.0"?>
+<opsa-mef>
+  <define-fault-tree name="TOP">
+    <define-gate name="TOP"><or><gate name="P1"/><gate name="P2"/></or></define-gate>
+    <define-gate name="P1"><and><basic-event name="I"/><gate name="G"/><basic-event name="D"/></and></define-gate>
+    <define-gate name="P2"><and><basic-event name="I"/><basic-event name="B"/><basic-event name="C"/></and></define-gate>
+    <define-gate name="G"><or><basic-event name="A"/><not><gate name="H"/></not></or></define-gate>
+    <define-gate name="H"><or><basic-event name="B"/><basic-event name="C"/></or></define-gate>
+  </define-fault-tree>
+  <model-data>
+    <define-basic-event name="I"><float value="0.5"/></define-basic-event>
+    <define-basic-event name="A"><float value="0.1"/></define-basic-event>
+    <define-basic-event name="B"><float value="0.2"/></define-basic-event>
+    <define-basic-event name="C"><float value="0.3"/></define-basic-event>
+    <define-basic-event name="D"><float value="0.01"/></define-basic-event>
+  </model-data>
+</opsa-mef>"#;
+
+    const NESTED_DELETE_MODEL: &str = r#"<?xml version="1.0"?>
+<opsa-mef>
+  <define-fault-tree name="TOP">
+    <define-gate name="TOP"><or><gate name="Q1"/><gate name="Q2"/></or></define-gate>
+    <define-gate name="Q1"><and><basic-event name="I"/><gate name="F1"/><not><gate name="S1"/></not></and></define-gate>
+    <define-gate name="Q2"><and><basic-event name="I"/><gate name="F2"/><not><gate name="S2"/></not></and></define-gate>
+    <define-gate name="F1"><or><basic-event name="A"/><basic-event name="B"/></or></define-gate>
+    <define-gate name="F2"><and><basic-event name="C"/><gate name="W"/></and></define-gate>
+    <define-gate name="W"><or><basic-event name="D"/><not><gate name="V"/></not></or></define-gate>
+    <define-gate name="V"><and><basic-event name="A"/><basic-event name="E"/></and></define-gate>
+    <define-gate name="S1"><and><basic-event name="C"/><basic-event name="D"/></and></define-gate>
+    <define-gate name="S2"><or><basic-event name="B"/><basic-event name="E"/></or></define-gate>
+  </define-fault-tree>
+  <model-data>
+    <define-basic-event name="I"><float value="0.5"/></define-basic-event>
+    <define-basic-event name="A"><float value="0.1"/></define-basic-event>
+    <define-basic-event name="B"><float value="0.2"/></define-basic-event>
+    <define-basic-event name="C"><float value="0.3"/></define-basic-event>
+    <define-basic-event name="D"><float value="0.4"/></define-basic-event>
+    <define-basic-event name="E"><float value="0.25"/></define-basic-event>
+  </model-data>
+</opsa-mef>"#;
+
+    const EXCLUSIVE_OR_MODEL: &str = r#"<?xml version="1.0"?>
+<opsa-mef>
+  <define-fault-tree name="TOP">
+    <define-gate name="TOP"><and><basic-event name="I"/><gate name="X"/><not><gate name="S"/></not></and></define-gate>
+    <define-gate name="X"><xor><basic-event name="A"/><basic-event name="B"/></xor></define-gate>
+    <define-gate name="S"><and><basic-event name="C"/><basic-event name="D"/></and></define-gate>
+  </define-fault-tree>
+  <model-data>
+    <define-basic-event name="I"><float value="0.5"/></define-basic-event>
+    <define-basic-event name="A"><float value="0.1"/></define-basic-event>
+    <define-basic-event name="B"><float value="0.2"/></define-basic-event>
+    <define-basic-event name="C"><float value="0.3"/></define-basic-event>
+    <define-basic-event name="D"><float value="0.4"/></define-basic-event>
+  </model-data>
+</opsa-mef>"#;
+
+    fn marker_count(model: &str) -> usize {
+        let ft = parse_fault_tree(model).unwrap();
+        let pdag = Pdag::from_fault_tree(&ft).unwrap();
+        let mut builder = Builder::new(&pdag, &ft, Some(1e-15), None, true).unwrap();
+        builder.build_delterm().unwrap();
+        builder.marker_of.len()
+    }
+
+    #[test]
+    fn a_candidate_is_checked_against_the_gates_its_own_sequence_negates() {
+        for merge in [false, true] {
+            let (sets, _) = delterm_sets(OTHER_SEQUENCE_MODEL, Some(1e-15), None, merge);
+            assert_eq!(sets, named(&[&["I", "X", "~B"]]));
+            let (sets, _) = delterm_sets(NESTED_DELETE_MODEL, Some(1e-15), None, merge);
+            assert_eq!(sets, named(&[&["A", "I"], &["B", "I"], &["C", "I"]]));
+        }
+        assert_eq!(marker_count(NESTED_DELETE_MODEL), 3);
+    }
+
+    #[test]
+    fn a_negated_gate_under_an_or_gate_is_checked_as_well() {
+        for merge in [false, true] {
+            let (sets, _) = delterm_sets(NEGATED_UNDER_OR_MODEL, Some(1e-15), None, merge);
+            assert_eq!(sets, named(&[&["B", "C", "I"], &["D", "I"]]));
+        }
+        assert_eq!(marker_count(NEGATED_UNDER_OR_MODEL), 1);
+    }
+
+    #[test]
+    fn exclusive_or_models_keep_the_in_build_delete_term() {
+        assert_eq!(marker_count(EXCLUSIVE_OR_MODEL), 0);
     }
 
     #[test]

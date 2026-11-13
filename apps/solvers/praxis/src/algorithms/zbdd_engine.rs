@@ -1,6 +1,7 @@
-use std::collections::HashMap;
+use std::cmp::Reverse;
+use std::collections::{BinaryHeap, HashMap};
 
-use tracing::trace;
+use tracing::{debug, trace};
 
 use crate::algorithms::bdd_engine::{Bdd, BddRef};
 
@@ -270,155 +271,28 @@ impl UniqueTable {
     }
 }
 
+const CHILD_EMPTY: u32 = u32::MAX;
+const CHILD_BASE: u32 = u32::MAX - 1;
+const CHILD_PENDING: u32 = u32::MAX - 2;
+const NO_PARENT: u32 = u32::MAX;
+const UNLIMITED: u32 = u32::MAX;
+
 #[derive(Clone, Copy)]
-struct JEntry {
+struct ProductRequest {
+    threshold: f64,
     f: u32,
     g: u32,
-    bucket: u64,
-    remaining: usize,
-    mp: f64,
-    thr: f64,
-    result: u32,
-    used: bool,
+    remaining: u32,
+    link: u32,
 }
 
-const JEMPTY: JEntry = JEntry {
-    f: 0,
-    g: 0,
-    bucket: 0,
-    remaining: 0,
-    mp: 0.0,
-    thr: 0.0,
-    result: 0,
-    used: false,
-};
-
-// Open-addressing cache for the budgeted join. Within one min_prob the result of
-// join_budgeted_rec depends only on (f, g, threshold, remaining order), where
-// threshold = min_prob / p_acc is the smallest product probability still worth
-// keeping here. Keyed by (f, g, mp=min_prob, bucket(thr), remaining); each entry
-// stores the EXACT thr it was computed at and is reused only when its thr is at
-// least as low (loose) as the query's, so the reused result is a sound superset
-// (bounded by the bucket width) cleaned by a final exact truncation. min_prob is
-// part of the key on purpose: across two different min_prob values the per-product
-// prune folds are independent floating point sums, so a same-min_prob match keeps
-// the superset exact in IEEE arithmetic, not just in real arithmetic. Persisting
-// the table across calls (Part C) is then sound because every reuse is
-// same-min_prob. A `used` flag is mandatory because the join can cache ZBDD_EMPTY.
-struct JoinCache {
-    slots: Vec<JEntry>,
-    mask: usize,
-    len: usize,
-    mant_bits: u32,
-}
-
-impl JoinCache {
-    fn new() -> Self {
-        // Sub-octave granularity for the p_acc bucket (0 = power-of-2 buckets).
-        // Default 1 (half-octave) is the measured 1E-9 knee: ~full speedup at
-        // negligible over-keep. PRAXIS_JOIN_G=0 trades memory for the last few %.
-        let mant_bits = std::env::var("PRAXIS_JOIN_G")
-            .ok()
-            .and_then(|s| s.parse::<u32>().ok())
-            .unwrap_or(1)
-            .min(52);
-        let cap = 1usize << 12;
-        JoinCache {
-            slots: vec![JEMPTY; cap],
-            mask: cap - 1,
-            len: 0,
-            mant_bits,
-        }
-    }
-
-    fn bucket(&self, thr: f64) -> u64 {
-        // Monotonic in thr for positive floats: the exponent plus the top
-        // mant_bits of the mantissa.
-        thr.to_bits() >> (52 - self.mant_bits)
-    }
-
-    fn hash(f: u32, g: u32, bucket: u64, mp: f64, remaining: usize) -> u64 {
-        let mut h = (f as u64) | ((g as u64) << 32);
-        h ^= bucket.wrapping_mul(0x9E3779B97F4A7C15);
-        h ^= mp.to_bits().wrapping_mul(0xFF51AFD7ED558CCD);
-        h ^= (remaining as u64).wrapping_mul(0x94D049BB133111EB);
-        h = h.wrapping_mul(0xD6E8FEB86659FD93);
-        h ^= h >> 32;
-        h
-    }
-
-    fn get(&self, f: u32, g: u32, thr: f64, mp: f64, remaining: usize) -> Option<u32> {
-        let bucket = self.bucket(thr);
-        let mut i = (Self::hash(f, g, bucket, mp, remaining) as usize) & self.mask;
-        loop {
-            let e = self.slots[i];
-            if !e.used {
-                return None;
-            }
-            if e.f == f && e.g == g && e.bucket == bucket && e.mp == mp && e.remaining == remaining
-            {
-                // Reusable only if the cached threshold is at least as low (loose)
-                // as the query's, in which case the cached result is a sound superset.
-                return if e.thr <= thr { Some(e.result) } else { None };
-            }
-            i = (i + 1) & self.mask;
-        }
-    }
-
-    fn place(&mut self, entry: JEntry) {
-        let JEntry {
-            f,
-            g,
-            bucket,
-            remaining,
-            mp,
-            thr,
-            ..
-        } = entry;
-        let mut i = (Self::hash(f, g, bucket, mp, remaining) as usize) & self.mask;
-        loop {
-            let e = self.slots[i];
-            if !e.used {
-                self.slots[i] = entry;
-                self.len += 1;
-                return;
-            }
-            if e.f == f && e.g == g && e.bucket == bucket && e.mp == mp && e.remaining == remaining
-            {
-                // Keep the lowest (loosest) threshold per key; it serves the most.
-                if thr < e.thr {
-                    self.slots[i] = entry;
-                }
-                return;
-            }
-            i = (i + 1) & self.mask;
-        }
-    }
-
-    fn insert(&mut self, f: u32, g: u32, thr: f64, mp: f64, remaining: usize, result: u32) {
-        if (self.len + 1) * 10 >= (self.mask + 1) * 7 {
-            let new_cap = (self.mask + 1) * 2;
-            let old = std::mem::replace(&mut self.slots, vec![JEMPTY; new_cap]);
-            self.mask = new_cap - 1;
-            self.len = 0;
-            for e in old {
-                if e.used {
-                    self.place(e);
-                }
-            }
-        }
-        let bucket = self.bucket(thr);
-        self.place(JEntry {
-            f,
-            g,
-            bucket,
-            remaining,
-            mp,
-            thr,
-            result,
-            used: true,
-        });
-    }
+#[derive(Clone, Copy)]
+struct ProductTask {
+    threshold: f64,
+    high: f64,
+    children: [u32; 4],
+    var: u32,
+    result: ZbddRef,
 }
 
 const OP_UNION: u8 = 0;
@@ -471,6 +345,7 @@ pub struct ZbddEngine {
     // probabilities; only truncation reads this.
     scale: f64,
     maxprobs: Vec<f64>,
+    minprobs: Vec<f64>,
     maxprob_stamp: Vec<u64>,
     maxprob_epoch: u64,
     refcounts: Vec<u32>,
@@ -482,12 +357,10 @@ pub struct ZbddEngine {
     // non-evicting minimize memo for the GC-off throughput path.
     minimal: Vec<bool>,
     minimize_memo: HashMap<ZbddRef, ZbddRef>,
-    // Part C: persistent budgeted-join memo. The result of join_budgeted_rec
-    // depends only on (f, g, threshold=min_prob/p_acc), so one table can serve
-    // every join_budgeted call instead of allocating a cold one per call. Only
-    // safe with GC off, where node refs never recycle, so a Some here implies
-    // gc_on == false.
-    join_bcache: Option<JoinCache>,
+    product_levels: Vec<Vec<ProductRequest>>,
+    product_active: BinaryHeap<Reverse<usize>>,
+    product_memo: HashMap<(u32, u32, usize), (f64, ZbddRef)>,
+    next_collection: usize,
 }
 
 const ZBDD_SENTINEL: ZbddNode = ZbddNode {
@@ -495,6 +368,11 @@ const ZBDD_SENTINEL: ZbddNode = ZbddNode {
     high: ZBDD_EMPTY,
     low: ZBDD_EMPTY,
 };
+
+pub(crate) enum MergedVariable {
+    Any(Vec<usize>),
+    All(Vec<usize>),
+}
 
 impl ZbddEngine {
     pub fn new() -> Self {
@@ -523,8 +401,10 @@ impl ZbddEngine {
         } else {
             (Vec::new(), 0)
         };
+        let nodes = vec![ZBDD_SENTINEL, ZBDD_SENTINEL];
+        let next_collection = 2 * nodes.len();
         Self {
-            nodes: vec![ZBDD_SENTINEL, ZBDD_SENTINEL],
+            nodes,
             unique: UniqueTable::new(open_unique),
             computed,
             computed_mask,
@@ -539,6 +419,7 @@ impl ZbddEngine {
             var_probs: Vec::new(),
             scale: 1.0,
             maxprobs: vec![0.0, 0.0],
+            minprobs: vec![0.0, 0.0],
             maxprob_stamp: vec![0, 0],
             maxprob_epoch: 1,
             refcounts: vec![0, 0],
@@ -548,7 +429,10 @@ impl ZbddEngine {
             use_computed,
             minimal: vec![false, false],
             minimize_memo: HashMap::new(),
-            join_bcache: if !gc_on { Some(JoinCache::new()) } else { None },
+            product_levels: Vec::new(),
+            product_active: BinaryHeap::new(),
+            product_memo: HashMap::new(),
+            next_collection,
         }
     }
 
@@ -564,6 +448,8 @@ impl ZbddEngine {
         self.removevar_cache.clear();
         self.convert_cache.clear();
         self.maxprobs.truncate(2);
+        self.minprobs.truncate(2);
+        self.product_memo.clear();
         self.maxprob_stamp.truncate(2);
         self.maxprob_epoch += 1;
         self.refcounts.truncate(2);
@@ -571,9 +457,7 @@ impl ZbddEngine {
         self.minimal.truncate(2);
         self.minimize_memo.clear();
         self.free_list.clear();
-        if self.join_bcache.is_some() {
-            self.join_bcache = Some(JoinCache::new());
-        }
+        self.next_collection = 2 * self.nodes.len();
         for e in self.computed.iter_mut() {
             e.used = false;
         }
@@ -746,13 +630,11 @@ impl ZbddEngine {
     }
 
     pub(crate) fn alloc_node(&mut self, node: ZbddNode) -> ZbddRef {
-        if self.gc_on {
-            if let Some(idx) = self.free_list.pop() {
-                self.nodes[idx as usize] = node;
-                self.refcounts[idx as usize] = 0;
-                self.minimal[idx as usize] = false;
-                return ZbddRef(idx);
-            }
+        if let Some(idx) = self.free_list.pop() {
+            self.nodes[idx as usize] = node;
+            self.refcounts[idx as usize] = 0;
+            self.minimal[idx as usize] = false;
+            return ZbddRef(idx);
         }
         let idx = self.nodes.len() as u32;
         self.nodes.push(node);
@@ -760,6 +642,7 @@ impl ZbddEngine {
         self.generations.push(0);
         self.minimal.push(false);
         self.maxprobs.push(0.0);
+        self.minprobs.push(0.0);
         self.maxprob_stamp.push(0);
         ZbddRef(idx)
     }
@@ -792,6 +675,82 @@ impl ZbddEngine {
         self.free_list.push(i as u32);
         self.deref(node.high);
         self.deref(node.low);
+    }
+
+    pub(crate) fn reclaims_by_tracing(&self) -> bool {
+        !self.gc_on
+    }
+
+    fn slots_in_use(&self) -> usize {
+        self.nodes.len() - self.free_list.len()
+    }
+
+    pub(crate) fn collection_due(&self) -> bool {
+        !self.gc_on && self.slots_in_use() >= self.next_collection
+    }
+
+    pub(crate) fn collect(&mut self, roots: &[ZbddRef]) {
+        let mut marked = vec![false; self.nodes.len()];
+        let mut pending: Vec<ZbddRef> = roots.to_vec();
+        loop {
+            self.mark_reachable(&mut marked, &mut pending);
+            for (&(f, g, _), &(_, result)) in self.product_memo.iter() {
+                let keys_live =
+                    Self::survives(&marked, ZbddRef(f)) && Self::survives(&marked, ZbddRef(g));
+                if keys_live && !Self::survives(&marked, result) {
+                    pending.push(result);
+                }
+            }
+            if pending.is_empty() {
+                break;
+            }
+        }
+        self.product_memo.retain(|&(f, g, _), _| {
+            Self::survives(&marked, ZbddRef(f)) && Self::survives(&marked, ZbddRef(g))
+        });
+        self.minimize_memo.retain(|&f, &mut minimal| {
+            Self::survives(&marked, f) && Self::survives(&marked, minimal)
+        });
+        self.clear_op_caches();
+        self.convert_cache.clear();
+        for entry in self.computed.iter_mut() {
+            entry.used = false;
+        }
+        self.unique.clear();
+        self.free_list.clear();
+        for i in (2..self.nodes.len()).rev() {
+            if marked[i] {
+                self.unique.insert(self.nodes[i], ZbddRef(i as u32));
+            } else {
+                self.nodes[i] = ZBDD_SENTINEL;
+                self.generations[i] = self.generations[i].wrapping_add(1);
+                self.minimal[i] = false;
+                self.free_list.push(i as u32);
+            }
+        }
+        self.next_collection = 2 * self.slots_in_use();
+        debug!(
+            target: "praxis::zbdd",
+            live = self.slots_in_use() - 2,
+            slots = self.nodes.len(),
+            "zbdd collection"
+        );
+    }
+
+    fn survives(marked: &[bool], f: ZbddRef) -> bool {
+        f.is_terminal() || marked[f.index()]
+    }
+
+    fn mark_reachable(&self, marked: &mut [bool], pending: &mut Vec<ZbddRef>) {
+        while let Some(f) = pending.pop() {
+            if f.is_terminal() || marked[f.index()] {
+                continue;
+            }
+            marked[f.index()] = true;
+            let node = self.nodes[f.index()];
+            pending.push(node.high);
+            pending.push(node.low);
+        }
     }
 
     fn is_minimal(&self, f: ZbddRef) -> bool {
@@ -1076,119 +1035,284 @@ impl ZbddEngine {
         min_prob: f64,
         remaining: usize,
     ) -> ZbddRef {
-        self.ensure_maxprob(f);
-        self.ensure_maxprob(g);
-        let persistent = self.join_bcache.is_some();
-        let mut cache = self.join_bcache.take().unwrap_or_else(JoinCache::new);
-        // `min_prob` is expressed in the final product value. Start with the
-        // engine scale so event-tree joins compare IE frequency times the
-        // conditional product directly against the analyst's cutoff.
-        let result = self.join_budgeted_rec(f, g, self.scale, min_prob, remaining, &mut cache);
-        if persistent {
-            self.join_bcache = Some(cache);
-        } else if self.gc_on {
-            for i in 0..cache.slots.len() {
-                let e = cache.slots[i];
-                if e.used {
-                    self.deref(ZbddRef(e.result));
-                }
+        self.ensure_bounds(f);
+        self.ensure_bounds(g);
+        let threshold = Self::child_threshold(min_prob, self.scale);
+        let key = if f.raw() <= g.raw() {
+            (f.raw(), g.raw(), remaining)
+        } else {
+            (g.raw(), f.raw(), remaining)
+        };
+        if let Some(&(stored, known)) = self.product_memo.get(&key) {
+            if stored <= threshold {
+                self.ensure_bounds(known);
+                return self.prune_to(known, threshold);
             }
         }
+        let limit = if remaining == usize::MAX {
+            UNLIMITED
+        } else {
+            remaining.min((UNLIMITED - 1) as usize) as u32
+        };
+        match self.product_edge(f, g, limit, threshold, NO_PARENT) {
+            CHILD_EMPTY => return ZBDD_EMPTY,
+            CHILD_BASE => return ZBDD_BASE,
+            _ => {}
+        }
+        let mut tasks: Vec<ProductTask> = Vec::new();
+        let mut root_task = 0;
+        while let Some(Reverse(var)) = self.product_active.pop() {
+            let mut requests = std::mem::take(&mut self.product_levels[var]);
+            requests.sort_unstable_by_key(|r| (r.f, r.g, r.remaining));
+            let mut start = 0;
+            while start < requests.len() {
+                let first = requests[start];
+                let mut end = start + 1;
+                let mut threshold = first.threshold;
+                while end < requests.len()
+                    && requests[end].f == first.f
+                    && requests[end].g == first.g
+                    && requests[end].remaining == first.remaining
+                {
+                    threshold = threshold.min(requests[end].threshold);
+                    end += 1;
+                }
+                let id = tasks.len() as u32;
+                for request in &requests[start..end] {
+                    if request.link == NO_PARENT {
+                        root_task = id;
+                    } else {
+                        let parent = (request.link / 4) as usize;
+                        tasks[parent].children[(request.link % 4) as usize] = id;
+                    }
+                }
+                let (children, high) = self.product_expand(first, threshold, var, id);
+                tasks.push(ProductTask {
+                    threshold,
+                    high,
+                    children,
+                    var: var as u32,
+                    result: ZBDD_EMPTY,
+                });
+                start = end;
+            }
+        }
+        let mut pruned: HashMap<(ZbddRef, u64), ZbddRef> = HashMap::new();
+        for id in (0..tasks.len()).rev() {
+            let task = tasks[id];
+            let mut parts = [ZBDD_EMPTY; 4];
+            for (slot, part) in parts.iter_mut().enumerate() {
+                let wanted = if slot < 3 { task.high } else { task.threshold };
+                *part = match task.children[slot] {
+                    CHILD_EMPTY | CHILD_PENDING => ZBDD_EMPTY,
+                    CHILD_BASE => ZBDD_BASE,
+                    child => {
+                        let child = tasks[child as usize];
+                        if child.threshold < wanted {
+                            self.ensure_bounds(child.result);
+                            self.prune_below_rec(child.result, wanted, &mut pruned)
+                        } else {
+                            self.protect(child.result);
+                            child.result
+                        }
+                    }
+                };
+            }
+            let a = self.union(parts[0], parts[1]);
+            let hi = self.union(a, parts[2]);
+            let raw = self.make_node(task.var as usize, hi, parts[3]);
+            let result = if self.gc_on {
+                let m = self.minimize(raw);
+                self.deref(raw);
+                m
+            } else {
+                raw
+            };
+            for part in parts {
+                self.deref(part);
+            }
+            self.deref(a);
+            self.deref(hi);
+            tasks[id].result = result;
+        }
+        let result = tasks[root_task as usize].result;
+        self.protect(result);
+        for task in tasks.iter() {
+            self.deref(task.result);
+        }
+        if self.gc_on {
+            for &r in pruned.values() {
+                self.deref(r);
+            }
+        }
+        self.remember_product(key, threshold, result);
         result
     }
 
-    fn join_budgeted_rec(
+    fn remember_product(&mut self, key: (u32, u32, usize), threshold: f64, result: ZbddRef) {
+        match self.product_memo.get(&key).copied() {
+            Some((stored, _)) if stored <= threshold => {}
+            Some((_, old)) => {
+                self.protect(result);
+                self.deref(old);
+                self.product_memo.insert(key, (threshold, result));
+            }
+            None => {
+                self.protect(ZbddRef(key.0));
+                self.protect(ZbddRef(key.1));
+                self.protect(result);
+                self.product_memo.insert(key, (threshold, result));
+            }
+        }
+    }
+
+    fn release_product_memo(&mut self) {
+        let entries: Vec<((u32, u32, usize), (f64, ZbddRef))> = self.product_memo.drain().collect();
+        for ((f, g, _), (_, result)) in entries {
+            self.deref(ZbddRef(f));
+            self.deref(ZbddRef(g));
+            self.deref(result);
+        }
+    }
+
+    fn product_expand(
+        &mut self,
+        request: ProductRequest,
+        threshold: f64,
+        var: usize,
+        id: u32,
+    ) -> ([u32; 4], f64) {
+        let (f1, f0) = self.cofactors(ZbddRef(request.f), var);
+        let (g1, g0) = self.cofactors(ZbddRef(request.g), var);
+        let mut children = [CHILD_EMPTY; 4];
+        let mut high = 0.0;
+        if request.remaining > 0 {
+            let next = if request.remaining == UNLIMITED {
+                UNLIMITED
+            } else {
+                request.remaining - 1
+            };
+            high = Self::child_threshold(threshold, self.var_probs[var]);
+            children[0] = self.product_edge(f1, g1, next, high, id * 4);
+            children[1] = self.product_edge(f1, g0, next, high, id * 4 + 1);
+            children[2] = self.product_edge(f0, g1, next, high, id * 4 + 2);
+        }
+        children[3] = self.product_edge(f0, g0, request.remaining, threshold, id * 4 + 3);
+        (children, high)
+    }
+
+    fn cofactors(&self, f: ZbddRef, var: usize) -> (ZbddRef, ZbddRef) {
+        if self.var_of(f) == var {
+            let node = self.node(f);
+            (node.high, node.low)
+        } else {
+            (ZBDD_EMPTY, f)
+        }
+    }
+
+    fn product_edge(
         &mut self,
         f: ZbddRef,
         g: ZbddRef,
-        p_acc: f64,
-        min_prob: f64,
-        remaining: usize,
-        cache: &mut JoinCache,
+        remaining: u32,
+        threshold: f64,
+        link: u32,
+    ) -> u32 {
+        let (f, g) = if f.raw() <= g.raw() { (f, g) } else { (g, f) };
+        if f.is_empty() || g.is_empty() || self.maxprob_of(f).min(self.maxprob_of(g)) < threshold {
+            CHILD_EMPTY
+        } else if f.is_base() && g.is_base() {
+            CHILD_BASE
+        } else {
+            let var = self.var_of(f).min(self.var_of(g));
+            if self.product_levels.len() <= var {
+                self.product_levels.resize_with(var + 1, Vec::new);
+            }
+            if self.product_levels[var].is_empty() {
+                self.product_active.push(Reverse(var));
+            }
+            self.product_levels[var].push(ProductRequest {
+                threshold,
+                f: f.raw(),
+                g: g.raw(),
+                remaining,
+                link,
+            });
+            CHILD_PENDING
+        }
+    }
+
+    pub(crate) fn drop_exclusive_pairs(&mut self, f: ZbddRef, exclusive: &[bool]) -> ZbddRef {
+        let mut memo: HashMap<(u32, bool), ZbddRef> = HashMap::new();
+        let kept = self.drop_exclusive_pairs_rec(f, false, exclusive, &mut memo);
+        for (_, entry) in memo.drain() {
+            self.deref(entry);
+        }
+        kept
+    }
+
+    fn drop_exclusive_pairs_rec(
+        &mut self,
+        f: ZbddRef,
+        seen: bool,
+        exclusive: &[bool],
+        memo: &mut HashMap<(u32, bool), ZbddRef>,
     ) -> ZbddRef {
-        if f.is_empty() || g.is_empty() {
-            return ZBDD_EMPTY;
+        if f.is_terminal() {
+            return f;
         }
-        let mf = if f.is_base() {
-            1.0
-        } else {
-            self.maxprobs[f.index()]
-        };
-        let mg = if g.is_base() {
-            1.0
-        } else {
-            self.maxprobs[g.index()]
-        };
-        if p_acc * mf.min(mg) < min_prob {
-            return ZBDD_EMPTY;
+        if let Some(&entry) = memo.get(&(f.raw(), seen)) {
+            self.protect(entry);
+            return entry;
         }
-        if f.is_base() && g.is_base() {
-            return if p_acc >= min_prob {
-                ZBDD_BASE
-            } else {
-                ZBDD_EMPTY
-            };
+        let node = *self.node(f);
+        let marked = exclusive.get(node.var).copied().unwrap_or(false);
+        let high = if marked && seen {
+            ZBDD_EMPTY
+        } else {
+            self.drop_exclusive_pairs_rec(node.high, seen || marked, exclusive, memo)
+        };
+        let low = self.drop_exclusive_pairs_rec(node.low, seen, exclusive, memo);
+        let kept = if high == node.high && low == node.low {
+            self.protect(f);
+            f
+        } else {
+            self.make_node(node.var, high, low)
+        };
+        self.deref(high);
+        self.deref(low);
+        self.protect(kept);
+        memo.insert((f.raw(), seen), kept);
+        kept
+    }
+
+    pub(crate) fn from_sorted_sets(&mut self, sets: &[Vec<usize>]) -> ZbddRef {
+        self.from_sorted_sets_at(sets, 0)
+    }
+
+    fn from_sorted_sets_at(&mut self, sets: &[Vec<usize>], depth: usize) -> ZbddRef {
+        let ended = sets.iter().take_while(|set| set.len() == depth).count();
+        let rest = &sets[ended..];
+        let mut groups: Vec<(usize, usize, usize)> = Vec::new();
+        let mut start = 0;
+        while start < rest.len() {
+            let var = rest[start][depth];
+            let mut end = start + 1;
+            while end < rest.len() && rest[end][depth] == var {
+                end += 1;
+            }
+            groups.push((var, start, end));
+            start = end;
         }
-        if let Some(r) = cache.get(f.raw(), g.raw(), min_prob / p_acc, min_prob, remaining) {
-            let r = ZbddRef(r);
-            self.protect(r);
-            return r;
+        let mut family = if ended > 0 { ZBDD_BASE } else { ZBDD_EMPTY };
+        for &(var, start, end) in groups.iter().rev() {
+            let high = self.from_sorted_sets_at(&rest[start..end], depth + 1);
+            let node = self.make_node(var, high, family);
+            self.deref(high);
+            self.deref(family);
+            family = node;
         }
-        let fv = self.var_of(f);
-        let gv = self.var_of(g);
-        let v = fv.min(gv);
-        let p_v = self.var_probs[v];
-        let (f1, f0) = if fv == v {
-            (self.node(f).high, self.node(f).low)
-        } else {
-            (ZBDD_EMPTY, f)
-        };
-        let (g1, g0) = if gv == v {
-            (self.node(g).high, self.node(g).low)
-        } else {
-            (ZBDD_EMPTY, g)
-        };
-        let (j11, j10, j01) = if remaining == 0 {
-            (ZBDD_EMPTY, ZBDD_EMPTY, ZBDD_EMPTY)
-        } else {
-            let p_hi = p_acc * p_v;
-            let next_remaining = remaining - 1;
-            (
-                self.join_budgeted_rec(f1, g1, p_hi, min_prob, next_remaining, cache),
-                self.join_budgeted_rec(f1, g0, p_hi, min_prob, next_remaining, cache),
-                self.join_budgeted_rec(f0, g1, p_hi, min_prob, next_remaining, cache),
-            )
-        };
-        let a = self.union(j11, j10);
-        let hi = self.union(a, j01);
-        let lo = self.join_budgeted_rec(f0, g0, p_acc, min_prob, remaining, cache);
-        // Part A: minimal-by-construction. Only worthwhile under GC, where the raw
-        // superset spine is reclaimed; in GC-off nothing is freed so it only adds
-        // interned nodes. With the minimal bit, re-minimizing is O(1).
-        let raw = self.make_node(v, hi, lo);
-        let result = if self.gc_on {
-            let m = self.minimize(raw);
-            self.deref(raw);
-            m
-        } else {
-            raw
-        };
-        self.deref(j11);
-        self.deref(j10);
-        self.deref(j01);
-        self.deref(a);
-        self.deref(hi);
-        self.deref(lo);
-        self.protect(result);
-        cache.insert(
-            f.raw(),
-            g.raw(),
-            min_prob / p_acc,
-            min_prob,
-            remaining,
-            result.raw(),
-        );
-        result
+        family
     }
 
     pub(crate) fn difference(&mut self, f: ZbddRef, g: ZbddRef) -> ZbddRef {
@@ -1270,11 +1394,11 @@ impl ZbddEngine {
             let f_lo = self.node(f).low;
             let g_hi = self.node(g).high;
             let g_lo = self.node(g).low;
-            let g_union = self.union(g_hi, g_lo);
-            let hi = self.nonsuperset(f_hi, g_union);
+            let kept = self.nonsuperset(f_hi, g_hi);
+            let hi = self.nonsuperset(kept, g_lo);
+            self.deref(kept);
             let lo = self.nonsuperset(f_lo, g_lo);
             let r = self.make_node(f_var, hi, lo);
-            self.deref(g_union);
             self.deref(hi);
             self.deref(lo);
             r
@@ -1482,6 +1606,64 @@ impl ZbddEngine {
             self.union(hi_r, lo_r)
         } else {
             self.make_node(var, hi_r, lo_r)
+        };
+        self.deref(hi_r);
+        self.deref(lo_r);
+        cache.insert(f, result);
+        result
+    }
+
+    pub(crate) fn expand_merged(
+        &mut self,
+        f: ZbddRef,
+        merged: &HashMap<usize, MergedVariable>,
+        cache: &mut HashMap<ZbddRef, ZbddRef>,
+    ) -> ZbddRef {
+        if f.is_terminal() {
+            return f;
+        }
+        if let Some(&r) = cache.get(&f) {
+            if self.is_dead(r) {
+                cache.remove(&f);
+            } else {
+                self.protect(r);
+                return r;
+            }
+        }
+        let ZbddNode {
+            var,
+            high: hi,
+            low: lo,
+        } = *self.node(f);
+        let hi_r = self.expand_merged(hi, merged, cache);
+        let lo_r = self.expand_merged(lo, merged, cache);
+        let result = match merged.get(&var) {
+            None => self.make_node(var, hi_r, lo_r),
+            Some(MergedVariable::Any(members)) => {
+                let mut chain = lo_r;
+                self.protect(chain);
+                for &member in members.iter().rev() {
+                    let next = self.make_node(member, hi_r, chain);
+                    self.deref(chain);
+                    chain = next;
+                }
+                chain
+            }
+            Some(MergedVariable::All(members)) => {
+                let mut chain = hi_r;
+                self.protect(chain);
+                for &member in members.iter().skip(1).rev() {
+                    let next = self.make_node(member, chain, ZBDD_EMPTY);
+                    self.deref(chain);
+                    chain = next;
+                }
+                let top = match members.first() {
+                    Some(&first) => self.make_node(first, chain, lo_r),
+                    None => self.union(chain, lo_r),
+                };
+                self.deref(chain);
+                top
+            }
         };
         self.deref(hi_r);
         self.deref(lo_r);
@@ -1763,6 +1945,7 @@ impl ZbddEngine {
     }
 
     pub fn set_var_probs(&mut self, probs: Vec<f64>) {
+        self.release_product_memo();
         self.var_probs = probs;
         self.maxprob_epoch += 1;
     }
@@ -1858,10 +2041,14 @@ impl ZbddEngine {
     /// `scale * prod(var_probs)`, so with a scale of 1.0 this is a probability
     /// cut-off and with an initiating-event frequency it is a frequency cut-off.
     pub fn prune_below_probability(&mut self, f: ZbddRef, min_value: f64) -> ZbddRef {
-        self.ensure_maxprob(f);
+        self.ensure_bounds(f);
+        let threshold = Self::child_threshold(min_value, self.scale);
+        self.prune_to(f, threshold)
+    }
+
+    fn prune_to(&mut self, f: ZbddRef, threshold: f64) -> ZbddRef {
         let mut cache: HashMap<(ZbddRef, u64), ZbddRef> = HashMap::new();
-        let start = self.scale;
-        let result = self.prune_below_rec(f, start, min_value, &mut cache);
+        let result = self.prune_below_rec(f, threshold, &mut cache);
         if self.gc_on {
             for &v in cache.values() {
                 self.deref(v);
@@ -1870,49 +2057,83 @@ impl ZbddEngine {
         result
     }
 
-    fn ensure_maxprob(&mut self, f: ZbddRef) -> f64 {
-        if f.is_empty() {
-            return 0.0;
+    pub fn has_product_below(&mut self, f: ZbddRef, min_value: f64) -> bool {
+        self.ensure_bounds(f);
+        self.minprob_of(f) < Self::child_threshold(min_value, self.scale)
+    }
+
+    fn child_threshold(threshold: f64, p: f64) -> f64 {
+        if threshold <= 0.0 {
+            return threshold;
         }
-        if f.is_base() {
-            return 1.0;
+        if p <= 0.0 {
+            return f64::INFINITY;
+        }
+        let mut m = threshold / p;
+        if !m.is_finite() {
+            return f64::INFINITY;
+        }
+        while m > 0.0 && p * m.next_down() >= threshold {
+            m = m.next_down();
+        }
+        while p * m < threshold {
+            m = m.next_up();
+        }
+        m
+    }
+
+    fn ensure_bounds(&mut self, f: ZbddRef) {
+        if f.is_terminal() {
+            return;
         }
         let i = f.index();
         let stamp = (self.maxprob_epoch << 32) | (self.generations[i] as u64);
         if self.maxprob_stamp[i] == stamp {
-            return self.maxprobs[i];
+            return;
         }
         let ZbddNode { var, high, low } = *self.node(f);
-        let ph = self.var_probs[var] * self.ensure_maxprob(high);
-        let pl = self.ensure_maxprob(low);
-        let r = ph.max(pl);
-        self.maxprobs[i] = r;
+        self.ensure_bounds(high);
+        self.ensure_bounds(low);
+        let p = self.var_probs[var];
+        self.maxprobs[i] = (p * self.maxprob_of(high)).max(self.maxprob_of(low));
+        self.minprobs[i] = (p * self.minprob_of(high)).min(self.minprob_of(low));
         self.maxprob_stamp[i] = stamp;
-        r
+    }
+
+    fn maxprob_of(&self, f: ZbddRef) -> f64 {
+        if f.is_empty() {
+            0.0
+        } else if f.is_base() {
+            1.0
+        } else {
+            self.maxprobs[f.index()]
+        }
+    }
+
+    fn minprob_of(&self, f: ZbddRef) -> f64 {
+        if f.is_empty() {
+            f64::INFINITY
+        } else if f.is_base() {
+            1.0
+        } else {
+            self.minprobs[f.index()]
+        }
     }
 
     fn prune_below_rec(
         &mut self,
         f: ZbddRef,
-        p_acc: f64,
-        min_prob: f64,
+        threshold: f64,
         cache: &mut HashMap<(ZbddRef, u64), ZbddRef>,
     ) -> ZbddRef {
-        if f.is_empty() {
+        if self.maxprob_of(f) < threshold {
             return ZBDD_EMPTY;
         }
-        let fmax = if f.is_base() {
-            1.0
-        } else {
-            self.maxprobs[f.index()]
-        };
-        if p_acc * fmax < min_prob {
-            return ZBDD_EMPTY;
+        if self.minprob_of(f) >= threshold {
+            self.protect(f);
+            return f;
         }
-        if f.is_base() {
-            return ZBDD_BASE;
-        }
-        let key = (f, p_acc.to_bits());
+        let key = (f, threshold.to_bits());
         if let Some(&r) = cache.get(&key) {
             self.protect(r);
             return r;
@@ -1922,9 +2143,9 @@ impl ZbddEngine {
             high: hi,
             low: lo,
         } = *self.node(f);
-        let p_var = self.var_probs[var];
-        let hi_r = self.prune_below_rec(hi, p_acc * p_var, min_prob, cache);
-        let lo_r = self.prune_below_rec(lo, p_acc, min_prob, cache);
+        let hi_threshold = Self::child_threshold(threshold, self.var_probs[var]);
+        let hi_r = self.prune_below_rec(hi, hi_threshold, cache);
+        let lo_r = self.prune_below_rec(lo, threshold, cache);
         let result = self.make_node(var, hi_r, lo_r);
         self.deref(hi_r);
         self.deref(lo_r);
@@ -2208,6 +2429,43 @@ mod tests {
         assert_eq!(z.join(a, ZBDD_BASE), a);
         assert_eq!(z.join(ZBDD_EMPTY, a), ZBDD_EMPTY);
         assert_eq!(z.join(a, ZBDD_EMPTY), ZBDD_EMPTY);
+    }
+
+    #[test]
+    fn expand_merged_puts_one_member_in_place_of_an_any_variable() {
+        let mut z = ZbddEngine::new();
+        let tail = z.multiply(6, ZBDD_BASE);
+        let with_merged = z.multiply(0, tail);
+        let other = z.multiply(8, ZBDD_BASE);
+        let family = z.union(with_merged, other);
+        let merged = HashMap::from([(0usize, MergedVariable::Any(vec![2, 4]))]);
+        let mut cache = HashMap::new();
+        let expanded = z.expand_merged(family, &merged, &mut cache);
+        let mut got = z.enumerate(expanded);
+        got.iter_mut().for_each(|s| s.sort());
+        got.sort();
+        assert_eq!(got, vec![vec![2, 6], vec![4, 6], vec![8]]);
+    }
+
+    #[test]
+    fn expand_merged_puts_every_member_in_place_of_an_all_variable() {
+        let mut z = ZbddEngine::new();
+        let tail = z.multiply(6, ZBDD_BASE);
+        let with_merged = z.multiply(0, tail);
+        let alone = z.multiply(0, ZBDD_BASE);
+        let other = z.multiply(8, ZBDD_BASE);
+        let first = z.union(with_merged, other);
+        let merged = HashMap::from([(0usize, MergedVariable::All(vec![2, 4]))]);
+        let mut cache = HashMap::new();
+        let expanded = z.expand_merged(first, &merged, &mut cache);
+        let mut got = z.enumerate(expanded);
+        got.iter_mut().for_each(|s| s.sort());
+        got.sort();
+        assert_eq!(got, vec![vec![2, 4, 6], vec![8]]);
+
+        let mut cache = HashMap::new();
+        let expanded = z.expand_merged(alone, &merged, &mut cache);
+        assert_eq!(z.enumerate(expanded), vec![vec![2, 4]]);
     }
 
     #[test]

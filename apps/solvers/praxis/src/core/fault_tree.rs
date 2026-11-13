@@ -138,6 +138,10 @@ impl FaultTree {
         &self.basic_events
     }
 
+    pub fn remove_basic_event(&mut self, id: &str) -> Option<BasicEvent> {
+        self.basic_events.remove(id)
+    }
+
     pub fn add_house_event(&mut self, house_event: HouseEvent) -> Result<()> {
         let id = house_event.element().id().to_string();
         if self.house_events.contains_key(&id) {

@@ -203,6 +203,13 @@ pub struct Args {
     )]
     pub export_model_pbf: Option<PathBuf>,
 
+    #[arg(
+        long = "export-merged-model-pbf",
+        value_name = "PATH",
+        help = "Merge the basic events that play the same role, export that fault-tree model as PRAXIS Boolean Format (PBF), list the merged events, and exit"
+    )]
+    pub export_merged_model_pbf: Option<PathBuf>,
+
     #[arg(long = "output-format", value_enum, default_value_t = OutputFormat::Xml)]
     pub output_format: OutputFormat,
 

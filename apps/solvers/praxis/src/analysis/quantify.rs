@@ -330,13 +330,13 @@ pub fn quantify(fault_tree: &FaultTree, settings: &Settings) -> Result<QuantResu
             let mut per = Vec::with_capacity(named.len());
             let mut max_order = 0;
             let mut list = Vec::with_capacity(named.len());
-            for cs in &named {
+            for cs in named {
                 let mut literals: Vec<(String, bool)> = Vec::with_capacity(cs.len());
                 let mut p = 1.0;
                 for lit in cs {
                     let (name, negated) = match lit.strip_prefix('~') {
                         Some(rest) => (rest.to_string(), true),
-                        None => (lit.clone(), false),
+                        None => (lit, false),
                     };
                     let pe = probs.get(&name).copied().unwrap_or(0.0);
                     p *= if negated { 1.0 - pe } else { pe };

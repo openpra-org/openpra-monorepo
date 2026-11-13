@@ -5,6 +5,7 @@ pub mod fault_tree;
 pub mod importance;
 pub mod labelled_zbdd;
 pub mod load_capacity;
+pub mod merged_model;
 pub mod prime_implicants;
 pub mod quantify;
 pub mod sequence_cut_sets;

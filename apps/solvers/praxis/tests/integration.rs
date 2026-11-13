@@ -34,6 +34,8 @@ mod cli_event_tree_mc_xml_output;
 mod cli_importance_output;
 #[path = "integration/cli/cli_mc_xml_output.rs"]
 mod cli_mc_xml_output;
+#[path = "integration/cli/cli_merged_model_export.rs"]
+mod cli_merged_model_export;
 #[path = "integration/cli/cli_mocus.rs"]
 mod cli_mocus;
 #[path = "integration/cli/cli_pbf_export.rs"]

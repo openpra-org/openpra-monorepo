@@ -3,6 +3,7 @@ use quick_xml::Writer;
 use std::io::Write;
 
 use crate::analysis::fault_tree::AnalysisResult;
+use crate::analysis::merged_model::{MergedEvent, MergedRole};
 use crate::core::event::BasicEvent;
 use crate::core::fault_tree::FaultTree;
 use crate::core::gate::{Formula, Gate};
@@ -256,6 +257,41 @@ pub fn write_results_with_monte_carlo<W: Write>(
     writer.write_event(Event::End(BytesEnd::new("analysis-results")))?;
     writer.write_event(Event::End(BytesEnd::new("opsa-mef")))?;
 
+    Ok(())
+}
+
+pub fn write_merged_events<W: Write>(
+    writer: &mut Writer<W>,
+    model_name: &str,
+    merged_events: &[MergedEvent],
+) -> Result<()> {
+    writer.write_event(Event::Decl(BytesDecl::new("1.0", Some("utf-8"), None)))?;
+    let mut root = BytesStart::new("merged-events");
+    root.push_attribute(("model", model_name));
+    root.push_attribute(("count", merged_events.len().to_string().as_str()));
+    writer.write_event(Event::Start(root))?;
+
+    for merged in merged_events {
+        let mut element = BytesStart::new("merged-event");
+        element.push_attribute(("name", merged.name.as_str()));
+        element.push_attribute((
+            "role",
+            match merged.role {
+                MergedRole::Any => "any",
+                MergedRole::All => "all",
+            },
+        ));
+        element.push_attribute(("probability", merged.probability.to_string().as_str()));
+        writer.write_event(Event::Start(element))?;
+        for member in &merged.members {
+            let mut member_element = BytesStart::new("basic-event");
+            member_element.push_attribute(("name", member.as_str()));
+            writer.write_event(Event::Empty(member_element))?;
+        }
+        writer.write_event(Event::End(BytesEnd::new("merged-event")))?;
+    }
+
+    writer.write_event(Event::End(BytesEnd::new("merged-events")))?;
     Ok(())
 }
 

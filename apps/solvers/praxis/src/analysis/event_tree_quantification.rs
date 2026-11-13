@@ -69,6 +69,22 @@ impl EventTreeHclContext {
     pub fn uncertainty(&self) -> Option<&HclUncertaintySettings> {
         self.uncertainty.as_ref()
     }
+
+    pub(crate) fn network(&self) -> &BayesianGraph {
+        &self.network
+    }
+
+    pub(crate) fn bindings(&self) -> &[HclBindingSpec] {
+        &self.bindings
+    }
+
+    pub(crate) fn base_evidence(&self) -> &[HclEvidenceSpec] {
+        &self.base_evidence
+    }
+
+    pub(crate) fn variable_order(&self) -> Option<&[String]> {
+        self.variable_order.as_deref()
+    }
 }
 
 /// Main HCL diagnostics captured from the existing sequence compilation and point pass.

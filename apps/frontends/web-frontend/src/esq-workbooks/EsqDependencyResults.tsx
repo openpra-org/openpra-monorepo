@@ -1,6 +1,7 @@
-import { useEffect, useId, useState, type JSX } from "react";
+import { useEffect, useId, useMemo, useState, type JSX } from "react";
 import { z } from "zod";
 import type { EsqModel } from "interfaces-mef-types/esq/event-sequence-quantification";
+import { esqEventReader } from "interfaces-mef-types/esq/esq-post-inputs";
 import { esqEndStateRunId, esqSequenceRunId } from "interfaces-mef-types/esq/esq-run-inputs";
 import type { BaseLaw, MixtureLaw } from "interfaces-mef-types/core/uncertainty";
 import type {
@@ -9,6 +10,8 @@ import type {
   EventTreeSequenceAnalysisResult,
 } from "interfaces-shared-types/newly-developed-methods/event-tree";
 import type {
+  HclDependencyCutSetScore,
+  HclDependencyCutSets,
   HclDistributionFit,
   HclEventTreeHazardConvolutionResult,
   HclFitFamily,
@@ -37,6 +40,8 @@ type DependencyOrder = "TREE" | "HIGH" | "LOW";
 
 type DependencyWindow =
   | { kind: "sequence"; scenarioId: string; sequenceId: string }
+  | { kind: "cutSets"; scenarioId: string; sequenceId: string }
+  | { kind: "gridCutSets"; sequenceId: string }
   | { kind: "endState"; scenarioId: string; endStateId: string }
   | { kind: "curve"; endStateId: string }
   | { kind: "details" };
@@ -85,6 +90,8 @@ const SETTINGS_VIEW = jsonView<DependencyResultSettings>(z.object({
 const RESULT_TEXT: Record<DependencyStudy["result"], string> = { PROBABILITY: "Probability", UNCERTAINTY: "Uncertainty" };
 
 const EVIDENCE_TEXT: Record<DependencyStudy["evidence"], string> = { BASE: "Base evidence", SCENARIOS: "Evidence scenarios", HAZARD: "Hazard convolution" };
+
+const CUT_SET_SCORE_TEXT: Record<HclDependencyCutSetScore, string> = { FAILED_EVENTS: "Failed events", FAILED_EVENTS_AND_SEQUENCE: "Failed events and success branches" };
 
 const STATUS_TEXT: Record<string, string> = { SKIPPED: "Skipped, zero hazard weight", FAILED: "Failed", CANCELLED: "Cancelled", QUEUED: "Queued", RUNNING: "Running" };
 
@@ -408,13 +415,20 @@ function EndStateTable({ result, uncertainty, names, onOpen }: { result: EventTr
   );
 }
 
-function SequenceTable({ result, uncertainty, names, order, resetKey, onOpen }: {
+function SequenceName({ name, ranked, onCutSets }: { name: string; ranked: boolean; onCutSets: () => void }): JSX.Element {
+  return ranked
+    ? <button type="button" className="es-records__link" aria-label={`Cut sets of ${name}`} onClick={onCutSets}>{name}</button>
+    : <span className="postable__name">{name}</span>;
+}
+
+function SequenceTable({ result, uncertainty, names, order, resetKey, onOpen, onCutSets }: {
   result: EventTreeAnalysisResult;
   uncertainty: boolean;
   names: DependencyNames;
   order: DependencyOrder;
   resetKey: string;
   onOpen: (sequenceId: string) => void;
+  onCutSets: (sequenceId: string) => void;
 }): JSX.Element | null {
   const rows = ordered(result.sequences, order, (entry) => entry.annualFrequency);
   if (rows.length === 0) return null;
@@ -439,7 +453,7 @@ function SequenceTable({ result, uncertainty, names, order, resetKey, onOpen }: 
                     <td>
                       {uncertainty
                         ? <button type="button" className="es-records__link" aria-label={`Distribution of ${name}`} onClick={() => onOpen(entry.sequenceId)}>{name}</button>
-                        : <span className="postable__name">{name}</span>}
+                        : <SequenceName name={name} ranked={entry.dependencyCutSets !== undefined} onCutSets={() => onCutSets(entry.sequenceId)} />}
                       {endState.length > 0 && <span className="postable__name-sub">{endState}</span>}
                     </td>
                     {uncertainty ? <StatCells point={entry.annualFrequency} summary={entry.uncertainty?.annualFrequency} /> : (
@@ -514,7 +528,7 @@ function cellContribution(row: HazardRow, endStateId: string, names: DependencyN
   return row.sequences.reduce((total, entry) => (names.endStateOf(entry.sequenceId) === endStateId ? total + entry.annualContribution : total), 0);
 }
 
-function HazardOverview({ hazard, scenarios, endStateId, names, order, resetKey, onPick, onCurve }: {
+function HazardOverview({ hazard, scenarios, endStateId, names, order, resetKey, onPick, onCurve, onCutSets }: {
   hazard: HclEventTreeHazardConvolutionResult;
   scenarios: readonly ScenarioEntry[];
   endStateId: string;
@@ -523,6 +537,7 @@ function HazardOverview({ hazard, scenarios, endStateId, names, order, resetKey,
   resetKey: string;
   onPick: (scenarioId: string) => void;
   onCurve: (endStateId: string) => void;
+  onCutSets: (sequenceId: string) => void;
 }): JSX.Element {
   const scenarioOf = new Map(scenarios.map((entry) => [entry.id, entry]));
   const states = [...hazard.endStateAggregates].sort((left, right) => names.endState(left.endStateId).localeCompare(names.endState(right.endStateId)));
@@ -586,7 +601,7 @@ function HazardOverview({ hazard, scenarios, endStateId, names, order, resetKey,
                     return (
                       <tr key={entry.sequenceId}>
                         <td>
-                          <span className="postable__name">{names.sequence(entry.sequenceId)}</span>
+                          <SequenceName name={names.sequence(entry.sequenceId)} ranked={entry.dependencyCutSets !== undefined} onCutSets={() => onCutSets(entry.sequenceId)} />
                           {target !== undefined && <span className="postable__name-sub">{names.endState(target)}</span>}
                         </td>
                         <td className="esq-dep__number-cell">{sciText(entry.convolvedProbability)}</td>
@@ -636,14 +651,16 @@ function HazardOverview({ hazard, scenarios, endStateId, names, order, resetKey,
   );
 }
 
-function HazardCell({ row, scenario, names, order, resetKey }: {
+function HazardCell({ row, scenario, names, order, resetKey, onCutSets }: {
   row: HazardRow;
   scenario: ScenarioEntry;
   names: DependencyNames;
   order: DependencyOrder;
   resetKey: string;
+  onCutSets: (sequenceId: string) => void;
 }): JSX.Element {
   const skipped = row.status === "skipped_zero_weight";
+  const ranked = new Set((scenario.result?.sequences ?? []).filter((entry) => entry.dependencyCutSets !== undefined).map((entry) => entry.sequenceId));
   const sequences = ordered(row.sequences, order, (entry) => entry.annualContribution);
   return (
     <>
@@ -672,7 +689,7 @@ function HazardCell({ row, scenario, names, order, resetKey }: {
                     return (
                       <tr key={entry.sequenceId}>
                         <td>
-                          <span className="postable__name">{name}</span>
+                          <SequenceName name={name} ranked={ranked.has(entry.sequenceId)} onCutSets={() => onCutSets(entry.sequenceId)} />
                           {target !== undefined && <span className="postable__name-sub">{names.endState(target)}</span>}
                         </td>
                         <td className="esq-dep__number-cell">{sciText(entry.conditionalProbability)}</td>
@@ -779,6 +796,53 @@ function SequenceWindow({ result, sequenceId, scenario, names, onClose }: {
         <div className="esq-dep__window">
           <FactsTable label={name} rows={facts} />
           <SampledDistribution result={result} vectorId={`sequence:${sequenceId}`} label={name} point={entry.annualFrequency} summary={entry.uncertainty?.annualFrequency} />
+        </div>
+      </div>
+    </DialogShell>
+  );
+}
+
+function CutSetsWindow({ cutSets, title, scenario, grid, onClose }: {
+  cutSets: HclDependencyCutSets;
+  title: string;
+  scenario: ScenarioEntry | undefined;
+  grid: boolean;
+  onClose: () => void;
+}): JSX.Element {
+  const { esq } = useEsqWorkbook();
+  const reader = useMemo(() => esqEventReader(esq), [esq]);
+  const rows = cutSets.items.map((item, index) => ({ key: `${index}:${item.basicEventIds.join("+")}`, item }));
+  const facts: (readonly [string, string])[] = [
+    ...(scenario === undefined ? [] : [["Scenario", scenario.name === scenario.code ? scenario.code : `${scenario.code} · ${scenario.name}`] as const]),
+    ...(grid ? [["Evidence", "Weighted over the hazard grid"] as const] : []),
+    ["Probability of", CUT_SET_SCORE_TEXT[cutSets.score]],
+    ["Cut sets found", String(cutSets.count)],
+    ["Cut sets shown", String(cutSets.items.length)],
+  ];
+  return (
+    <DialogShell label="Dependency cut sets" onClose={onClose} fit>
+      <DialogHead cap="Ranked cut sets" title={title} onClose={onClose} />
+      <div className="modal__body esq-dialog-body">
+        <div className="esq-dep__window">
+          <FactsTable label={title} rows={facts} />
+          {rows.length > 0 && (
+            <PagedResults items={rows} label="Dependency cut sets" resetKey={`${title}:${scenario?.id ?? ""}:${grid ? "grid" : ""}`}>
+              {(page) => (
+                <table className="postable postable--mid es-records esq-results esq-dep__table" aria-label="Ranked cut sets">
+                  <thead><tr><th scope="col">Cut set</th><th scope="col">{grid ? "Convolved probability" : "Probability"}</th><th scope="col">{grid ? "Integrated frequency (/yr)" : "Frequency (/yr)"}</th></tr></thead>
+                  <tbody>
+                    {page.map((row) => (
+                      <tr key={row.key}>
+                        <td><span className="postable__name">{row.item.basicEventIds.length === 0 ? "No failed event" : row.item.basicEventIds.map((eventId) => reader.code(eventId)).join(" · ")}</span></td>
+                        <td className="esq-dep__number-cell">{sciText(row.item.probability)}</td>
+                        <td className="esq-dep__number-cell">{sciText(row.item.annualFrequency)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </PagedResults>
+          )}
         </div>
       </div>
     </DialogShell>
@@ -983,12 +1047,16 @@ function EsqDependencyResults({ study, model }: { study: DependencyStudy; model:
     setShownWindow({ kind: "sequence", scenarioId: chosen?.id ?? "", sequenceId });
   }
 
+  function openCutSets(sequenceId: string): void {
+    setShownWindow({ kind: "cutSets", scenarioId: chosen?.id ?? "", sequenceId });
+  }
+
   function body(): JSX.Element | null {
     if (study.evidence === "HAZARD") {
       if (hazard === undefined) return null;
-      if (chosen === undefined) return <HazardOverview hazard={hazard} scenarios={scenarios} endStateId={endStateId} names={names} order={settings.order} resetKey={resetKey} onPick={(scenarioId) => set({ scenarioId })} onCurve={(id) => setShownWindow({ kind: "curve", endStateId: id })} />;
+      if (chosen === undefined) return <HazardOverview hazard={hazard} scenarios={scenarios} endStateId={endStateId} names={names} order={settings.order} resetKey={resetKey} onPick={(scenarioId) => set({ scenarioId })} onCurve={(id) => setShownWindow({ kind: "curve", endStateId: id })} onCutSets={(sequenceId) => setShownWindow({ kind: "gridCutSets", sequenceId })} />;
       if (hazardRow === undefined) return null;
-      return <HazardCell row={hazardRow} scenario={chosen} names={names} order={settings.order} resetKey={resetKey} />;
+      return <HazardCell row={hazardRow} scenario={chosen} names={names} order={settings.order} resetKey={resetKey} onCutSets={openCutSets} />;
     }
     if (overview) return <ScenarioOverview scenarios={scenarios} uncertainty={uncertainty} endStateId={endStateId} names={names} order={settings.order} resetKey={`${resetKey}:${endStateId}`} onPick={(scenarioId) => set({ scenarioId })} />;
     if (chosen !== undefined && chosen.result === null) {
@@ -999,7 +1067,7 @@ function EsqDependencyResults({ study, model }: { study: DependencyStudy; model:
       <>
         <Issues issues={single.validationIssues} />
         <EndStateTable result={single} uncertainty={uncertainty} names={names} onOpen={(id) => setShownWindow({ kind: "endState", scenarioId: chosen?.id ?? "", endStateId: id })} />
-        <SequenceTable result={single} uncertainty={uncertainty} names={names} order={settings.order} resetKey={resetKey} onOpen={openSequence} />
+        <SequenceTable result={single} uncertainty={uncertainty} names={names} order={settings.order} resetKey={resetKey} onOpen={openSequence} onCutSets={openCutSets} />
       </>
     );
   }
@@ -1017,6 +1085,16 @@ function EsqDependencyResults({ study, model }: { study: DependencyStudy; model:
         const result = resultOf(scenarioId);
         const scenario = scenarios.find((entry) => entry.id === scenarioId);
         return result === null ? null : <SequenceWindow result={result} sequenceId={sequenceId} scenario={scenario} names={names} onClose={close} />;
+      }
+      case "cutSets": {
+        const { scenarioId, sequenceId } = shownWindow;
+        const cutSets = resultOf(scenarioId)?.sequences.find((entry) => entry.sequenceId === sequenceId)?.dependencyCutSets;
+        const scenario = scenarios.find((entry) => entry.id === scenarioId);
+        return cutSets === undefined ? null : <CutSetsWindow cutSets={cutSets} title={names.sequence(sequenceId)} scenario={scenario} grid={false} onClose={close} />;
+      }
+      case "gridCutSets": {
+        const cutSets = hazard?.sequences.find((entry) => entry.sequenceId === shownWindow.sequenceId)?.dependencyCutSets;
+        return cutSets === undefined ? null : <CutSetsWindow cutSets={cutSets} title={names.sequence(shownWindow.sequenceId)} scenario={undefined} grid onClose={close} />;
       }
       case "endState": {
         const { scenarioId, endStateId: windowEndStateId } = shownWindow;

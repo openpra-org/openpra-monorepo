@@ -4983,6 +4983,142 @@ describe("workbook-owned analysis-run APIs", () => {
     );
   }, 120_000);
 
+  it("ranks cut sets by their probability under the dependency network for one run and for each evidence scenario", async () => {
+    interface RankedItem { order: number; probability: number; annualFrequency: number; basicEventIds: string[] }
+    interface RankedSequence { sequenceId: string; conditionalProbability: number; dependencyCutSets?: { score: string; count: number; items: RankedItem[] } }
+    const configurationId = HCL_CASE_BAYESIAN_IDS.hclConfiguration;
+    const route = `/api/esq-workbooks/${HCL_CASE_ESQ_WORKBOOK_ID}/hcl-configurations/${configurationId}`;
+    const base = {
+      schemaVersion: "1.0.0",
+      modelId: configurationId,
+      workbookRevision: 1,
+      dependencyConfiguration: { workbookId: HCL_CASE_SY_WORKBOOK_ID, modelId: configurationId },
+      eventTree: { workbookId: HCL_CASE_ES_WORKBOOK_ID, modelId: HCL_CASE_EVENT_TREE_IDS.LOOP },
+    };
+    const dependencyCutSets = { score: "FAILED_EVENTS", keep: 5, limitOrder: 3 };
+    const checkRanked = (sequences: RankedSequence[]): number => {
+      let shown = 0;
+      for (const sequence of sequences) {
+        const ranked = sequence.dependencyCutSets;
+        expect(ranked).toBeDefined();
+        if (ranked === undefined) continue;
+        expect(ranked.score).toBe("FAILED_EVENTS");
+        expect(ranked.items.length).toBeLessThanOrEqual(5);
+        expect(ranked.count).toBeGreaterThanOrEqual(ranked.items.length);
+        ranked.items.forEach((item, index) => {
+          expect(item.order).toBe(item.basicEventIds.length);
+          expect(item.order).toBeLessThanOrEqual(3);
+          expect(item.probability).toBeGreaterThanOrEqual(0);
+          expect(item.probability).toBeLessThanOrEqual(1);
+          if (index > 0) expect(item.probability).toBeLessThanOrEqual(ranked.items[index - 1]!.probability);
+        });
+        shown += ranked.items.length;
+      }
+      return shown;
+    };
+
+    const refused = await request(api.getHttpServer())
+      .post(`${route}/event-tree-runs`)
+      .send({ ...base, calculationType: "UNCERTAINTY", dependencyCutSets });
+    expect(refused.status).toBe(400);
+    expect(refused.body.message).toContain("Ranked cut sets");
+
+    const plain = await request(api.getHttpServer()).post(`${route}/event-tree-runs`).send(base);
+    expect(plain.status).toBe(200);
+    const plainResult = await request(api.getHttpServer()).get(`${route}/runs/${plain.body.run.id}/result`);
+    expect(plainResult.status).toBe(200);
+    expect(plainResult.body.sequences.every((sequence: RankedSequence) => sequence.dependencyCutSets === undefined)).toBe(true);
+
+    const single = await request(api.getHttpServer()).post(`${route}/event-tree-runs`).send({ ...base, dependencyCutSets });
+    expect({ status: single.status, failure: single.body.run?.failure ?? null }).toEqual({ status: 200, failure: null });
+    const singleResult = await request(api.getHttpServer()).get(`${route}/runs/${single.body.run.id}/result`);
+    expect(singleResult.status).toBe(200);
+    expect(checkRanked(singleResult.body.sequences)).toBeGreaterThan(0);
+    const plainById = new Map<string, number>(plainResult.body.sequences.map((sequence: RankedSequence) => [sequence.sequenceId, sequence.conditionalProbability]));
+    for (const sequence of singleResult.body.sequences as RankedSequence[]) {
+      expect(sequence.conditionalProbability).toBe(plainById.get(sequence.sequenceId));
+    }
+    const storedSingle = (await runs.findOne({ id: single.body.run.id }).lean().exec())!;
+    expect(storedSingle.nativeRequest).toMatchObject({ request: { mode: "HYBRID_CAUSAL_LOGIC", calculationType: "PROBABILITY", dependencyCutSets } });
+    expect(storedSingle.request).toMatchObject({ dependencyCutSets });
+
+    const batch = await request(api.getHttpServer())
+      .post(`${route}/event-tree-batch-runs`)
+      .send({ ...base, evidenceScenarioIds: [HCL_CASE_SCENARIO_BASE_ID, HCL_CASE_SCENARIO_SEISMIC_ID], dependencyCutSets });
+    expect(batch.status).toBe(200);
+    expect(batch.body.runs).toHaveLength(2);
+    const rankings: RankedSequence[][] = [];
+    for (const row of batch.body.runs) {
+      expect(row.run.status).toBe("SUCCEEDED");
+      const saved = (await runs.findOne({ id: row.run.id }).lean().exec())!;
+      expect(saved.request).toMatchObject({ dependencyCutSets, evidenceScenarioId: row.scenarioId });
+      const result = await request(api.getHttpServer()).get(`${route}/runs/${row.run.id}/result`);
+      expect(result.status).toBe(200);
+      expect(checkRanked(result.body.sequences)).toBeGreaterThan(0);
+      rankings.push(result.body.sequences);
+    }
+    const storedBatch = (await runs.findOne({ id: batch.body.batchId }).lean().exec())!;
+    expect(storedBatch.nativeRequest).toMatchObject({ request: { dependencyCutSets, evidenceBatch: expect.any(Array) } });
+    const leading = (sequences: RankedSequence[]): string => JSON.stringify(sequences.map((sequence) => sequence.dependencyCutSets?.items.map((item) => [item.basicEventIds, item.probability])));
+    expect(leading(rankings[0]!)).not.toBe(leading(rankings[1]!));
+  }, 120_000);
+
+  it("ranks the cut sets of a fault tree by their probability under the dependency network", async () => {
+    const route = `/api/esq-workbooks/${ESQ_WORKBOOK_ID}/hcl-configurations/${HCL}`;
+    const base = { schemaVersion: "1.0.0", modelId: HCL, workbookRevision: 7, faultTreeTopGate: topReference(FT_AND, TOP_AND) };
+    const dependencyCutSets = { keep: 5, cutOff: 1e-6 };
+
+    const refused = await request(api.getHttpServer())
+      .post(`${route}/fault-tree-runs`)
+      .send({ ...base, calculationType: "UNCERTAINTY", dependencyCutSets });
+    expect(refused.status).toBe(400);
+    expect(refused.body.message).toContain("Ranked cut sets");
+    const malformed = await request(api.getHttpServer())
+      .post(`${route}/fault-tree-runs`)
+      .send({ ...base, dependencyCutSets: { keep: 5, cutOff: 0 } });
+    expect(malformed.status).toBe(400);
+
+    const single = await request(api.getHttpServer()).post(`${route}/fault-tree-runs`).send({ ...base, dependencyCutSets });
+    expect({ status: single.status, failure: single.body.run?.failure ?? null }).toEqual({ status: 200, failure: null });
+    const singleResult = await request(api.getHttpServer()).get(`${route}/runs/${single.body.run.id}/result`);
+    expect(singleResult.status).toBe(200);
+    expect(singleResult.body.probability).toBeCloseTo(0.16, 12);
+    expect(singleResult.body.dependencyCutSets.count).toBe(1);
+    expect(singleResult.body.dependencyCutSets.items).toHaveLength(1);
+    expect(singleResult.body.dependencyCutSets.items[0].order).toBe(2);
+    expect([...singleResult.body.dependencyCutSets.items[0].basicEventIds].sort()).toEqual([EVENT_A, EVENT_B].sort());
+    expect(singleResult.body.dependencyCutSets.items[0].probability).toBeCloseTo(0.16, 12);
+    const storedSingle = (await runs.findOne({ id: single.body.run.id }).lean().exec())!;
+    expect(storedSingle.nativeRequest).toMatchObject({ request: { methodType: "HYBRID_CAUSAL_LOGIC", dependencyCutSets } });
+    expect(storedSingle.request).toMatchObject({ dependencyCutSets });
+
+    const high = await request(api.getHttpServer())
+      .post(`${route}/fault-tree-runs`)
+      .send({ ...base, dependencyCutSets: { keep: 5, cutOff: 0.5 } });
+    const highResult = await request(api.getHttpServer()).get(`${route}/runs/${high.body.run.id}/result`);
+    expect(highResult.body.probability).toBeCloseTo(0.16, 12);
+    expect(highResult.body.dependencyCutSets).toEqual({ count: 0, items: [] });
+
+    const batch = await request(api.getHttpServer())
+      .post(`${route}/fault-tree-batch-runs`)
+      .send({ ...base, evidenceScenarioIds: [SCENARIO_A_TRUE, SCENARIO_A_FALSE], dependencyCutSets: { keep: 5 } });
+    expect(batch.status).toBe(200);
+    const counts: number[] = [];
+    for (const row of batch.body.runs as Array<{ scenarioId: string; run: { id: string; status: string } }>) {
+      expect(row.run.status).toBe("SUCCEEDED");
+      const saved = (await runs.findOne({ id: row.run.id }).lean().exec())!;
+      expect(saved.request).toMatchObject({ dependencyCutSets: { keep: 5 }, evidenceScenarioId: row.scenarioId });
+      const result = await request(api.getHttpServer()).get(`${route}/runs/${row.run.id}/result`);
+      expect(result.status).toBe(200);
+      expect(result.body.dependencyCutSets.count).toBe(1);
+      expect(result.body.dependencyCutSets.items[0].probability).toBeCloseTo(result.body.probability, 12);
+      counts.push(result.body.dependencyCutSets.items.length);
+    }
+    expect(counts).toEqual([1, 1]);
+    const storedBatch = (await runs.findOne({ id: batch.body.batchId }).lean().exec())!;
+    expect(storedBatch.nativeRequest).toMatchObject({ request: { dependencyCutSets: { keep: 5 }, evidenceBatch: expect.any(Array) } });
+  }, 120_000);
+
   it("persists and retrieves immutable run snapshots with every contributing revision", async () => {
     const success = await request(api.getHttpServer())
       .post(`/api/es-workbooks/${ES_WORKBOOK_ID}/event-trees/${ET_INDEPENDENT}/runs`)

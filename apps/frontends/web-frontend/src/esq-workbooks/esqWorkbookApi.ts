@@ -18,6 +18,7 @@ import type {
   HclGenerateScenariosResult,
   HclExecuteResult,
   HclCalculationType,
+  HclDependencyCutSetSettings,
   HclQuantificationResult,
   HclRunSampling,
 } from "interfaces-shared-types/newly-developed-methods/hybrid-causal-logic";
@@ -188,6 +189,7 @@ async function runEsqHclEventTree(
   calculationType: HclCalculationType,
   dependencyConfiguration?: WorkbookModelAddress,
   sampling?: HclRunSampling,
+  dependencyCutSets?: HclDependencyCutSetSettings,
 ): Promise<HclExecuteResult> {
   return finishedRun("esq", workbookId, postJson<HclExecuteResult>(
     `/api/esq-workbooks/${workbookId}/hcl-configurations/${configurationId}/event-tree-runs`,
@@ -199,6 +201,7 @@ async function runEsqHclEventTree(
       eventTree,
       ...(dependencyConfiguration === undefined ? {} : { dependencyConfiguration }),
       ...(sampling === undefined ? {} : { sampling }),
+      ...(dependencyCutSets === undefined ? {} : { dependencyCutSets }),
     },
   ));
 }
@@ -249,6 +252,7 @@ async function runEsqHclEventTreeBatch(
   dependencyConfiguration?: WorkbookModelAddress,
   batchInput?: HclBatchInput,
   sampling?: HclRunSampling,
+  dependencyCutSets?: HclDependencyCutSetSettings,
 ): Promise<HclBatchExecuteResult> {
   return finishedHclBatch(workbookId, configurationId, postJson<HclBatchExecuteResult>(
     `/api/esq-workbooks/${workbookId}/hcl-configurations/${configurationId}/event-tree-batch-runs`,
@@ -263,6 +267,7 @@ async function runEsqHclEventTreeBatch(
       ...(batchInput === undefined ? {} : { batchInput }),
       ...(integrateHazardGrid ? { integrateHazardGrid: true } : {}),
       ...(sampling === undefined ? {} : { sampling }),
+      ...(dependencyCutSets === undefined ? {} : { dependencyCutSets }),
     },
   ));
 }

@@ -6,6 +6,7 @@ import {
   HclEvidenceScenarioSchema,
   HclEventTreeBatchExecuteRequestSchema,
   HclEventTreeExecuteRequestSchema,
+  HclExecuteRequestSchema,
   HclFaultTreeBatchExecuteRequestSchema,
   HclFaultTreeReferenceSchema,
   HclHazardConvolutionResultSchema,
@@ -137,6 +138,47 @@ describe("HCL integration-workbook event-tree execution", () => {
   ])("rejects malformed integration ET request %#", (candidate) => {
     expect(HclEventTreeExecuteRequestSchema.safeParse(candidate).success).toBe(false);
   });
+
+  it("accepts ranked cut set settings on single and batch event-tree runs", () => {
+    const request = {
+      schemaVersion: "1.0.0",
+      modelId: CONFIGURATION_ID,
+      workbookRevision: 3,
+      eventTree: { workbookId: "es-workbook", modelId: EVENT_TREE_MODEL_ID },
+    };
+    for (const dependencyCutSets of [
+      { score: "FAILED_EVENTS", keep: 1 },
+      { score: "FAILED_EVENTS_AND_SEQUENCE", keep: 1000, limitOrder: 4 },
+      { score: "FAILED_EVENTS", keep: 20, cutOff: 1e-9 },
+      { score: "FAILED_EVENTS", keep: 20, cutOff: 1, limitOrder: 2 },
+    ]) {
+      expect(HclEventTreeExecuteRequestSchema.safeParse({ ...request, dependencyCutSets }).success).toBe(true);
+      expect(HclEventTreeBatchExecuteRequestSchema.safeParse({ ...request, evidenceScenarioIds: [SCENARIO_ID], dependencyCutSets }).success).toBe(true);
+    }
+  });
+
+  it.each([
+    { score: "FAILED_EVENTS" },
+    { score: "FAILED_EVENTS", keep: 0 },
+    { score: "FAILED_EVENTS", keep: 1001 },
+    { score: "FAILED_EVENTS", keep: 2.5 },
+    { score: "FAILED_EVENTS", keep: 10, limitOrder: 0 },
+    { score: "INDEPENDENT_PRODUCT", keep: 10 },
+    { score: "FAILED_EVENTS", keep: 10, cutOff: 0 },
+    { score: "FAILED_EVENTS", keep: 10, cutOff: 1.5 },
+    { score: "FAILED_EVENTS", keep: 10, cutOff: -1e-9 },
+    { score: "FAILED_EVENTS", keep: 10, truncation: 1e-9 },
+  ])("rejects malformed ranked cut set settings %#", (dependencyCutSets) => {
+    const request = {
+      schemaVersion: "1.0.0",
+      modelId: CONFIGURATION_ID,
+      workbookRevision: 3,
+      eventTree: { workbookId: "es-workbook", modelId: EVENT_TREE_MODEL_ID },
+      dependencyCutSets,
+    };
+    expect(HclEventTreeExecuteRequestSchema.safeParse(request).success).toBe(false);
+    expect(HclEventTreeBatchExecuteRequestSchema.safeParse({ ...request, evidenceScenarioIds: [SCENARIO_ID] }).success).toBe(false);
+  });
 });
 
 describe("HCL evidence-scenario batches", () => {
@@ -147,6 +189,23 @@ describe("HCL evidence-scenario batches", () => {
     enabled: true,
     evidence: { observations: [{ nodeId: BN_NODE_ID, stateId: TRUE_STATE_ID }] },
   };
+
+  it("accepts and checks ranked cut set settings on fault-tree runs", () => {
+    const request = {
+      schemaVersion: "1.0.0",
+      modelId: CONFIGURATION_ID,
+      workbookRevision: 3,
+      faultTreeTopGate: { referenceType: "FAULT_TREE_TOP_EVENT", workbookId: FT_WORKBOOK_ID, modelId: FT_MODEL_ID, entityId: TOP_GATE_ID },
+    };
+    for (const dependencyCutSets of [{ keep: 1 }, { keep: 1000, limitOrder: 4 }, { keep: 20, cutOff: 1e-9 }]) {
+      expect(HclExecuteRequestSchema.safeParse({ ...request, dependencyCutSets }).success).toBe(true);
+      expect(HclFaultTreeBatchExecuteRequestSchema.safeParse({ ...request, evidenceScenarioIds: [SCENARIO_ID], dependencyCutSets }).success).toBe(true);
+    }
+    for (const dependencyCutSets of [{}, { keep: 0 }, { keep: 1001 }, { keep: 5, limitOrder: 0 }, { keep: 5, cutOff: 0 }, { keep: 5, cutOff: 2 }, { keep: 5, score: "FAILED_EVENTS" }]) {
+      expect(HclExecuteRequestSchema.safeParse({ ...request, dependencyCutSets }).success).toBe(false);
+      expect(HclFaultTreeBatchExecuteRequestSchema.safeParse({ ...request, evidenceScenarioIds: [SCENARIO_ID], dependencyCutSets }).success).toBe(false);
+    }
+  });
 
   it("accepts a named scenario with a complete evidence assignment", () => {
     expect(HclEvidenceScenarioSchema.safeParse(scenario).success).toBe(true);
@@ -443,6 +502,21 @@ describe("HCL validation and quantification results", () => {
 
   it("accepts the current PRAXIS HCL quantification metrics with stable editor ids", () => {
     expect(HclQuantificationResultSchema.safeParse(quantification).success).toBe(true);
+  });
+
+  it("accepts ranked cut sets on a fault-tree result and rejects malformed ones", () => {
+    const item = { order: 2, probability: 2e-5, basicEventIds: ["A", "B"] };
+    const dependencyCutSets = { count: 12, items: [item] };
+    expect(HclQuantificationResultSchema.safeParse({ ...quantification, dependencyCutSets }).success).toBe(true);
+    for (const broken of [
+      { ...dependencyCutSets, count: -1 },
+      { ...dependencyCutSets, score: "FAILED_EVENTS" },
+      { ...dependencyCutSets, items: [{ ...item, probability: 1.5 }] },
+      { ...dependencyCutSets, items: [{ ...item, basicEventIds: [""] }] },
+      { ...dependencyCutSets, items: [{ ...item, annualFrequency: 1 }] },
+    ]) {
+      expect(HclQuantificationResultSchema.safeParse({ ...quantification, dependencyCutSets: broken }).success).toBe(false);
+    }
   });
 
   it("rejects the removed HCL coefficient of variation", () => {
@@ -751,6 +825,9 @@ describe("point-only hazard convolution", () => {
       rows: [{ ...weight, conditionalProbability: 0, probabilityContribution: 0, annualContribution: 0 }] };
     expect(HclHazardConvolutionResultSchema.safeParse(result).success).toBe(true);
     expect(HclHazardConvolutionResultSchema.safeParse({ ...result, uncertainty: summary }).success).toBe(false);
+    const dependencyCutSets = { count: 3, items: [{ order: 1, probability: 0.1, basicEventIds: ["A"] }] };
+    expect(HclHazardConvolutionResultSchema.safeParse({ ...result, dependencyCutSets }).success).toBe(true);
+    expect(HclHazardConvolutionResultSchema.safeParse({ ...result, dependencyCutSets: { ...dependencyCutSets, count: 1.5 } }).success).toBe(false);
   });
   it("rejects removed sequence and end-state hazard uncertainty results", () => {
     const sequence = { sequenceId: RUN_ID, convolvedProbability: 0, integratedAnnualFrequency: 0 };
@@ -759,6 +836,22 @@ describe("point-only hazard convolution", () => {
     expect(HclHazardConvolutionResultSchema.safeParse(result).success).toBe(true);
     expect(HclHazardConvolutionResultSchema.safeParse({ ...result, sequences: [{ ...sequence, uncertainty: summary }] }).success).toBe(false);
     expect(HclHazardConvolutionResultSchema.safeParse({ ...result, endStateAggregates: [{ ...endState, uncertainty: summary }] }).success).toBe(false);
+  });
+  it("accepts ranked cut sets on the sequences of a hazard grid and rejects malformed ones", () => {
+    const item = { order: 2, probability: 2e-5, annualFrequency: 2e-5, basicEventIds: ["A", "B"] };
+    const dependencyCutSets = { score: "FAILED_EVENTS", count: 12, items: [item] };
+    const sequence = { sequenceId: RUN_ID, convolvedProbability: 0, integratedAnnualFrequency: 0 };
+    const result = { ...common, targetKind: "EVENT_TREE", rows: [{ ...weight, sequences: [] }], sequences: [{ ...sequence, dependencyCutSets }], endStateAggregates: [] };
+    expect(HclHazardConvolutionResultSchema.safeParse(result).success).toBe(true);
+    for (const broken of [
+      { ...dependencyCutSets, score: "PRODUCT" },
+      { ...dependencyCutSets, count: -1 },
+      { ...dependencyCutSets, items: [{ ...item, probability: 1.5 }] },
+      { ...dependencyCutSets, items: [{ ...item, basicEventIds: [""] }] },
+      { ...dependencyCutSets, items: [{ ...item, events: ["A"] }] },
+    ]) {
+      expect(HclHazardConvolutionResultSchema.safeParse({ ...result, sequences: [{ ...sequence, dependencyCutSets: broken }] }).success).toBe(false);
+    }
   });
 
 });

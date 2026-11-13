@@ -16,6 +16,20 @@ Source functions in `resources/HCL_MH`:
 - `oracle/bn_path_oracle.py::BNPathOracle.compute_topological_order`
 - `utils/bdd_ordering.py::compute_ft_bfs_order`
 
+The source has two more orders for the linked events. Neither is ported:
+
+- `utils/bdd_ordering.py::compute_context_aware_local_inter_order` returns the
+  BN-depth order for every input. Its cost sums, over the sequence, the overlap
+  of each event with the events after it, plus terms that depend only on the
+  event, plus a penalty for moving away from the BN-depth order. The overlap sum
+  counts every pair once, so it is the same for every order. Only the penalty
+  changes, and the BN-depth order has the lowest penalty, so no swap is taken.
+- `utils/bdd_ordering.py::compute_context_aware_inter_order` gives a different
+  order. A port was measured on the 161-node verification model and was slower
+  in all three runs (one sequence with hazard evidence 9.0 to 9.5 s, a heavier
+  one 23.5 to 36.5 s, twelve sequences without evidence 503 to 1,057 s), with
+  larger BDDs and more network calibrations each time.
+
 The Rust port is `ordering.rs`. A valid explicit API/CLI order is retained,
 including an order with FT-only events first. It is not silently replaced by
 the automatic order.

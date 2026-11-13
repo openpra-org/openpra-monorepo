@@ -9,6 +9,7 @@ use tensorbayes::{
 
 use crate::algorithms::bdd_engine::{Bdd, BddRef, BDD_FALSE, BDD_NULL, BDD_TRUE};
 use crate::core::fault_tree::FaultTree;
+use crate::hcl::context::{ContextSpace, PathContext};
 use crate::hcl::{
     HclBaseEvidence, HclEventBinding, HclEventBindings, HclUncertaintyAdjustments,
     HclUncertaintySettings, HclUncertaintySummary, HclZeroContexts,
@@ -214,76 +215,34 @@ pub fn validate_hcl_uncertainty_settings(
     Ok(())
 }
 
-#[derive(Clone, Debug, Eq, Hash, PartialEq)]
-struct EvidenceContext {
-    allowed: Vec<Option<Vec<bool>>>,
-    cardinalities: Vec<usize>,
-}
-
-impl EvidenceContext {
-    fn from_base(tree: &CompiledJunctionTree, base: &HclBaseEvidence) -> Result<Self> {
-        if base.states().len() != tree.graph().num_variables() {
-            return Err(PraxisError::Hcl(
-                "uncertainty evidence width does not match the BN".to_string(),
-            ));
-        }
-        let mut allowed = vec![None; tree.graph().num_variables()];
-        let cardinalities = tree
-            .graph()
-            .variables()
-            .iter()
-            .map(|variable| variable.cardinality())
-            .collect::<Vec<_>>();
-        for variable in tree.graph().variables() {
-            let state = base.states()[variable.id().index()];
-            if state >= 0 {
-                if state as usize >= variable.cardinality() {
-                    return Err(PraxisError::Hcl(format!(
-                        "uncertainty evidence state {state} is invalid for BN node '{}'",
-                        variable.name()
-                    )));
-                }
-                let mut mask = vec![false; variable.cardinality()];
-                mask[state as usize] = true;
-                allowed[variable.id().index()] = Some(mask);
-            }
-        }
-        Ok(Self {
-            allowed,
-            cardinalities,
-        })
+fn validate_base_evidence(tree: &CompiledJunctionTree, base: &HclBaseEvidence) -> Result<()> {
+    if base.states().len() != tree.graph().num_variables() {
+        return Err(PraxisError::Hcl(
+            "uncertainty evidence width does not match the BN".to_string(),
+        ));
     }
-
-    fn extend(&self, binding: &HclEventBinding, event_occurs: bool) -> Option<Self> {
-        let node_index = binding.bn_node().index();
-        let mut branch_mask = vec![!event_occurs; self.cardinalities[node_index]];
-        for state in binding.true_states() {
-            branch_mask[state.index()] = event_occurs;
+    for variable in tree.graph().variables() {
+        let state = base.states()[variable.id().index()];
+        if state >= 0 && state as usize >= variable.cardinality() {
+            return Err(PraxisError::Hcl(format!(
+                "uncertainty evidence state {state} is invalid for BN node '{}'",
+                variable.name()
+            )));
         }
-        if let Some(existing) = &self.allowed[node_index] {
-            for (allowed, was_allowed) in branch_mask.iter_mut().zip(existing) {
-                *allowed &= *was_allowed;
-            }
-        }
-        if !branch_mask.iter().any(|allowed| *allowed) {
-            return None;
-        }
-        let mut extended = self.clone();
-        extended.allowed[node_index] = Some(branch_mask);
-        Some(extended)
     }
+    Ok(())
 }
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 struct BddContextKey {
     node: BddRef,
-    context: EvidenceContext,
+    context: PathContext,
 }
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 struct BnQueryKey {
     variable: usize,
-    context: EvidenceContext,
+    context: PathContext,
 }
 
 struct BatchedHclQuantifier<'a> {
@@ -291,7 +250,7 @@ struct BatchedHclQuantifier<'a> {
     engine: ExecutionEngine,
     bindings: HclEventBindings,
     evidence: EvidenceBatch,
-    initial_context: EvidenceContext,
+    space: ContextSpace,
     event_probabilities: Vec<Vec<f64>>,
     first_sample: usize,
     sample_count: usize,
@@ -328,7 +287,8 @@ impl<'a> BatchedHclQuantifier<'a> {
                 ));
             }
         }
-        let initial_context = EvidenceContext::from_base(&tree, &base)?;
+        validate_base_evidence(&tree, &base)?;
+        let space = ContextSpace::new(tree.graph(), base.states());
         let rows = vec![base.states().to_vec(); sample_count];
         let evidence = EvidenceBatch::from_rows(&rows)?;
         let mut engine = ExecutionEngine::new(tree);
@@ -348,7 +308,7 @@ impl<'a> BatchedHclQuantifier<'a> {
             engine,
             bindings,
             evidence,
-            initial_context,
+            space,
             event_probabilities,
             first_sample,
             sample_count,
@@ -364,10 +324,11 @@ impl<'a> BatchedHclQuantifier<'a> {
                 "cannot quantify the null BDD reference".to_string(),
             ));
         }
-        self.recurse(root, &self.initial_context.clone())
+        let context = self.space.empty();
+        self.recurse(root, &context)
     }
 
-    fn recurse(&mut self, reference: BddRef, context: &EvidenceContext) -> Result<Vec<f64>> {
+    fn recurse(&mut self, reference: BddRef, context: &PathContext) -> Result<Vec<f64>> {
         if reference == BDD_TRUE {
             return Ok(vec![1.0; self.sample_count]);
         }
@@ -379,9 +340,10 @@ impl<'a> BatchedHclQuantifier<'a> {
             values.iter_mut().for_each(|value| *value = 1.0 - *value);
             return Ok(values);
         }
+        let support = self.space.support(self.bdd, &self.bindings, reference);
         let key = BddContextKey {
             node: reference,
-            context: context.clone(),
+            context: self.space.project(support, context),
         };
         if let Some(values) = self.bdd_cache.get(&key) {
             return Ok(values.clone());
@@ -401,14 +363,14 @@ impl<'a> BatchedHclQuantifier<'a> {
                 })?
         };
         let high = match self.bindings.get(node.var).cloned() {
-            Some(binding) => match context.extend(&binding, true) {
+            Some(binding) => match self.space.extend(context, &binding, true) {
                 Some(next) => self.recurse(node.high, &next)?,
                 None => vec![0.0; self.sample_count],
             },
             None => self.recurse(node.high, context)?,
         };
         let low = match self.bindings.get(node.var).cloned() {
-            Some(binding) => match context.extend(&binding, false) {
+            Some(binding) => match self.space.extend(context, &binding, false) {
                 Some(next) => self.recurse(node.low, &next)?,
                 None => vec![0.0; self.sample_count],
             },
@@ -427,21 +389,20 @@ impl<'a> BatchedHclQuantifier<'a> {
     fn conditional_event_probabilities(
         &mut self,
         binding: &HclEventBinding,
-        context: &EvidenceContext,
+        context: &PathContext,
     ) -> Result<Vec<f64>> {
+        let support = self.space.node_support(binding.bn_node());
+        let context = &self.space.project(support, context);
         let key = BnQueryKey {
             variable: binding.bdd_variable(),
-            context: context.clone(),
+            context: PathContext::clone(context),
         };
         if let Some(values) = self.bn_cache.get(&key) {
             return Ok(values.clone());
         }
         self.engine.clear_soft_evidence();
-        for (node_index, allowed) in context.allowed.iter().enumerate() {
-            let Some(allowed) = allowed else { continue };
-            let node = NodeId::new(u32::try_from(node_index).map_err(|_| {
-                PraxisError::Hcl("BN node index exceeds supported range".to_string())
-            })?);
+        for &restriction in context.iter() {
+            let (node, allowed) = self.space.restriction(restriction);
             let likelihoods = allowed
                 .iter()
                 .map(|allowed| if *allowed { 1.0 } else { 0.0 })
@@ -451,7 +412,7 @@ impl<'a> BatchedHclQuantifier<'a> {
         let marginal = self.engine.evaluate(&self.evidence, binding.bn_node())?;
         let zero_rows: HashSet<usize> = self.engine.zero_mass_rows().iter().copied().collect();
         if let Some(sample) = zero_rows.iter().min() {
-            if *context == self.initial_context {
+            if context.is_empty() {
                 return Err(PraxisError::Hcl(format!(
                     "the base evidence has zero probability in uncertainty sample {}",
                     self.first_sample + sample + 1

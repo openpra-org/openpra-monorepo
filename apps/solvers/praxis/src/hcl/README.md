@@ -3,17 +3,21 @@
 This directory contains the computational bridge between PRAXIS BDDs and
 TensorBayes, the public probability API and the existing application analyses.
 
-The probability path (`api.rs`, `model.rs`, `quantify.rs`) is unchanged from
-main commit `96b949e96ccbb2fa6eef7a27170dfc9cb9f54182`.
+The probability API (`api.rs`, `model.rs`) is unchanged from main commit
+`96b949e96ccbb2fa6eef7a27170dfc9cb9f54182`. `quantify.rs` keeps that commit's
+recurrence and changes only how results are cached and how many network
+calibrations are run, see [Quantification](#quantification).
 `quantify_hcl` accepts the original `HclSettings` and returns the original
 `HclResult`: probability and diagnostics only. It performs no cut-set,
 importance or uncertainty calculation.
 
 The application API in `analysis/` uses that same original `HclQuantifier`.
 It supports probability batches, hazard integration and explicitly configured
-uncertainty. Probability execution performs no cut-set enumeration, product
-scoring or importance calculation. Tasks 10–11 are deferred pending a future
-methodological review; their dependent displays and exports are disabled.
+uncertainty. A probability run performs no cut-set enumeration unless ranked
+cut sets are requested for a fault tree or an event tree, see
+[Ranked cut sets](#ranked-cut-sets-of-event-tree-sequences). Importance stays
+deferred pending a future methodological review, and the earlier product
+scoring of cut sets is not restored.
 The removed implementation is preserved in `outputs/hcl-probability-only/before.zip`.
 FT probability sampling, explicit CPT priors and seismic generators follow HCL_MH;
 see [the uncertainty source map](uncertainty/SOURCE.md), including the aligned
@@ -58,7 +62,9 @@ camelCase fields and model snapshots. Neither contract can replace the other.
 | BDD order | Explicit order, otherwise normal PRAXIS order | BN-first default; explicit API order wins; GUI displays the order but cannot edit it | Main explicit-order API; HCL_MH [ordering port](ordering.rs) |
 | Constant folding and null-gate splicing | Optional FT settings, default false | FT settings only; hidden in the ET editor | Main BDD build options; ET uses its sequence builder |
 | BDD/junction-tree/cache diagnostics | Returned with probability | Displayed and saved; UQ counters describe the point pass only | Main counters; [diagnostics source map](../../../../docs-md/guides/result-presentation-source-map.md) |
-| Cut sets, importance and sampled hazard convolution | No HCL execution | Removed or disabled; no FT/ET cut-set exposure in the app/addon | Deferred cut-set/importance review; HCL_MH point-hazard guard |
+| Ranked cut sets of event-tree sequences | Not exposed | Optional on ET probability runs, for base evidence, evidence scenarios and the hazard grid | PRAXIS cut-set structure, exact score from the HCL quantifier, see [Ranked cut sets](#ranked-cut-sets-of-event-tree-sequences) |
+| Ranked cut sets of a fault tree | Not exposed | Optional on FT probability runs, for base evidence, evidence scenarios and the hazard grid | Same structure engine and score, see [Fault trees](#ranked-cut-sets-of-a-fault-tree) |
+| Importance and sampled hazard convolution | No HCL execution | Removed or disabled | Deferred importance review; HCL_MH point-hazard guard |
 
 Ordinary PRAXIS cut-set algorithms remain in the Rust library and non-HCL CLI.
 Standalone FT uncertainty is not exposed by the ordinary FT addon. FT uncertainty
@@ -95,18 +101,106 @@ P(F | context)
   + P(not x | context) P(low | context, not x)
 ```
 
-TensorBayes supplies each conditional probability. The branch context records
-the exact allowed-state mask for every BN node, so correlation is preserved
-across BDD decisions. Complemented BDD references are evaluated as the
-probability complement of their regular reference.
+TensorBayes supplies each conditional probability. The path context records
+the exact allowed-state mask of every BN node that a BDD decision restricted, so
+correlation is preserved across BDD decisions. Base evidence is fixed for a
+quantification and is sent with every query. Complemented BDD references are
+evaluated as the probability complement of their regular reference.
 
-Two caches are maintained per quantifier:
+Two caches are maintained per quantifier ([context rules](context.rs)):
 
-- BDD reference plus exact BN path context to quantified probability.
-- Bound BDD variable plus exact BN path context to a TensorBayes marginal.
+- BDD reference plus the relevant part of the path context to quantified
+  probability.
+- Bound BDD variable plus the relevant part of the path context to a
+  TensorBayes marginal.
+
+The relevant part is exact. A restriction is dropped only when its BN node is
+d-separated from every BN node bound below the BDD reference (or from the
+queried node), given the base evidence and the other restrictions. A node
+observed in one state blocks a chain. A node restricted to several states does
+not block, and it opens its parents to each other like an observed child. A BDD
+reference with no bound variable below it is cached by the reference alone.
+The same reduced evidence is sent to TensorBayes, so a query never carries a
+restriction that cannot change its answer.
+
+Keeping the path context only for the bound variables that occur below a BDD
+reference is not exact when a variable above depends on one below, so that rule
+is not used. A [brute-force test](exact_enumeration_tests.rs) checks the caches
+against full enumeration on random models in several variable orders.
+
+In the point pass one calibration answers every bound variable whose relevant
+evidence is the calibrated evidence, so `bn_query_cache_misses` counts
+calibrations. The uncertainty pass calibrates once per query: sharing was
+measured there and saved no time.
 
 Changing base evidence clears both bridge caches and the TensorBayes workspace
 cache. The compiled junction tree and bindings remain reusable.
+
+## Ranked cut sets of event-tree sequences
+
+`analysis/sequence_dependency_cut_sets.rs` ranks the cut sets of each sequence
+by their probability under the network.
+
+- **Structure.** The cut sets come from the existing PRAXIS sequence path
+  (failed branches, with the cut sets of the succeeded systems deleted). An
+  optional order limit and an optional probability cut-off bound the size of
+  the list, see [Cut-off](#cut-off-under-the-network).
+- **Score `FAILED_EVENTS`.** The probability that every event of the cut set
+  occurs, given the evidence: the product of the independent events times the
+  joint probability of the bound events, taken by the chain rule in BDD order
+  (`HclQuantifier::joint_occurrence`).
+- **Score `FAILED_EVENTS_AND_SEQUENCE`.** The probability that every event of
+  the cut set occurs and the sequence formula holds, so the success branches
+  count too: `P(cut set) * P(sequence | cut set)`, where the second factor is
+  the sequence BDD evaluated with the cut set events fixed as occurred
+  (`HclQuantifier::joint_occurrence_with`).
+- **Ranking.** Highest probability first, then fewer events, then event names.
+  Each evidence scenario is ranked on its own. For a hazard grid the score of
+  a cut set is the weighted sum of its scenario scores, with the same weights
+  as the sequence convolution.
+- **What it is not.** A sum of cut set scores is not the sequence probability
+  when events depend on each other. The sequence probability stays the exact
+  value of the probability run.
+
+Both scores are checked against full enumeration on random models
+([brute-force test](exact_enumeration_tests.rs)) and against an independent
+network tool on the 161-node verification model.
+
+### Ranked cut sets of a fault tree
+
+`hcl/analysis/cut_sets.rs` does the same for one fault tree
+(`rank_hcl_cut_sets`, `rank_hcl_cut_sets_batch`). The cut sets come from the
+BDD of the run, the score is `FAILED_EVENTS`, and the settings are the same
+order limit, cut-off and kept count. Each evidence scenario gets its own list
+and a hazard grid gets the weighted list. The brute-force test compares the
+cut sets and their scores with full enumeration on random coherent trees.
+
+### Cut-off under the network
+
+A cut-off on independent probabilities is not safe, because the network can
+make a cut set far more likely than the product of its events. The cut-off
+therefore uses a bound that holds under the network
+(`hcl/occurrence_bound.rs`).
+
+- **Bound of one event.** A bound event gets the largest value its table gives
+  to its true states over the parent states that agree with the evidence. An
+  event whose node is observed gets 1 or 0. Events that share one node get the
+  root of that value by their number, so that their product still bounds the
+  node. An unbound event keeps its own probability.
+- **Evidence factor.** The product of the largest table values of the observed
+  states, divided by the probability of the evidence. It is 1 when all
+  evidence sits on root nodes.
+- **Why it holds.** Taken node by node in parent-first order, each factor of
+  the joint probability of the cut set and the evidence is at most the bound
+  above. So `P(cut set | evidence) <= evidence factor * product of bounds`.
+- **Use.** The structure engine drops a cut set only when this limit is below
+  the cut-off. The exact score then decides: a list holds the cut sets whose
+  exact probability reaches the cut-off for that evidence. The hazard-weighted
+  list holds the cut sets that reach it in at least one scenario.
+
+The result is the same list as filtering the full ranking, checked on random
+models and on the 161-node model (67,300 cut sets, seven scenarios, identical
+lists). The bound is checked against full enumeration in the brute-force test.
 
 ## Added analyses: definitions and limits
 

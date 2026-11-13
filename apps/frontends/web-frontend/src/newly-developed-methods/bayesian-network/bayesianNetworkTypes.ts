@@ -59,9 +59,9 @@ interface BayesianNetworkEditorProps {
   onQueryNodeChange: (nodeId: string | null) => void;
   onHclConfigurationsChange: (configurations: WorkbookHclConfiguration[]) => void;
   onGenerateHclScenarios?: HclBindingEditorProps["onGenerateScenarios"];
-  onRunHclFaultTree: (configuration: WorkbookHclConfiguration, faultTree: HclFaultTreeOption, calculationType: HclCalculationType) => void;
+  onRunHclFaultTree: HclBindingEditorProps["onRunFaultTree"];
   onRunHclEventTree: (configuration: WorkbookHclConfiguration, eventTree: HclEventTreeOption, calculationType: HclCalculationType) => void;
-  onRunHclFaultTreeBatch: (configuration: WorkbookHclConfiguration, faultTree: HclFaultTreeOption, scenarioIds: string[], integrateHazardGrid: boolean, calculationType: HclCalculationType) => void;
+  onRunHclFaultTreeBatch: HclBindingEditorProps["onRunFaultTreeBatch"];
   onRunHclEventTreeBatch: (configuration: WorkbookHclConfiguration, eventTree: HclEventTreeOption, scenarioIds: string[], integrateHazardGrid: boolean, calculationType: HclCalculationType) => void;
   onRun: () => void;
   onRunBatch?: (scenarios: HclEvidenceScenario[]) => void;

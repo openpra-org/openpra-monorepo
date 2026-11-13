@@ -55,10 +55,12 @@ import type {
 } from "./event-tree-requests";
 import {
   HclUncertaintySummarySchema,
+  HclDependencyCutSetsSchema,
   HclBridgeStatsSchema, HclJunctionTreeStatsSchema, HclBatchCompilationStatsSchema,
 } from "../hybrid-causal-logic/hcl-results";
 import type {
   HclUncertaintySummary,
+  HclDependencyCutSets,
   HclBridgeStats, HclJunctionTreeStats, HclBatchCompilationStats,
 } from "../hybrid-causal-logic/hcl-results";
 
@@ -156,6 +158,7 @@ interface EventTreeSequenceAnalysisResult {
     annualFrequency: HclUncertaintySummary;
   };
   cutSets?: EventTreeSequenceCutSets;
+  dependencyCutSets?: HclDependencyCutSets;
   monteCarlo?: EventTreeSequenceMonteCarlo;
 }
 
@@ -601,6 +604,7 @@ const EventTreeSequenceAnalysisResultSchema = z
       annualFrequency: HclUncertaintySummarySchema,
     }).strict().optional(),
     cutSets: EventTreeSequenceCutSetsSchema.optional(),
+    dependencyCutSets: HclDependencyCutSetsSchema.optional(),
     monteCarlo: EventTreeSequenceMonteCarloSchema.optional(),
   })
   .strict();

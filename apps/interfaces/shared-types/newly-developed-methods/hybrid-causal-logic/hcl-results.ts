@@ -142,6 +142,17 @@ interface HclUncertaintySummary {
   fit?: HclDistributionFit;
 }
 
+interface HclFaultTreeDependencyCutSet {
+  order: number;
+  probability: number;
+  basicEventIds: string[];
+}
+
+interface HclFaultTreeDependencyCutSets {
+  count: number;
+  items: HclFaultTreeDependencyCutSet[];
+}
+
 interface HclQuantificationResult {
   schemaVersion: WorkbookMethodSchemaVersion;
   runId: AnalysisRunId;
@@ -156,6 +167,7 @@ interface HclQuantificationResult {
   junctionTree: HclJunctionTreeStats;
   compilationReuse?: HclBatchCompilationStats;
   basicEventQuantifications?: BasicEventQuantificationTrace[];
+  dependencyCutSets?: HclFaultTreeDependencyCutSets;
   validationIssues: ValidationIssue[];
   completedAt: string;
 }
@@ -205,6 +217,7 @@ interface HclFaultTreeHazardConvolutionResult extends HclHazardConvolutionCommon
   convolvedProbability: number;
   integratedAnnualFrequency: number;
   exceedance?: HclHazardExceedancePoint[];
+  dependencyCutSets?: HclFaultTreeDependencyCutSets;
 }
 
 interface HclEventTreeHazardSequenceContribution {
@@ -218,10 +231,26 @@ interface HclEventTreeHazardConvolutionRow extends HclHazardConvolutionWeight {
   sequences: HclEventTreeHazardSequenceContribution[];
 }
 
+type HclDependencyCutSetScore = "FAILED_EVENTS" | "FAILED_EVENTS_AND_SEQUENCE";
+
+interface HclDependencyCutSet {
+  order: number;
+  probability: number;
+  annualFrequency: number;
+  basicEventIds: string[];
+}
+
+interface HclDependencyCutSets {
+  score: HclDependencyCutSetScore;
+  count: number;
+  items: HclDependencyCutSet[];
+}
+
 interface HclEventTreeHazardSequenceResult {
   sequenceId: WorkbookEntityId;
   convolvedProbability: number;
   integratedAnnualFrequency: number;
+  dependencyCutSets?: HclDependencyCutSets;
 }
 
 interface HclEventTreeHazardEndStateResult {
@@ -367,6 +396,15 @@ const HclHazardConvolutionCommonShape = {
   convolutionWeightSum: NonnegativeFiniteSchema,
 };
 
+const HclFaultTreeDependencyCutSetsSchema = z.object({
+  count: z.number().int().nonnegative(),
+  items: z.array(z.object({
+    order: z.number().int().nonnegative(),
+    probability: ProbabilitySchema,
+    basicEventIds: z.array(z.string().min(1)),
+  }).strict()),
+}).strict();
+
 const HclFaultTreeHazardConvolutionResultSchema = z.object({
   targetKind: z.literal("FAULT_TREE"),
   ...HclHazardConvolutionCommonShape,
@@ -378,6 +416,7 @@ const HclFaultTreeHazardConvolutionResultSchema = z.object({
   convolvedProbability: NonnegativeFiniteSchema,
   integratedAnnualFrequency: NonnegativeFiniteSchema,
   exceedance: z.array(HclHazardExceedancePointSchema).optional(),
+  dependencyCutSets: HclFaultTreeDependencyCutSetsSchema.optional(),
 }).strict();
 
 const HclEventTreeHazardSequenceContributionSchema = z.object({
@@ -385,6 +424,21 @@ const HclEventTreeHazardSequenceContributionSchema = z.object({
   conditionalProbability: ProbabilitySchema,
   probabilityContribution: NonnegativeFiniteSchema,
   annualContribution: NonnegativeFiniteSchema,
+}).strict();
+
+const HclDependencyCutSetScoreSchema = z.enum(["FAILED_EVENTS", "FAILED_EVENTS_AND_SEQUENCE"]);
+
+const HclDependencyCutSetSchema = z.object({
+  order: z.number().int().nonnegative(),
+  probability: ProbabilitySchema,
+  annualFrequency: NonnegativeFiniteSchema,
+  basicEventIds: z.array(z.string().min(1)),
+}).strict();
+
+const HclDependencyCutSetsSchema = z.object({
+  score: HclDependencyCutSetScoreSchema,
+  count: z.number().int().nonnegative(),
+  items: z.array(HclDependencyCutSetSchema),
 }).strict();
 
 const HclEventTreeHazardConvolutionResultSchema = z.object({
@@ -397,6 +451,7 @@ const HclEventTreeHazardConvolutionResultSchema = z.object({
     sequenceId: WorkbookEntityIdSchema,
     convolvedProbability: NonnegativeFiniteSchema,
     integratedAnnualFrequency: NonnegativeFiniteSchema,
+    dependencyCutSets: HclDependencyCutSetsSchema.optional(),
   }).strict()),
   endStateAggregates: z.array(z.object({
     endStateId: WorkbookEntityIdSchema,
@@ -441,6 +496,7 @@ const HclQuantificationResultSchema = z
     compilationReuse: HclBatchCompilationStatsSchema.optional(),
     junctionTree: HclJunctionTreeStatsSchema,
     basicEventQuantifications: z.array(BasicEventQuantificationTraceSchema).optional(),
+    dependencyCutSets: HclFaultTreeDependencyCutSetsSchema.optional(),
     validationIssues: z.array(ValidationIssueSchema),
     completedAt: z.string().datetime({ offset: true }),
   })
@@ -579,6 +635,12 @@ type _AssertHclBatchExecuteResult = Expect<
 type _AssertHclHazardConvolutionResult = Expect<
   Equal<z.infer<typeof HclHazardConvolutionResultSchema>, HclHazardConvolutionResult>
 >;
+type _AssertHclFaultTreeDependencyCutSets = Expect<
+  Equal<z.infer<typeof HclFaultTreeDependencyCutSetsSchema>, HclFaultTreeDependencyCutSets>
+>;
+type _AssertHclDependencyCutSets = Expect<
+  Equal<z.infer<typeof HclDependencyCutSetsSchema>, HclDependencyCutSets>
+>;
 type _AssertHclBatchCompilationStats = Expect<
   Equal<z.infer<typeof HclBatchCompilationStatsSchema>, HclBatchCompilationStats>
 >;
@@ -591,6 +653,10 @@ type _AssertHclQuantificationResult = Expect<
 >;
 
 export {
+  HclDependencyCutSetScoreSchema,
+  HclDependencyCutSetSchema,
+  HclDependencyCutSetsSchema,
+  HclFaultTreeDependencyCutSetsSchema,
   HclBatchCompilationStatsSchema,
   HclValidationResultSchema,
   HclExecuteResultSchema,
@@ -615,6 +681,11 @@ export {
   HclQuantificationResultSchema,
 };
 export type {
+  HclDependencyCutSetScore,
+  HclDependencyCutSet,
+  HclDependencyCutSets,
+  HclFaultTreeDependencyCutSet,
+  HclFaultTreeDependencyCutSets,
   HclBatchCompilationStats,
   HclValidationResult,
   HclExecuteResult,

@@ -476,6 +476,7 @@ sequence builder and are hidden in the ET editor. While traversing a BDD:
 - Unbound events `C`, `D`, and `E` use their independent catalogue probabilities.
 - Taking a bound event's true or false branch adds the corresponding allowed or excluded BN states to the current path context.
 - TensorBayes evaluates subsequent BN probabilities under that complete context, preserving dependency.
+- A restriction that cannot change an answer (its BN node is d-separated from the queried node given the evidence and the other restrictions) is left out of that query and of the cache key. The value is the same and far fewer network calibrations are needed.
 
 At a bound BDD variable `x`, HCL evaluates:
 
@@ -580,8 +581,23 @@ The web backend retains both the result and the exact revisions of the ET, FT, B
 
 End-state totals sum sequence frequencies. This is the approved sequence-based
 method: there is no combined end-state BDD or general Boolean disjointness check.
-The example's four paths are mutually exclusive. Cut sets and importance are
-absent from this application execution path.
+The example's four paths are mutually exclusive. Importance is absent from
+this application execution path.
+
+A dependency probability run can also rank the cut sets of each sequence. In
+ESQ Step 05, choose Dependencies, keep Probability as the result, and set
+Ranked cut sets to Failed events or to Failed events and success branches. A
+click on a sequence then opens its cut sets, ranked by their probability under
+the network for the chosen evidence. With a hazard grid, the grid table opens
+the hazard-weighted ranking. Maximum cut set order and Cut set cutoff limit the
+list on very large sequences. The cutoff keeps the cut sets whose probability
+under the network reaches it, so it gives the same list as the full ranking cut
+at that value.
+
+A fault tree dependency run in SY Step 05 can rank its cut sets too. Set Ranked
+cut sets to Failed events next to the Run button, with the same Cut sets kept,
+Maximum cut set order and Cut set cutoff. The result then shows a Ranked cut
+sets button, for each scenario and for the hazard grid as well.
 
 Results retain point-pass BDD, junction-tree and cache diagnostics. Their display,
 CSV export and historical-run behavior are documented in the

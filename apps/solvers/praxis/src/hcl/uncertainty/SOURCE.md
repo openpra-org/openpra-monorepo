@@ -71,7 +71,9 @@ from the CPT, without a contradictory observation, can still query TensorBayes.
 With `zeroProbabilityContexts: ZERO` (the default) TensorBayes marks such sample
 rows instead of failing, and the context counts as 0 in those samples. This is
 exact, because the branch that reaches the context has weight 0 in the same
-samples. Base evidence with zero probability in a sample is still an error. With
+samples. A query carries only the restrictions that can change its answer, so a
+context that is impossible only because of an unrelated restriction is not
+marked, and `FAIL` does not stop on it. Base evidence with zero probability in a sample is still an error. With
 `FAIL`, TensorBayes reports `evidence has zero probability in batch row 0` as
 before. The API stores a failed scenario and keeps successful batch rows. It does
 not replace the failed result with the point result.

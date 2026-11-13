@@ -59,7 +59,7 @@ import {
   type EsqSolveWindowKind,
 } from "./esqSolve";
 import { getEsqModelRunResult, getEsqRunDetails, getEsqRunWorkbook, listEsqModelRuns, runEsqModel, type EsqModelRunEntry } from "./esqWorkbookApi";
-import { EsqDependencies, dependencyEvidenceProblem, studyConfiguration, studyTree, type DependencyEvidence, type DependencyStudy, type DependencyStudyTree } from "./EsqDependencies";
+import { EsqDependencies, dependencyEvidenceProblem, studyConfiguration, studyTree, type DependencyCutSetChoice, type DependencyEvidence, type DependencyStudy, type DependencyStudyTree } from "./EsqDependencies";
 import { EsqDependencyResults } from "./EsqDependencyResults";
 import "../es-workbooks/css/esSequences.css";
 import "../sy-workbooks/css/syFaultTreeAnalysis.css";
@@ -111,6 +111,8 @@ interface ComposerSettings {
   burnInTrials: number;
   dependencyResult: HclCalculationType;
   dependencyEvidence: DependencyEvidence;
+  dependencyCutSets: DependencyCutSetChoice;
+  dependencyCutOff: number | null;
 }
 
 interface DependencySettings {
@@ -191,6 +193,8 @@ const DEPENDENCY_RESULTS: readonly (readonly [HclCalculationType, string])[] = [
 
 const DEPENDENCY_EVIDENCE: readonly (readonly [DependencyEvidence, string])[] = [["BASE", "Base evidence"], ["SCENARIOS", "Evidence scenarios"], ["HAZARD", "Hazard convolution"]];
 
+const DEPENDENCY_CUT_SETS: readonly (readonly [DependencyCutSetChoice, string])[] = [["NONE", "Off"], ["FAILED_EVENTS", "Failed events"], ["FAILED_EVENTS_AND_SEQUENCE", "Failed events and success branches"]];
+
 const SAMPLERS: readonly (readonly [HclSampler, string])[] = [["MC", "Monte Carlo (MC)"], ["LHS", "Latin hypercube (LHS)"]];
 
 const BN_SAMPLERS: readonly (readonly [HclSampler | "SAME", string])[] = [["SAME", "Same as inputs"], ...SAMPLERS];
@@ -225,6 +229,8 @@ const HIGHEST_EXPONENTS = [-1, -2, -3, -4, -5, -6, -7, -8, -9, -10, -11, -12];
 
 const LOWEST_EXPONENTS = [-4, -5, -6, -7, -8, -9, -10, -11, -12, -13, -14, -15, -16, -17, -18, -19, -20];
 
+const DEPENDENCY_CUT_OFF_EXPONENTS = [...HIGHEST_EXPONENTS, ...LOWEST_EXPONENTS.filter((exponent) => !HIGHEST_EXPONENTS.includes(exponent))];
+
 const START_SETTINGS: ComposerSettings = {
   choice: "CUT_SETS",
   workflow: "BATCH",
@@ -248,6 +254,8 @@ const START_SETTINGS: ComposerSettings = {
   burnInTrials: 0,
   dependencyResult: "PROBABILITY",
   dependencyEvidence: "BASE",
+  dependencyCutSets: "NONE",
+  dependencyCutOff: null,
 };
 
 const COMPOSER_VIEW = jsonView<ComposerSettings>(z.object({
@@ -274,6 +282,8 @@ const COMPOSER_VIEW = jsonView<ComposerSettings>(z.object({
   burnInTrials: z.number().default(START_SETTINGS.burnInTrials),
   dependencyResult: HclCalculationTypeSchema.default(START_SETTINGS.dependencyResult),
   dependencyEvidence: z.enum(["BASE", "SCENARIOS", "HAZARD"]).default(START_SETTINGS.dependencyEvidence),
+  dependencyCutSets: z.enum(["NONE", "FAILED_EVENTS", "FAILED_EVENTS_AND_SEQUENCE"]).default(START_SETTINGS.dependencyCutSets),
+  dependencyCutOff: z.number().int().negative().nullable().default(START_SETTINGS.dependencyCutOff),
 }));
 
 const DEPENDENCY_VIEW = jsonView<DependencySettings>(z.object({
@@ -567,7 +577,8 @@ function useComposer(model: EsqModel | undefined, shownRun: ShownRun, initialNet
   const treeIds = settings.workflow === "MANUAL" ? (manualTreeId === undefined ? [] : [manualTreeId]) : batchTreeIds;
   const everyTree = treeIds.length === rootIds.length;
   const monteCarloRun = settings.choice === "EXACT" && settings.algorithm === "MONTE_CARLO";
-  const dependencyStudy = settings.choice === "HCL" && (settings.dependencyResult === "UNCERTAINTY" || settings.dependencyEvidence !== "BASE");
+  const rankedCutSets = settings.choice === "HCL" && settings.dependencyResult === "PROBABILITY" && settings.dependencyCutSets !== "NONE";
+  const dependencyStudy = settings.choice === "HCL" && (settings.dependencyResult === "UNCERTAINTY" || settings.dependencyEvidence !== "BASE" || rankedCutSets);
   const studied = network === undefined ? undefined : studyConfiguration(network.configuration, batchInput);
   const scenarioIds = (studied?.evidenceScenarios ?? []).filter((scenario) => scenario.enabled).map((scenario) => scenario.id);
   const sampling = network !== undefined && settings.dependencyResult === "UNCERTAINTY" ? samplingProblem(dependency, network.configuration) : undefined;
@@ -575,6 +586,7 @@ function useComposer(model: EsqModel | undefined, shownRun: ShownRun, initialNet
     ? studied === undefined ? "The linked SY workbook has no dependency configuration."
       : sampling !== undefined ? sampling
       : settings.dependencyEvidence === "HAZARD" && settings.dependencyResult === "UNCERTAINTY" ? "Hazard convolution gives a probability only."
+      : rankedCutSets && !(settings.keep >= 1 && settings.keep <= 1000) ? "Keep between 1 and 1000 cut sets."
       : dependencyEvidenceProblem(studied, settings.dependencyEvidence)
     : settings.choice === "CUT_SETS"
       ? settings.lowest >= settings.highest ? "The lowest cutoff must be below the highest."
@@ -597,14 +609,16 @@ function useComposer(model: EsqModel | undefined, shownRun: ShownRun, initialNet
     const option = network;
     const result = settings.dependencyResult;
     const evidence = settings.dependencyEvidence;
+    const cutSets: DependencyCutSetChoice = rankedCutSets ? settings.dependencyCutSets : "NONE";
+    const ranked = cutSets === "NONE" ? {} : { cutSets: { score: cutSets, keep: settings.keep, ...(settings.limitOrder === undefined ? {} : { limitOrder: settings.limitOrder }), ...(settings.dependencyCutOff === null ? {} : { cutOff: Number(`1e${settings.dependencyCutOff}`) }) } };
     const trees = [...treeIds];
     const order = new Map(trees.map((treeId, index) => [treeId, index]));
     setRunning(true);
     setError(null);
-    setStudy({ result, evidence, trees: [] });
+    setStudy({ result, evidence, cutSets, trees: [] });
     setStudyTotal(trees.length);
     const draws = result === "UNCERTAINTY" ? { sampling: samplingOf(dependency) } : {};
-    Promise.all(trees.map((treeId) => studyTree({ workbookId, revision, option, treeId, result, evidence, scenarioIds: [...scenarioIds], batchInput, ...draws })
+    Promise.all(trees.map((treeId) => studyTree({ workbookId, revision, option, treeId, result, evidence, scenarioIds: [...scenarioIds], batchInput, ...draws, ...ranked })
       .catch((caught: Error): DependencyStudyTree => ({ treeId, runResult: null, batchRunResult: null, failure: caught.message }))
       .then((outcome) => {
         setStudy((current) => (current === null ? current : {
@@ -923,10 +937,11 @@ function RunsPanel({ view, shownRun, composer, onCutSets }: { view: EsqSolveView
   const network = composer.network;
   const dependencies = settings.choice === "HCL";
   const uncertainty = dependencies && settings.dependencyResult === "UNCERTAINTY";
-  const studyMode = dependencies && (uncertainty || settings.dependencyEvidence !== "BASE");
+  const cutSetChoice: DependencyCutSetChoice = dependencies && !uncertainty ? settings.dependencyCutSets : "NONE";
+  const studyMode = dependencies && (uncertainty || settings.dependencyEvidence !== "BASE" || cutSetChoice !== "NONE");
   const study = composer.study;
-  const shownStudy = studyMode && study !== null && study.result === settings.dependencyResult && study.evidence === settings.dependencyEvidence ? study : null;
-  const hasSettings = !dependencies || uncertainty;
+  const shownStudy = studyMode && study !== null && study.result === settings.dependencyResult && study.evidence === settings.dependencyEvidence && study.cutSets === cutSetChoice ? study : null;
+  const hasSettings = true;
   const shown = shownRun.shown;
   const activeId = composer.live !== null && (composer.live.status === "QUEUED" || composer.live.status === "RUNNING") ? composer.live.id
     : shown !== undefined && (shown.status === "QUEUED" || shown.status === "RUNNING") ? shown.id
@@ -1156,6 +1171,42 @@ function RunsPanel({ view, shownRun, composer, onCutSets }: { view: EsqSolveView
                         else set({ limitOrder: value });
                       }} />
                     </label>
+                  </>
+                )}
+                {dependencies && !uncertainty && (
+                  <>
+                    <label>
+                      <span>Ranked cut sets</span>
+                      <select aria-label="Ranked cut sets" value={settings.dependencyCutSets} onChange={(event) => {
+                        const dependencyCutSets = optionOf(DEPENDENCY_CUT_SETS, event.target.value);
+                        if (dependencyCutSets !== undefined) set({ dependencyCutSets });
+                      }}>
+                        {DEPENDENCY_CUT_SETS.map(([option, text]) => <option key={option} value={option}>{text}</option>)}
+                      </select>
+                    </label>
+                    {settings.dependencyCutSets !== "NONE" && (
+                      <>
+                        <label>
+                          <span>Cut sets kept</span>
+                          <input aria-label="Cut sets kept" type="number" min={1} max={1000} step={1} aria-invalid={!(settings.keep >= 1 && settings.keep <= 1000)} value={settings.keep} onChange={(event) => set({ keep: Math.round(Number(event.target.value)) })} />
+                        </label>
+                        <label>
+                          <span>Maximum cut set order</span>
+                          <input aria-label="Maximum cut set order" type="number" min={1} step={1} placeholder="No limit" value={settings.limitOrder ?? ""} onChange={(event) => {
+                            const value = Math.round(Number(event.target.value));
+                            if (event.target.value.trim().length === 0 || !(value >= 1)) composer.clearLimit();
+                            else set({ limitOrder: value });
+                          }} />
+                        </label>
+                        <label>
+                          <span>Cut set cutoff</span>
+                          <select aria-label="Cut set cutoff" value={settings.dependencyCutOff ?? ""} onChange={(event) => set({ dependencyCutOff: event.target.value === "" ? null : Number(event.target.value) })}>
+                            <option value="">None</option>
+                            {DEPENDENCY_CUT_OFF_EXPONENTS.map((exponent) => <option key={exponent} value={exponent}>{decadeText(exponent)}</option>)}
+                          </select>
+                        </label>
+                      </>
+                    )}
                   </>
                 )}
                 {uncertainty && <DependencySampling dependency={dependency} onChange={composer.setDependency} />}

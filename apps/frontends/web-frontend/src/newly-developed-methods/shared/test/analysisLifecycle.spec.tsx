@@ -85,6 +85,19 @@ async function eventTreeBatch() {
     treeId: "et", result: "PROBABILITY", evidence: "SCENARIOS", scenarioIds: ["scenario"], batchInput: null });
   return study.batchRunResult;
 }
+it("passes ranked cut set settings from a dependency study to the single and batch run calls", async () => {
+  const cutSets = { score: "FAILED_EVENTS" as const, keep: 25, limitOrder: 3 };
+  const input = { workbookId: "esq", revision: 1, option: { key: "sy:hcl", workbookId: "sy", configuration: configuration("sy") },
+    treeId: "et", result: "PROBABILITY" as const, scenarioIds: ["scenario"], batchInput: null };
+  await studyTree({ ...input, evidence: "BASE", cutSets });
+  await studyTree({ ...input, evidence: "HAZARD", cutSets });
+  await studyTree({ ...input, evidence: "BASE" });
+  expect(mockExecute.mock.calls.map((call) => call.length)).toEqual([8, 11, 8]);
+  expect(mockExecute.mock.calls[0]?.[7]).toEqual(cutSets);
+  expect(mockExecute.mock.calls[1]?.[10]).toEqual(cutSets);
+  expect(mockExecute.mock.calls[2]?.[7]).toBeUndefined();
+});
+
 beforeEach(() => {
   jest.clearAllMocks();
   mockExecute.mockResolvedValue({ run: { id: "run", status: "SUCCEEDED" }, runs: [{ scenarioId: "scenario", scenarioCode: "S1", scenarioName: "Earthquake", run: { id: "run", status: "SUCCEEDED" } }] });

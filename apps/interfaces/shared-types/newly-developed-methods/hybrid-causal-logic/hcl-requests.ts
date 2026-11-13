@@ -41,9 +41,36 @@ import {
   HclHazardGridDefinitionSchema,
   HclSolverSettingsSchema,
 } from "./hcl-schemas";
+import { HclDependencyCutSetScoreSchema } from "./hcl-results";
+import type { HclDependencyCutSetScore } from "./hcl-results";
 
 const HclCalculationTypeSchema = z.enum(["PROBABILITY", "UNCERTAINTY"]);
 type HclCalculationType = z.infer<typeof HclCalculationTypeSchema>;
+
+interface HclDependencyCutSetSettings {
+  score: HclDependencyCutSetScore;
+  limitOrder?: number;
+  cutOff?: number;
+  keep: number;
+}
+
+const CutSetLimitShape = {
+  limitOrder: z.number().int().min(1, "The cut set order limit must be at least 1").optional(),
+  cutOff: z.number().gt(0, "The cut set cut-off must be above 0").max(1, "The cut set cut-off cannot exceed 1").optional(),
+  keep: z.number().int().min(1, "Keep at least one cut set").max(1000, "Keep at most 1,000 cut sets"),
+};
+
+const HclDependencyCutSetSettingsSchema = z
+  .object({ score: HclDependencyCutSetScoreSchema, ...CutSetLimitShape })
+  .strict();
+
+interface HclFaultTreeCutSetSettings {
+  limitOrder?: number;
+  cutOff?: number;
+  keep: number;
+}
+
+const HclFaultTreeCutSetSettingsSchema = z.object(CutSetLimitShape).strict();
 
 interface HclRunSampling {
   sampleCount: number;
@@ -112,6 +139,7 @@ interface HclExecuteRequest {
   workbookRevision: WorkbookRevision;
   faultTreeTopGate: FaultTreeTopEventReference;
   evidenceScenarioId?: WorkbookEntityId;
+  dependencyCutSets?: HclFaultTreeCutSetSettings;
 }
 
 interface HclEventTreeExecuteRequest {
@@ -123,6 +151,7 @@ interface HclEventTreeExecuteRequest {
   dependencyConfiguration?: WorkbookModelAddress;
   evidenceScenarioId?: WorkbookEntityId;
   sampling?: HclRunSampling;
+  dependencyCutSets?: HclDependencyCutSetSettings;
 }
 
 const HclBatchInputSchema = z.object({
@@ -147,6 +176,7 @@ interface HclFaultTreeBatchExecuteRequest {
   evidenceScenarioIds: WorkbookEntityId[];
   batchInput?: HclBatchInput;
   integrateHazardGrid?: boolean;
+  dependencyCutSets?: HclFaultTreeCutSetSettings;
 }
 
 interface HclEventTreeBatchExecuteRequest {
@@ -160,6 +190,7 @@ interface HclEventTreeBatchExecuteRequest {
   batchInput?: HclBatchInput;
   integrateHazardGrid?: boolean;
   sampling?: HclRunSampling;
+  dependencyCutSets?: HclDependencyCutSetSettings;
 }
 
 const HclCreateRequestSchema = z
@@ -215,6 +246,7 @@ const HclExecuteRequestSchema = z
     workbookRevision: WorkbookRevisionSchema,
     faultTreeTopGate: FaultTreeTopEventReferenceSchema,
     evidenceScenarioId: WorkbookEntityIdSchema.optional(),
+    dependencyCutSets: HclFaultTreeCutSetSettingsSchema.optional(),
   })
   .strict();
 
@@ -232,6 +264,7 @@ const HclEventTreeExecuteRequestSchema = z
     dependencyConfiguration: WorkbookModelAddressSchema.optional(),
     evidenceScenarioId: WorkbookEntityIdSchema.optional(),
     sampling: HclRunSamplingSchema.optional(),
+    dependencyCutSets: HclDependencyCutSetSettingsSchema.optional(),
   })
   .strict();
 
@@ -254,6 +287,7 @@ const HclFaultTreeBatchExecuteRequestSchema = z
     evidenceScenarioIds: EvidenceScenarioIdsSchema,
     batchInput: HclBatchInputSchema.optional(),
     integrateHazardGrid: z.boolean().optional(),
+    dependencyCutSets: HclFaultTreeCutSetSettingsSchema.optional(),
   })
   .strict();
 
@@ -269,6 +303,7 @@ const HclEventTreeBatchExecuteRequestSchema = z
     batchInput: HclBatchInputSchema.optional(),
     integrateHazardGrid: z.boolean().optional(),
     sampling: HclRunSamplingSchema.optional(),
+    dependencyCutSets: HclDependencyCutSetSettingsSchema.optional(),
   })
   .strict();
 
@@ -289,9 +324,17 @@ type _AssertHclEventTreeBatchExecuteRequest = Expect<
   Equal<z.infer<typeof HclEventTreeBatchExecuteRequestSchema>, HclEventTreeBatchExecuteRequest>
 >;
 type _AssertHclRunSampling = Expect<Equal<z.infer<typeof HclRunSamplingSchema>, HclRunSampling>>;
+type _AssertHclFaultTreeCutSetSettings = Expect<
+  Equal<z.infer<typeof HclFaultTreeCutSetSettingsSchema>, HclFaultTreeCutSetSettings>
+>;
+type _AssertHclDependencyCutSetSettings = Expect<
+  Equal<z.infer<typeof HclDependencyCutSetSettingsSchema>, HclDependencyCutSetSettings>
+>;
 
 export {
   HclCalculationTypeSchema,
+  HclDependencyCutSetSettingsSchema,
+  HclFaultTreeCutSetSettingsSchema,
   HclRunSamplingSchema,
   HclBatchInputSchema,
   HclCreateRequestSchema,
@@ -305,6 +348,8 @@ export {
 };
 export type {
   HclCalculationType,
+  HclDependencyCutSetSettings,
+  HclFaultTreeCutSetSettings,
   HclRunSampling,
   HclBatchInput,
   HclCreateRequest,

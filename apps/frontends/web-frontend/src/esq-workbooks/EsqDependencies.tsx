@@ -12,6 +12,8 @@ import {
   HclHazardSweepSpecSchema,
   type HclBatchInput,
   type HclCalculationType,
+  type HclDependencyCutSetScore,
+  type HclDependencyCutSetSettings,
   type HclEvidenceScenario,
   type HclHazardSweepSpec,
   type HclRunSampling,
@@ -35,6 +37,8 @@ import "./css/esqDependencies.css";
 
 type DependencyEvidence = "BASE" | "SCENARIOS" | "HAZARD";
 
+type DependencyCutSetChoice = "NONE" | HclDependencyCutSetScore;
+
 type FileFormat = "JSON" | "CSV";
 
 interface DependencyStudyTree {
@@ -47,6 +51,7 @@ interface DependencyStudyTree {
 interface DependencyStudy {
   result: HclCalculationType;
   evidence: DependencyEvidence;
+  cutSets: DependencyCutSetChoice;
   trees: DependencyStudyTree[];
 }
 
@@ -60,6 +65,7 @@ interface DependencyStudyInput {
   scenarioIds: string[];
   batchInput: HclBatchInput | null;
   sampling?: HclRunSampling;
+  cutSets?: HclDependencyCutSetSettings;
 }
 
 interface DependencyPanelProps {
@@ -164,7 +170,7 @@ async function studyTree(input: DependencyStudyInput): Promise<DependencyStudyTr
   const dependencyConfiguration = { workbookId: input.option.workbookId, modelId: configurationId };
   const eventTree = { workbookId: input.workbookId, modelId: input.treeId };
   if (input.evidence === "BASE") {
-    const execution = await runEsqHclEventTree(input.workbookId, configurationId, input.revision, eventTree, input.result, dependencyConfiguration, input.sampling);
+    const execution = await runEsqHclEventTree(input.workbookId, configurationId, input.revision, eventTree, input.result, dependencyConfiguration, input.sampling, input.cutSets);
     if (execution.run.status !== "SUCCEEDED") return { treeId: input.treeId, runResult: null, batchRunResult: null, failure: execution.run.failure?.message ?? NO_REASON };
     const result = await getEsqHclEventTreeResult(input.workbookId, configurationId, execution.run.id);
     return { treeId: input.treeId, runResult: { kind: "EVENT_TREE", result }, batchRunResult: null, failure: null };
@@ -180,6 +186,7 @@ async function studyTree(input: DependencyStudyInput): Promise<DependencyStudyTr
     dependencyConfiguration,
     input.batchInput ?? undefined,
     input.sampling,
+    input.cutSets,
   );
   const scenarios = await Promise.all(execution.runs.map(async (row) => ({
     scenarioId: row.scenarioId,
@@ -689,6 +696,7 @@ export {
   studyConfiguration,
   studyTree,
   type DependencyEvidence,
+  type DependencyCutSetChoice,
   type DependencyStudy,
   type DependencyStudyTree,
 };

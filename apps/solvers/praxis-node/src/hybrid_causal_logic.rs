@@ -26,6 +26,10 @@ use crate::fault_tree::{
 };
 use crate::transport::SolverRequest;
 
+mod dependency_cut_sets;
+
+use dependency_cut_sets::FaultTreeCutSetsInput;
+
 const HCL_METHOD: &str = "HYBRID_CAUSAL_LOGIC";
 
 #[derive(Clone, Copy, Debug, Default, Deserialize, PartialEq, Eq)]
@@ -62,6 +66,8 @@ struct HclExecuteRequest {
     hazard_convolution: Option<HazardConvolutionRequest>,
     #[serde(default)]
     keep_samples: bool,
+    #[serde(default)]
+    dependency_cut_sets: Option<FaultTreeCutSetsInput>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -381,6 +387,7 @@ struct HclAdapter {
     hazard_convolution: Option<HazardConvolutionRequest>,
     basic_event_quantifications: Vec<BasicEventQuantificationRecord>,
     keep_samples: bool,
+    dependency_cut_sets: Option<FaultTreeCutSetsInput>,
 }
 
 fn serialization_error(context: &str, error: impl std::fmt::Display) -> PraxisError {
@@ -570,6 +577,9 @@ fn build_adapter(request: &SolverRequest) -> Result<HclAdapter> {
     execute
         .calculation_type
         .ensure_hazard_supported(execute.hazard_convolution.is_some())?;
+    if let Some(cut_sets) = &execute.dependency_cut_sets {
+        cut_sets.validate(execute.calculation_type == HclCalculationType::Probability)?;
+    }
     let snapshot = find_snapshot(request, &execute)?;
     validate_binding_references(request, &snapshot)?;
     if !snapshot
@@ -652,6 +662,7 @@ fn build_adapter(request: &SolverRequest) -> Result<HclAdapter> {
         hazard_convolution: execute.hazard_convolution,
         basic_event_quantifications,
         keep_samples: execute.keep_samples,
+        dependency_cut_sets: execute.dependency_cut_sets,
     })
 }
 
@@ -761,7 +772,11 @@ pub(crate) fn execute(request: &SolverRequest) -> Result<Value> {
         );
     }
     let result = analyze_hcl(&adapter.model, &adapter.settings)?;
-    Ok(hcl_result_json(&adapter, &result, None))
+    let mut value = hcl_result_json(&adapter, &result, None);
+    if let Some(cut_sets) = &adapter.dependency_cut_sets {
+        dependency_cut_sets::attach_to_result(&adapter, cut_sets, &mut value)?;
+    }
+    Ok(value)
 }
 
 fn batch_response(adapter: &HclAdapter) -> Value {
@@ -818,6 +833,9 @@ fn execute_batch(adapter: &HclAdapter, rows: &[HclEvidenceRow]) -> Result<Value>
     });
     if let Some(hazard_convolution) = hazard_convolution {
         response["hazardConvolution"] = hazard_convolution;
+    }
+    if let Some(cut_sets) = &adapter.dependency_cut_sets {
+        dependency_cut_sets::attach_to_batch(adapter, cut_sets, rows, &mut response)?;
     }
     Ok(response)
 }

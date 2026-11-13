@@ -1,0 +1,51 @@
+.hcleditor__cut-set-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  width: 100%;
+  gap: 8px 16px;
+}
+
+.hcleditor__cut-set-row .hcleditor__run-field {
+  grid-template-columns: auto max-content;
+}
+
+.bneditor .hcleditor__cut-set-row .hcleditor__run-field select {
+  width: max-content;
+}
+
+.bneditor .hcleditor__cut-set-row .hcleditor__run-field input {
+  width: 96px;
+  height: 28px;
+  box-sizing: border-box;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 0 9px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+}
+
+.modal.hcl-cut-sets {
+  width: max-content;
+  max-width: calc(100vw - 48px);
+}
+
+.hcl-cut-sets__facts th {
+  padding-right: 24px;
+  text-align: left;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.hcl-cut-sets__table th,
+.hcl-cut-sets__table td {
+  padding: 6px 16px 6px 0;
+  text-align: left;
+  vertical-align: middle;
+}
+
+.hcl-cut-sets__table .hcl-cut-sets__number {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}

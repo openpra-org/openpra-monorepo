@@ -56,15 +56,22 @@ beforeEach(() => {
 });
 afterEach(() => jest.useRealTimers());
 
+const cutSets = { score: "FAILED_EVENTS_AND_SEQUENCE" as const, keep: 25, limitOrder: 3, cutOff: 1e-9 };
+const treeCutSets = { keep: 25, limitOrder: 3, cutOff: 1e-9 };
+
 const single: Array<[string, Host, (mode: HclCalculationType) => Promise<HclExecuteResult>, object]> = [
   ["SY FT", "sy", (mode) => runSyHclFaultTree("sy", hcl, 2, ft, mode, "scenario"), { faultTreeTopGate: ft, evidenceScenarioId: "scenario" }],
+  ["SY FT with ranked cut sets", "sy", (mode) => runSyHclFaultTree("sy", hcl, 2, ft, mode, undefined, treeCutSets), { faultTreeTopGate: ft, dependencyCutSets: treeCutSets }],
   ["ESQ FT", "esq", (mode) => runEsqHclFaultTree("esq", hcl, 2, ft, mode), { faultTreeTopGate: ft }],
   ["ESQ ET", "esq", (mode) => runEsqHclEventTree("esq", hcl, 2, et, mode, dependency), { eventTree: et, dependencyConfiguration: dependency }],
+  ["ESQ ET with ranked cut sets", "esq", (mode) => runEsqHclEventTree("esq", hcl, 2, et, mode, dependency, undefined, cutSets), { eventTree: et, dependencyConfiguration: dependency, dependencyCutSets: cutSets }],
 ];
 const batch: Array<[string, Host, (mode: HclCalculationType) => Promise<HclBatchExecuteResult>, object]> = [
   ["SY FT batch", "sy", (mode) => runSyHclFaultTreeBatch("sy", hcl, 2, ft, mode, ["scenario"], true), { faultTreeTopGate: ft, evidenceScenarioIds: ["scenario"], integrateHazardGrid: true }],
+  ["SY FT batch with ranked cut sets", "sy", (mode) => runSyHclFaultTreeBatch("sy", hcl, 2, ft, mode, ["scenario"], true, undefined, treeCutSets), { faultTreeTopGate: ft, evidenceScenarioIds: ["scenario"], integrateHazardGrid: true, dependencyCutSets: treeCutSets }],
   ["ESQ FT batch", "esq", (mode) => runEsqHclFaultTreeBatch("esq", hcl, 2, ft, mode, ["scenario"], false), { faultTreeTopGate: ft, evidenceScenarioIds: ["scenario"] }],
   ["ESQ ET batch", "esq", (mode) => runEsqHclEventTreeBatch("esq", hcl, 2, et, mode, ["scenario"], false, dependency), { eventTree: et, evidenceScenarioIds: ["scenario"], dependencyConfiguration: dependency }],
+  ["ESQ ET batch with ranked cut sets", "esq", (mode) => runEsqHclEventTreeBatch("esq", hcl, 2, et, mode, ["scenario"], true, dependency, undefined, undefined, cutSets), { eventTree: et, evidenceScenarioIds: ["scenario"], dependencyConfiguration: dependency, integrateHazardGrid: true, dependencyCutSets: cutSets }],
 ];
 
 for (const mode of ["PROBABILITY", "UNCERTAINTY"] as const) {

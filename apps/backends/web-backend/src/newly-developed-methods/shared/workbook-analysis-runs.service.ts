@@ -93,6 +93,8 @@ import type {
   EventTreeExecuteRequest,
   FaultTreeExecuteRequest,
   HclEventTreeExecuteRequest,
+  HclDependencyCutSetSettings,
+  HclFaultTreeCutSetSettings,
   HclEventTreeBatchExecuteRequest,
   HclExecuteRequest,
   HclCalculationType,
@@ -354,6 +356,14 @@ const adaptOrThrow = <T>(adapter: () => T): T => {
     }
     throw error;
   }
+};
+
+const rankedCutSetsOf = <Settings extends HclDependencyCutSetSettings | HclFaultTreeCutSetSettings>(request: { calculationType: HclCalculationType; dependencyCutSets?: Settings }): { dependencyCutSets?: Settings } => {
+  if (request.dependencyCutSets === undefined) return {};
+  if (request.calculationType === "UNCERTAINTY") {
+    throw new BadRequestException("Ranked cut sets are available for dependency probability runs. Choose Probability as the result.");
+  }
+  return { dependencyCutSets: { ...request.dependencyCutSets } };
 };
 
 const withRunSampling = (hcl: LoadedHclSources, sampling: HclRunSampling | undefined): LoadedHclSources => {
@@ -995,6 +1005,7 @@ export class WorkbookAnalysisRunsService implements OnModuleInit, OnModuleDestro
       ...(raw["compilationReuse"] === undefined ? {} : { compilationReuse: raw["compilationReuse"] }),
       junctionTree: raw["junctionTree"],
       basicEventQuantifications: raw["basicEventQuantifications"],
+      ...(raw["dependencyCutSets"] === undefined ? {} : { dependencyCutSets: raw["dependencyCutSets"] }),
       validationIssues: raw["validationIssues"] ?? [],
     };
     if (raw["uncertainty"] != null) hclResult["uncertainty"] = raw["uncertainty"];
@@ -1814,12 +1825,14 @@ export class WorkbookAnalysisRunsService implements OnModuleInit, OnModuleDestro
     build: (hcl: EsqModelHcl) => Promise<EsqDependencyTreeBuild>;
   }): Promise<AnalysisRunMetadata> {
     const { owner, request, acting } = input;
+    const rankedCutSets = rankedCutSetsOf(request);
     const loaded = await this.loadHclSources(owner, request.modelId, request.dependencyConfiguration);
     const scenario = this.resolveHclEvidenceScenario(loaded.configuration, request.evidenceScenarioId);
     const hcl = await this.esqModelHcl(owner, withRunSampling(loaded, request.sampling), acting, request.calculationType);
     const tree = this.coveredDependencyTree(hcl, await input.build(hcl));
     const evidence = scenario?.evidence ?? loaded.configuration.baseEvidence;
-    const envelope = hcl.augment(tree.envelope, tree.syWorkbookId, tree.syModelIds, tree.standIns, scenario?.evidence);
+    const augmented = hcl.augment(tree.envelope, tree.syWorkbookId, tree.syModelIds, tree.standIns, scenario?.evidence);
+    const envelope: SolverEnvelope = { ...augmented, request: { ...augmented.request, ...rankedCutSets } };
     const sources = [...tree.sources, ...hcl.sources];
     const identity = { workbookId: owner.workbookId, modelId: request.modelId, workbookRevision: owner.workbookRevision };
     const entities = hcl.entities(envelope, tree.syWorkbookId, tree.syModelIds, tree.standIns, evidence);
@@ -1845,6 +1858,7 @@ export class WorkbookAnalysisRunsService implements OnModuleInit, OnModuleDestro
     build: (hcl: EsqModelHcl) => Promise<EsqDependencyTreeBuild>;
   }): Promise<HclBatchExecuteResult> {
     const { owner, request, acting } = input;
+    const rankedCutSets = rankedCutSetsOf(request);
     const loaded = await this.loadHclSources(owner, request.modelId, request.dependencyConfiguration);
     const configuration = this.resolveHclBatchConfiguration(loaded, request.evidenceScenarioIds, request.batchInput);
     const hazardGrid = this.resolveHclHazardGrid(configuration, request.integrateHazardGrid, request.calculationType);
@@ -1859,6 +1873,7 @@ export class WorkbookAnalysisRunsService implements OnModuleInit, OnModuleDestro
       ...augmented,
       request: {
         ...augmented.request,
+        ...rankedCutSets,
         evidenceBatch: scenarios.map(({ scenario, evidence }) => ({
           scenarioId: scenario.id,
           observations: evidence.observations,
@@ -1895,6 +1910,7 @@ export class WorkbookAnalysisRunsService implements OnModuleInit, OnModuleDestro
         eventTree: request.eventTree,
         ...(request.dependencyConfiguration === undefined ? {} : { dependencyConfiguration: request.dependencyConfiguration }),
         ...(request.sampling === undefined ? {} : { sampling: structuredClone(request.sampling) }),
+        ...rankedCutSetsOf(request),
         evidenceScenarioId: scenario.id,
         mode: "HYBRID_CAUSAL_LOGIC",
         batchContext,
@@ -2447,6 +2463,7 @@ export class WorkbookAnalysisRunsService implements OnModuleInit, OnModuleDestro
   ): Promise<AnalysisRunMetadata> {
     const request = parseRequest(HclExecuteRequestSchema, body);
     expectPathModel(pathModelId, request.modelId);
+    const rankedCutSets = rankedCutSetsOf(request);
     const owner = ownerKind === "SY" ? await this.loadSy(workbookId) : await this.loadEsq(workbookId);
     await this.authorizeOwner(owner, request.workbookRevision, acting);
     const hcl = await this.loadHclSources(owner, request.modelId);
@@ -2531,6 +2548,7 @@ export class WorkbookAnalysisRunsService implements OnModuleInit, OnModuleDestro
             entityId: request.faultTreeTopGate.entityId,
           },
           ...(request.calculationType === "UNCERTAINTY" ? { keepSamples: true } : {}),
+          ...rankedCutSets,
         },
         modelSnapshots: [
           ...faultTrees.modelSnapshots,
@@ -2616,6 +2634,7 @@ export class WorkbookAnalysisRunsService implements OnModuleInit, OnModuleDestro
   ): Promise<HclBatchExecuteResult> {
     const request = parseRequest(HclFaultTreeBatchExecuteRequestSchema, body);
     expectPathModel(pathModelId, request.modelId);
+    const rankedCutSets = rankedCutSetsOf(request);
     const owner = ownerKind === "SY" ? await this.loadSy(workbookId) : await this.loadEsq(workbookId);
     await this.authorizeOwner(owner, request.workbookRevision, acting);
     const hcl = await this.loadHclSources(owner, request.modelId);
@@ -2660,6 +2679,7 @@ export class WorkbookAnalysisRunsService implements OnModuleInit, OnModuleDestro
         workbookRevision: request.workbookRevision,
         faultTreeTopGate: request.faultTreeTopGate,
         evidenceScenarioId: scenario.id,
+        ...rankedCutSets,
       };
       const runId = randomUUID();
       const trace = this.createAnalysisRunTrace(
@@ -2726,6 +2746,7 @@ export class WorkbookAnalysisRunsService implements OnModuleInit, OnModuleDestro
             entityId: request.faultTreeTopGate.entityId,
           },
           ...(request.calculationType === "UNCERTAINTY" ? { keepSamples: true } : {}),
+          ...rankedCutSets,
           evidenceBatch: resolvedScenarios.map(({ scenario, evidence }) => ({
             scenarioId: scenario.id,
             observations: evidence.observations,

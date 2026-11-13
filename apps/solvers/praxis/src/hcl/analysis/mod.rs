@@ -1,7 +1,12 @@
 //! Probability batches, hazard integration and explicitly configured uncertainty.
 //! Probability traversal uses the unchanged main HCLQuantifier.
 
+mod cut_sets;
 mod model;
+
+pub use cut_sets::{
+    rank_hcl_cut_sets, rank_hcl_cut_sets_batch, FaultTreeRankedCutSets, HclCutSetRanking,
+};
 
 pub use model::{
     HclAnalysisResult, HclAnalysisSettings, HclBasicEventUncertainty, HclBatchCompilationStats,

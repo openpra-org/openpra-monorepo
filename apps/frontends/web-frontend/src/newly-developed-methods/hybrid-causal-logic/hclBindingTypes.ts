@@ -11,6 +11,7 @@ import type {
   HclHazardConvolutionResult,
   HclHazardSweepSpec,
   HclQuantificationResult,
+  HclFaultTreeCutSetSettings,
 } from "interfaces-shared-types/newly-developed-methods/hybrid-causal-logic";
 import type { ValidationIssue } from "interfaces-shared-types/newly-developed-methods/shared";
 import type { AnalysisHost } from "../shared/analysisRunWait";
@@ -106,9 +107,9 @@ interface HclBindingEditorProps {
   onGenerateScenarios?: (configuration: WorkbookHclConfiguration, spec: HclHazardSweepSpec) => Promise<HclEvidenceScenario[]>;
   onEditEvidence?: () => void;
   onChange: (configurations: WorkbookHclConfiguration[]) => void;
-  onRunFaultTree: (configuration: WorkbookHclConfiguration, faultTree: HclFaultTreeOption, calculationType: HclCalculationType) => void;
+  onRunFaultTree: (configuration: WorkbookHclConfiguration, faultTree: HclFaultTreeOption, calculationType: HclCalculationType, cutSets?: HclFaultTreeCutSetSettings) => void;
   onRunEventTree: (configuration: WorkbookHclConfiguration, eventTree: HclEventTreeOption, calculationType: HclCalculationType) => void;
-  onRunFaultTreeBatch: (configuration: WorkbookHclConfiguration, faultTree: HclFaultTreeOption, scenarioIds: string[], integrateHazardGrid: boolean, calculationType: HclCalculationType) => void;
+  onRunFaultTreeBatch: (configuration: WorkbookHclConfiguration, faultTree: HclFaultTreeOption, scenarioIds: string[], integrateHazardGrid: boolean, calculationType: HclCalculationType, cutSets?: HclFaultTreeCutSetSettings) => void;
   onRunEventTreeBatch: (configuration: WorkbookHclConfiguration, eventTree: HclEventTreeOption, scenarioIds: string[], integrateHazardGrid: boolean, calculationType: HclCalculationType) => void;
 }
 

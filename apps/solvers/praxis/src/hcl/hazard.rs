@@ -21,7 +21,7 @@ pub fn ensure_hazard_convolution_supported(
     Ok(())
 }
 
-pub(super) fn resolve_evidence(
+pub(crate) fn resolve_evidence(
     network: &BayesianGraph,
     specs: &[HclEvidenceSpec],
 ) -> Result<HclBaseEvidence> {

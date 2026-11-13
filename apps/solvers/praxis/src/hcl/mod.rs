@@ -8,17 +8,23 @@ pub(crate) use analysis::bridge_delta;
 mod api;
 mod bayesian;
 mod binding;
+mod context;
 mod hazard;
 mod hazard_sweep;
 mod input;
 mod model;
 mod numpy_statistics;
+mod occurrence_bound;
+pub(crate) use occurrence_bound::{occurrence_bounds, OccurrenceBounds};
 pub(crate) mod ordering;
 mod quantify;
 mod request;
 mod sample_outputs;
 mod uncertainty;
 
+pub use analysis::{
+    rank_hcl_cut_sets, rank_hcl_cut_sets_batch, FaultTreeRankedCutSets, HclCutSetRanking,
+};
 pub use analysis::{
     analyze_hcl, quantify_hcl_batch, quantify_hcl_hazard_grid_batch, HclAnalysisResult,
     HclAnalysisSettings, HclBasicEventUncertainty, HclBatchCompilationStats, HclBatchResult,
@@ -33,7 +39,9 @@ pub use bayesian::{
 };
 pub use binding::{HclBaseEvidence, HclEventBinding, HclEventBindings};
 pub use hazard::ensure_hazard_convolution_supported;
-pub(crate) use hazard::{conditional_evidence_probabilities_for_network, prepare_hazard_evidence};
+pub(crate) use hazard::{
+    conditional_evidence_probabilities_for_network, prepare_hazard_evidence, resolve_evidence,
+};
 pub use hazard_sweep::{
     generate_hazard_sweep_scenarios, HazardDimension, HazardSweepScenario, HazardSweepSpec,
 };
@@ -57,3 +65,6 @@ mod summary_source_tests;
 
 #[cfg(test)]
 mod hazard_source_tests;
+
+#[cfg(test)]
+mod exact_enumeration_tests;

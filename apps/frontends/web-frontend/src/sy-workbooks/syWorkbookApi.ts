@@ -22,6 +22,7 @@ import type {
 import type {
   HclBatchExecuteResult,
   HclBatchInput,
+  HclFaultTreeCutSetSettings,
   HclHazardSweepSpec,
   HclGenerateScenariosResult,
   HclExecuteResult,
@@ -206,6 +207,7 @@ async function runSyHclFaultTree(
   faultTreeTopGate: FaultTreeTopEventReference,
   calculationType: HclCalculationType,
   evidenceScenarioId?: string,
+  dependencyCutSets?: HclFaultTreeCutSetSettings,
 ): Promise<HclExecuteResult> {
   return finishedRun("sy", workbookId, postJson<HclExecuteResult>(
     `/api/sy-workbooks/${workbookId}/hcl-configurations/${configurationId}/fault-tree-runs`,
@@ -216,6 +218,7 @@ async function runSyHclFaultTree(
       calculationType,
       faultTreeTopGate,
       ...(evidenceScenarioId === undefined ? {} : { evidenceScenarioId }),
+      ...(dependencyCutSets === undefined ? {} : { dependencyCutSets }),
     },
   ));
 }
@@ -229,6 +232,7 @@ async function runSyHclFaultTreeBatch(
   evidenceScenarioIds: string[],
   integrateHazardGrid = false,
   batchInput?: HclBatchInput,
+  dependencyCutSets?: HclFaultTreeCutSetSettings,
 ): Promise<HclBatchExecuteResult> {
   const response = await postJson<HclBatchExecuteResult>(
     `/api/sy-workbooks/${workbookId}/hcl-configurations/${configurationId}/fault-tree-batch-runs`,
@@ -241,6 +245,7 @@ async function runSyHclFaultTreeBatch(
       evidenceScenarioIds,
       ...(batchInput === undefined ? {} : { batchInput }),
       ...(integrateHazardGrid ? { integrateHazardGrid: true } : {}),
+      ...(dependencyCutSets === undefined ? {} : { dependencyCutSets }),
     },
   );
   if (response.batchId === undefined) return response;

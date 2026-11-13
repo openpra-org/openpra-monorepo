@@ -118,8 +118,18 @@ the web frontend, backend and Node addon do not expose them for FT or ET runs.
 HCL FT and ET probability runs use main's original HCL+TensorBayes quantifier.
 The addon supplies HCL_MH's BN depth order followed by BFS FT-only events,
 unless the request supplies an explicit order. Sequences keep separate BDDs.
-HCL cut sets and importance are disabled pending methodological review
-(tasks 10–11 deferred). Their result fields and exports have been removed.
+An HCL ET probability request may carry `dependencyCutSets`
+(`score`: `FAILED_EVENTS` or `FAILED_EVENTS_AND_SEQUENCE`, `keep`, optional
+`limitOrder`, optional `cutOff`). Each sequence result then holds
+`dependencyCutSets` with the number found and the kept items ranked by their
+probability under the network. A hazard grid also returns the weighted ranking
+on `hazardConvolution.sequences`. An HCL FT probability request may carry
+`dependencyCutSets` (`keep`, optional `limitOrder`, optional `cutOff`). The
+result, each scenario result and `hazardConvolution` then hold
+`dependencyCutSets` with `count` and `items` (`order`, `basicEventIds`,
+`probability`). `cutOff` keeps the cut sets whose probability under the network
+reaches it. The option is refused for independent runs and for uncertainty
+runs. HCL importance stays disabled pending methodological review.
 FT/CPT uncertainty, summary statistics and point hazard convolution follow
 their reviewed sources. Sampled hazard convolution is disabled; its dedicated
 calculation and result fields were removed in task 23.

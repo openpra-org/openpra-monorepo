@@ -15,6 +15,7 @@ import {
   type HazardSequenceLookup,
 } from "./hclHazardResults";
 import { hclResultLabels, sequenceEndState } from "./hclResultLabels";
+import { HclCutSetsButton } from "./hclFaultTreeCutSets";
 
 function summaryValues(summary?: HclUncertaintySummary): number[] {
   return summary === undefined ?
@@ -118,6 +119,16 @@ export function HclResults({
     hazard === undefined &&
     batchHasNoNumericVariation(batchRunResult, calculationType === "UNCERTAINTY");
   const outcomeLabel = selected === "" ? "All outcomes" : labels.endStateName(selected);
+  const firstTree = workflow === "MANUAL" ? runResult : batchRunResult?.scenarios.find((scenario) => scenario.result?.kind === "FAULT_TREE")?.result;
+  const rankedTree =
+    firstTree?.kind === "FAULT_TREE" ?
+      faultTreeOptions.find(
+        (option) =>
+          option.modelId === firstTree.result.faultTreeTopGate.modelId &&
+          option.workbookId === firstTree.result.faultTreeTopGate.workbookId,
+      )
+    : undefined;
+  const rankedTitle = rankedTree === undefined ? "Fault tree" : `${rankedTree.modelCode} · ${rankedTree.modelName}`;
   return (
     <>
       {endStateIds.length > 0 && (
@@ -169,6 +180,7 @@ export function HclResults({
                 columnName={() => "Top event probability"}
               />
             )}
+            <HclCutSetsButton cutSets={runResult.result.dependencyCutSets} faultTree={rankedTree} title={rankedTitle} />
           </div>
           <ResultWarnings issues={runResult.result.validationIssues} />
           {calculationType === "PROBABILITY" ?
@@ -232,6 +244,9 @@ export function HclResults({
               {batchRunResult.scenarios.filter((scenario) => scenario.status === "SUCCEEDED").length} of{" "}
               {batchRunResult.scenarios.length} completed{noVariation ? " · No variation across scenarios" : ""}
             </span>
+            {hazard?.targetKind === "FAULT_TREE" && (
+              <HclCutSetsButton cutSets={hazard.dependencyCutSets} faultTree={rankedTree} title={rankedTitle} evidence="Weighted over the hazard grid" weighted />
+            )}
           </div>
           <HclCompilationDiagnostics key={batchKey} stats={batchRunResult.compilationReuse} />
           {hazard !== undefined && <HclHazardSummary hazard={hazard} />}
@@ -296,6 +311,14 @@ export function HclResults({
                           }
                         />
                         {result !== null && <ResultWarnings issues={result.result.validationIssues} />}
+                        {ft !== undefined && (
+                          <HclCutSetsButton
+                            cutSets={ft.dependencyCutSets}
+                            faultTree={rankedTree}
+                            title={rankedTitle}
+                            evidence={scenario.scenarioName === scenario.scenarioCode ? scenario.scenarioCode : `${scenario.scenarioCode} · ${scenario.scenarioName}`}
+                          />
+                        )}
                         {ft !== undefined && <HclFaultTreeDiagnostics result={ft} />}
                       </div>
                     );

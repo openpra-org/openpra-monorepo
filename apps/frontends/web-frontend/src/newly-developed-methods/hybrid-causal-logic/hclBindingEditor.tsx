@@ -28,6 +28,8 @@ import {
   importHclEvidenceScenariosJson,
 } from "./hclEvidenceScenarioInterchange";
 import "./css/hclBindingEditor.css";
+import { useWorkbookView } from "../../workbooks/workbookViewMemory";
+import { CUT_SET_CHOICE_VIEW, HclCutSetControls, START_CUT_SET_CHOICE, cutSetSettingsOf } from "./hclFaultTreeCutSets";
 import { HclBasicEventControls, basicEventKey, type HclBasicEventChoice } from "./hclUncertaintyControls";
 
 
@@ -164,6 +166,7 @@ function HclBindingEditor({
       candidate.bayesianNetwork.modelId === model.modelId
       && (workbookId === null || candidate.bayesianNetwork.workbookId === workbookId),
   );
+  const [cutSetChoice, setCutSetChoice] = useWorkbookView(`hcl-cut-sets:${model.modelId}`, START_CUT_SET_CHOICE, CUT_SET_CHOICE_VIEW);
   const savedUncertainty = configuration?.solverSettings.uncertainty;
   const parsedUncertainty = useMemo(
     () => calculationType !== "UNCERTAINTY" || savedUncertainty === undefined
@@ -484,8 +487,13 @@ function HclBindingEditor({
         setError("Choose a linked fault tree with a top event.");
         return;
       }
-      if (isBatchWorkflow) onRunFaultTreeBatch(runConfiguration, tree, scenarioIds, effectiveEvidenceMode === "HAZARD_GRID", calculationType);
-      else onRunFaultTree(configuration, tree, calculationType);
+      const cutSets = calculationType === "UNCERTAINTY" ? undefined : cutSetSettingsOf(cutSetChoice);
+      const hazardGridRun = effectiveEvidenceMode === "HAZARD_GRID";
+      if (cutSets === undefined) {
+        if (isBatchWorkflow) onRunFaultTreeBatch(runConfiguration, tree, scenarioIds, hazardGridRun, calculationType);
+        else onRunFaultTree(configuration, tree, calculationType);
+      } else if (isBatchWorkflow) onRunFaultTreeBatch(runConfiguration, tree, scenarioIds, hazardGridRun, calculationType, cutSets);
+      else onRunFaultTree(configuration, tree, calculationType, cutSets);
       return;
     }
     if (selectedEventTree === undefined) {
@@ -749,6 +757,7 @@ function HclBindingEditor({
                 <span>{running ? "Running…" : `Run ${calculationLabel}${workflow === "BATCH" ? " batch" : ""}`}</span>
               </button>
             </div>
+            {targetKind === "FAULT_TREE" && calculationType !== "UNCERTAINTY" && <HclCutSetControls choice={cutSetChoice} onChange={setCutSetChoice} />}
           </div>
 
           {targetKind === "EVENT_TREE" && selectedEventTree !== undefined && (

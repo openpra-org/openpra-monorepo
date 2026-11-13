@@ -31,6 +31,7 @@ use crate::transport::SolverRequest;
 const EVENT_TREE_METHOD: &str = "EVENT_TREE";
 
 mod cut_sets;
+mod dependency_cut_sets;
 mod linked;
 mod measures;
 mod monte_carlo;
@@ -55,6 +56,8 @@ struct EventTreeExecuteRequest {
     expand_ccf: bool,
     #[serde(default)]
     cut_sets: Option<cut_sets::CutSetsInput>,
+    #[serde(default)]
+    dependency_cut_sets: Option<dependency_cut_sets::DependencyCutSetsInput>,
     #[serde(default)]
     sequence_families: HashMap<String, String>,
     #[serde(default)]
@@ -316,6 +319,7 @@ struct EventTreeAdapter {
     evidence_batch: Option<Vec<EventTreeEvidenceRow>>,
     hazard_convolution: Option<HazardConvolutionRequest>,
     cut_sets: Option<cut_sets::CutSetsInput>,
+    dependency_cut_sets: Option<dependency_cut_sets::DependencyCutSetsInput>,
     sequence_families: HashMap<String, String>,
     expand_ccf: bool,
     importance: Option<measures::ImportanceInput>,
@@ -399,6 +403,12 @@ fn build_adapter(request: &SolverRequest) -> Result<EventTreeAdapter> {
             ));
         }
         cut_sets.validate()?;
+    }
+    if let Some(ranked) = &execute.dependency_cut_sets {
+        ranked.validate(
+            execute.mode,
+            execute.calculation_type == HclCalculationType::Probability,
+        )?;
     }
     if execute.importance.is_some() || execute.sampling.is_some() {
         if matches!(execute.mode, EventTreeExecutionMode::HybridCausalLogic)
@@ -566,6 +576,7 @@ fn build_adapter(request: &SolverRequest) -> Result<EventTreeAdapter> {
         evidence_batch: execute.evidence_batch,
         hazard_convolution: execute.hazard_convolution,
         cut_sets: execute.cut_sets,
+        dependency_cut_sets: execute.dependency_cut_sets,
         sequence_families: execute.sequence_families,
         expand_ccf: execute.expand_ccf,
         importance: execute.importance,
@@ -703,7 +714,11 @@ pub(crate) fn execute(request: &SolverRequest) -> Result<Value> {
         adapter.hcl_context.as_ref(),
         &unions,
     )?;
-    event_tree_result_json(&adapter, &probabilities, &end_states, None)
+    let mut value = event_tree_result_json(&adapter, &probabilities, &end_states, None)?;
+    if let Some(ranked) = &adapter.dependency_cut_sets {
+        dependency_cut_sets::attach_to_result(&adapter, ranked, &mut value)?;
+    }
+    Ok(value)
 }
 
 fn end_state_unions(adapter: &EventTreeAdapter) -> Result<Vec<EventTreeUnion>> {
@@ -1001,6 +1016,9 @@ fn execute_batch(adapter: &EventTreeAdapter, rows: &[EventTreeEvidenceRow]) -> R
     });
     if let Some(hazard_convolution) = hazard_convolution {
         response["hazardConvolution"] = hazard_convolution;
+    }
+    if let Some(ranked) = &adapter.dependency_cut_sets {
+        dependency_cut_sets::attach_to_batch(adapter, ranked, rows, &mut response)?;
     }
     Ok(response)
 }

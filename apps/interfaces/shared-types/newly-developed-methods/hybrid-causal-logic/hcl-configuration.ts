@@ -22,5 +22,3 @@ export type {
 } from "interfaces-mef-types/modeling";
 export type { HclConfigurationModel };
 
-export const HCL_HAZARD_CONVOLUTION_POINT_ONLY =
-  "Hazard convolution supports point runs only. Select probability or use evidence scenarios.";

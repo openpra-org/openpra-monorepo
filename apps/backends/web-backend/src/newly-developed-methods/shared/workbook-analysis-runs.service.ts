@@ -57,7 +57,6 @@ import {
   HclGenerateScenariosRequestSchema,
   HclGenerateScenariosResultSchema,
   HclHazardConvolutionResultSchema,
-  HCL_HAZARD_CONVOLUTION_POINT_ONLY,
   HclQuantificationResultSchema,
   HclSampleVectorsSchema,
   LoadCapacityAnalysisResultSchema,
@@ -358,12 +357,24 @@ const adaptOrThrow = <T>(adapter: () => T): T => {
   }
 };
 
-const rankedCutSetsOf = <Settings extends HclDependencyCutSetSettings | HclFaultTreeCutSetSettings>(request: { calculationType: HclCalculationType; dependencyCutSets?: Settings }): { dependencyCutSets?: Settings } => {
-  if (request.dependencyCutSets === undefined) return {};
-  if (request.calculationType === "UNCERTAINTY") {
+const rankedCutSetsOf = <Settings extends HclDependencyCutSetSettings | HclFaultTreeCutSetSettings>(request: { calculationType: HclCalculationType; dependencyCutSets?: Settings; dependencyImportance?: boolean; dependencyImportanceEvents?: number; integrateHazardGrid?: boolean }): { dependencyCutSets?: Settings; dependencyImportance?: true; dependencyImportanceEvents?: number } => {
+  const importance = request.dependencyImportance === true;
+  if (request.dependencyCutSets === undefined && !importance) return {};
+  const sampled = request.calculationType === "UNCERTAINTY";
+  if (sampled && request.dependencyCutSets !== undefined) {
     throw new BadRequestException("Ranked cut sets are available for dependency probability runs. Choose Probability as the result.");
   }
-  return { dependencyCutSets: { ...request.dependencyCutSets } };
+  if (sampled && request.dependencyImportanceEvents === undefined) {
+    throw new BadRequestException("Importance under uncertainty needs the number of events to sample.");
+  }
+  if (sampled && request.integrateHazardGrid === true) {
+    throw new BadRequestException("Importance over a hazard grid is available for probability runs. Choose Probability as the result.");
+  }
+  return {
+    ...(request.dependencyCutSets === undefined ? {} : { dependencyCutSets: { ...request.dependencyCutSets } }),
+    ...(importance ? { dependencyImportance: true as const } : {}),
+    ...(importance && sampled && request.dependencyImportanceEvents !== undefined ? { dependencyImportanceEvents: request.dependencyImportanceEvents } : {}),
+  };
 };
 
 const withRunSampling = (hcl: LoadedHclSources, sampling: HclRunSampling | undefined): LoadedHclSources => {
@@ -1006,6 +1017,7 @@ export class WorkbookAnalysisRunsService implements OnModuleInit, OnModuleDestro
       junctionTree: raw["junctionTree"],
       basicEventQuantifications: raw["basicEventQuantifications"],
       ...(raw["dependencyCutSets"] === undefined ? {} : { dependencyCutSets: raw["dependencyCutSets"] }),
+      ...(raw["dependencyImportance"] === undefined ? {} : { dependencyImportance: raw["dependencyImportance"] }),
       validationIssues: raw["validationIssues"] ?? [],
     };
     if (raw["uncertainty"] != null) hclResult["uncertainty"] = raw["uncertainty"];
@@ -1861,7 +1873,7 @@ export class WorkbookAnalysisRunsService implements OnModuleInit, OnModuleDestro
     const rankedCutSets = rankedCutSetsOf(request);
     const loaded = await this.loadHclSources(owner, request.modelId, request.dependencyConfiguration);
     const configuration = this.resolveHclBatchConfiguration(loaded, request.evidenceScenarioIds, request.batchInput);
-    const hazardGrid = this.resolveHclHazardGrid(configuration, request.integrateHazardGrid, request.calculationType);
+    const hazardGrid = this.resolveHclHazardGrid(configuration, request.integrateHazardGrid);
     const scenarios = request.evidenceScenarioIds.flatMap((scenarioId) => {
       const resolved = this.resolveHclEvidenceScenario(configuration, scenarioId);
       return resolved === null ? [] : [resolved];
@@ -2410,12 +2422,8 @@ export class WorkbookAnalysisRunsService implements OnModuleInit, OnModuleDestro
   private resolveHclHazardGrid(
     configuration: WorkbookHclConfiguration,
     requested: boolean | undefined,
-    calculationType: HclCalculationType,
   ): NonNullable<WorkbookHclConfiguration["hazardGrid"]> | null {
     if (requested !== true) return null;
-    if (calculationType === "UNCERTAINTY") {
-      throw new BadRequestException(HCL_HAZARD_CONVOLUTION_POINT_ONLY);
-    }
     if (configuration.hazardGrid === undefined) {
       throw new BadRequestException("Hazard convolution requires hazard-grid settings on the dependency configuration");
     }
@@ -2639,7 +2647,7 @@ export class WorkbookAnalysisRunsService implements OnModuleInit, OnModuleDestro
     await this.authorizeOwner(owner, request.workbookRevision, acting);
     const hcl = await this.loadHclSources(owner, request.modelId);
     const configuration = this.resolveHclBatchConfiguration(hcl, request.evidenceScenarioIds, request.batchInput);
-    const hazardGrid = this.resolveHclHazardGrid(configuration, request.integrateHazardGrid, request.calculationType);
+    const hazardGrid = this.resolveHclHazardGrid(configuration, request.integrateHazardGrid);
     const resolvedScenarios = request.evidenceScenarioIds.map(
       (scenarioId) => this.resolveHclEvidenceScenario(configuration, scenarioId)!,
     );

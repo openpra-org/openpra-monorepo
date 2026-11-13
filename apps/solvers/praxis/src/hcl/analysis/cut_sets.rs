@@ -6,11 +6,12 @@ use crate::algorithms::build::{build_bdd_with_order, BuildOptions};
 use crate::algorithms::pdag::PdagNode;
 use crate::algorithms::zbdd_engine::ZbddEngine;
 use crate::analysis::sequence_dependency_cut_sets::{
-    ranked_list, reaches, DependencyCutSetScore, DependencyCutSetSettings, RankedCutSet,
+    ranked_list, reaches, trace_causes, DependencyCutSetScore, DependencyCutSetSettings,
+    RankedCutSet,
 };
 use crate::hcl::{
     conditional_evidence_probabilities_for_network, occurrence_bounds, prepare_hazard_evidence,
-    resolve_evidence, source_fault_tree_order, HclAnalysisSettings, HclEventBinding,
+    resolve_evidence, source_fault_tree_order, CauseTracer, HclAnalysisSettings, HclEventBinding,
     HclEventBindings, HclEvidenceSpec, HclModel, HclQuantifier,
 };
 use crate::{PraxisError, Result};
@@ -173,7 +174,7 @@ pub fn rank_hcl_cut_sets_batch(
         )?)?;
     }
     let first = resolve_evidence(network, &evidence_rows[scenario_indices[0]])?;
-    let mut quantifier = HclQuantifier::new(&built.bdd, tree, bindings, first)?;
+    let mut quantifier = HclQuantifier::new(&built.bdd, tree.clone(), bindings, first)?;
     let total = structure.len();
     let mut sums = vec![0.0; total];
     let mut in_any = vec![cut_sets.cut_off.is_none(); total];
@@ -207,6 +208,20 @@ pub fn rank_hcl_cut_sets_batch(
         let (total, cut_sets) = ranked_list(&structure, &sums, &in_any, cut_sets.keep);
         FaultTreeRankedCutSets { total, cut_sets }
     });
+    if cut_sets.causes > 0 {
+        let first = resolve_evidence(network, &evidence_rows[scenario_indices[0]])?;
+        let mut tracer = CauseTracer::new(network, tree, model.bindings(), first)?;
+        for (position, &scenario) in scenario_indices.iter().enumerate() {
+            if position > 0 {
+                tracer.set_evidence(resolve_evidence(network, &evidence_rows[scenario])?)?;
+            }
+            trace_causes(
+                &mut tracer,
+                &mut scenarios[position].cut_sets,
+                cut_sets.causes,
+            )?;
+        }
+    }
     Ok(HclCutSetRanking {
         scenarios,
         scenario_indices,
@@ -290,6 +305,7 @@ mod tests {
             limit_order,
             cut_off,
             keep,
+            causes: 0,
         }
     }
 
@@ -374,5 +390,45 @@ mod tests {
         assert_eq!(kept.scenarios[0].total, 3);
         assert_eq!(kept.scenarios[0].cut_sets.len(), 2);
         assert!(rank_hcl_cut_sets(&model, &settings, &cut(Some(0.0), None, 2)).is_err());
+    }
+
+    #[test]
+    fn cause_trace_lists_the_network_nodes_a_cut_set_shifts() {
+        let model = model();
+        let settings = HclAnalysisSettings::default();
+        let traced = DependencyCutSetSettings {
+            causes: 3,
+            ..cut(None, None, 10)
+        };
+        let base = rank_hcl_cut_sets(&model, &settings, &traced).unwrap();
+        let list = &base.scenarios[0].cut_sets;
+        assert_eq!(list[0].events, ["X"]);
+        assert!(list[0].causes.is_empty());
+        let both = &list[1].causes;
+        assert_eq!(both.len(), 1);
+        assert_eq!(
+            (both[0].node.as_str(), both[0].state.as_str()),
+            ("H", "LOW")
+        );
+        let high = 0.1 * 0.5 * 0.6 / (0.9 * 0.01 * 0.02 + 0.1 * 0.5 * 0.6);
+        assert!((both[0].baseline - 0.9).abs() < 1e-15);
+        assert!((both[0].with_cut_set - (1.0 - high)).abs() < 1e-12);
+        assert!((both[0].distance - (high - 0.1)).abs() < 1e-12);
+        let pair = &list[2].causes;
+        assert!((pair[0].with_cut_set - (1.0 - 0.05 / 0.059)).abs() < 1e-12);
+        let rows = vec![hazard("LOW"), hazard("HIGH")];
+        let grid = rank_hcl_cut_sets_batch(&model, &rows, Some(&rows), &settings, &traced).unwrap();
+        for scenario in &grid.scenarios {
+            assert!(scenario
+                .cut_sets
+                .iter()
+                .all(|cut_set| cut_set.causes.is_empty()));
+        }
+        let plain = rank_hcl_cut_sets(&model, &settings, &cut(None, None, 10)).unwrap();
+        for (left, right) in plain.scenarios[0].cut_sets.iter().zip(list) {
+            assert_eq!(left.events, right.events);
+            assert_eq!(left.probability.to_bits(), right.probability.to_bits());
+            assert!(left.causes.is_empty());
+        }
     }
 }

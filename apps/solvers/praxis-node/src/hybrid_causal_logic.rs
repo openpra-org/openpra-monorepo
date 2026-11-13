@@ -6,7 +6,7 @@ use praxis::core::distribution::{
 };
 use praxis::core::distribution_sampling::{fresh_seed, parameter_name};
 use praxis::hcl::{
-    analyze_hcl, ensure_hazard_convolution_supported, hazard_exceedance, quantify_hcl, quantify_hcl_batch,
+    analyze_hcl, hazard_exceedance, quantify_hcl, quantify_hcl_batch,
     quantify_hcl_hazard_grid_batch, validate_hcl_uncertainty_settings, HclAnalysisResult,
     HclAnalysisSettings, HclBasicEventUncertainty, HclBindingSpec, HclCptGenerator,
     HclCptGeneratorSpec, HclCptRowUncertainty, HclEvidenceSpec, HclFragilityDemand,
@@ -27,6 +27,7 @@ use crate::fault_tree::{
 use crate::transport::SolverRequest;
 
 mod dependency_cut_sets;
+mod dependency_importance;
 
 use dependency_cut_sets::FaultTreeCutSetsInput;
 
@@ -38,17 +39,6 @@ pub(crate) enum HclCalculationType {
     #[default]
     Probability,
     Uncertainty,
-}
-
-impl HclCalculationType {
-    pub(crate) fn ensure_hazard_supported(self, requested: bool) -> Result<()> {
-        if requested && self == Self::Uncertainty {
-            return Err(PraxisError::Hcl(
-                "Hazard convolution supports point runs only. Select probability or use evidence scenarios.".into(),
-            ));
-        }
-        Ok(())
-    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -68,6 +58,10 @@ struct HclExecuteRequest {
     keep_samples: bool,
     #[serde(default)]
     dependency_cut_sets: Option<FaultTreeCutSetsInput>,
+    #[serde(default)]
+    dependency_importance: bool,
+    #[serde(default)]
+    dependency_importance_events: Option<usize>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -388,6 +382,8 @@ struct HclAdapter {
     basic_event_quantifications: Vec<BasicEventQuantificationRecord>,
     keep_samples: bool,
     dependency_cut_sets: Option<FaultTreeCutSetsInput>,
+    dependency_importance: bool,
+    sampled_importance_events: Option<usize>,
 }
 
 fn serialization_error(context: &str, error: impl std::fmt::Display) -> PraxisError {
@@ -574,11 +570,15 @@ pub(crate) fn build_event_tree_context(
 
 fn build_adapter(request: &SolverRequest) -> Result<HclAdapter> {
     let execute = parse_request(request)?;
-    execute
-        .calculation_type
-        .ensure_hazard_supported(execute.hazard_convolution.is_some())?;
     if let Some(cut_sets) = &execute.dependency_cut_sets {
         cut_sets.validate(execute.calculation_type == HclCalculationType::Probability)?;
+    }
+    if execute.dependency_importance {
+        dependency_importance::validate(
+            execute.calculation_type == HclCalculationType::Probability,
+            execute.dependency_importance_events,
+            execute.hazard_convolution.is_some(),
+        )?;
     }
     let snapshot = find_snapshot(request, &execute)?;
     validate_binding_references(request, &snapshot)?;
@@ -649,9 +649,6 @@ fn build_adapter(request: &SolverRequest) -> Result<HclAdapter> {
         uncertainty,
     };
 
-    if execute.hazard_convolution.is_some() {
-        ensure_hazard_convolution_supported(settings.uncertainty.as_ref())?;
-    }
     Ok(HclAdapter {
         model_id: snapshot.id,
         model_revision: snapshot.revision,
@@ -663,6 +660,12 @@ fn build_adapter(request: &SolverRequest) -> Result<HclAdapter> {
         basic_event_quantifications,
         keep_samples: execute.keep_samples,
         dependency_cut_sets: execute.dependency_cut_sets,
+        dependency_importance: execute.dependency_importance,
+        sampled_importance_events: crate::dependency_importance::sampled_events(
+            execute.calculation_type == HclCalculationType::Probability
+                || !execute.dependency_importance,
+            execute.dependency_importance_events,
+        )?,
     })
 }
 
@@ -776,6 +779,18 @@ pub(crate) fn execute(request: &SolverRequest) -> Result<Value> {
     if let Some(cut_sets) = &adapter.dependency_cut_sets {
         dependency_cut_sets::attach_to_result(&adapter, cut_sets, &mut value)?;
     }
+    if adapter.dependency_importance {
+        match adapter.sampled_importance_events {
+            Some(events) => dependency_importance::attach_sampled(
+                &adapter,
+                events,
+                &[adapter.model.base_evidence().to_vec()],
+                std::slice::from_mut(&mut value),
+                &[0],
+            )?,
+            None => dependency_importance::attach_to_result(&adapter, &mut value)?,
+        }
+    }
     Ok(value)
 }
 
@@ -836,6 +851,21 @@ fn execute_batch(adapter: &HclAdapter, rows: &[HclEvidenceRow]) -> Result<Value>
     }
     if let Some(cut_sets) = &adapter.dependency_cut_sets {
         dependency_cut_sets::attach_to_batch(adapter, cut_sets, rows, &mut response)?;
+    }
+    if adapter.hazard_convolution.is_some() {
+        dependency_importance::attach_sampled_hazard(adapter, rows, &batch, &mut response)?;
+    }
+    if adapter.dependency_importance {
+        match adapter.sampled_importance_events {
+            Some(events) => {
+                let results = response["batchResults"].as_array_mut().ok_or_else(|| {
+                    PraxisError::Logic("a dependency batch holds no scenario results".to_string())
+                })?;
+                let all: Vec<usize> = (0..rows.len()).collect();
+                dependency_importance::attach_sampled(adapter, events, &evidence, results, &all)?
+            }
+            None => dependency_importance::attach_to_batch(adapter, rows, &mut response)?,
+        }
     }
     Ok(response)
 }
@@ -1242,15 +1272,12 @@ mod tests {
             },
             "normalizeWeights": false
         });
-        let rejected = SolverRequest::from_json(&payload.to_string()).unwrap();
-        assert!(execute(&rejected)
-            .unwrap_err()
-            .to_string()
-            .contains("point runs only"));
-        assert!(super::validate(&rejected)
-            .unwrap_err()
-            .to_string()
-            .contains("point runs only"));
+        let sampled_request = SolverRequest::from_json(&payload.to_string()).unwrap();
+        super::validate(&sampled_request).unwrap();
+        let sampled = execute(&sampled_request).unwrap();
+        let summary = &sampled["hazardConvolution"]["uncertainty"];
+        assert!(summary["convolvedProbability"]["sampleCount"].as_u64().unwrap() >= 2);
+        assert!(summary["integratedAnnualFrequency"]["mean"].as_f64().unwrap() >= 0.0);
         // Saved settings remain present when switching to point hazard execution.
         payload["request"]["calculationType"] = json!("PROBABILITY");
         let batch_request = SolverRequest::from_json(&payload.to_string()).unwrap();

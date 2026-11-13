@@ -71,12 +71,12 @@ the interpreter's weight-summation order. Rust and native FT/ET tests consume
 these source outputs. Conditional inference comparisons allow platform-level
 rounding. Backend tests cover stored skipped runs; UI tests cover their display.
 
-**Task 23 enforces the source boundary.** HCL_MH's
+**Beyond the source boundary.** HCL_MH's
 `ensure_hazard_convolution_supported` rejects enabled UQ with more than one
-sample. Its original guard and `test_uq_rejection_for_samples_greater_than_one`
-are the references for the Rust and shared application checks. Existing
-application UQ settings require at least ten samples, so hazard convolution
-requires uncertainty to be off. This does not introduce a one-sample UQ mode.
+sample. The application no longer applies that guard: an uncertainty batch with
+a hazard grid convolves every sample with its own sampled hazard weights, as
+described in the README under "Hazard grid under uncertainty". The point
+convolution above is unchanged.
 
 Both core hazard entry points reject the combination before compilation or
 sampling. Addon validation/execution and backend batch execution also reject

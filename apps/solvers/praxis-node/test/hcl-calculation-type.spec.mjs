@@ -53,7 +53,7 @@ for (const kind of ["FT", "ET"]) {
     assert.ok(execute(request).error);
   });
 
-  test(`${kind} point hazard ignores saved UQ while uncertainty hazard remains disabled`, () => {
+  test(`${kind} point hazard ignores saved UQ and uncertainty hazard samples the grid`, () => {
     const request = requestForKind(kind);
     request.request.evidenceBatch = rows.map((row) => ({ ...row, hazardObservations: row.observations }));
     request.request.hazardConvolution = { gridName: "Earthquake", hazardNodeIds: ["A"], normalizeWeights: false,
@@ -65,7 +65,10 @@ for (const kind of ["FT", "ET"]) {
     assert.ok(totals.length > 0 && totals.every((total) => Number.isFinite(total.convolvedProbability)));
     for (const row of output.result.batchResults) assert.equal(uq(kind, row), undefined);
     request.request.calculationType = "UNCERTAINTY";
-    assert.match(execute(request).error.message, /point runs only/);
+    const sampled = execute(request);
+    assert.equal(sampled.error, undefined, JSON.stringify(sampled));
+    const sampledTotals = kind === "FT" ? [sampled.result.hazardConvolution] : sampled.result.hazardConvolution.sequences;
+    assert.ok(sampledTotals.length > 0 && sampledTotals.every((total) => total.uncertainty.convolvedProbability.sampleCount >= 2 && Number.isFinite(total.uncertainty.integratedAnnualFrequency.mean)));
     assert.ok(request.modelSnapshots.find((s) => s.id === "HCL").solverSettings.uncertainty);
   });
 }

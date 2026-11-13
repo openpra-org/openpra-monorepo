@@ -190,6 +190,7 @@ async function runEsqHclEventTree(
   dependencyConfiguration?: WorkbookModelAddress,
   sampling?: HclRunSampling,
   dependencyCutSets?: HclDependencyCutSetSettings,
+  dependencyImportance?: boolean | number,
 ): Promise<HclExecuteResult> {
   return finishedRun("esq", workbookId, postJson<HclExecuteResult>(
     `/api/esq-workbooks/${workbookId}/hcl-configurations/${configurationId}/event-tree-runs`,
@@ -202,6 +203,8 @@ async function runEsqHclEventTree(
       ...(dependencyConfiguration === undefined ? {} : { dependencyConfiguration }),
       ...(sampling === undefined ? {} : { sampling }),
       ...(dependencyCutSets === undefined ? {} : { dependencyCutSets }),
+      ...(dependencyImportance === undefined || dependencyImportance === false ? {} : { dependencyImportance: true }),
+      ...(typeof dependencyImportance === "number" ? { dependencyImportanceEvents: dependencyImportance } : {}),
     },
   ));
 }
@@ -253,6 +256,7 @@ async function runEsqHclEventTreeBatch(
   batchInput?: HclBatchInput,
   sampling?: HclRunSampling,
   dependencyCutSets?: HclDependencyCutSetSettings,
+  dependencyImportance?: boolean | number,
 ): Promise<HclBatchExecuteResult> {
   return finishedHclBatch(workbookId, configurationId, postJson<HclBatchExecuteResult>(
     `/api/esq-workbooks/${workbookId}/hcl-configurations/${configurationId}/event-tree-batch-runs`,
@@ -268,6 +272,8 @@ async function runEsqHclEventTreeBatch(
       ...(integrateHazardGrid ? { integrateHazardGrid: true } : {}),
       ...(sampling === undefined ? {} : { sampling }),
       ...(dependencyCutSets === undefined ? {} : { dependencyCutSets }),
+      ...(dependencyImportance === undefined || dependencyImportance === false ? {} : { dependencyImportance: true }),
+      ...(typeof dependencyImportance === "number" ? { dependencyImportanceEvents: dependencyImportance } : {}),
     },
   ));
 }

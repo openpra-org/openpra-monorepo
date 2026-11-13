@@ -92,7 +92,7 @@ it("passes ranked cut set settings from a dependency study to the single and bat
   await studyTree({ ...input, evidence: "BASE", cutSets });
   await studyTree({ ...input, evidence: "HAZARD", cutSets });
   await studyTree({ ...input, evidence: "BASE" });
-  expect(mockExecute.mock.calls.map((call) => call.length)).toEqual([8, 11, 8]);
+  expect(mockExecute.mock.calls.map((call) => call.length)).toEqual([9, 12, 9]);
   expect(mockExecute.mock.calls[0]?.[7]).toEqual(cutSets);
   expect(mockExecute.mock.calls[1]?.[10]).toEqual(cutSets);
   expect(mockExecute.mock.calls[2]?.[7]).toBeUndefined();

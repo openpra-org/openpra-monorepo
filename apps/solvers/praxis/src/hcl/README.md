@@ -15,15 +15,17 @@ The application API in `analysis/` uses that same original `HclQuantifier`.
 It supports probability batches, hazard integration and explicitly configured
 uncertainty. A probability run performs no cut-set enumeration unless ranked
 cut sets are requested for a fault tree or an event tree, see
-[Ranked cut sets](#ranked-cut-sets-of-event-tree-sequences). Importance stays
-deferred pending a future methodological review, and the earlier product
-scoring of cut sets is not restored.
+[Ranked cut sets](#ranked-cut-sets-of-event-tree-sequences). Importance is
+available for probability runs, see
+[Importance](#importance-under-the-network). The earlier product scoring of
+cut sets is not restored.
 The removed implementation is preserved in `outputs/hcl-probability-only/before.zip`.
 FT probability sampling, explicit CPT priors and seismic generators follow HCL_MH;
 see [the uncertainty source map](uncertainty/SOURCE.md), including the aligned
 summary statistics. Point hazard convolution follows HCL_MH; see
-[the hazard source map](HAZARD_SOURCE.md). Task 23 removed sampled hazard
-convolution and enforces HCL_MH's point-only guard.
+[the hazard source map](HAZARD_SOURCE.md). Hazard convolution under
+uncertainty is computed sample by sample, see
+[Hazard grid under uncertainty](#hazard-grid-under-uncertainty).
 
 The addon supplies BN-linked events first. `ordering.rs` ports HCL_MH's strict
 two-block configuration: stable BN depth order (mapping order breaks ties),
@@ -64,7 +66,9 @@ camelCase fields and model snapshots. Neither contract can replace the other.
 | BDD/junction-tree/cache diagnostics | Returned with probability | Displayed and saved; UQ counters describe the point pass only | Main counters; [diagnostics source map](../../../../docs-md/guides/result-presentation-source-map.md) |
 | Ranked cut sets of event-tree sequences | Not exposed | Optional on ET probability runs, for base evidence, evidence scenarios and the hazard grid | PRAXIS cut-set structure, exact score from the HCL quantifier, see [Ranked cut sets](#ranked-cut-sets-of-event-tree-sequences) |
 | Ranked cut sets of a fault tree | Not exposed | Optional on FT probability runs, for base evidence, evidence scenarios and the hazard grid | Same structure engine and score, see [Fault trees](#ranked-cut-sets-of-a-fault-tree) |
-| Importance and sampled hazard convolution | No HCL execution | Removed or disabled | Deferred importance review; HCL_MH point-hazard guard |
+| Importance of basic events | Not exposed | Optional on FT and ET probability runs, for base evidence, evidence scenarios and the hazard grid | Exact conditioning on each event, see [Importance](#importance-under-the-network) |
+| Importance under uncertainty | Not exposed | Optional on FT and ET uncertainty runs, for a chosen number of leading events | The same conditioning in the sampled pass, see [Importance under uncertainty](#importance-under-uncertainty) |
+| Hazard convolution under uncertainty | Not exposed | FT and ET uncertainty batches with a hazard grid | Hazard weights and results sampled together, see [Hazard grid under uncertainty](#hazard-grid-under-uncertainty) |
 
 Ordinary PRAXIS cut-set algorithms remain in the Rust library and non-HCL CLI.
 Standalone FT uncertainty is not exposed by the ordinary FT addon. FT uncertainty
@@ -175,6 +179,101 @@ order limit, cut-off and kept count. Each evidence scenario gets its own list
 and a hazard grid gets the weighted list. The brute-force test compares the
 cut sets and their scores with full enumeration on random coherent trees.
 
+### Importance under the network
+
+`hcl/importance.rs` gives the importance of each basic event of a target. A
+target is a fault tree top event, an event tree sequence or an end state.
+
+- **Two conditional values.** `occurred` is the probability of the target
+  given that the event occurred, and `notOccurred` given that it did not, both
+  under the evidence. For an event bound to the network the condition is
+  evidence on its node, so the other dependent events move with it. For an
+  unbound event it is the usual what-if with the event at 1 or at 0.
+- **Measures.** With `P` the target probability and `p` the event probability:
+  Birnbaum `occurred - notOccurred`, risk achievement worth `occurred / P`,
+  risk reduction worth `P / notOccurred`, Fussell-Vesely
+  `(P - notOccurred) / P` and criticality `occurred * p / P`.
+- **Undefined values.** A bound event that is certain has no `notOccurred`,
+  and one that is impossible has no `occurred`. The measures that need the
+  missing value are left empty. Risk reduction worth is empty when
+  `notOccurred` is 0.
+- **How it is computed.** `HclQuantifier::conditional_on` evaluates the same
+  BDD under the condition. For a bound event the condition is one more
+  restriction in the path context, so every cached value the condition cannot
+  reach is reused. For an unbound event only the BDD levels above the event are
+  evaluated again.
+- **End states.** The sequences of an end state are mutually exclusive, so its
+  conditional values are sums over its sequences. A bound event that is not in
+  a sequence still changes that sequence through the network, and is included.
+- **Hazard grid.** The grid values are the exact conditional values of the
+  mixture: scenario values weighted by the hazard weight, times the event
+  probability in that scenario for a bound event.
+- **Not included.** Importance of network nodes that are not bound to an
+  event.
+
+Checked against full enumeration on random models, with an exact grid
+mixture, and on the 161-node model against plain evidence runs and against
+reruns with the event at 1 and at 0.
+
+### Importance under uncertainty
+
+An uncertainty run can sample the importance of the leading events of each
+target. The leading events are the first N by the point Fussell-Vesely value,
+where N is chosen by the user.
+
+- **Per sample.** The sampled pass conditions on each leading event in every
+  sample, with the same draws as the run (`PreparedHclUncertainty::conditionals`).
+  The measures are then formed sample by sample.
+- **Summary.** Each measure gets the mean, the median and the 5th and 95th
+  percentiles over the samples in which it is defined, with that sample count.
+- **End states.** The conditional values of an end state are the sums over its
+  sequences in every sample.
+- **Limit.** Not combined with a hazard grid.
+
+Checked on random models against independent sampled runs (the event at 1 and
+at 0 for unbound events, evidence on the node for bound events) and on the
+161-node model against sampled evidence runs.
+
+### Hazard grid under uncertainty
+
+An uncertainty batch with a hazard grid convolves every sample on its own.
+
+- **Sampled weights.** The weight of a grid row is the probability of its
+  hazard states under the sampled tables of that sample
+  (`PreparedHclUncertainty::evidence_weights`), so uncertain hazard tables move
+  the weights together with the results.
+- **Convolution.** In each sample the result is the sum over the rows of weight
+  times row result, divided by the sum of the weights when normalization is
+  on (`sampled_hazard_convolution`). The annual frequency uses the point scale.
+- **Summary.** The convolved probability and the integrated annual frequency
+  get the usual uncertainty summary, for a fault tree, each sequence and each
+  end state.
+- **Guard.** A row with zero point weight and a positive sampled weight is an
+  error, because the point pass does not evaluate that row.
+
+Checked on random models: a grid over every state of a node gives, sample by
+sample, the sampled run without hazard evidence.
+
+### Cause trace
+
+`hcl/cause_trace.rs` can list, for each kept cut set, the network nodes whose
+state probabilities the cut set shifts.
+
+- **What is compared.** The marginal of a node given the evidence, and the
+  same marginal given the evidence and the bound events of the cut set.
+- **Which nodes.** Nodes that are not bound to an event of the run and not
+  observed. A node that the cut set cannot influence under the d-separation
+  rule of the context keys is left out, so the list holds no rounding noise.
+- **What is listed.** The state that changes most, its probability without
+  and with the cut set, and the shift, which is half the sum of the absolute
+  changes over the states. Largest shift first, a chosen number per cut set.
+- **Scope.** Each evidence scenario has its own trace. The hazard-weighted
+  list carries none. A cut set with no bound event has an empty trace.
+
+The trace is checked against full enumeration on random models in the
+brute-force test and against an independent network tool on the 161-node
+model.
+
 ### Cut-off under the network
 
 A cut-off on independent probabilities is not safe, because the network can
@@ -231,10 +330,8 @@ lists). The bound is checked against full enumeration in the brute-force test.
 
 At the application boundary, `calculationType: "PROBABILITY"` is the default.
 Saved uncertainty settings remain in the workbook but are omitted from probability
-execution. `"UNCERTAINTY"` requires configured inputs and cannot be combined with
-hazard convolution. Direct Rust analysis callers provide `HclAnalysisSettings`;
-core hazard functions reject active uncertainty settings. Neither core nor app
-supports sampled hazard integration.
+execution. `"UNCERTAINTY"` requires configured inputs and can be combined with
+hazard convolution. Direct Rust analysis callers provide `HclAnalysisSettings`.
 
 Point and per-sample BDD evaluation is mathematically exact for the supplied
 probabilities. Floating-point source complement subtraction can lose relative

@@ -66,6 +66,7 @@ interface DependencyStudyInput {
   batchInput: HclBatchInput | null;
   sampling?: HclRunSampling;
   cutSets?: HclDependencyCutSetSettings;
+  importance?: boolean | number;
 }
 
 interface DependencyPanelProps {
@@ -170,7 +171,7 @@ async function studyTree(input: DependencyStudyInput): Promise<DependencyStudyTr
   const dependencyConfiguration = { workbookId: input.option.workbookId, modelId: configurationId };
   const eventTree = { workbookId: input.workbookId, modelId: input.treeId };
   if (input.evidence === "BASE") {
-    const execution = await runEsqHclEventTree(input.workbookId, configurationId, input.revision, eventTree, input.result, dependencyConfiguration, input.sampling, input.cutSets);
+    const execution = await runEsqHclEventTree(input.workbookId, configurationId, input.revision, eventTree, input.result, dependencyConfiguration, input.sampling, input.cutSets, input.importance);
     if (execution.run.status !== "SUCCEEDED") return { treeId: input.treeId, runResult: null, batchRunResult: null, failure: execution.run.failure?.message ?? NO_REASON };
     const result = await getEsqHclEventTreeResult(input.workbookId, configurationId, execution.run.id);
     return { treeId: input.treeId, runResult: { kind: "EVENT_TREE", result }, batchRunResult: null, failure: null };
@@ -187,6 +188,7 @@ async function studyTree(input: DependencyStudyInput): Promise<DependencyStudyTr
     input.batchInput ?? undefined,
     input.sampling,
     input.cutSets,
+    input.importance,
   );
   const scenarios = await Promise.all(execution.runs.map(async (row) => ({
     scenarioId: row.scenarioId,

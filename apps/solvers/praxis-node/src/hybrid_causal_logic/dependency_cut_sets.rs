@@ -1,5 +1,5 @@
 use praxis::analysis::sequence_dependency_cut_sets::{
-    DependencyCutSetScore, DependencyCutSetSettings,
+    DependencyCutSetScore, DependencyCutSetSettings, RankedCutSet,
 };
 use praxis::hcl::{rank_hcl_cut_sets, rank_hcl_cut_sets_batch, FaultTreeRankedCutSets};
 use praxis::{PraxisError, Result};
@@ -9,6 +9,7 @@ use serde_json::{json, Value};
 use super::{batch_evidence_specs, hazard_evidence_specs, HclAdapter, HclEvidenceRow};
 
 const MAX_KEEP: usize = 10_000;
+const MAX_CAUSES: usize = 100;
 
 #[derive(Clone, Debug, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -18,6 +19,8 @@ pub(super) struct FaultTreeCutSetsInput {
     #[serde(default)]
     cut_off: Option<f64>,
     keep: usize,
+    #[serde(default)]
+    causes: Option<usize>,
 }
 
 impl FaultTreeCutSetsInput {
@@ -27,6 +30,7 @@ impl FaultTreeCutSetsInput {
             limit_order: self.limit_order,
             cut_off: self.cut_off,
             keep: self.keep,
+            causes: self.causes.unwrap_or(0),
         }
     }
 
@@ -43,20 +47,45 @@ impl FaultTreeCutSetsInput {
                 "cut sets kept must be between 1 and {MAX_KEEP}"
             )));
         }
+        if self.causes.is_some_and(|causes| causes == 0 || causes > MAX_CAUSES) {
+            return Err(PraxisError::Settings(format!(
+                "causes listed per cut set must be between 1 and {MAX_CAUSES}"
+            )));
+        }
         Ok(())
     }
 }
 
-fn ranked_json(ranked: &FaultTreeRankedCutSets, probability_scale: f64) -> Value {
+fn causes_json(cut_set: &RankedCutSet) -> Value {
+    cut_set
+        .causes
+        .iter()
+        .map(|cause| {
+            json!({
+                "nodeId": cause.node,
+                "stateId": cause.state,
+                "baseline": cause.baseline,
+                "withCutSet": cause.with_cut_set,
+                "shift": cause.distance,
+            })
+        })
+        .collect()
+}
+
+fn ranked_json(ranked: &FaultTreeRankedCutSets, probability_scale: f64, traced: bool) -> Value {
     let items: Vec<Value> = ranked
         .cut_sets
         .iter()
         .map(|cut_set| {
-            json!({
+            let mut item = json!({
                 "order": cut_set.events.len(),
                 "basicEventIds": cut_set.events,
                 "probability": cut_set.probability * probability_scale,
-            })
+            });
+            if traced {
+                item["causes"] = causes_json(cut_set);
+            }
+            item
         })
         .collect();
     json!({ "count": ranked.total, "items": items })
@@ -71,7 +100,7 @@ pub(super) fn attach_to_result(
     let ranked = ranking.scenarios.first().ok_or_else(|| {
         PraxisError::Logic("the base evidence produced no ranked cut sets".to_string())
     })?;
-    value["dependencyCutSets"] = ranked_json(ranked, 1.0);
+    value["dependencyCutSets"] = ranked_json(ranked, 1.0, input.causes.is_some());
     Ok(())
 }
 
@@ -100,7 +129,7 @@ pub(super) fn attach_to_batch(
         let result = results.get_mut(index).ok_or_else(|| {
             PraxisError::Logic("a ranked scenario is missing from the batch".to_string())
         })?;
-        result["dependencyCutSets"] = ranked_json(ranked, 1.0);
+        result["dependencyCutSets"] = ranked_json(ranked, 1.0, input.causes.is_some());
     }
     if let Some(weighted) = &ranking.weighted {
         let hazard = &mut response["hazardConvolution"];
@@ -111,7 +140,7 @@ pub(super) fn attach_to_batch(
         } else {
             1.0
         };
-        hazard["dependencyCutSets"] = ranked_json(weighted, probability_scale);
+        hazard["dependencyCutSets"] = ranked_json(weighted, probability_scale, false);
     }
     Ok(())
 }

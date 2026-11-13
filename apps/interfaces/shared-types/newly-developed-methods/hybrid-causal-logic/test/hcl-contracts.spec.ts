@@ -151,6 +151,7 @@ describe("HCL integration-workbook event-tree execution", () => {
       { score: "FAILED_EVENTS_AND_SEQUENCE", keep: 1000, limitOrder: 4 },
       { score: "FAILED_EVENTS", keep: 20, cutOff: 1e-9 },
       { score: "FAILED_EVENTS", keep: 20, cutOff: 1, limitOrder: 2 },
+      { score: "FAILED_EVENTS", keep: 20, causes: 5 },
     ]) {
       expect(HclEventTreeExecuteRequestSchema.safeParse({ ...request, dependencyCutSets }).success).toBe(true);
       expect(HclEventTreeBatchExecuteRequestSchema.safeParse({ ...request, evidenceScenarioIds: [SCENARIO_ID], dependencyCutSets }).success).toBe(true);
@@ -168,6 +169,8 @@ describe("HCL integration-workbook event-tree execution", () => {
     { score: "FAILED_EVENTS", keep: 10, cutOff: 1.5 },
     { score: "FAILED_EVENTS", keep: 10, cutOff: -1e-9 },
     { score: "FAILED_EVENTS", keep: 10, truncation: 1e-9 },
+    { score: "FAILED_EVENTS", keep: 10, causes: 0 },
+    { score: "FAILED_EVENTS", keep: 10, causes: 101 },
   ])("rejects malformed ranked cut set settings %#", (dependencyCutSets) => {
     const request = {
       schemaVersion: "1.0.0",
@@ -197,11 +200,11 @@ describe("HCL evidence-scenario batches", () => {
       workbookRevision: 3,
       faultTreeTopGate: { referenceType: "FAULT_TREE_TOP_EVENT", workbookId: FT_WORKBOOK_ID, modelId: FT_MODEL_ID, entityId: TOP_GATE_ID },
     };
-    for (const dependencyCutSets of [{ keep: 1 }, { keep: 1000, limitOrder: 4 }, { keep: 20, cutOff: 1e-9 }]) {
+    for (const dependencyCutSets of [{ keep: 1 }, { keep: 1000, limitOrder: 4 }, { keep: 20, cutOff: 1e-9 }, { keep: 20, causes: 100 }]) {
       expect(HclExecuteRequestSchema.safeParse({ ...request, dependencyCutSets }).success).toBe(true);
       expect(HclFaultTreeBatchExecuteRequestSchema.safeParse({ ...request, evidenceScenarioIds: [SCENARIO_ID], dependencyCutSets }).success).toBe(true);
     }
-    for (const dependencyCutSets of [{}, { keep: 0 }, { keep: 1001 }, { keep: 5, limitOrder: 0 }, { keep: 5, cutOff: 0 }, { keep: 5, cutOff: 2 }, { keep: 5, score: "FAILED_EVENTS" }]) {
+    for (const dependencyCutSets of [{}, { keep: 0 }, { keep: 1001 }, { keep: 5, limitOrder: 0 }, { keep: 5, cutOff: 0 }, { keep: 5, cutOff: 2 }, { keep: 5, causes: 0 }, { keep: 5, causes: 2.5 }, { keep: 5, score: "FAILED_EVENTS" }]) {
       expect(HclExecuteRequestSchema.safeParse({ ...request, dependencyCutSets }).success).toBe(false);
       expect(HclFaultTreeBatchExecuteRequestSchema.safeParse({ ...request, evidenceScenarioIds: [SCENARIO_ID], dependencyCutSets }).success).toBe(false);
     }
@@ -508,7 +511,12 @@ describe("HCL validation and quantification results", () => {
     const item = { order: 2, probability: 2e-5, basicEventIds: ["A", "B"] };
     const dependencyCutSets = { count: 12, items: [item] };
     expect(HclQuantificationResultSchema.safeParse({ ...quantification, dependencyCutSets }).success).toBe(true);
+    const cause = { nodeId: "H", stateId: "HIGH", baseline: 0.1, withCutSet: 0.9, shift: 0.8 };
+    expect(HclQuantificationResultSchema.safeParse({ ...quantification, dependencyCutSets: { ...dependencyCutSets, items: [{ ...item, causes: [cause] }, { ...item, causes: [] }] } }).success).toBe(true);
     for (const broken of [
+      { ...dependencyCutSets, items: [{ ...item, causes: [{ ...cause, withCutSet: 1.5 }] }] },
+      { ...dependencyCutSets, items: [{ ...item, causes: [{ ...cause, nodeId: "" }] }] },
+      { ...dependencyCutSets, items: [{ ...item, causes: [{ ...cause, delta: 0.8 }] }] },
       { ...dependencyCutSets, count: -1 },
       { ...dependencyCutSets, score: "FAILED_EVENTS" },
       { ...dependencyCutSets, items: [{ ...item, probability: 1.5 }] },
@@ -517,6 +525,53 @@ describe("HCL validation and quantification results", () => {
     ]) {
       expect(HclQuantificationResultSchema.safeParse({ ...quantification, dependencyCutSets: broken }).success).toBe(false);
     }
+  });
+
+  it("accepts importance on a fault-tree result and on requests, and rejects malformed rows", () => {
+    const row = { basicEventId: "A", probability: 0.1, occurred: 1, notOccurred: 0.05, birnbaum: 0.95, riskAchievementWorth: 7, riskReductionWorth: 2.9, fussellVesely: 0.66, criticality: 0.69 };
+    const empty = { basicEventId: "B", probability: 1, occurred: 1, notOccurred: null, birnbaum: null, riskAchievementWorth: 1, riskReductionWorth: null, fussellVesely: null, criticality: 1 };
+    const negative = { ...row, basicEventId: "C", birnbaum: -0.2, fussellVesely: -0.4 };
+    expect(HclQuantificationResultSchema.safeParse({ ...quantification, dependencyImportance: [row, empty, negative] }).success).toBe(true);
+    for (const broken of [
+      { ...row, basicEventId: "" },
+      { ...row, occurred: 1.5 },
+      { ...row, birnbaum: 2 },
+      { ...row, riskAchievementWorth: -1 },
+      { ...row, fussellVesely: 1.5 },
+      { ...row, criticality: undefined },
+      { ...row, extra: 1 },
+    ]) {
+      expect(HclQuantificationResultSchema.safeParse({ ...quantification, dependencyImportance: [broken] }).success).toBe(false);
+    }
+    const tree = { schemaVersion: "1.0.0", modelId: CONFIGURATION_ID, workbookRevision: 3, faultTreeTopGate: { referenceType: "FAULT_TREE_TOP_EVENT", workbookId: FT_WORKBOOK_ID, modelId: FT_MODEL_ID, entityId: TOP_GATE_ID } };
+    const eventTree = { schemaVersion: "1.0.0", modelId: CONFIGURATION_ID, workbookRevision: 3, eventTree: { workbookId: "es-workbook", modelId: EVENT_TREE_MODEL_ID } };
+    for (const dependencyImportance of [true, false]) {
+      expect(HclExecuteRequestSchema.safeParse({ ...tree, dependencyImportance }).success).toBe(true);
+      expect(HclFaultTreeBatchExecuteRequestSchema.safeParse({ ...tree, evidenceScenarioIds: [SCENARIO_ID], dependencyImportance }).success).toBe(true);
+      expect(HclEventTreeExecuteRequestSchema.safeParse({ ...eventTree, dependencyImportance }).success).toBe(true);
+      expect(HclEventTreeBatchExecuteRequestSchema.safeParse({ ...eventTree, evidenceScenarioIds: [SCENARIO_ID], dependencyImportance }).success).toBe(true);
+    }
+    const measure = { sampleCount: 40, mean: 0.5, percentile05: 0.3, median: 0.5, percentile95: 0.7 };
+    const sampled = { ...row, uncertainty: { birnbaum: measure, riskAchievementWorth: measure, riskReductionWorth: null, fussellVesely: { ...measure, mean: -0.1 }, criticality: measure } };
+    expect(HclQuantificationResultSchema.safeParse({ ...quantification, dependencyImportance: [sampled, empty] }).success).toBe(true);
+    for (const broken of [
+      { ...sampled.uncertainty, birnbaum: { ...measure, sampleCount: 0 } },
+      { ...sampled.uncertainty, criticality: undefined },
+      { ...sampled.uncertainty, extra: measure },
+      { ...sampled.uncertainty, fussellVesely: { ...measure, standardDeviation: 1 } },
+    ]) {
+      expect(HclQuantificationResultSchema.safeParse({ ...quantification, dependencyImportance: [{ ...row, uncertainty: broken }] }).success).toBe(false);
+    }
+    for (const dependencyImportanceEvents of [1, 100]) {
+      expect(HclExecuteRequestSchema.safeParse({ ...tree, calculationType: "UNCERTAINTY", dependencyImportance: true, dependencyImportanceEvents }).success).toBe(true);
+      expect(HclEventTreeBatchExecuteRequestSchema.safeParse({ ...eventTree, evidenceScenarioIds: [SCENARIO_ID], dependencyImportance: true, dependencyImportanceEvents }).success).toBe(true);
+    }
+    for (const dependencyImportanceEvents of [0, 101, 2.5]) {
+      expect(HclExecuteRequestSchema.safeParse({ ...tree, dependencyImportance: true, dependencyImportanceEvents }).success).toBe(false);
+      expect(HclEventTreeExecuteRequestSchema.safeParse({ ...eventTree, dependencyImportance: true, dependencyImportanceEvents }).success).toBe(false);
+    }
+    expect(HclExecuteRequestSchema.safeParse({ ...tree, dependencyImportance: "yes" }).success).toBe(false);
+    expect(HclEventTreeExecuteRequestSchema.safeParse({ ...eventTree, dependencyImportance: 1 }).success).toBe(false);
   });
 
   it("rejects the removed HCL coefficient of variation", () => {
@@ -828,6 +883,12 @@ describe("point-only hazard convolution", () => {
     const dependencyCutSets = { count: 3, items: [{ order: 1, probability: 0.1, basicEventIds: ["A"] }] };
     expect(HclHazardConvolutionResultSchema.safeParse({ ...result, dependencyCutSets }).success).toBe(true);
     expect(HclHazardConvolutionResultSchema.safeParse({ ...result, dependencyCutSets: { ...dependencyCutSets, count: 1.5 } }).success).toBe(false);
+    const importance = { basicEventId: "A", probability: 0.1, occurred: 1, notOccurred: 0.05, birnbaum: 0.95, riskAchievementWorth: 7, riskReductionWorth: 2.9, fussellVesely: 0.66, criticality: 0.69 };
+    expect(HclHazardConvolutionResultSchema.safeParse({ ...result, dependencyImportance: [importance] }).success).toBe(true);
+    expect(HclHazardConvolutionResultSchema.safeParse({ ...result, dependencyImportance: [{ ...importance, probability: 2 }] }).success).toBe(false);
+    const sampledGrid = { convolvedProbability: summary, integratedAnnualFrequency: summary };
+    expect(HclHazardConvolutionResultSchema.safeParse({ ...result, uncertainty: sampledGrid }).success).toBe(true);
+    expect(HclHazardConvolutionResultSchema.safeParse({ ...result, uncertainty: { convolvedProbability: summary } }).success).toBe(false);
   });
   it("rejects removed sequence and end-state hazard uncertainty results", () => {
     const sequence = { sequenceId: RUN_ID, convolvedProbability: 0, integratedAnnualFrequency: 0 };
@@ -843,7 +904,17 @@ describe("point-only hazard convolution", () => {
     const sequence = { sequenceId: RUN_ID, convolvedProbability: 0, integratedAnnualFrequency: 0 };
     const result = { ...common, targetKind: "EVENT_TREE", rows: [{ ...weight, sequences: [] }], sequences: [{ ...sequence, dependencyCutSets }], endStateAggregates: [] };
     expect(HclHazardConvolutionResultSchema.safeParse(result).success).toBe(true);
+    const cause = { nodeId: "H", stateId: "HIGH", baseline: 0.1, withCutSet: 0.9, shift: 0.8 };
+    expect(HclHazardConvolutionResultSchema.safeParse({ ...result, sequences: [{ ...sequence, dependencyCutSets: { ...dependencyCutSets, items: [{ ...item, causes: [cause] }] } }] }).success).toBe(true);
+    const importance = { basicEventId: "A", probability: 0.1, occurred: 1, notOccurred: 0.05, birnbaum: 0.95, riskAchievementWorth: 7, riskReductionWorth: 2.9, fussellVesely: 0.66, criticality: 0.69 };
+    const endState = { endStateId: RUN_ID, convolvedProbability: 0, integratedAnnualFrequency: 0, dependencyImportance: [importance] };
+    expect(HclHazardConvolutionResultSchema.safeParse({ ...result, sequences: [{ ...sequence, dependencyImportance: [importance] }], endStateAggregates: [endState] }).success).toBe(true);
+    expect(HclHazardConvolutionResultSchema.safeParse({ ...result, endStateAggregates: [{ ...endState, dependencyImportance: [{ ...importance, birnbaum: 3 }] }] }).success).toBe(false);
+    const sampledGrid = { convolvedProbability: summary, integratedAnnualFrequency: summary };
+    expect(HclHazardConvolutionResultSchema.safeParse({ ...result, sequences: [{ ...sequence, uncertainty: sampledGrid }], endStateAggregates: [{ ...endState, uncertainty: sampledGrid }] }).success).toBe(true);
+    expect(HclHazardConvolutionResultSchema.safeParse({ ...result, sequences: [{ ...sequence, uncertainty: { ...sampledGrid, extra: summary } }] }).success).toBe(false);
     for (const broken of [
+      { ...dependencyCutSets, items: [{ ...item, causes: [{ ...cause, shift: -0.1 }] }] },
       { ...dependencyCutSets, score: "PRODUCT" },
       { ...dependencyCutSets, count: -1 },
       { ...dependencyCutSets, items: [{ ...item, probability: 1.5 }] },

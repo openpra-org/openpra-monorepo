@@ -2,8 +2,13 @@
 //! Probability traversal uses the unchanged main HCLQuantifier.
 
 mod cut_sets;
+mod importance;
 mod model;
 
+pub use importance::{
+    hcl_importance, hcl_importance_batch, hcl_sampled_importance_batch, HclImportance,
+    HclSampledImportance, SampledScenarioImportance,
+};
 pub use cut_sets::{
     rank_hcl_cut_sets, rank_hcl_cut_sets_batch, FaultTreeRankedCutSets, HclCutSetRanking,
 };
@@ -23,7 +28,7 @@ use tensorbayes::{CompileHeuristic, CompiledJunctionTree, StateIndex};
 use crate::algorithms::build::{build_bdd_with_order, BuildOptions};
 use crate::algorithms::pdag::PdagNode;
 use crate::hcl::{
-    conditional_evidence_probabilities_for_network, ensure_hazard_convolution_supported,
+    conditional_evidence_probabilities_for_network,
     prepare_hazard_evidence, source_fault_tree_order, HclBaseEvidence, HclBridgeStats,
     HclEventBinding, HclEventBindings, HclEvidenceSpec, HclJunctionTreeStats, HclModel,
     HclQuantifier, PreparedHclUncertainty,
@@ -58,7 +63,6 @@ pub fn quantify_hcl_hazard_grid_batch(
     hazard_assignment_rows: &[Vec<HclEvidenceSpec>],
     settings: &HclAnalysisSettings,
 ) -> Result<HclHazardGridBatchResult> {
-    ensure_hazard_convolution_supported(settings.uncertainty.as_ref())?;
     if evidence_rows.len() != hazard_assignment_rows.len() {
         return Err(PraxisError::Hcl(
             "HCL hazard grid requires one hazard assignment for every evidence row".to_string(),
@@ -70,6 +74,29 @@ pub fn quantify_hcl_hazard_grid_batch(
         quantification,
         raw_weights: raw_weights.expect("hazard rows must produce weights"),
     })
+}
+
+/// Samples the hazard weights of a grid with the same draws as the uncertainty
+/// run: one weight per grid row and sample.
+pub fn hcl_sampled_hazard_weights(
+    model: &HclModel,
+    evidence_rows: &[Vec<HclEvidenceSpec>],
+    hazard_assignment_rows: &[Vec<HclEvidenceSpec>],
+    settings: &HclAnalysisSettings,
+) -> Result<Vec<Vec<f64>>> {
+    let uncertainty = settings.uncertainty.as_ref().ok_or_else(|| {
+        PraxisError::Hcl("sampled hazard weights need uncertainty settings".to_string())
+    })?;
+    let network = model.network();
+    let merged =
+        prepare_hazard_evidence(network, model.base_evidence(), evidence_rows, hazard_assignment_rows)?;
+    let prepared = PreparedHclUncertainty::new(network, uncertainty, &[model.fault_tree()])?;
+    let base = build_base_evidence(model, model.base_evidence())?;
+    let rows = merged
+        .iter()
+        .map(|row| build_base_evidence(model, row))
+        .collect::<Result<Vec<_>>>()?;
+    prepared.evidence_weights(&base, &rows)
 }
 
 fn quantify_hcl_batch_internal(
@@ -579,7 +606,7 @@ mod tests {
     }
 
     #[test]
-    fn hazard_uncertainty_is_rejected_before_execution() {
+    fn hazard_uncertainty_samples_the_grid_weights() {
         let rows = vec![observed("TRUE"), observed("FALSE")];
         let settings = HclAnalysisSettings {
             uncertainty: Some(HclUncertaintySettings {
@@ -607,8 +634,30 @@ mod tests {
             }),
             ..HclAnalysisSettings::default()
         };
-        let error = quantify_hcl_hazard_grid_batch(&model(Vec::new()), &rows, &rows, &settings)
-            .unwrap_err();
-        assert!(error.to_string().contains("point runs only"));
+        let model = model(Vec::new());
+        let grid = quantify_hcl_hazard_grid_batch(&model, &rows, &rows, &settings).unwrap();
+        assert!((grid.raw_weights[0] - 0.2).abs() < 1e-12);
+        let weights = super::hcl_sampled_hazard_weights(&model, &rows, &rows, &settings).unwrap();
+        assert_eq!(weights.len(), 2);
+        for sample in 0..200 {
+            assert!((weights[0][sample] + weights[1][sample] - 1.0).abs() < 1e-12);
+        }
+        assert!(weights[0].windows(2).any(|pair| pair[0] != pair[1]));
+        let values: Vec<&[f64]> = grid
+            .quantification
+            .results
+            .iter()
+            .map(|result| result.uncertainty_samples.as_deref().unwrap())
+            .collect();
+        let convolved = crate::hcl::sampled_hazard_convolution(
+            &weights,
+            &grid.quantification.scenario_indices,
+            &values,
+            false,
+        )
+        .unwrap();
+        assert_eq!(convolved, weights[0]);
+        let mean = convolved.iter().sum::<f64>() / 200.0;
+        assert!((mean - 20.0 / 25.0).abs() < 0.03, "{mean}");
     }
 }

@@ -113,6 +113,9 @@ interface ComposerSettings {
   dependencyEvidence: DependencyEvidence;
   dependencyCutSets: DependencyCutSetChoice;
   dependencyCutOff: number | null;
+  dependencyCauses: number | null;
+  dependencyImportance: boolean;
+  dependencyImportanceEvents: number;
 }
 
 interface DependencySettings {
@@ -256,6 +259,9 @@ const START_SETTINGS: ComposerSettings = {
   dependencyEvidence: "BASE",
   dependencyCutSets: "NONE",
   dependencyCutOff: null,
+  dependencyCauses: null,
+  dependencyImportance: false,
+  dependencyImportanceEvents: 10,
 };
 
 const COMPOSER_VIEW = jsonView<ComposerSettings>(z.object({
@@ -284,6 +290,9 @@ const COMPOSER_VIEW = jsonView<ComposerSettings>(z.object({
   dependencyEvidence: z.enum(["BASE", "SCENARIOS", "HAZARD"]).default(START_SETTINGS.dependencyEvidence),
   dependencyCutSets: z.enum(["NONE", "FAILED_EVENTS", "FAILED_EVENTS_AND_SEQUENCE"]).default(START_SETTINGS.dependencyCutSets),
   dependencyCutOff: z.number().int().negative().nullable().default(START_SETTINGS.dependencyCutOff),
+  dependencyCauses: z.number().int().min(1).max(100).nullable().default(START_SETTINGS.dependencyCauses),
+  dependencyImportance: z.boolean().default(START_SETTINGS.dependencyImportance),
+  dependencyImportanceEvents: z.number().int().min(1).max(100).default(START_SETTINGS.dependencyImportanceEvents),
 }));
 
 const DEPENDENCY_VIEW = jsonView<DependencySettings>(z.object({
@@ -578,14 +587,15 @@ function useComposer(model: EsqModel | undefined, shownRun: ShownRun, initialNet
   const everyTree = treeIds.length === rootIds.length;
   const monteCarloRun = settings.choice === "EXACT" && settings.algorithm === "MONTE_CARLO";
   const rankedCutSets = settings.choice === "HCL" && settings.dependencyResult === "PROBABILITY" && settings.dependencyCutSets !== "NONE";
-  const dependencyStudy = settings.choice === "HCL" && (settings.dependencyResult === "UNCERTAINTY" || settings.dependencyEvidence !== "BASE" || rankedCutSets);
+  const sampledGrid = settings.dependencyResult === "UNCERTAINTY" && settings.dependencyEvidence === "HAZARD";
+  const dependencyImportance = settings.choice === "HCL" && settings.dependencyImportance && !sampledGrid;
+  const dependencyStudy = settings.choice === "HCL" && (settings.dependencyResult === "UNCERTAINTY" || settings.dependencyEvidence !== "BASE" || rankedCutSets || dependencyImportance);
   const studied = network === undefined ? undefined : studyConfiguration(network.configuration, batchInput);
   const scenarioIds = (studied?.evidenceScenarios ?? []).filter((scenario) => scenario.enabled).map((scenario) => scenario.id);
   const sampling = network !== undefined && settings.dependencyResult === "UNCERTAINTY" ? samplingProblem(dependency, network.configuration) : undefined;
   const problem = settings.choice === "HCL"
     ? studied === undefined ? "The linked SY workbook has no dependency configuration."
       : sampling !== undefined ? sampling
-      : settings.dependencyEvidence === "HAZARD" && settings.dependencyResult === "UNCERTAINTY" ? "Hazard convolution gives a probability only."
       : rankedCutSets && !(settings.keep >= 1 && settings.keep <= 1000) ? "Keep between 1 and 1000 cut sets."
       : dependencyEvidenceProblem(studied, settings.dependencyEvidence)
     : settings.choice === "CUT_SETS"
@@ -610,7 +620,7 @@ function useComposer(model: EsqModel | undefined, shownRun: ShownRun, initialNet
     const result = settings.dependencyResult;
     const evidence = settings.dependencyEvidence;
     const cutSets: DependencyCutSetChoice = rankedCutSets ? settings.dependencyCutSets : "NONE";
-    const ranked = cutSets === "NONE" ? {} : { cutSets: { score: cutSets, keep: settings.keep, ...(settings.limitOrder === undefined ? {} : { limitOrder: settings.limitOrder }), ...(settings.dependencyCutOff === null ? {} : { cutOff: Number(`1e${settings.dependencyCutOff}`) }) } };
+    const ranked = cutSets === "NONE" ? {} : { cutSets: { score: cutSets, keep: settings.keep, ...(settings.limitOrder === undefined ? {} : { limitOrder: settings.limitOrder }), ...(settings.dependencyCutOff === null ? {} : { cutOff: Number(`1e${settings.dependencyCutOff}`) }), ...(settings.dependencyCauses === null ? {} : { causes: settings.dependencyCauses }) } };
     const trees = [...treeIds];
     const order = new Map(trees.map((treeId, index) => [treeId, index]));
     setRunning(true);
@@ -618,7 +628,7 @@ function useComposer(model: EsqModel | undefined, shownRun: ShownRun, initialNet
     setStudy({ result, evidence, cutSets, trees: [] });
     setStudyTotal(trees.length);
     const draws = result === "UNCERTAINTY" ? { sampling: samplingOf(dependency) } : {};
-    Promise.all(trees.map((treeId) => studyTree({ workbookId, revision, option, treeId, result, evidence, scenarioIds: [...scenarioIds], batchInput, ...draws, ...ranked })
+    Promise.all(trees.map((treeId) => studyTree({ workbookId, revision, option, treeId, result, evidence, scenarioIds: [...scenarioIds], batchInput, ...draws, ...ranked, ...(dependencyImportance ? { importance: result === "UNCERTAINTY" ? settings.dependencyImportanceEvents : true } : {}) })
       .catch((caught: Error): DependencyStudyTree => ({ treeId, runResult: null, batchRunResult: null, failure: caught.message }))
       .then((outcome) => {
         setStudy((current) => (current === null ? current : {
@@ -996,10 +1006,9 @@ function RunsPanel({ view, shownRun, composer, onCutSets }: { view: EsqSolveView
               <legend>Result</legend>
               <div role="radiogroup" aria-label="Dependency result">
                 {DEPENDENCY_RESULTS.map(([value, label]) => {
-                  const disabled = value === "UNCERTAINTY" && settings.dependencyEvidence === "HAZARD";
                   return (
-                    <label key={value} className={pillClass(settings.dependencyResult === value, disabled)}>
-                      <input type="radio" name={`${fieldId}-result`} value={value} checked={settings.dependencyResult === value} disabled={disabled} onChange={() => set({ dependencyResult: value })} />
+                    <label key={value} className={pillClass(settings.dependencyResult === value, false)}>
+                      <input type="radio" name={`${fieldId}-result`} value={value} checked={settings.dependencyResult === value} onChange={() => set({ dependencyResult: value })} />
                       <span>{label}</span>
                     </label>
                   );
@@ -1011,10 +1020,9 @@ function RunsPanel({ view, shownRun, composer, onCutSets }: { view: EsqSolveView
               <legend>Evidence</legend>
               <div role="radiogroup" aria-label="Dependency evidence">
                 {DEPENDENCY_EVIDENCE.map(([value, label]) => {
-                  const disabled = value === "HAZARD" && settings.dependencyResult === "UNCERTAINTY";
                   return (
-                    <label key={value} className={pillClass(settings.dependencyEvidence === value, disabled)}>
-                      <input type="radio" name={`${fieldId}-evidence`} value={value} checked={settings.dependencyEvidence === value} disabled={disabled} onChange={() => set({ dependencyEvidence: value })} />
+                    <label key={value} className={pillClass(settings.dependencyEvidence === value, false)}>
+                      <input type="radio" name={`${fieldId}-evidence`} value={value} checked={settings.dependencyEvidence === value} onChange={() => set({ dependencyEvidence: value })} />
                       <span>{label}</span>
                     </label>
                   );
@@ -1173,6 +1181,26 @@ function RunsPanel({ view, shownRun, composer, onCutSets }: { view: EsqSolveView
                     </label>
                   </>
                 )}
+                {dependencies && !(uncertainty && settings.dependencyEvidence === "HAZARD") && (
+                  <>
+                    <label>
+                      <span>Importance</span>
+                      <select aria-label="Importance under dependencies" value={settings.dependencyImportance ? "ON" : "OFF"} onChange={(event) => set({ dependencyImportance: event.target.value === "ON" })}>
+                        <option value="OFF">Off</option>
+                        <option value="ON">On</option>
+                      </select>
+                    </label>
+                    {uncertainty && settings.dependencyImportance && (
+                      <label>
+                        <span>Events sampled for importance</span>
+                        <input aria-label="Events sampled for importance" type="number" min={1} max={100} step={1} value={settings.dependencyImportanceEvents} onChange={(event) => {
+                          const value = Math.round(Number(event.target.value));
+                          if (value >= 1) set({ dependencyImportanceEvents: Math.min(value, 100) });
+                        }} />
+                      </label>
+                    )}
+                  </>
+                )}
                 {dependencies && !uncertainty && (
                   <>
                     <label>
@@ -1204,6 +1232,13 @@ function RunsPanel({ view, shownRun, composer, onCutSets }: { view: EsqSolveView
                             <option value="">None</option>
                             {DEPENDENCY_CUT_OFF_EXPONENTS.map((exponent) => <option key={exponent} value={exponent}>{decadeText(exponent)}</option>)}
                           </select>
+                        </label>
+                        <label>
+                          <span>Causes per cut set</span>
+                          <input aria-label="Causes per cut set" type="number" min={1} max={100} step={1} placeholder="Off" value={settings.dependencyCauses ?? ""} onChange={(event) => {
+                            const value = Math.round(Number(event.target.value));
+                            set({ dependencyCauses: event.target.value.trim().length === 0 || !(value >= 1) ? null : Math.min(value, 100) });
+                          }} />
                         </label>
                       </>
                     )}

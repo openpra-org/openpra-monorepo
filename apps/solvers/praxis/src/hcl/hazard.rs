@@ -21,6 +21,54 @@ pub fn ensure_hazard_convolution_supported(
     Ok(())
 }
 
+/// Convolves one sampled quantity over a hazard grid, sample by sample.
+/// `sampled_weights` holds every grid row, `values` the evaluated rows only.
+pub fn sampled_hazard_convolution(
+    sampled_weights: &[Vec<f64>],
+    scenario_indices: &[usize],
+    values: &[&[f64]],
+    normalize: bool,
+) -> Result<Vec<f64>> {
+    if scenario_indices.len() != values.len() {
+        return Err(PraxisError::Hcl(
+            "a sampled hazard convolution needs one sample vector for every evaluated row".into(),
+        ));
+    }
+    let count = sampled_weights.first().map_or(0, Vec::len);
+    if count == 0
+        || sampled_weights.iter().any(|row| row.len() != count)
+        || values.iter().any(|row| row.len() != count)
+    {
+        return Err(PraxisError::Hcl(
+            "a sampled hazard convolution needs the same samples in every row".into(),
+        ));
+    }
+    for (index, row) in sampled_weights.iter().enumerate() {
+        if !scenario_indices.contains(&index) && row.iter().any(|weight| *weight > 0.0) {
+            return Err(PraxisError::Hcl(format!(
+                "hazard grid row {} has zero point weight but a positive sampled weight; give its hazard states a point probability above zero",
+                index + 1
+            )));
+        }
+    }
+    let mut convolved = vec![0.0; count];
+    for (&index, row) in scenario_indices.iter().zip(values) {
+        let weights = sampled_weights
+            .get(index)
+            .ok_or_else(|| PraxisError::Hcl("a hazard grid row has no sampled weights".into()))?;
+        for (sum, (weight, value)) in convolved.iter_mut().zip(weights.iter().zip(row.iter())) {
+            *sum += weight * value;
+        }
+    }
+    if normalize {
+        for (sample, sum) in convolved.iter_mut().enumerate() {
+            let total: f64 = sampled_weights.iter().map(|row| row[sample]).sum();
+            *sum = if total > 0.0 { *sum / total } else { 0.0 };
+        }
+    }
+    Ok(convolved)
+}
+
 pub(crate) fn resolve_evidence(
     network: &BayesianGraph,
     specs: &[HclEvidenceSpec],
@@ -53,7 +101,7 @@ pub(crate) fn resolve_evidence(
 
 // HCL_MH's pgmpy adapter delegates to networkx.topological_sort. Preserve
 // generation order and insertion-order ties, including unselected ancestors.
-fn topological_order(network: &BayesianGraph) -> Result<Vec<NodeId>> {
+pub(crate) fn topological_order(network: &BayesianGraph) -> Result<Vec<NodeId>> {
     let mut indegrees = network
         .variables()
         .iter()

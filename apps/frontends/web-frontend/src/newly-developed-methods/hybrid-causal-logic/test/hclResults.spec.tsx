@@ -289,10 +289,10 @@ describe("HCL hazard presentation", () => {
     expect(JSON.stringify(batch)).toBe(before);
   });
 
-  it("does not display integrated hazard UQ even for an incompatible result", () => {
+  it("displays the integrated hazard results of an uncertainty batch", () => {
     render(batchView(hazardBatch(), true));
     expect(screen.queryByRole("note")).not.toBeInTheDocument();
-    expect(screen.queryByRole("region", { name: "Integrated end-state results" })).not.toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Integrated end-state results" })).toBeInTheDocument();
     openLow();
     expect(low().getByRole("region", { name: "Release (release) uncertainty results" })).toBeInTheDocument();
   });

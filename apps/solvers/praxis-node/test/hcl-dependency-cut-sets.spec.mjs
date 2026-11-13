@@ -411,3 +411,60 @@ test("fault tree cut sets are refused for uncertainty runs and bad settings", ()
     assert.ok(run(treeRequest(extra)).error, JSON.stringify(extra));
   }
 });
+
+const HIGH_GIVEN_BOTH = (0.1 * 0.5 * 0.6) / (0.9 * 0.01 * 0.02 + 0.1 * 0.5 * 0.6);
+
+function checkCause(cause, withCutSet) {
+  assert.equal(cause.nodeId, "H");
+  assert.equal(cause.stateId, "LOW");
+  assert.ok(Math.abs(cause.baseline - 0.9) <= 1e-15);
+  assert.ok(Math.abs(cause.withCutSet - withCutSet) <= 1e-12, String(cause.withCutSet));
+  assert.ok(Math.abs(cause.shift - (0.9 - withCutSet)) <= 1e-12);
+}
+
+test("the cause trace lists the network nodes that a cut set shifts", () => {
+  const plain = run(request({ dependencyCutSets: ranked })).result;
+  assert.ok(sequence(plain, "FF").dependencyCutSets.items.every((item) => item.causes === undefined));
+  const response = run(request({ dependencyCutSets: { ...ranked, causes: 5 } }));
+  assert.equal(response.error, undefined);
+  const items = sequence(response.result, "FF").dependencyCutSets.items;
+  assert.deepEqual(items.map(({ causes, ...rest }) => rest), sequence(plain, "FF").dependencyCutSets.items);
+  assert.deepEqual(items[0].basicEventIds, ["A1", "B1"]);
+  assert.equal(items[0].causes.length, 1);
+  checkCause(items[0].causes[0], 1 - HIGH_GIVEN_BOTH);
+  assert.deepEqual(items[1].basicEventIds, ["X", "Y"]);
+  assert.deepEqual(items[1].causes, []);
+  checkCause(items[2].causes[0], 1 - 0.05 / 0.059);
+
+  const rows = ["LOW", "HIGH"].map((state) => ({ scenarioId: state, observations: hazard(state), hazardObservations: hazard(state) }));
+  const grid = run(
+    request({
+      dependencyCutSets: { ...ranked, causes: 5 },
+      evidenceBatch: rows,
+      hazardConvolution: {
+        gridName: "H",
+        hazardNodeIds: ["H"],
+        annualFrequencyScale: { value: 2, unit: "PER_YEAR", annualization: { basis: "PLANT_YEAR", hoursPerYear: 8760 } },
+        normalizeWeights: false,
+      },
+    }),
+  ).result;
+  for (const row of grid.batchResults) {
+    assert.ok(sequence(row, "FF").dependencyCutSets.items.every((item) => Array.isArray(item.causes) && item.causes.length === 0));
+  }
+  assert.ok(sequence(grid.hazardConvolution, "FF").dependencyCutSets.items.every((item) => item.causes === undefined));
+
+  const tree = run(treeRequest({ dependencyCutSets: { keep: 10, causes: 1 } }));
+  assert.equal(tree.error, undefined);
+  const [free, bound] = tree.result.dependencyCutSets.items;
+  assert.deepEqual(free.basicEventIds, ["X"]);
+  assert.deepEqual(free.causes, []);
+  assert.deepEqual(bound.basicEventIds, ["A1"]);
+  checkCause(bound.causes[0], 1 - 0.05 / 0.059);
+  assert.equal(run(treeRequest({ dependencyCutSets: { keep: 10 } })).result.dependencyCutSets.items[1].causes, undefined);
+
+  for (const causes of [0, 101, 1.5, -1]) {
+    assert.ok(run(request({ dependencyCutSets: { ...ranked, causes } })).error, `event tree ${causes}`);
+    assert.ok(run(treeRequest({ dependencyCutSets: { keep: 10, causes } })).error, `fault tree ${causes}`);
+  }
+});

@@ -11,8 +11,8 @@ use crate::core::event_tree::EventTree;
 use crate::core::model::Model;
 use crate::hcl::{
     conditional_evidence_probabilities_for_network, occurrence_bounds, prepare_hazard_evidence,
-    resolve_evidence, HclEventBinding, HclEventBindings, HclEvidenceSpec, HclQuantifier,
-    OccurrenceBounds,
+    resolve_evidence, CauseShift, CauseTracer, HclEventBinding, HclEventBindings, HclEvidenceSpec,
+    HclQuantifier, OccurrenceBounds,
 };
 use crate::{PraxisError, Result};
 
@@ -28,12 +28,27 @@ pub struct DependencyCutSetSettings {
     pub limit_order: Option<usize>,
     pub cut_off: Option<f64>,
     pub keep: usize,
+    pub causes: usize,
 }
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct RankedCutSet {
     pub events: Vec<String>,
     pub probability: f64,
+    pub causes: Vec<CauseShift>,
+}
+
+pub(crate) fn trace_causes(
+    tracer: &mut CauseTracer,
+    cut_sets: &mut [RankedCutSet],
+    keep: usize,
+) -> Result<()> {
+    for cut_set in cut_sets {
+        if cut_set.probability > 0.0 {
+            cut_set.causes = tracer.shifts(&cut_set.events, keep)?;
+        }
+    }
+    Ok(())
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -96,6 +111,7 @@ pub(crate) fn ranked_list(
         .map(|((events, &probability), _)| RankedCutSet {
             events: events.clone(),
             probability,
+            causes: Vec::new(),
         })
         .collect();
     (chosen.len(), rank(chosen, keep))
@@ -385,6 +401,18 @@ pub fn rank_event_tree_dependency_cut_sets(
             rows.push(ranked(&sums, &in_any));
         }
     }
+    if settings.causes > 0 && !scenario_indices.is_empty() {
+        let first = resolve_evidence(network, &evidence_rows[scenario_indices[0]])?;
+        let mut tracer = CauseTracer::new(network, tree, hcl.bindings(), first)?;
+        for (position, &scenario) in scenario_indices.iter().enumerate() {
+            if position > 0 {
+                tracer.set_evidence(resolve_evidence(network, &evidence_rows[scenario])?)?;
+            }
+            for sequence in &mut scenarios[position] {
+                trace_causes(&mut tracer, &mut sequence.cut_sets, settings.causes)?;
+            }
+        }
+    }
     Ok(DependencyCutSetRanking {
         scenarios,
         scenario_indices,
@@ -511,6 +539,7 @@ mod tests {
             limit_order: None,
             cut_off: None,
             keep: 10,
+            causes: 0,
         }
     }
 
@@ -661,6 +690,7 @@ mod tests {
                 limit_order: Some(1),
                 cut_off: None,
                 keep: 1,
+                causes: 0,
             },
         )
         .unwrap();
@@ -687,6 +717,7 @@ mod tests {
                     limit_order: bad.0,
                     cut_off: bad.1,
                     keep: bad.2,
+                    causes: 0,
                 },
             )
             .is_err());
@@ -699,6 +730,7 @@ mod tests {
             limit_order: None,
             cut_off: Some(cut_off),
             keep: 10,
+            causes: 0,
         }
     }
 
@@ -793,6 +825,37 @@ mod tests {
                     }
                 }
             }
+        }
+    }
+
+    #[test]
+    fn cause_trace_is_attached_to_the_cut_sets_of_each_sequence() {
+        let (model, event_tree, context) = case();
+        let traced = DependencyCutSetSettings {
+            causes: 2,
+            ..settings(DependencyCutSetScore::FailedEvents)
+        };
+        let rows = vec![Vec::new(), hazard("HIGH")];
+        let ranking = rank_event_tree_dependency_cut_sets(
+            &model,
+            &event_tree,
+            &context,
+            &rows,
+            None,
+            &traced,
+        )
+        .unwrap();
+        let both = &sequence(&ranking.scenarios[0], "FF").cut_sets[0];
+        assert_eq!(both.events, ["A1", "B1"]);
+        let high = 0.1 * 0.5 * 0.6 / (0.9 * 0.01 * 0.02 + 0.1 * 0.5 * 0.6);
+        assert_eq!(both.causes.len(), 1);
+        assert_eq!(both.causes[0].node, "H");
+        assert!((both.causes[0].distance - (high - 0.1)).abs() < 1e-12);
+        let free = &sequence(&ranking.scenarios[0], "FF").cut_sets[1];
+        assert_eq!(free.events, ["X", "Y"]);
+        assert!(free.causes.is_empty());
+        for row in &ranking.scenarios[1] {
+            assert!(row.cut_sets.iter().all(|cut_set| cut_set.causes.is_empty()));
         }
     }
 }

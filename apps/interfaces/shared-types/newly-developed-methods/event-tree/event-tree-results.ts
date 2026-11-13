@@ -56,11 +56,13 @@ import type {
 import {
   HclUncertaintySummarySchema,
   HclDependencyCutSetsSchema,
+  HclEventImportanceSchema,
   HclBridgeStatsSchema, HclJunctionTreeStatsSchema, HclBatchCompilationStatsSchema,
 } from "../hybrid-causal-logic/hcl-results";
 import type {
   HclUncertaintySummary,
   HclDependencyCutSets,
+  HclEventImportance,
   HclBridgeStats, HclJunctionTreeStats, HclBatchCompilationStats,
 } from "../hybrid-causal-logic/hcl-results";
 
@@ -159,6 +161,7 @@ interface EventTreeSequenceAnalysisResult {
   };
   cutSets?: EventTreeSequenceCutSets;
   dependencyCutSets?: HclDependencyCutSets;
+  dependencyImportance?: HclEventImportance[];
   monteCarlo?: EventTreeSequenceMonteCarlo;
 }
 
@@ -168,6 +171,7 @@ interface EventTreeEndStateAggregate {
   sequenceSum?: number;
   sequencesOverlap?: boolean;
   uncertainty?: HclUncertaintySummary;
+  dependencyImportance?: HclEventImportance[];
 }
 
 interface EventTreeImportanceChange {
@@ -605,6 +609,7 @@ const EventTreeSequenceAnalysisResultSchema = z
     }).strict().optional(),
     cutSets: EventTreeSequenceCutSetsSchema.optional(),
     dependencyCutSets: HclDependencyCutSetsSchema.optional(),
+    dependencyImportance: z.array(HclEventImportanceSchema).optional(),
     monteCarlo: EventTreeSequenceMonteCarloSchema.optional(),
   })
   .strict();
@@ -616,6 +621,7 @@ const EventTreeEndStateAggregateSchema = z
     sequenceSum: z.number().nonnegative("A sequence sum cannot be negative").optional(),
     sequencesOverlap: z.boolean().optional(),
     uncertainty: HclUncertaintySummarySchema.optional(),
+    dependencyImportance: z.array(HclEventImportanceSchema).optional(),
   })
   .strict();
 

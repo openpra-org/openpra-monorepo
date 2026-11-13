@@ -107,9 +107,9 @@ interface HclBindingEditorProps {
   onGenerateScenarios?: (configuration: WorkbookHclConfiguration, spec: HclHazardSweepSpec) => Promise<HclEvidenceScenario[]>;
   onEditEvidence?: () => void;
   onChange: (configurations: WorkbookHclConfiguration[]) => void;
-  onRunFaultTree: (configuration: WorkbookHclConfiguration, faultTree: HclFaultTreeOption, calculationType: HclCalculationType, cutSets?: HclFaultTreeCutSetSettings) => void;
+  onRunFaultTree: (configuration: WorkbookHclConfiguration, faultTree: HclFaultTreeOption, calculationType: HclCalculationType, cutSets?: HclFaultTreeCutSetSettings, importance?: boolean | number) => void;
   onRunEventTree: (configuration: WorkbookHclConfiguration, eventTree: HclEventTreeOption, calculationType: HclCalculationType) => void;
-  onRunFaultTreeBatch: (configuration: WorkbookHclConfiguration, faultTree: HclFaultTreeOption, scenarioIds: string[], integrateHazardGrid: boolean, calculationType: HclCalculationType, cutSets?: HclFaultTreeCutSetSettings) => void;
+  onRunFaultTreeBatch: (configuration: WorkbookHclConfiguration, faultTree: HclFaultTreeOption, scenarioIds: string[], integrateHazardGrid: boolean, calculationType: HclCalculationType, cutSets?: HclFaultTreeCutSetSettings, importance?: boolean | number) => void;
   onRunEventTreeBatch: (configuration: WorkbookHclConfiguration, eventTree: HclEventTreeOption, scenarioIds: string[], integrateHazardGrid: boolean, calculationType: HclCalculationType) => void;
 }
 

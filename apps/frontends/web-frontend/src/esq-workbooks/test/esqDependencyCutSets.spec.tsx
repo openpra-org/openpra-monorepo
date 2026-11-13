@@ -2,7 +2,7 @@ import { fireEvent, render, screen, within } from "@testing-library/react";
 import type { EventSequenceQuantification } from "interfaces-mef-types/esq/event-sequence-quantification";
 import { esqEndStateRunId, esqSequenceRunId } from "interfaces-mef-types/esq/esq-run-inputs";
 import type { EventTreeAnalysisResult } from "interfaces-shared-types/newly-developed-methods/event-tree";
-import type { HclDependencyCutSets, HclEventTreeHazardConvolutionResult } from "interfaces-shared-types/newly-developed-methods/hybrid-causal-logic";
+import type { HclDependencyCutSets, HclEventImportance, HclEventTreeHazardConvolutionResult } from "interfaces-shared-types/newly-developed-methods/hybrid-causal-logic";
 import { EsqWorkbookProvider } from "../esqWorkbookContext";
 import { EsqDependencyResults } from "../EsqDependencyResults";
 import type { DependencyStudy } from "../EsqDependencies";
@@ -80,9 +80,82 @@ describe("ESQ Step 05 ranked cut sets of a dependency run", () => {
     expect(within(dialog).getByRole("columnheader", { name: "Probability" })).toBeTruthy();
   });
 
+  it("lists the causes of a cut set and goes back to the cut sets", () => {
+    const traced: HclDependencyCutSets = {
+      ...ranked,
+      items: [
+        { ...ranked.items[0]!, causes: [{ nodeId: "node-not-in-the-fixture", stateId: "state", baseline: 0.002, withCutSet: 0.75, shift: 0.748 }] },
+        { ...ranked.items[1]!, causes: [] },
+      ],
+    };
+    show({ result: "PROBABILITY", evidence: "BASE", cutSets: "FAILED_EVENTS", trees: [{ treeId: "ET-A", runResult: { kind: "EVENT_TREE", result: result(traced) }, batchRunResult: null, failure: null }] });
+    fireEvent.click(screen.getByRole("button", { name: /^Cut sets of / }));
+    const dialog = within(screen.getByRole("dialog", { name: "Dependency cut sets" }));
+    expect(dialog.getByRole("columnheader", { name: "Causes" })).toBeTruthy();
+    expect(dialog.getByText("None")).toBeTruthy();
+    fireEvent.click(dialog.getByRole("button", { name: "Causes of COOL-PMP-FS · SUP-HFE" }));
+    const causes = within(dialog.getByRole("table", { name: "Causes of the cut set" }));
+    expect(causes.getByText("Missing node")).toBeTruthy();
+    expect(causes.getByText("2E-3")).toBeTruthy();
+    expect(causes.getByText("7.5E-1")).toBeTruthy();
+    expect(causes.queryByText(/node-not-in-the-fixture/)).toBeNull();
+    fireEvent.click(dialog.getByRole("button", { name: "Back to cut sets" }));
+    expect(dialog.getByRole("table", { name: "Ranked cut sets" })).toBeTruthy();
+  });
+
+  it("opens the importance of a sequence and of an end state with event codes", () => {
+    const importance: HclEventImportance[] = [
+      { basicEventId: "E-3", probability: 1, occurred: 0.02, notOccurred: null, birnbaum: null, riskAchievementWorth: 1, riskReductionWorth: null, fussellVesely: null, criticality: 1 },
+      { basicEventId: "E-1", probability: 0.03, occurred: 0.4, notOccurred: 0.008, birnbaum: 0.392, riskAchievementWorth: 20, riskReductionWorth: 2.5, fussellVesely: 0.6, criticality: 0.61 },
+    ];
+    const traced = result(undefined);
+    traced.sequences[0] = { ...traced.sequences[0]!, dependencyImportance: importance };
+    traced.endStateAggregates[0] = { ...traced.endStateAggregates[0]!, dependencyImportance: [importance[1]!] };
+    show({ result: "PROBABILITY", evidence: "BASE", cutSets: "NONE", trees: [{ treeId: "ET-A", runResult: { kind: "EVENT_TREE", result: traced }, batchRunResult: null, failure: null }] });
+    const buttons = screen.getAllByRole("button", { name: /^Importance of / });
+    expect(buttons).toHaveLength(2);
+    fireEvent.click(within(screen.getByRole("table", { name: "Sequences" })).getByRole("button", { name: /^Importance of / }));
+    let dialog = within(screen.getByRole("dialog", { name: "Dependency importance" }));
+    const rows = within(dialog.getByRole("table", { name: "Importance" })).getAllByRole("row").slice(1);
+    expect(rows.map((row) => within(row).getAllByRole("cell")[0]?.textContent)).toEqual(["COOL-PMP-FS", "SUP-FAN-FR"]);
+    expect(within(rows[0]!).getByText("6E-1")).toBeTruthy();
+    expect(within(rows[0]!).getByText("2E1")).toBeTruthy();
+    expect(within(rows[1]!).getAllByText("—")).toHaveLength(3);
+    expect(dialog.queryByText("E-1")).toBeNull();
+    expect(dialog.queryByText("E-3")).toBeNull();
+    fireEvent.click(dialog.getByRole("button", { name: "Close" }));
+    fireEvent.click(within(screen.getByRole("table", { name: "End states" })).getByRole("button", { name: /^Importance of / }));
+    dialog = within(screen.getByRole("dialog", { name: "Dependency importance" }));
+    expect(within(dialog.getByRole("table", { name: "Importance" })).getAllByRole("row")).toHaveLength(2);
+  });
+
+  it("shows the sampled range of importance and of the hazard grid", () => {
+    const measure = (mean: number) => ({ sampleCount: 40, mean, percentile05: mean / 2, median: mean * 1.1, percentile95: mean * 1.5 });
+    const importance: HclEventImportance[] = [
+      { basicEventId: "E-1", probability: 0.03, occurred: 0.4, notOccurred: 0.008, birnbaum: 0.392, riskAchievementWorth: 20, riskReductionWorth: 2.5, fussellVesely: 0.6, criticality: 0.61,
+        uncertainty: { birnbaum: measure(0.3), riskAchievementWorth: measure(18), riskReductionWorth: null, fussellVesely: measure(0.55), criticality: measure(0.5) } },
+      { basicEventId: "E-3", probability: 0.01, occurred: 0.5, notOccurred: 0.015, birnbaum: 0.485, riskAchievementWorth: 25, riskReductionWorth: 1.333, fussellVesely: 0.25, criticality: 0.25 },
+    ];
+    const traced = result(undefined);
+    traced.sequences[0] = { ...traced.sequences[0]!, dependencyImportance: importance };
+    show({ result: "UNCERTAINTY", evidence: "BASE", cutSets: "NONE", trees: [{ treeId: "ET-A", runResult: { kind: "EVENT_TREE", result: traced }, batchRunResult: null, failure: null }] });
+    fireEvent.click(within(screen.getByRole("table", { name: "Sequences" })).getByRole("button", { name: /^Importance of / }));
+    const dialog = within(screen.getByRole("dialog", { name: "Dependency importance" }));
+    const sampled = within(dialog.getByRole("table", { name: "Importance uncertainty" }));
+    expect(sampled.getAllByRole("row")).toHaveLength(2);
+    expect(sampled.getByText("COOL-PMP-FS")).toBeTruthy();
+    expect(sampled.getByText("5.5E-1")).toBeTruthy();
+    expect(sampled.getByText("2.75E-1")).toBeTruthy();
+    expect(sampled.getByText("8.25E-1")).toBeTruthy();
+    fireEvent.change(dialog.getByRole("combobox", { name: "Measure" }), { target: { value: "riskReductionWorth" } });
+    expect(within(dialog.getByRole("table", { name: "Importance uncertainty" })).getAllByText("—")).toHaveLength(4);
+    expect(within(dialog.getByRole("table", { name: "Importance" })).getAllByRole("row")).toHaveLength(3);
+  });
+
   it("shows no cut set link when the run carries no ranked cut sets", () => {
     show({ result: "PROBABILITY", evidence: "BASE", cutSets: "NONE", trees: [{ treeId: "ET-A", runResult: { kind: "EVENT_TREE", result: result(undefined) }, batchRunResult: null, failure: null }] });
     expect(screen.queryAllByRole("button", { name: /^Cut sets of / })).toHaveLength(0);
+    expect(screen.queryAllByRole("button", { name: /^Importance of / })).toHaveLength(0);
   });
 
   it("opens the hazard-weighted cut sets from the grid table", () => {

@@ -15,7 +15,7 @@ import {
   type HazardSequenceLookup,
 } from "./hclHazardResults";
 import { hclResultLabels, sequenceEndState } from "./hclResultLabels";
-import { HclCutSetsButton } from "./hclFaultTreeCutSets";
+import { HclCutSetsButton, HclImportanceButton, type HclCauseNode } from "./hclFaultTreeCutSets";
 
 function summaryValues(summary?: HclUncertaintySummary): number[] {
   return summary === undefined ?
@@ -72,10 +72,11 @@ export function HclResults({
   eventTreeOptions,
   faultTreeOptions,
   analysisHost,
+  networkNodes = [],
 }: Pick<
   HclBindingEditorProps,
   "runResult" | "batchRunResult" | "workflow" | "calculationType" | "eventTreeOptions" | "faultTreeOptions" | "analysisHost"
->) {
+> & { networkNodes?: readonly HclCauseNode[] }) {
   const [selectedEndState, setSelectedEndState] = useState("");
   const selectionId = useId();
   const batchKey =
@@ -95,7 +96,7 @@ export function HclResults({
       ) ?? []);
   const labels = hclResultLabels(eventTreeOptions, eventResults);
   const hazard =
-    workflow === "BATCH" && calculationType === "PROBABILITY" ? batchRunResult?.hazardConvolution : undefined;
+    workflow === "BATCH" ? batchRunResult?.hazardConvolution : undefined;
   const endStateIds = [
     ...new Set([
       ...eventResults.flatMap((result) => [
@@ -180,7 +181,8 @@ export function HclResults({
                 columnName={() => "Top event probability"}
               />
             )}
-            <HclCutSetsButton cutSets={runResult.result.dependencyCutSets} faultTree={rankedTree} title={rankedTitle} />
+            <HclCutSetsButton cutSets={runResult.result.dependencyCutSets} faultTree={rankedTree} title={rankedTitle} nodes={networkNodes} />
+            <HclImportanceButton rows={runResult.result.dependencyImportance} faultTree={rankedTree} title={rankedTitle} />
           </div>
           <ResultWarnings issues={runResult.result.validationIssues} />
           {calculationType === "PROBABILITY" ?
@@ -246,6 +248,9 @@ export function HclResults({
             </span>
             {hazard?.targetKind === "FAULT_TREE" && (
               <HclCutSetsButton cutSets={hazard.dependencyCutSets} faultTree={rankedTree} title={rankedTitle} evidence="Weighted over the hazard grid" weighted />
+            )}
+            {hazard?.targetKind === "FAULT_TREE" && (
+              <HclImportanceButton rows={hazard.dependencyImportance} faultTree={rankedTree} title={rankedTitle} evidence="Weighted over the hazard grid" />
             )}
           </div>
           <HclCompilationDiagnostics key={batchKey} stats={batchRunResult.compilationReuse} />
@@ -316,6 +321,15 @@ export function HclResults({
                             cutSets={ft.dependencyCutSets}
                             faultTree={rankedTree}
                             title={rankedTitle}
+                            nodes={networkNodes}
+                            evidence={scenario.scenarioName === scenario.scenarioCode ? scenario.scenarioCode : `${scenario.scenarioCode} · ${scenario.scenarioName}`}
+                          />
+                        )}
+                        {ft !== undefined && (
+                          <HclImportanceButton
+                            rows={ft.dependencyImportance}
+                            faultTree={rankedTree}
+                            title={rankedTitle}
                             evidence={scenario.scenarioName === scenario.scenarioCode ? scenario.scenarioCode : `${scenario.scenarioCode} · ${scenario.scenarioName}`}
                           />
                         )}
@@ -370,6 +384,14 @@ export function HclResults({
                             summary={result.result.uncertainty}
                             label="Statistics"
                             inline
+                          />
+                        )}
+                        {result?.kind === "FAULT_TREE" && (
+                          <HclImportanceButton
+                            rows={result.result.dependencyImportance}
+                            faultTree={rankedTree}
+                            title={rankedTitle}
+                            evidence={scenario.scenarioName === scenario.scenarioCode ? scenario.scenarioCode : `${scenario.scenarioCode} · ${scenario.scenarioName}`}
                           />
                         )}
                         {result?.kind === "FAULT_TREE" && <HclFaultTreeDiagnostics result={result.result} />}

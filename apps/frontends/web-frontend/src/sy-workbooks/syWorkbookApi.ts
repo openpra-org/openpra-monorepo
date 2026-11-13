@@ -208,6 +208,7 @@ async function runSyHclFaultTree(
   calculationType: HclCalculationType,
   evidenceScenarioId?: string,
   dependencyCutSets?: HclFaultTreeCutSetSettings,
+  dependencyImportance?: boolean | number,
 ): Promise<HclExecuteResult> {
   return finishedRun("sy", workbookId, postJson<HclExecuteResult>(
     `/api/sy-workbooks/${workbookId}/hcl-configurations/${configurationId}/fault-tree-runs`,
@@ -219,6 +220,8 @@ async function runSyHclFaultTree(
       faultTreeTopGate,
       ...(evidenceScenarioId === undefined ? {} : { evidenceScenarioId }),
       ...(dependencyCutSets === undefined ? {} : { dependencyCutSets }),
+      ...(dependencyImportance === undefined || dependencyImportance === false ? {} : { dependencyImportance: true }),
+      ...(typeof dependencyImportance === "number" ? { dependencyImportanceEvents: dependencyImportance } : {}),
     },
   ));
 }
@@ -233,6 +236,7 @@ async function runSyHclFaultTreeBatch(
   integrateHazardGrid = false,
   batchInput?: HclBatchInput,
   dependencyCutSets?: HclFaultTreeCutSetSettings,
+  dependencyImportance?: boolean | number,
 ): Promise<HclBatchExecuteResult> {
   const response = await postJson<HclBatchExecuteResult>(
     `/api/sy-workbooks/${workbookId}/hcl-configurations/${configurationId}/fault-tree-batch-runs`,
@@ -246,6 +250,8 @@ async function runSyHclFaultTreeBatch(
       ...(batchInput === undefined ? {} : { batchInput }),
       ...(integrateHazardGrid ? { integrateHazardGrid: true } : {}),
       ...(dependencyCutSets === undefined ? {} : { dependencyCutSets }),
+      ...(dependencyImportance === undefined || dependencyImportance === false ? {} : { dependencyImportance: true }),
+      ...(typeof dependencyImportance === "number" ? { dependencyImportanceEvents: dependencyImportance } : {}),
     },
   );
   if (response.batchId === undefined) return response;

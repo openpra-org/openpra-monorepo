@@ -1550,14 +1550,14 @@ describe("BayesianNetworkEditor", () => {
     expect(scenarioTwo!.querySelectorAll(".hcleditor__uncertainty-metric")).toHaveLength(7);
   });
 
-  it("allows probability hazard after switching from uncertainty without deleting settings", async () => {
+  it("allows hazard convolution under uncertainty and under probability without deleting settings", async () => {
     const user = userEvent.setup();
     const onConfigurationsChange = jest.fn();
     render(<Harness onConfigurationsChange={onConfigurationsChange} />);
     await user.click(screen.getByRole("radio", { name: "Uncertainty" }));
     await user.click(screen.getByRole("radio", { name: "Batch" }));
     await user.click(screen.getByRole("button", { name: "Create HCL configuration" }));
-    expect(screen.getByRole("option", { name: "Hazard convolution" })).toBeDisabled();
+    expect(screen.getByRole("option", { name: "Hazard convolution" })).toBeEnabled();
     expect(screen.getByRole("option", { name: "Evidence scenarios" })).toBeEnabled();
     await user.click(screen.getByRole("button", { name: "Enable uncertainty" }));
     const saved = onConfigurationsChange.mock.calls.at(-1)?.[0]?.[0]?.solverSettings.uncertainty;

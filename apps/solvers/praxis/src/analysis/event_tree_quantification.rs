@@ -66,6 +66,10 @@ impl EventTreeHclContext {
         self.uncertainty.as_ref().map(HclUncertaintySettings::plan)
     }
 
+    pub fn base_evidence_specs(&self) -> &[HclEvidenceSpec] {
+        &self.base_evidence
+    }
+
     pub fn uncertainty(&self) -> Option<&HclUncertaintySettings> {
         self.uncertainty.as_ref()
     }
@@ -229,7 +233,6 @@ pub fn quantify_event_tree_hazard_grid_batch_with_unions(
     hazard_assignment_rows: &[Vec<HclEvidenceSpec>],
     unions: &[EventTreeUnion],
 ) -> Result<EventTreeHazardGridQuantification> {
-    hcl.ensure_hazard_convolution_supported()?;
     if evidence_rows.len() != hazard_assignment_rows.len() {
         return Err(PraxisError::Hcl(
             "event-tree hazard grid requires one hazard assignment for every evidence row"
@@ -248,6 +251,32 @@ pub fn quantify_event_tree_hazard_grid_batch_with_unions(
         quantification,
         raw_weights: raw_weights.expect("hazard rows must produce weights"),
     })
+}
+
+/// Samples the hazard weights of a grid with the same draws as the uncertainty
+/// run: one weight per grid row and sample.
+pub fn event_tree_sampled_hazard_weights(
+    model: &Model,
+    hcl: &EventTreeHclContext,
+    evidence_rows: &[Vec<HclEvidenceSpec>],
+    hazard_assignment_rows: &[Vec<HclEvidenceSpec>],
+) -> Result<Vec<Vec<f64>>> {
+    let compiled = CompiledHclContext::new(hcl, model)?;
+    let prepared = compiled.uncertainty.as_ref().ok_or_else(|| {
+        PraxisError::Hcl("sampled hazard weights need uncertainty settings".to_string())
+    })?;
+    let merged = prepare_hazard_evidence(
+        &hcl.network,
+        &hcl.base_evidence,
+        evidence_rows,
+        hazard_assignment_rows,
+    )?;
+    let base = compiled.build_base_evidence(&hcl.base_evidence)?;
+    let rows = merged
+        .iter()
+        .map(|row| compiled.build_base_evidence(row))
+        .collect::<Result<Vec<_>>>()?;
+    prepared.evidence_weights(&base, &rows)
 }
 
 fn quantify_event_tree_sequences_batch_internal(
@@ -956,9 +985,22 @@ mod tests {
         assert!((scenario_probability(1, "FS") - 0.0).abs() < 1e-12);
         assert!((scenario_probability(1, "FF") - 0.0).abs() < 1e-12);
 
-        let error = quantify_event_tree_hazard_grid_batch(&model, &event_tree, &hcl, &rows, &rows)
-            .unwrap_err();
-        assert!(error.to_string().contains("point runs only"));
+        let sampled =
+            quantify_event_tree_hazard_grid_batch(&model, &event_tree, &hcl, &rows, &rows).unwrap();
+        assert!((sampled.raw_weights[0] - 0.2).abs() < 1e-12);
+        let weights = super::event_tree_sampled_hazard_weights(&model, &hcl, &rows, &rows).unwrap();
+        assert_eq!(weights.len(), 2);
+        for (first, second) in weights[0].iter().zip(&weights[1]) {
+            assert!((first + second - 1.0).abs() < 1e-12);
+        }
+        for scenario in &sampled.quantification.scenarios {
+            for sequence in scenario {
+                assert_eq!(
+                    sequence.uncertainty_samples.as_ref().map(Vec::len),
+                    Some(weights[0].len())
+                );
+            }
+        }
         let point = hcl.with_uncertainty(None);
         let weighted =
             quantify_event_tree_hazard_grid_batch(&model, &event_tree, &point, &rows, &rows)

@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use praxis::analysis::sequence_dependency_cut_sets::{
     rank_base_event_tree_dependency_cut_sets, rank_event_tree_dependency_cut_sets,
-    DependencyCutSetScore, DependencyCutSetSettings, SequenceRankedCutSets,
+    DependencyCutSetScore, DependencyCutSetSettings, RankedCutSet, SequenceRankedCutSets,
 };
 use praxis::{PraxisError, Result};
 use serde::{Deserialize, Serialize};
@@ -14,6 +14,7 @@ use super::{
 };
 
 const MAX_KEEP: usize = 10_000;
+const MAX_CAUSES: usize = 100;
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
@@ -31,6 +32,8 @@ pub(super) struct DependencyCutSetsInput {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     cut_off: Option<f64>,
     keep: usize,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    causes: Option<usize>,
 }
 
 impl DependencyCutSetsInput {
@@ -45,6 +48,7 @@ impl DependencyCutSetsInput {
             limit_order: self.limit_order,
             cut_off: self.cut_off,
             keep: self.keep,
+            causes: self.causes.unwrap_or(0),
         }
     }
 
@@ -61,8 +65,29 @@ impl DependencyCutSetsInput {
                 "cut sets kept per sequence must be between 1 and {MAX_KEEP}"
             )));
         }
+        if self.causes.is_some_and(|causes| causes == 0 || causes > MAX_CAUSES) {
+            return Err(PraxisError::Settings(format!(
+                "causes listed per cut set must be between 1 and {MAX_CAUSES}"
+            )));
+        }
         Ok(())
     }
+}
+
+fn causes_json(cut_set: &RankedCutSet) -> Value {
+    cut_set
+        .causes
+        .iter()
+        .map(|cause| {
+            json!({
+                "nodeId": cause.node,
+                "stateId": cause.state,
+                "baseline": cause.baseline,
+                "withCutSet": cause.with_cut_set,
+                "shift": cause.distance,
+            })
+        })
+        .collect()
 }
 
 fn ranked_json(
@@ -70,18 +95,23 @@ fn ranked_json(
     ranked: &SequenceRankedCutSets,
     probability_scale: f64,
     annual_scale: f64,
+    traced: bool,
 ) -> Value {
     let items: Vec<Value> = ranked
         .cut_sets
         .iter()
         .map(|cut_set| {
             let probability = cut_set.probability * probability_scale;
-            json!({
+            let mut item = json!({
                 "order": cut_set.events.len(),
                 "basicEventIds": cut_set.events,
                 "probability": probability,
                 "annualFrequency": probability * annual_scale,
-            })
+            });
+            if traced {
+                item["causes"] = causes_json(cut_set);
+            }
+            item
         })
         .collect();
     json!({ "score": input.score, "count": ranked.total, "items": items })
@@ -93,6 +123,7 @@ fn attach(
     ranked: &[SequenceRankedCutSets],
     probability_scale: f64,
     annual_scale: f64,
+    traced: bool,
 ) -> Result<()> {
     let by_sequence: HashMap<&str, &SequenceRankedCutSets> = ranked
         .iter()
@@ -106,7 +137,7 @@ fn attach(
         let entry = by_sequence.get(id.as_str()).ok_or_else(|| {
             PraxisError::Logic(format!("sequence '{id}' has no ranked cut sets"))
         })?;
-        row["dependencyCutSets"] = ranked_json(input, entry, probability_scale, annual_scale);
+        row["dependencyCutSets"] = ranked_json(input, entry, probability_scale, annual_scale, traced);
     }
     Ok(())
 }
@@ -134,6 +165,7 @@ pub(super) fn attach_to_result(
         ranked,
         1.0,
         adapter.initiating_event_frequency,
+        input.causes.is_some(),
     )
 }
 
@@ -172,6 +204,7 @@ pub(super) fn attach_to_batch(
             ranked,
             1.0,
             adapter.initiating_event_frequency,
+            input.causes.is_some(),
         )?;
     }
     if let Some(weighted) = &ranking.weighted {
@@ -190,6 +223,7 @@ pub(super) fn attach_to_batch(
             weighted,
             probability_scale,
             annual_scale,
+            false,
         )?;
     }
     Ok(())

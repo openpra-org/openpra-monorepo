@@ -489,7 +489,13 @@ function HclBindingEditor({
       }
       const cutSets = calculationType === "UNCERTAINTY" ? undefined : cutSetSettingsOf(cutSetChoice);
       const hazardGridRun = effectiveEvidenceMode === "HAZARD_GRID";
-      if (cutSets === undefined) {
+      const sampledRun = calculationType === "UNCERTAINTY";
+      const importance = cutSetChoice.importance && !(sampledRun && hazardGridRun);
+      const importanceRequest = sampledRun ? cutSetChoice.importanceEvents : true;
+      if (importance) {
+        if (isBatchWorkflow) onRunFaultTreeBatch(runConfiguration, tree, scenarioIds, hazardGridRun, calculationType, cutSets, importanceRequest);
+        else onRunFaultTree(configuration, tree, calculationType, cutSets, importanceRequest);
+      } else if (cutSets === undefined) {
         if (isBatchWorkflow) onRunFaultTreeBatch(runConfiguration, tree, scenarioIds, hazardGridRun, calculationType);
         else onRunFaultTree(configuration, tree, calculationType);
       } else if (isBatchWorkflow) onRunFaultTreeBatch(runConfiguration, tree, scenarioIds, hazardGridRun, calculationType, cutSets);
@@ -504,7 +510,6 @@ function HclBindingEditor({
     else onRunEventTree(configuration, selectedEventTree, calculationType);
   }
 
-  const hazardUncertaintyBlocked = calculationType === "UNCERTAINTY";
   const calculationLabel = calculationType === "UNCERTAINTY" ? "uncertainty" : "probability";
   const targetFields = (
     <>
@@ -711,7 +716,7 @@ function HclBindingEditor({
                     <span>Batch type</span>
                     <select aria-label="HCL batch type" value={batchMode} onChange={(event) => setBatchMode(event.target.value as "SCENARIOS" | "HAZARD_GRID")}>
                       <option value="SCENARIOS">Evidence scenarios</option>
-                      <option value="HAZARD_GRID" disabled={hazardUncertaintyBlocked}>Hazard convolution</option>
+                      <option value="HAZARD_GRID">Hazard convolution</option>
                     </select>
                   </label>
                   {scope !== "EVENT_TREE" && (
@@ -752,12 +757,12 @@ function HclBindingEditor({
             {invalidScenario !== undefined && <p className="bneditor__error" role="alert">Scenario {invalidScenario.code} references missing or invalid BN evidence. Repair it or disable the scenario.</p>}
             <div className="hcleditor__execution-row">
               <div className="hcleditor__run-fields">{targetFields}</div>
-              <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" disabled={running || hasBlockingIssue || (workflow === "BATCH" && enabledScenarios.length === 0) || (effectiveEvidenceMode === "HAZARD_GRID" && hazardUncertaintyBlocked) || (targetKind === "FAULT_TREE" ? executableFaultTrees.length === 0 : executableEventTrees.length === 0)} onClick={run}>
+              <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" disabled={running || hasBlockingIssue || (workflow === "BATCH" && enabledScenarios.length === 0) || (targetKind === "FAULT_TREE" ? executableFaultTrees.length === 0 : executableEventTrees.length === 0)} onClick={run}>
                 <HclIcon name="run" />
                 <span>{running ? "Running…" : `Run ${calculationLabel}${workflow === "BATCH" ? " batch" : ""}`}</span>
               </button>
             </div>
-            {targetKind === "FAULT_TREE" && calculationType !== "UNCERTAINTY" && <HclCutSetControls choice={cutSetChoice} onChange={setCutSetChoice} />}
+            {targetKind === "FAULT_TREE" && !(calculationType === "UNCERTAINTY" && effectiveEvidenceMode === "HAZARD_GRID") && <HclCutSetControls choice={cutSetChoice} sampled={calculationType === "UNCERTAINTY"} onChange={setCutSetChoice} />}
           </div>
 
           {targetKind === "EVENT_TREE" && selectedEventTree !== undefined && (
@@ -851,7 +856,7 @@ function HclBindingEditor({
           )}
 
           {runError !== null && <p className="bneditor__error" role="alert">{runError}</p>}
-          <HclResults runResult={runResult} batchRunResult={batchRunResult} workflow={workflow} calculationType={calculationType} eventTreeOptions={eventTreeOptions} faultTreeOptions={faultTreeOptions} analysisHost={analysisHost} />
+          <HclResults runResult={runResult} batchRunResult={batchRunResult} workflow={workflow} calculationType={calculationType} eventTreeOptions={eventTreeOptions} faultTreeOptions={faultTreeOptions} analysisHost={analysisHost} networkNodes={model.nodes} />
         </>
       )}
       {error !== null && <p className="bneditor__error" role="alert">{error}</p>}

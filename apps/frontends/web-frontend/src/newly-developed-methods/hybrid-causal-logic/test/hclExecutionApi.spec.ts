@@ -62,6 +62,10 @@ const treeCutSets = { keep: 25, limitOrder: 3, cutOff: 1e-9 };
 const single: Array<[string, Host, (mode: HclCalculationType) => Promise<HclExecuteResult>, object]> = [
   ["SY FT", "sy", (mode) => runSyHclFaultTree("sy", hcl, 2, ft, mode, "scenario"), { faultTreeTopGate: ft, evidenceScenarioId: "scenario" }],
   ["SY FT with ranked cut sets", "sy", (mode) => runSyHclFaultTree("sy", hcl, 2, ft, mode, undefined, treeCutSets), { faultTreeTopGate: ft, dependencyCutSets: treeCutSets }],
+  ["SY FT with importance", "sy", (mode) => runSyHclFaultTree("sy", hcl, 2, ft, mode, undefined, undefined, true), { faultTreeTopGate: ft, dependencyImportance: true }],
+  ["ESQ ET with importance", "esq", (mode) => runEsqHclEventTree("esq", hcl, 2, et, mode, dependency, undefined, cutSets, true), { eventTree: et, dependencyConfiguration: dependency, dependencyCutSets: cutSets, dependencyImportance: true }],
+  ["SY FT with sampled importance", "sy", (mode) => runSyHclFaultTree("sy", hcl, 2, ft, mode, undefined, undefined, 7), { faultTreeTopGate: ft, dependencyImportance: true, dependencyImportanceEvents: 7 }],
+  ["ESQ ET with sampled importance", "esq", (mode) => runEsqHclEventTree("esq", hcl, 2, et, mode, dependency, undefined, undefined, 7), { eventTree: et, dependencyConfiguration: dependency, dependencyImportance: true, dependencyImportanceEvents: 7 }],
   ["ESQ FT", "esq", (mode) => runEsqHclFaultTree("esq", hcl, 2, ft, mode), { faultTreeTopGate: ft }],
   ["ESQ ET", "esq", (mode) => runEsqHclEventTree("esq", hcl, 2, et, mode, dependency), { eventTree: et, dependencyConfiguration: dependency }],
   ["ESQ ET with ranked cut sets", "esq", (mode) => runEsqHclEventTree("esq", hcl, 2, et, mode, dependency, undefined, cutSets), { eventTree: et, dependencyConfiguration: dependency, dependencyCutSets: cutSets }],
@@ -69,6 +73,8 @@ const single: Array<[string, Host, (mode: HclCalculationType) => Promise<HclExec
 const batch: Array<[string, Host, (mode: HclCalculationType) => Promise<HclBatchExecuteResult>, object]> = [
   ["SY FT batch", "sy", (mode) => runSyHclFaultTreeBatch("sy", hcl, 2, ft, mode, ["scenario"], true), { faultTreeTopGate: ft, evidenceScenarioIds: ["scenario"], integrateHazardGrid: true }],
   ["SY FT batch with ranked cut sets", "sy", (mode) => runSyHclFaultTreeBatch("sy", hcl, 2, ft, mode, ["scenario"], true, undefined, treeCutSets), { faultTreeTopGate: ft, evidenceScenarioIds: ["scenario"], integrateHazardGrid: true, dependencyCutSets: treeCutSets }],
+  ["SY FT batch with importance", "sy", (mode) => runSyHclFaultTreeBatch("sy", hcl, 2, ft, mode, ["scenario"], false, undefined, treeCutSets, true), { faultTreeTopGate: ft, evidenceScenarioIds: ["scenario"], dependencyCutSets: treeCutSets, dependencyImportance: true }],
+  ["ESQ ET batch with importance", "esq", (mode) => runEsqHclEventTreeBatch("esq", hcl, 2, et, mode, ["scenario"], false, dependency, undefined, undefined, undefined, true), { eventTree: et, evidenceScenarioIds: ["scenario"], dependencyConfiguration: dependency, dependencyImportance: true }],
   ["ESQ FT batch", "esq", (mode) => runEsqHclFaultTreeBatch("esq", hcl, 2, ft, mode, ["scenario"], false), { faultTreeTopGate: ft, evidenceScenarioIds: ["scenario"] }],
   ["ESQ ET batch", "esq", (mode) => runEsqHclEventTreeBatch("esq", hcl, 2, et, mode, ["scenario"], false, dependency), { eventTree: et, evidenceScenarioIds: ["scenario"], dependencyConfiguration: dependency }],
   ["ESQ ET batch with ranked cut sets", "esq", (mode) => runEsqHclEventTreeBatch("esq", hcl, 2, et, mode, ["scenario"], true, dependency, undefined, undefined, cutSets), { eventTree: et, evidenceScenarioIds: ["scenario"], dependencyConfiguration: dependency, integrateHazardGrid: true, dependencyCutSets: cutSets }],

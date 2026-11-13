@@ -581,8 +581,25 @@ The web backend retains both the result and the exact revisions of the ET, FT, B
 
 End-state totals sum sequence frequencies. This is the approved sequence-based
 method: there is no combined end-state BDD or general Boolean disjointness check.
-The example's four paths are mutually exclusive. Importance is absent from
-this application execution path.
+The example's four paths are mutually exclusive.
+
+A dependency probability run can also give the importance of each basic event.
+Set Importance to On in ESQ Step 05 or in SY Step 05. Each sequence, end state
+and fault tree result then has an Importance button. It opens Fussell-Vesely,
+Birnbaum, RAW, RRW and criticality for every basic event, most important
+first. For an event that depends on the network the values answer what the
+risk is when that event is known to have occurred or not occurred, so the
+events that depend on it move with it. A dash marks a value that is not
+defined, for example for an event that is certain under the evidence.
+
+With Uncertainty as the result, Importance also asks for Events sampled for
+importance. The leading events by the point Fussell-Vesely value then get a
+mean, a median and a 5th to 95th range for each measure, picked with the
+Measure list in the importance window.
+
+Hazard convolution can run with Uncertainty as well. Every sample is convolved
+over the grid with the hazard weights of that sample, and the grid tables show
+the mean, the median and the 5th to 95th range of the integrated frequency.
 
 A dependency probability run can also rank the cut sets of each sequence. In
 ESQ Step 05, choose Dependencies, keep Probability as the result, and set
@@ -593,6 +610,10 @@ the hazard-weighted ranking. Maximum cut set order and Cut set cutoff limit the
 list on very large sequences. The cutoff keeps the cut sets whose probability
 under the network reaches it, so it gives the same list as the full ranking cut
 at that value.
+
+Causes per cut set adds a cause trace. The cut set window then shows a Causes
+column, and a click on it lists the network nodes whose state the cut set
+shifts most, with the probability of that state without and with the cut set.
 
 A fault tree dependency run in SY Step 05 can rank its cut sets too. Set Ranked
 cut sets to Failed events next to the Run button, with the same Cut sets kept,

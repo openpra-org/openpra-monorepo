@@ -57,6 +57,8 @@ pub struct HclQuantifier<'a> {
     bdd_context_cache: HashMap<BddContextKey, f64>,
     bn_query_cache: HashMap<BnQueryKey, f64>,
     occurred: Vec<bool>,
+    forced: Option<(usize, bool)>,
+    forced_cache: HashMap<BddContextKey, f64>,
     stats: HclBridgeStats,
 }
 
@@ -84,6 +86,8 @@ impl<'a> HclQuantifier<'a> {
             bdd_context_cache: HashMap::new(),
             bn_query_cache: HashMap::new(),
             occurred: vec![false; bdd.variable_count()],
+            forced: None,
+            forced_cache: HashMap::new(),
             stats: HclBridgeStats::default(),
         })
     }
@@ -112,6 +116,103 @@ impl<'a> HclQuantifier<'a> {
             self.occurred[variable] = false;
         }
         Ok(probability * conditional?)
+    }
+
+    pub fn binding_probability(&mut self, binding: &HclEventBinding) -> Result<f64> {
+        let context = self.space.empty();
+        self.conditional_event_probability(binding, &context)
+    }
+
+    pub fn event_probability(&mut self, variable: usize) -> Result<f64> {
+        if variable >= self.bdd.variable_count() {
+            return Err(PraxisError::Hcl(format!(
+                "BDD variable {variable} does not exist"
+            )));
+        }
+        match self.bindings.get(variable).cloned() {
+            Some(binding) => self.binding_probability(&binding),
+            None => self.independent_probability(variable),
+        }
+    }
+
+    pub fn conditional_on_binding(
+        &mut self,
+        root: BddRef,
+        binding: &HclEventBinding,
+        occurs: bool,
+    ) -> Result<Option<f64>> {
+        if root == BDD_NULL {
+            return Err(PraxisError::Hcl(
+                "cannot quantify the null BDD reference".to_string(),
+            ));
+        }
+        let probability = self.binding_probability(binding)?;
+        let condition = if occurs {
+            probability
+        } else {
+            1.0 - probability
+        };
+        if condition <= 0.0 {
+            return Ok(None);
+        }
+        let empty = self.space.empty();
+        let Some(context) = self.space.extend(&empty, binding, occurs) else {
+            return Ok(None);
+        };
+        if condition < f64::EPSILON.sqrt() && !self.possible(&context)? {
+            return Ok(None);
+        }
+        Ok(Some(self.recurse(root, &context)?))
+    }
+
+    fn possible(&mut self, context: &PathContext) -> Result<bool> {
+        self.engine.invalidate_workspace_cache();
+        self.engine.clear_soft_evidence();
+        for &restriction in context.iter() {
+            let (node, allowed) = self.space.restriction(restriction);
+            let likelihoods: Vec<f64> = allowed
+                .iter()
+                .map(|&is_allowed| if is_allowed { 1.0 } else { 0.0 })
+                .collect();
+            self.engine.set_soft_evidence(node, &likelihoods)?;
+        }
+        let evidence = self.base_evidence.to_batch()?;
+        self.engine.allow_zero_mass(true);
+        let outcome = self.engine.evaluate(&evidence, tensorbayes::NodeId::new(0));
+        let possible = self.engine.zero_mass_rows().is_empty();
+        self.engine.allow_zero_mass(false);
+        self.engine.clear_soft_evidence();
+        self.engine.invalidate_workspace_cache();
+        outcome?;
+        Ok(possible)
+    }
+
+    pub fn conditional_on(
+        &mut self,
+        root: BddRef,
+        variable: usize,
+        occurs: bool,
+    ) -> Result<Option<f64>> {
+        if root == BDD_NULL {
+            return Err(PraxisError::Hcl(
+                "cannot quantify the null BDD reference".to_string(),
+            ));
+        }
+        if variable >= self.bdd.variable_count() {
+            return Err(PraxisError::Hcl(format!(
+                "BDD variable {variable} does not exist"
+            )));
+        }
+        if let Some(binding) = self.bindings.get(variable).cloned() {
+            return self.conditional_on_binding(root, &binding, occurs);
+        }
+        self.forced = Some((variable, occurs));
+        self.forced_cache.clear();
+        let context = self.space.empty();
+        let value = self.recurse(root, &context);
+        self.forced = None;
+        self.forced_cache.clear();
+        Ok(Some(value?))
     }
 
     fn occurrence(&mut self, variables: &[usize]) -> Result<(f64, Option<PathContext>)> {
@@ -216,13 +317,21 @@ impl<'a> HclQuantifier<'a> {
             node: reference,
             context: self.space.project(support, context),
         };
-        if let Some(&probability) = self.bdd_context_cache.get(&key) {
+        let node = *self.bdd.node(reference);
+        let scratch = self
+            .forced
+            .is_some_and(|(variable, _)| node.var <= variable);
+        let known = if scratch {
+            self.forced_cache.get(&key)
+        } else {
+            self.bdd_context_cache.get(&key)
+        };
+        if let Some(&probability) = known {
             self.stats.bdd_context_cache_hits += 1;
             return Ok(probability);
         }
         self.stats.bdd_context_cache_misses += 1;
 
-        let node = *self.bdd.node(reference);
         let probability = if let Some(binding) = self.bindings.get(node.var).cloned() {
             let event_probability = self.conditional_event_probability(&binding, context)?;
             let high = if event_probability == 0.0 {
@@ -242,6 +351,9 @@ impl<'a> HclQuantifier<'a> {
             event_probability * high + (1.0 - event_probability) * low
         } else if self.occurred[node.var] {
             self.recurse(node.high, context)?
+        } else if let Some((_, occurs)) = self.forced.filter(|(variable, _)| *variable == node.var)
+        {
+            self.recurse(if occurs { node.high } else { node.low }, context)?
         } else {
             let event_probability = self.independent_probability(node.var)?;
             let high = self.recurse(node.high, context)?;
@@ -249,7 +361,11 @@ impl<'a> HclQuantifier<'a> {
             event_probability * high + (1.0 - event_probability) * low
         };
 
-        self.bdd_context_cache.insert(key, probability);
+        if scratch {
+            self.forced_cache.insert(key, probability);
+        } else {
+            self.bdd_context_cache.insert(key, probability);
+        }
         Ok(probability)
     }
 

@@ -302,7 +302,7 @@ function SyBayesianNetworkWorkspace({
     }));
   }
 
-  async function runHcl(configuration: WorkbookHclConfiguration, faultTree: HclFaultTreeOption, calculationType: HclCalculationType, cutSets?: HclFaultTreeCutSetSettings): Promise<void> {
+  async function runHcl(configuration: WorkbookHclConfiguration, faultTree: HclFaultTreeOption, calculationType: HclCalculationType, cutSets?: HclFaultTreeCutSetSettings, importance?: boolean | number): Promise<void> {
     if (saveBlockedReason !== null) { setHclRunError(saveBlockedReason); return; }
     if (runtime.workbookId === null || runtime.revision === null || faultTree.topGateId === null) {
       setHclRunError("HCL quantification is available after this workbook and top event have been saved.");
@@ -318,7 +318,7 @@ function SyBayesianNetworkWorkspace({
         workbookId: faultTree.workbookId,
         modelId: faultTree.modelId,
         entityId: faultTree.topGateId,
-      }, calculationType, undefined, cutSets);
+      }, calculationType, undefined, cutSets, importance);
       if (execution.run.status !== "SUCCEEDED") throw new Error(execution.run.failure?.message ?? `HCL quantification did not complete (${execution.run.status}).`);
       const result = await getSyHclFaultTreeResult(runtime.workbookId, configuration.modelId, execution.run.id);
       if (!isCurrent()) return;
@@ -338,6 +338,7 @@ function SyBayesianNetworkWorkspace({
     integrateHazardGrid: boolean,
     calculationType: HclCalculationType,
     cutSets?: HclFaultTreeCutSetSettings,
+    importance?: boolean | number,
   ): Promise<void> {
     if (saveBlockedReason !== null) { setHclRunError(saveBlockedReason); return; }
     if (runtime.workbookId === null || runtime.revision === null || faultTree.topGateId === null) return;
@@ -361,6 +362,7 @@ function SyBayesianNetworkWorkspace({
         integrateHazardGrid,
         { evidenceScenarios: configuration.evidenceScenarios ?? [], hazardGrid: configuration.hazardGrid },
         cutSets,
+        importance,
       );
       const scenarios: HclEditorScenarioRunResult[] = await Promise.all(execution.runs.map(async (scenario) => ({
         scenarioId: scenario.scenarioId,
@@ -447,9 +449,9 @@ function SyBayesianNetworkWorkspace({
             if (runtime.workbookId === null || runtime.revision === null) throw new Error("Save the workbook first.");
             return (await generateSyHclScenarios(runtime.workbookId, configuration.modelId, runtime.revision, spec)).scenarios;
           }}
-          onRunHclFaultTree={(configuration, faultTree, calculationType, cutSets) => { void runHcl(configuration, faultTree, calculationType, cutSets); }}
+          onRunHclFaultTree={(configuration, faultTree, calculationType, cutSets, importance) => { void runHcl(configuration, faultTree, calculationType, cutSets, importance); }}
           onRunHclEventTree={() => undefined}
-          onRunHclFaultTreeBatch={(configuration, faultTree, scenarioIds, integrateHazardGrid, calculationType, cutSets) => { void runHclBatch(configuration, faultTree, scenarioIds, integrateHazardGrid, calculationType, cutSets); }}
+          onRunHclFaultTreeBatch={(configuration, faultTree, scenarioIds, integrateHazardGrid, calculationType, cutSets, importance) => { void runHclBatch(configuration, faultTree, scenarioIds, integrateHazardGrid, calculationType, cutSets, importance); }}
           onRunHclEventTreeBatch={() => undefined}
           onRun={() => { void runExactQuery(); }}
           onRunBatch={(scenarios) => { void runExactQueryBatch(scenarios); }}

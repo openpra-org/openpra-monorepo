@@ -8,9 +8,17 @@ pub(crate) use analysis::bridge_delta;
 mod api;
 mod bayesian;
 mod binding;
+mod cause_trace;
+pub use cause_trace::CauseShift;
+pub(crate) use cause_trace::CauseTracer;
 mod context;
 mod hazard;
 mod hazard_sweep;
+pub(crate) mod importance;
+pub use importance::{
+    EventConditional, EventImportance, MeasureSummary, SampledConditional, SampledEventImportance,
+    SampledTarget, TargetConditionals,
+};
 mod input;
 mod model;
 mod numpy_statistics;
@@ -22,6 +30,11 @@ mod request;
 mod sample_outputs;
 mod uncertainty;
 
+pub use analysis::hcl_sampled_hazard_weights;
+pub use analysis::{
+    hcl_importance, hcl_importance_batch, hcl_sampled_importance_batch, HclImportance,
+    HclSampledImportance, SampledScenarioImportance,
+};
 pub use analysis::{
     rank_hcl_cut_sets, rank_hcl_cut_sets_batch, FaultTreeRankedCutSets, HclCutSetRanking,
 };
@@ -38,7 +51,7 @@ pub use bayesian::{
     BayesianStateProbability,
 };
 pub use binding::{HclBaseEvidence, HclEventBinding, HclEventBindings};
-pub use hazard::ensure_hazard_convolution_supported;
+pub use hazard::{ensure_hazard_convolution_supported, sampled_hazard_convolution};
 pub(crate) use hazard::{
     conditional_evidence_probabilities_for_network, prepare_hazard_evidence, resolve_evidence,
 };

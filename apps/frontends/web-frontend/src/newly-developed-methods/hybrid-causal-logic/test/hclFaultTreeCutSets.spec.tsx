@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import type { WorkbookHclConfiguration } from "interfaces-mef-types/modeling";
 import type {
+  HclEventImportance,
   HclFaultTreeDependencyCutSets,
   HclFaultTreeHazardConvolutionResult,
   HclQuantificationResult,
@@ -78,8 +79,8 @@ function panel(onRun: jest.Mock, type: "PROBABILITY" | "UNCERTAINTY" = "PROBABIL
 describe("ranked cut sets of a fault tree dependency run", () => {
   it("turns the chosen settings into a request and leaves it out when off", () => {
     expect(cutSetSettingsOf(START_CUT_SET_CHOICE)).toBeUndefined();
-    expect(cutSetSettingsOf({ ranked: true, keep: 50, limitOrder: null, cutOff: null })).toEqual({ keep: 50 });
-    expect(cutSetSettingsOf({ ranked: true, keep: 50, limitOrder: 4, cutOff: -9 })).toEqual({ keep: 50, limitOrder: 4, cutOff: 1e-9 });
+    expect(cutSetSettingsOf({ ranked: true, keep: 50, limitOrder: null, cutOff: null, causes: null, importance: false })).toEqual({ keep: 50 });
+    expect(cutSetSettingsOf({ ranked: true, keep: 50, limitOrder: 4, cutOff: -9, causes: 5, importance: true })).toEqual({ keep: 50, limitOrder: 4, cutOff: 1e-9, causes: 5 });
   });
 
   it("sends the settings with a single run and with a batch run", () => {
@@ -102,9 +103,86 @@ describe("ranked cut sets of a fault tree dependency run", () => {
     rerender(panel(onRun, "PROBABILITY", true));
     fireEvent.click(screen.getByRole("button", { name: "Run probability batch", exact: true }));
     expect(onRun.mock.calls[2]?.[5]).toEqual({ keep: 1000, cutOff: 1e-8 });
+    fireEvent.change(screen.getByRole("spinbutton", { name: "Causes per cut set" }), { target: { value: "250" } });
+    fireEvent.click(screen.getByRole("button", { name: "Run probability batch", exact: true }));
+    expect(onRun.mock.calls[3]?.[5]).toEqual({ keep: 1000, cutOff: 1e-8, causes: 100 });
+    fireEvent.change(screen.getByRole("spinbutton", { name: "Causes per cut set" }), { target: { value: "" } });
+    fireEvent.click(screen.getByRole("button", { name: "Run probability batch", exact: true }));
+    expect(onRun.mock.calls[4]?.[5]).toEqual({ keep: 1000, cutOff: 1e-8 });
 
     rerender(panel(onRun, "UNCERTAINTY"));
     expect(screen.queryByRole("combobox", { name: "Ranked cut sets" })).not.toBeInTheDocument();
+  });
+
+  it("asks for importance with and without ranked cut sets", () => {
+    const onRun = jest.fn();
+    const { rerender } = render(panel(onRun));
+    fireEvent.change(screen.getByRole("combobox", { name: "Importance" }), { target: { value: "ON" } });
+    fireEvent.click(screen.getByRole("button", { name: "Run probability", exact: true }));
+    expect(onRun.mock.calls[0]?.slice(2)).toEqual(["PROBABILITY", undefined, true]);
+    fireEvent.change(screen.getByRole("combobox", { name: "Ranked cut sets" }), { target: { value: "ON" } });
+    rerender(panel(onRun, "PROBABILITY", true));
+    fireEvent.click(screen.getByRole("button", { name: "Run probability batch", exact: true }));
+    expect(onRun.mock.calls[1]?.slice(4)).toEqual(["PROBABILITY", { keep: 100 }, true]);
+    fireEvent.change(screen.getByRole("combobox", { name: "Importance" }), { target: { value: "OFF" } });
+    fireEvent.click(screen.getByRole("button", { name: "Run probability batch", exact: true }));
+    expect(onRun.mock.calls[2]?.slice(4)).toEqual(["PROBABILITY", { keep: 100 }]);
+    rerender(panel(onRun, "UNCERTAINTY"));
+    expect(screen.queryByRole("combobox", { name: "Ranked cut sets" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("spinbutton", { name: "Events sampled for importance" })).not.toBeInTheDocument();
+    fireEvent.change(screen.getByRole("combobox", { name: "Importance" }), { target: { value: "ON" } });
+    expect(screen.getByRole("spinbutton", { name: "Events sampled for importance" })).toHaveValue(10);
+    fireEvent.change(screen.getByRole("spinbutton", { name: "Events sampled for importance" }), { target: { value: "500" } });
+    expect(screen.getByRole("spinbutton", { name: "Events sampled for importance" })).toHaveValue(100);
+    fireEvent.change(screen.getByRole("spinbutton", { name: "Events sampled for importance" }), { target: { value: "4" } });
+  });
+
+  it("shows the sampled range of each importance measure for the sampled events", () => {
+    const measure = (mean: number) => ({ sampleCount: 40, mean, percentile05: mean / 2, median: mean * 1.1, percentile95: mean * 1.5 });
+    const importance: HclEventImportance[] = [
+      { basicEventId: id(11), probability: 0.03, occurred: 0.4, notOccurred: 0.008, birnbaum: 0.392, riskAchievementWorth: 20, riskReductionWorth: 2.5, fussellVesely: 0.6, criticality: 0.61,
+        uncertainty: { birnbaum: measure(0.3), riskAchievementWorth: measure(18), riskReductionWorth: null, fussellVesely: measure(0.55), criticality: measure(0.5) } },
+      { basicEventId: id(12), probability: 0.01, occurred: 0.5, notOccurred: 0.015, birnbaum: 0.485, riskAchievementWorth: 25, riskReductionWorth: 1.333, fussellVesely: 0.25, criticality: 0.25 },
+    ];
+    render(<HclResults batchRunResult={null} eventTreeOptions={[]} faultTreeOptions={[tree]} calculationType="UNCERTAINTY" runResult={{ kind: "FAULT_TREE", result: { ...quantification("run-7"), dependencyImportance: importance } }} />);
+    fireEvent.click(screen.getByRole("button", { name: "Importance of FT-COOL · Cooling fails" }));
+    const dialog = within(screen.getByRole("dialog", { name: "Dependency importance" }));
+    const sampled = within(dialog.getByRole("table", { name: "Importance uncertainty" }));
+    expect(sampled.getAllByRole("row")).toHaveLength(2);
+    expect(sampled.getByText("COOL-PMP-FS")).toBeInTheDocument();
+    expect(sampled.getByText("5.50E-01")).toBeInTheDocument();
+    expect(sampled.getByText("2.75E-01")).toBeInTheDocument();
+    expect(sampled.getByText("8.25E-01")).toBeInTheDocument();
+    fireEvent.change(dialog.getByRole("combobox", { name: "Importance measure" }), { target: { value: "riskReductionWorth" } });
+    const worth = within(dialog.getByRole("table", { name: "Importance uncertainty" }));
+    expect(worth.getByText("2.50E+00")).toBeInTheDocument();
+    expect(worth.getAllByText("—")).toHaveLength(4);
+    expect(within(dialog.getByRole("table", { name: "Importance" })).getAllByRole("row")).toHaveLength(3);
+  });
+
+  it("opens the importance of a run, most important first, with event codes", () => {
+    const importance: HclEventImportance[] = [
+      { basicEventId: id(13), probability: 1, occurred: 0.02, notOccurred: null, birnbaum: null, riskAchievementWorth: 1, riskReductionWorth: null, fussellVesely: null, criticality: 1 },
+      { basicEventId: id(12), probability: 0.01, occurred: 0.5, notOccurred: 0.015, birnbaum: 0.485, riskAchievementWorth: 25, riskReductionWorth: 1.333, fussellVesely: 0.25, criticality: 0.25 },
+      { basicEventId: id(11), probability: 0.03, occurred: 0.4, notOccurred: 0.008, birnbaum: 0.392, riskAchievementWorth: 20, riskReductionWorth: 2.5, fussellVesely: 0.6, criticality: 0.61 },
+    ];
+    const props = { batchRunResult: null, eventTreeOptions: [], faultTreeOptions: [tree] };
+    const { rerender } = render(<HclResults {...props} runResult={{ kind: "FAULT_TREE", result: quantification("run-5") }} />);
+    expect(screen.queryByRole("button", { name: /^Importance of / })).not.toBeInTheDocument();
+    rerender(<HclResults {...props} runResult={{ kind: "FAULT_TREE", result: { ...quantification("run-6"), dependencyImportance: importance } }} />);
+    fireEvent.click(screen.getByRole("button", { name: "Importance of FT-COOL · Cooling fails" }));
+    const dialog = within(screen.getByRole("dialog", { name: "Dependency importance" }));
+    const rows = within(dialog.getByRole("table", { name: "Importance" })).getAllByRole("row").slice(1);
+    expect(rows.map((row) => within(row).getAllByRole("cell")[0]?.textContent)).toEqual(["COOL-PMP-FS", "COOL-VLV-FO", "SUP-FAN-FR"]);
+    expect(within(rows[0]!).getByText("6.00E-01")).toBeInTheDocument();
+    expect(within(rows[0]!).getByText("2.00E+01")).toBeInTheDocument();
+    expect(within(rows[2]!).getAllByText("—")).toHaveLength(3);
+    expect(dialog.queryByText(/20000000-/)).not.toBeInTheDocument();
+    for (const heading of ["Basic event", "Probability", "Fussell-Vesely", "Birnbaum", "RAW", "RRW", "Criticality"]) {
+      expect(dialog.getByRole("columnheader", { name: heading })).toBeInTheDocument();
+    }
+    fireEvent.click(dialog.getByRole("button", { name: "Close" }));
+    expect(screen.queryByRole("dialog", { name: "Dependency importance" })).not.toBeInTheDocument();
   });
 
   it("opens the ranked cut sets of a single run with event codes and no identifiers", () => {
@@ -122,6 +200,32 @@ describe("ranked cut sets of a fault tree dependency run", () => {
     expect(dialog.queryByText(/20000000-/)).not.toBeInTheDocument();
     fireEvent.click(dialog.getByRole("button", { name: "Close" }));
     expect(screen.queryByRole("dialog", { name: "Dependency cut sets" })).not.toBeInTheDocument();
+  });
+
+  it("lists the network nodes a cut set shifts and goes back to the cut sets", () => {
+    const nodes = [{ id: id(21), code: "SEISMIC-LEVEL", states: [{ id: id(22), code: "NONE" }, { id: id(23), code: "PGA3" }] }];
+    const traced: HclFaultTreeDependencyCutSets = {
+      count: 2,
+      items: [
+        { ...ranked.items[0]!, causes: [{ nodeId: id(21), stateId: id(23), baseline: 0.002, withCutSet: 0.75, shift: 0.748 }] },
+        { ...ranked.items[1]!, causes: [] },
+      ],
+    };
+    render(<HclResults batchRunResult={null} eventTreeOptions={[]} faultTreeOptions={[tree]} networkNodes={nodes} runResult={{ kind: "FAULT_TREE", result: quantification("run-4", traced) }} />);
+    fireEvent.click(screen.getByRole("button", { name: "Cut sets of FT-COOL · Cooling fails" }));
+    const dialog = within(screen.getByRole("dialog", { name: "Dependency cut sets" }));
+    expect(dialog.getByRole("columnheader", { name: "Causes" })).toBeInTheDocument();
+    expect(dialog.getByText("None")).toBeInTheDocument();
+    fireEvent.click(dialog.getByRole("button", { name: "Causes of COOL-PMP-FS · COOL-VLV-FO" }));
+    const causes = within(dialog.getByRole("table", { name: "Causes of the cut set" }));
+    expect(causes.getByText("SEISMIC-LEVEL")).toBeInTheDocument();
+    expect(causes.getByText("PGA3")).toBeInTheDocument();
+    expect(causes.getByText("2.00E-03")).toBeInTheDocument();
+    expect(causes.getByText("7.50E-01")).toBeInTheDocument();
+    expect(dialog.queryByText(/20000000-/)).not.toBeInTheDocument();
+    expect(dialog.queryByRole("table", { name: "Ranked cut sets" })).not.toBeInTheDocument();
+    fireEvent.click(dialog.getByRole("button", { name: "Back to cut sets" }));
+    expect(dialog.getByRole("table", { name: "Ranked cut sets" })).toBeInTheDocument();
   });
 
   it("opens the cut sets of each scenario and of the hazard grid", () => {

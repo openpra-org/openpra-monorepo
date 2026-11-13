@@ -10,6 +10,7 @@ pub mod prime_implicants;
 pub mod quantify;
 pub mod sequence_cut_sets;
 pub mod sequence_dependency_cut_sets;
+pub mod sequence_dependency_importance;
 pub mod sequence_formula;
 pub mod sequence_measures;
 pub mod sil;

@@ -4420,7 +4420,7 @@ describe("workbook-owned analysis-run APIs", () => {
     120_000,
   );
 
-  it.each(["fault-tree", "event-tree"])("rejects %s hazard uncertainty before creating runs", async (kind) => {
+  it.each(["fault-tree", "event-tree"])("samples the %s hazard grid and importance under uncertainty", async (kind) => {
     const workbooks = api.get<Model<unknown>>(getModelToken(EsqWorkbook.name));
     const original = (await workbooks.findOne({ workbookId: ESQ_WORKBOOK_ID }).lean().exec()) as unknown as {
       mef: ReturnType<typeof createEsqMef>;
@@ -4440,13 +4440,47 @@ describe("workbook-owned analysis-run APIs", () => {
     };
     try {
       await workbooks.updateOne({ workbookId: ESQ_WORKBOOK_ID }, { $set: { mef } }).exec();
-      const before = await runs.countDocuments().exec();
       const response = await request(api.getHttpServer())
         .post(`/api/esq-workbooks/${ESQ_WORKBOOK_ID}/hcl-configurations/${HCL}/${kind}-batch-runs`)
         .send(body);
-      expect(response.status).toBe(400);
-      expect(response.body.message).toContain("Hazard convolution supports point runs only");
-      expect(await runs.countDocuments().exec()).toBe(before);
+      expect(response.status).toBe(200);
+      const sampledTotals = kind === "fault-tree" ? [response.body.hazardConvolution] : response.body.hazardConvolution.sequences;
+      expect(sampledTotals.length).toBeGreaterThan(0);
+      for (const total of sampledTotals as Array<{ uncertainty: { convolvedProbability: { sampleCount: number; mean: number }; integratedAnnualFrequency: { mean: number } } }>) {
+        expect(total.uncertainty.convolvedProbability.sampleCount).toBe(10);
+        expect(Number.isFinite(total.uncertainty.integratedAnnualFrequency.mean)).toBe(true);
+      }
+      const gridImportance = await request(api.getHttpServer())
+        .post(`/api/esq-workbooks/${ESQ_WORKBOOK_ID}/hcl-configurations/${HCL}/${kind}-batch-runs`)
+        .send({ ...body, dependencyImportance: true, dependencyImportanceEvents: 2 });
+      expect(gridImportance.status).toBe(400);
+      expect(gridImportance.body.message).toContain("hazard grid");
+      const { integrateHazardGrid: _grid, evidenceScenarioIds: _ids, ...single } = body;
+      const missing = await request(api.getHttpServer())
+        .post(`/api/esq-workbooks/${ESQ_WORKBOOK_ID}/hcl-configurations/${HCL}/${kind}-runs`)
+        .send({ ...single, dependencyImportance: true });
+      expect(missing.status).toBe(400);
+      expect(missing.body.message).toContain("number of events");
+      const sampled = await request(api.getHttpServer())
+        .post(`/api/esq-workbooks/${ESQ_WORKBOOK_ID}/hcl-configurations/${HCL}/${kind}-runs`)
+        .send({ ...single, dependencyImportance: true, dependencyImportanceEvents: 1 });
+      expect({ status: sampled.status, failure: sampled.body.run?.failure ?? null }).toEqual({ status: 200, failure: null });
+      const sampledResult = await request(api.getHttpServer()).get(
+        `/api/esq-workbooks/${ESQ_WORKBOOK_ID}/hcl-configurations/${HCL}/runs/${sampled.body.run.id}/result`,
+      );
+      expect(sampledResult.status).toBe(200);
+      const lists: Array<Array<{ uncertainty?: { fussellVesely: { sampleCount: number } | null } }>> =
+        kind === "fault-tree" ?
+          [sampledResult.body.dependencyImportance]
+        : sampledResult.body.endStateAggregates.map((state: { dependencyImportance: unknown }) => state.dependencyImportance);
+      expect(lists.length).toBeGreaterThan(0);
+      for (const list of lists) {
+        expect(Array.isArray(list)).toBe(true);
+        expect(list.filter((row) => row.uncertainty !== undefined).length).toBeLessThanOrEqual(1);
+      }
+      expect(lists.some((list) => list.some((row) => row.uncertainty !== undefined))).toBe(true);
+      const stored = (await runs.findOne({ id: sampled.body.run.id }).lean().exec())!;
+      expect(stored.nativeRequest).toMatchObject({ request: { dependencyImportance: true, dependencyImportanceEvents: 1 } });
       const point = await request(api.getHttpServer())
         .post(`/api/esq-workbooks/${ESQ_WORKBOOK_ID}/hcl-configurations/${HCL}/${kind}-batch-runs`)
         .send({ ...body, calculationType: "PROBABILITY" });
@@ -5066,7 +5100,7 @@ describe("workbook-owned analysis-run APIs", () => {
   it("ranks the cut sets of a fault tree by their probability under the dependency network", async () => {
     const route = `/api/esq-workbooks/${ESQ_WORKBOOK_ID}/hcl-configurations/${HCL}`;
     const base = { schemaVersion: "1.0.0", modelId: HCL, workbookRevision: 7, faultTreeTopGate: topReference(FT_AND, TOP_AND) };
-    const dependencyCutSets = { keep: 5, cutOff: 1e-6 };
+    const dependencyCutSets = { keep: 5, cutOff: 1e-6, causes: 3 };
 
     const refused = await request(api.getHttpServer())
       .post(`${route}/fault-tree-runs`)
@@ -5088,6 +5122,11 @@ describe("workbook-owned analysis-run APIs", () => {
     expect(singleResult.body.dependencyCutSets.items[0].order).toBe(2);
     expect([...singleResult.body.dependencyCutSets.items[0].basicEventIds].sort()).toEqual([EVENT_A, EVENT_B].sort());
     expect(singleResult.body.dependencyCutSets.items[0].probability).toBeCloseTo(0.16, 12);
+    expect(Array.isArray(singleResult.body.dependencyCutSets.items[0].causes)).toBe(true);
+    for (const cause of singleResult.body.dependencyCutSets.items[0].causes as Array<{ nodeId: string; stateId: string; baseline: number; withCutSet: number; shift: number }>) {
+      expect(cause.shift).toBeGreaterThan(0);
+      expect(Math.abs(cause.withCutSet - cause.baseline)).toBeLessThanOrEqual(cause.shift + 1e-12);
+    }
     const storedSingle = (await runs.findOne({ id: single.body.run.id }).lean().exec())!;
     expect(storedSingle.nativeRequest).toMatchObject({ request: { methodType: "HYBRID_CAUSAL_LOGIC", dependencyCutSets } });
     expect(storedSingle.request).toMatchObject({ dependencyCutSets });
@@ -5112,11 +5151,80 @@ describe("workbook-owned analysis-run APIs", () => {
       expect(result.status).toBe(200);
       expect(result.body.dependencyCutSets.count).toBe(1);
       expect(result.body.dependencyCutSets.items[0].probability).toBeCloseTo(result.body.probability, 12);
+      expect(result.body.dependencyCutSets.items[0].causes).toBeUndefined();
       counts.push(result.body.dependencyCutSets.items.length);
     }
     expect(counts).toEqual([1, 1]);
     const storedBatch = (await runs.findOne({ id: batch.body.batchId }).lean().exec())!;
     expect(storedBatch.nativeRequest).toMatchObject({ request: { dependencyCutSets: { keep: 5 }, evidenceBatch: expect.any(Array) } });
+  }, 120_000);
+
+  it("returns importance under the dependency network for fault trees, sequences and end states", async () => {
+    interface Importance { basicEventId: string; probability: number; occurred: number | null; notOccurred: number | null; birnbaum: number | null; riskAchievementWorth: number | null; riskReductionWorth: number | null; fussellVesely: number | null; criticality: number | null }
+    const route = `/api/esq-workbooks/${ESQ_WORKBOOK_ID}/hcl-configurations/${HCL}`;
+    const treeBase = { schemaVersion: "1.0.0", modelId: HCL, workbookRevision: 7, faultTreeTopGate: topReference(FT_AND, TOP_AND) };
+
+    const refused = await request(api.getHttpServer()).post(`${route}/fault-tree-runs`).send({ ...treeBase, calculationType: "UNCERTAINTY", dependencyImportance: true });
+    expect(refused.status).toBe(400);
+    expect(refused.body.message).toContain("Importance");
+    const malformed = await request(api.getHttpServer()).post(`${route}/fault-tree-runs`).send({ ...treeBase, dependencyImportance: "yes" });
+    expect(malformed.status).toBe(400);
+
+    const plain = await request(api.getHttpServer()).post(`${route}/fault-tree-runs`).send(treeBase);
+    const plainResult = await request(api.getHttpServer()).get(`${route}/runs/${plain.body.run.id}/result`);
+    expect(plainResult.body.dependencyImportance).toBeUndefined();
+
+    const single = await request(api.getHttpServer()).post(`${route}/fault-tree-runs`).send({ ...treeBase, dependencyImportance: true });
+    expect({ status: single.status, failure: single.body.run?.failure ?? null }).toEqual({ status: 200, failure: null });
+    const singleResult = await request(api.getHttpServer()).get(`${route}/runs/${single.body.run.id}/result`);
+    expect(singleResult.status).toBe(200);
+    expect(singleResult.body.probability).toBe(plainResult.body.probability);
+    const rows = singleResult.body.dependencyImportance as Importance[];
+    expect(rows.map((row) => row.basicEventId).sort()).toEqual([EVENT_A, EVENT_B].sort());
+    for (const row of rows) {
+      expect(row.notOccurred).toBeCloseTo(0, 12);
+      expect(row.occurred! * row.probability).toBeCloseTo(0.16, 12);
+      expect(row.fussellVesely).toBeCloseTo(1, 12);
+      expect(row.criticality).toBeCloseTo(1, 12);
+      expect(row.riskReductionWorth).toBeNull();
+      expect(row.birnbaum).toBeCloseTo(row.occurred!, 12);
+    }
+    const stored = (await runs.findOne({ id: single.body.run.id }).lean().exec())!;
+    expect(stored.nativeRequest).toMatchObject({ request: { methodType: "HYBRID_CAUSAL_LOGIC", dependencyImportance: true } });
+    expect(stored.request).toMatchObject({ dependencyImportance: true });
+
+    const batch = await request(api.getHttpServer())
+      .post(`${route}/fault-tree-batch-runs`)
+      .send({ ...treeBase, evidenceScenarioIds: [SCENARIO_A_TRUE, SCENARIO_A_FALSE], dependencyImportance: true });
+    expect(batch.status).toBe(200);
+    for (const row of batch.body.runs as Array<{ scenarioId: string; run: { id: string; status: string } }>) {
+      expect(row.run.status).toBe("SUCCEEDED");
+      const result = await request(api.getHttpServer()).get(`${route}/runs/${row.run.id}/result`);
+      expect(result.status).toBe(200);
+      expect((result.body.dependencyImportance as Importance[]).length).toBe(2);
+    }
+
+    const eventTree = await request(api.getHttpServer())
+      .post(`${route}/event-tree-runs`)
+      .send({ schemaVersion: "1.0.0", modelId: HCL, workbookRevision: 7, eventTree: { workbookId: ES_WORKBOOK_ID, modelId: ET_HCL }, dependencyImportance: true });
+    expect({ status: eventTree.status, failure: eventTree.body.run?.failure ?? null }).toEqual({ status: 200, failure: null });
+    const eventTreeResult = await request(api.getHttpServer()).get(`${route}/runs/${eventTree.body.run.id}/result`);
+    expect(eventTreeResult.status).toBe(200);
+    for (const sequence of eventTreeResult.body.sequences as Array<{ dependencyImportance?: Importance[] }>) {
+      expect(Array.isArray(sequence.dependencyImportance)).toBe(true);
+    }
+    const states = eventTreeResult.body.endStateAggregates as Array<{ endStateId: string; dependencyImportance?: Importance[] }>;
+    expect(states.length).toBeGreaterThan(0);
+    for (const state of states) {
+      expect(Array.isArray(state.dependencyImportance)).toBe(true);
+      for (const row of state.dependencyImportance!) {
+        if (row.occurred !== null && row.notOccurred !== null) expect(row.birnbaum).toBeCloseTo(row.occurred - row.notOccurred, 12);
+      }
+    }
+    const refusedTree = await request(api.getHttpServer())
+      .post(`${route}/event-tree-runs`)
+      .send({ schemaVersion: "1.0.0", modelId: HCL, workbookRevision: 7, eventTree: { workbookId: ES_WORKBOOK_ID, modelId: ET_HCL }, calculationType: "UNCERTAINTY", dependencyImportance: true });
+    expect(refusedTree.status).toBe(400);
   }, 120_000);
 
   it("persists and retrieves immutable run snapshots with every contributing revision", async () => {

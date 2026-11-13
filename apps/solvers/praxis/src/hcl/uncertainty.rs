@@ -46,6 +46,20 @@ pub(crate) struct PreparedHclUncertainty {
     adjustments: HclUncertaintyAdjustments,
 }
 
+#[derive(Clone, Debug)]
+pub(crate) struct ConditionalSamples {
+    pub(crate) probability: Vec<f64>,
+    pub(crate) occurred: Vec<f64>,
+    pub(crate) not_occurred: Vec<f64>,
+}
+
+#[derive(Clone, Debug)]
+pub(crate) struct SampledConditionals {
+    pub(crate) total: Vec<f64>,
+    pub(crate) inside: Vec<ConditionalSamples>,
+    pub(crate) outside: Vec<ConditionalSamples>,
+}
+
 #[derive(Debug)]
 pub(crate) struct UncertainSamples {
     pub(crate) values: Vec<f64>,
@@ -134,6 +148,156 @@ impl PreparedHclUncertainty {
         base_evidence: HclBaseEvidence,
         event_by_variable: &[Option<String>],
     ) -> Result<UncertainSamples> {
+        let probabilities = self.populations(bdd, &bindings, event_by_variable)?;
+        let mut samples = Vec::with_capacity(self.sample_count);
+        let mut zeroed = 0;
+        for chunk in &self.chunks {
+            let slice = probabilities
+                .iter()
+                .map(|values| values[chunk.start..chunk.end].to_vec())
+                .collect();
+            let mut quantifier = BatchedHclQuantifier::new(
+                bdd,
+                chunk,
+                bindings.clone(),
+                base_evidence.clone(),
+                slice,
+                self.zero_contexts,
+            )?;
+            samples.extend(quantifier.quantify(root)?);
+            zeroed += quantifier.zeroed;
+        }
+        Ok(UncertainSamples {
+            values: samples,
+            adjustments: self.adjustments.with_zero_contexts(zeroed),
+        })
+    }
+
+    pub(crate) fn conditionals(
+        &self,
+        bdd: &Bdd,
+        root: BddRef,
+        bindings: HclEventBindings,
+        base_evidence: HclBaseEvidence,
+        event_by_variable: &[Option<String>],
+        inside: &[usize],
+        outside: &[HclEventBinding],
+    ) -> Result<SampledConditionals> {
+        let probabilities = self.populations(bdd, &bindings, event_by_variable)?;
+        let empty = || ConditionalSamples {
+            probability: Vec::with_capacity(self.sample_count),
+            occurred: Vec::with_capacity(self.sample_count),
+            not_occurred: Vec::with_capacity(self.sample_count),
+        };
+        let mut result = SampledConditionals {
+            total: Vec::with_capacity(self.sample_count),
+            inside: inside.iter().map(|_| empty()).collect(),
+            outside: outside.iter().map(|_| empty()).collect(),
+        };
+        for chunk in &self.chunks {
+            let slice = probabilities
+                .iter()
+                .map(|values| values[chunk.start..chunk.end].to_vec())
+                .collect();
+            let mut quantifier = BatchedHclQuantifier::new(
+                bdd,
+                chunk,
+                bindings.clone(),
+                base_evidence.clone(),
+                slice,
+                self.zero_contexts,
+            )?;
+            result.total.extend(quantifier.quantify(root)?);
+            quantifier.engine.allow_zero_mass(true);
+            for (target, &variable) in result.inside.iter_mut().zip(inside) {
+                if variable >= bdd.variable_count() {
+                    return Err(PraxisError::Hcl(format!(
+                        "BDD variable {variable} does not exist"
+                    )));
+                }
+                let (probability, occurred, not_occurred) =
+                    match quantifier.bindings.get(variable).cloned() {
+                        Some(binding) => quantifier.conditional_on_binding(root, &binding)?,
+                        None => quantifier.conditional_on_variable(root, variable)?,
+                    };
+                target.probability.extend(probability);
+                target.occurred.extend(occurred);
+                target.not_occurred.extend(not_occurred);
+            }
+            for (target, binding) in result.outside.iter_mut().zip(outside) {
+                let (probability, occurred, not_occurred) =
+                    quantifier.conditional_on_binding(root, binding)?;
+                target.probability.extend(probability);
+                target.occurred.extend(occurred);
+                target.not_occurred.extend(not_occurred);
+            }
+        }
+        Ok(result)
+    }
+
+    pub(crate) fn evidence_weights(
+        &self,
+        base: &HclBaseEvidence,
+        rows: &[HclBaseEvidence],
+    ) -> Result<Vec<Vec<f64>>> {
+        let mut weights = vec![Vec::with_capacity(self.sample_count); rows.len()];
+        for chunk in &self.chunks {
+            let size = chunk.end - chunk.start;
+            let order = crate::hcl::hazard::topological_order(chunk.tree.graph())?;
+            let mut engine = ExecutionEngine::new(chunk.tree.clone());
+            engine.allow_zero_mass(true);
+            for (row, target) in rows.iter().enumerate() {
+                let mut states = base.states().to_vec();
+                let mut weight = vec![1.0; size];
+                let mut possible = true;
+                for &node in &order {
+                    let wanted = target.states()[node.index()];
+                    if wanted < 0 {
+                        continue;
+                    }
+                    let fixed = states[node.index()];
+                    if fixed >= 0 {
+                        if fixed != wanted {
+                            possible = false;
+                            break;
+                        }
+                        continue;
+                    }
+                    let batch = EvidenceBatch::from_rows(&vec![states.clone(); size])?;
+                    let marginal = engine.evaluate(&batch, node)?;
+                    let empty: HashSet<usize> = engine.zero_mass_rows().iter().copied().collect();
+                    for (sample, value) in weight.iter_mut().enumerate() {
+                        if empty.contains(&sample) {
+                            *value = 0.0;
+                            continue;
+                        }
+                        let values = marginal.row(sample).ok_or_else(|| {
+                            PraxisError::Hcl("TensorBayes omitted an uncertainty sample".to_string())
+                        })?;
+                        let total: f64 = values.iter().sum();
+                        *value *= if total > 0.0 {
+                            (values[wanted as usize] / total).clamp(0.0, 1.0)
+                        } else {
+                            0.0
+                        };
+                    }
+                    states[node.index()] = wanted;
+                }
+                if !possible {
+                    weight = vec![0.0; size];
+                }
+                weights[row].extend(weight);
+            }
+        }
+        Ok(weights)
+    }
+
+    fn populations(
+        &self,
+        bdd: &Bdd,
+        bindings: &HclEventBindings,
+        event_by_variable: &[Option<String>],
+    ) -> Result<Vec<Vec<f64>>> {
         let mut probabilities = Vec::with_capacity(bdd.variable_count());
         for variable in 0..bdd.variable_count() {
             let nominal = bdd.var_probs().get(variable).copied().ok_or_else(|| {
@@ -157,28 +321,7 @@ impl PreparedHclUncertainty {
                     .unwrap_or_else(|| vec![nominal; self.sample_count]),
             );
         }
-        let mut samples = Vec::with_capacity(self.sample_count);
-        let mut zeroed = 0;
-        for chunk in &self.chunks {
-            let slice = probabilities
-                .iter()
-                .map(|values| values[chunk.start..chunk.end].to_vec())
-                .collect();
-            let mut quantifier = BatchedHclQuantifier::new(
-                bdd,
-                chunk,
-                bindings.clone(),
-                base_evidence.clone(),
-                slice,
-                self.zero_contexts,
-            )?;
-            samples.extend(quantifier.quantify(root)?);
-            zeroed += quantifier.zeroed;
-        }
-        Ok(UncertainSamples {
-            values: samples,
-            adjustments: self.adjustments.with_zero_contexts(zeroed),
-        })
+        Ok(probabilities)
     }
 }
 
@@ -256,8 +399,12 @@ struct BatchedHclQuantifier<'a> {
     sample_count: usize,
     bdd_cache: HashMap<BddContextKey, Vec<f64>>,
     bn_cache: HashMap<BnQueryKey, Vec<f64>>,
+    forced: Option<(usize, bool)>,
+    forced_cache: HashMap<BddContextKey, Vec<f64>>,
     zeroed: usize,
 }
+
+type ConditionalTriple = (Vec<f64>, Vec<f64>, Vec<f64>);
 
 impl<'a> BatchedHclQuantifier<'a> {
     fn new(
@@ -314,6 +461,8 @@ impl<'a> BatchedHclQuantifier<'a> {
             sample_count,
             bdd_cache: HashMap::new(),
             bn_cache: HashMap::new(),
+            forced: None,
+            forced_cache: HashMap::new(),
             zeroed: 0,
         })
     }
@@ -326,6 +475,80 @@ impl<'a> BatchedHclQuantifier<'a> {
         }
         let context = self.space.empty();
         self.recurse(root, &context)
+    }
+
+    fn conditional_on_variable(
+        &mut self,
+        root: BddRef,
+        variable: usize,
+    ) -> Result<ConditionalTriple> {
+        let probability = self
+            .event_probabilities
+            .get(variable)
+            .cloned()
+            .ok_or_else(|| {
+                PraxisError::Hcl(format!(
+                    "unbound BDD variable {variable} has no uncertainty population"
+                ))
+            })?;
+        let context = self.space.empty();
+        let mut sides = Vec::with_capacity(2);
+        for occurs in [true, false] {
+            self.forced = Some((variable, occurs));
+            self.forced_cache.clear();
+            let values = self.recurse(root, &context);
+            self.forced = None;
+            self.forced_cache.clear();
+            sides.push(values?);
+        }
+        let not_occurred = sides.pop().unwrap_or_default();
+        let occurred = sides.pop().unwrap_or_default();
+        Ok((probability, occurred, not_occurred))
+    }
+
+    fn conditional_on_binding(
+        &mut self,
+        root: BddRef,
+        binding: &HclEventBinding,
+    ) -> Result<ConditionalTriple> {
+        let kept = self.zeroed;
+        let empty = self.space.empty();
+        let probability = self.conditional_event_probabilities(binding, &empty)?;
+        let mut sides = Vec::with_capacity(2);
+        for occurs in [true, false] {
+            let Some(context) = self.space.extend(&empty, binding, occurs) else {
+                sides.push(vec![f64::NAN; self.sample_count]);
+                continue;
+            };
+            self.engine.clear_soft_evidence();
+            for &restriction in context.iter() {
+                let (node, allowed) = self.space.restriction(restriction);
+                let likelihoods = allowed
+                    .iter()
+                    .map(|allowed| if *allowed { 1.0 } else { 0.0 })
+                    .collect::<Vec<_>>();
+                self.engine.set_soft_evidence(node, &likelihoods)?;
+            }
+            self.engine.evaluate(&self.evidence, binding.bn_node())?;
+            let impossible: HashSet<usize> =
+                self.engine.zero_mass_rows().iter().copied().collect();
+            let mut values = self.recurse(root, &context)?;
+            for (sample, value) in values.iter_mut().enumerate() {
+                let condition = if occurs {
+                    probability[sample]
+                } else {
+                    1.0 - probability[sample]
+                };
+                if impossible.contains(&sample) || condition <= 0.0 {
+                    *value = f64::NAN;
+                }
+            }
+            sides.push(values);
+        }
+        self.zeroed = kept;
+        let not_occurred = sides.pop().unwrap_or_default();
+        let occurred = sides.pop().unwrap_or_default();
+        Ok((probability, occurred, not_occurred))
     }
 
     fn recurse(&mut self, reference: BddRef, context: &PathContext) -> Result<Vec<f64>> {
@@ -345,10 +568,21 @@ impl<'a> BatchedHclQuantifier<'a> {
             node: reference,
             context: self.space.project(support, context),
         };
-        if let Some(values) = self.bdd_cache.get(&key) {
+        let node = *self.bdd.node(reference);
+        let scratch = self.forced.is_some_and(|(variable, _)| node.var <= variable);
+        let known = if scratch {
+            self.forced_cache.get(&key)
+        } else {
+            self.bdd_cache.get(&key)
+        };
+        if let Some(values) = known {
             return Ok(values.clone());
         }
-        let node = *self.bdd.node(reference);
+        if let Some((_, occurs)) = self.forced.filter(|(variable, _)| *variable == node.var) {
+            let values = self.recurse(if occurs { node.high } else { node.low }, context)?;
+            self.forced_cache.insert(key, values.clone());
+            return Ok(values);
+        }
         let probabilities = if let Some(binding) = self.bindings.get(node.var).cloned() {
             self.conditional_event_probabilities(&binding, context)?
         } else {
@@ -382,7 +616,11 @@ impl<'a> BatchedHclQuantifier<'a> {
             // HCL_MH: bdd_vec_shannon.py::_fused_shannon.
             .map(|(probability, (high, low))| low + probability * (high - low))
             .collect::<Vec<_>>();
-        self.bdd_cache.insert(key, values.clone());
+        if scratch {
+            self.forced_cache.insert(key, values.clone());
+        } else {
+            self.bdd_cache.insert(key, values.clone());
+        }
         Ok(values)
     }
 

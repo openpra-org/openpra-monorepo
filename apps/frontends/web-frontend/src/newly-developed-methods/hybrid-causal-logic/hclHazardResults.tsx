@@ -7,7 +7,7 @@ import type {
 import type { HclEventTreeViewLabels } from "./hclEventTreeResults";
 import { displayedSequenceName } from "./hclEventTreeResults";
 import { sequenceEndState } from "./hclResultLabels";
-import { formatScientific, formatPercentage, HclResultMetric } from "./hclResultMetrics";
+import { formatScientific, formatPercentage, HclResultMetric, HclUncertaintyResults } from "./hclResultMetrics";
 import { PagedResults, ResultNumber, formatResultNumber } from "../shared/resultPresentation";
 import { HclHazardExceedance } from "./hclSampleOutputs";
 
@@ -75,6 +75,12 @@ export function HclHazardSummary({ hazard }: { hazard: HclHazardConvolutionResul
           </>
         )}
       </div>
+      {hazard.targetKind === "FAULT_TREE" && hazard.uncertainty !== undefined && (
+        <>
+          <HclUncertaintyResults summary={hazard.uncertainty.convolvedProbability} label="Convolved probability" inline />
+          <HclUncertaintyResults summary={hazard.uncertainty.integratedAnnualFrequency} annual label="Integrated frequency" inline />
+        </>
+      )}
       {hazard.targetKind === "FAULT_TREE" && hazard.exceedance !== undefined && (
         <HclHazardExceedance points={hazard.exceedance} label="Top event" />
       )}

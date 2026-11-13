@@ -387,10 +387,7 @@ impl ZbddEngine {
             .unwrap_or(true);
         let use_computed = gc_on || array_opcache;
         let (computed, computed_mask) = if use_computed {
-            // GC-on keeps a small cache to protect the 1E-12 memory wall (every
-            // slot pins live nodes). GC-off has headroom, and the op-cache is
-            // capacity-bound, so default larger; 2^26 is the measured 1E-9 knee.
-            let default_bits = if gc_on { 23 } else { 12 };
+            let default_bits = if gc_on { 23 } else { 17 };
             let bits = std::env::var("PRAXIS_ZBDD_CACHE_BITS")
                 .ok()
                 .and_then(|s| s.parse::<usize>().ok())

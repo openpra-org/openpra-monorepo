@@ -16,6 +16,7 @@
     "mongoose": "8.19.2",
     "multer": "2.0.2",
     "nodemailer": "6.9.16",
+    "openrc-node": "workspace:*",
     "otplib": "13.4.0",
     "praxis-node": "workspace:*",
     "reflect-metadata": "0.2.2",

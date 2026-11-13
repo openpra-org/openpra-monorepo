@@ -326,6 +326,13 @@ jobs:
             echo "::error::PRAETOR did not quantify the smoke fault trees through its workers"
             exit 1
           fi
+          if ! node apps/solvers/openrc-node/test/http-consequence-smoke.mjs http://localhost:3000/q; then
+            docker logs praetor-manager
+            docker logs praetor-engine-1
+            docker logs praetor-engine-2
+            echo "::error::PRAETOR did not reproduce the OpenRC reference runs through its workers"
+            exit 1
+          fi
           echo "PRAETOR starts, queues jobs and quantifies fault trees on its workers."
 
       - name: Save PRAETOR and RabbitMQ images for offline load

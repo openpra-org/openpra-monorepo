@@ -1,0 +1,27 @@
+[package]
+name = "openrc"
+version = "0.1.0"
+edition = "2021"
+authors = ["OpenPRA Contributors"]
+description = "Radiological consequence engine for OpenPRA"
+license = "MIT"
+repository = "https://github.com/openpra-org/openpra-monorepo"
+
+[dependencies]
+indexmap = "2.13"
+serde_json = { version = "1.0", features = ["float_roundtrip", "preserve_order"] }
+
+[[bin]]
+name = "openrc-cli"
+path = "src/main.rs"
+test = false
+
+[lib]
+name = "openrc"
+path = "src/lib.rs"
+
+[profile.dev.package."*"]
+opt-level = 3
+
+[profile.test]
+debug = 0

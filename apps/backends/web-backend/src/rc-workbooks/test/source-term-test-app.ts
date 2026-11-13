@@ -4,8 +4,8 @@ import { RcCaseRecordsController } from "../rc-case-records.controller";
 import { readFileSync } from "fs";
 import { resolve } from "path";
 import { Test } from "@nestjs/testing";
-import { MongooseModule, getModelToken } from "@nestjs/mongoose";
-import { type ExecutionContext, ForbiddenException } from "@nestjs/common";
+import { MongooseModule, getModelToken, type ModelDefinition } from "@nestjs/mongoose";
+import { type ExecutionContext, ForbiddenException, type Provider, type Type } from "@nestjs/common";
 import type { NestExpressApplication } from "@nestjs/platform-express";
 import { MongoMemoryServer } from "mongodb-memory-server";
 import type { Model } from "mongoose";
@@ -39,7 +39,7 @@ import { createBlankRc } from "../blank-rc";
 
 export const sourceFixture = readFileSync(resolve(__dirname, "../../../../../interfaces/shared-types/rc-workbooks/test/fixtures/MelMACCS-published-source-term.inp"));
 
-export async function createSourceTermTestApp() {
+export async function createSourceTermTestApp(extra: { features?: ModelDefinition[]; controllers?: Type[]; providers?: Provider[] } = {}) {
   const mongo = await MongoMemoryServer.create();
   const storage = new Map<string, Buffer>();
   const init = jest.spyOn(RcDocumentsService.prototype, "onModuleInit").mockImplementation(() => undefined);
@@ -48,9 +48,10 @@ export async function createSourceTermTestApp() {
       { name: RcWorkbook.name, schema: RcWorkbookSchema },
       { name: RcWorkbookFile.name, schema: RcWorkbookFileSchema },
       { name: WorkbookSignoff.name, schema: WorkbookSignoffSchema },
+      ...(extra.features ?? []),
     ])],
-    controllers: [RcCaseRecordsController, RcSourceTermController, RcWorkbooksController, RcDocumentsController, RcSiteReceptorsController, RcEarlyResponseController, RcWeatherController, RcTransportController, RcDoseInputsController],
-    providers: [RcPublishedExampleService, RcCaseRecordsService, RcSourceTermService, RcDocumentsService, RcWorkbooksService, RcMefAdapter, WorkbookElementRegistry, RcSiteReceptorsService, RcEarlyResponseService, RcWeatherService, RcTransportService, RcDoseInputsService,
+    controllers: [RcCaseRecordsController, RcSourceTermController, RcWorkbooksController, RcDocumentsController, RcSiteReceptorsController, RcEarlyResponseController, RcWeatherController, RcTransportController, RcDoseInputsController, ...(extra.controllers ?? [])],
+    providers: [...(extra.providers ?? []), RcPublishedExampleService, RcCaseRecordsService, RcSourceTermService, RcDocumentsService, RcWorkbooksService, RcMefAdapter, WorkbookElementRegistry, RcSiteReceptorsService, RcEarlyResponseService, RcWeatherService, RcTransportService, RcDoseInputsService,
       { provide: ExampleWorkbooksService, useValue: { getRcBundle: async () => ({ rc: { mef: createBlankRc("Example", "preparer") } }) } },
       { provide: ProjectsService, useValue: { resolveAccess: async (_id: string, actor: { username: string }) => {
         if (actor.username === "outsider") throw new ForbiddenException();

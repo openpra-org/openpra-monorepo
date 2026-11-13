@@ -1,0 +1,31 @@
+Loading config: input/NearField.txt
+  case_name : near_field
+  mode      : lmp
+  geometry  : centerline
+  nuclides  : 20
+  segments  : 1
+  met       : single trial  (class D, 3.0 m/s)
+
+Total released activity : 7.103e+15 Bq  (20 nuclide-segment pairs)
+
+
+============================================================
+  TEDE             : 116385072.8726 mSv  (1.1639e+05 Sv)
+  chi/Q            : 9.0814e+00 s/m³
+  Ground dep total : 2.3210e+14 Bq/m²
+  LMP TEDE (756 m) : 692.8545 mSv  (30-day at EAB)
+============================================================
+
+Top 10 nuclide contributors to TEDE:
+  I-131        75644760.2155 mSv  (65.0%)
+  Cs-137       11748459.5579 mSv  (10.1%)
+  I-133        11386968.0517 mSv  (9.8%)
+  I-132        6370376.7990 mSv  (5.5%)
+  Cs-134       3201678.4750 mSv  (2.8%)
+  Sr-90        2351058.8876 mSv  (2.0%)
+  La-140       2221152.2972 mSv  (1.9%)
+  Te-132       1569436.8273 mSv  (1.3%)
+  Ru-106       494631.9226 mSv  (0.4%)
+  Te-129m      477311.0125 mSv  (0.4%)
+
+Results written to: outputs\near_field\near_field_results.json

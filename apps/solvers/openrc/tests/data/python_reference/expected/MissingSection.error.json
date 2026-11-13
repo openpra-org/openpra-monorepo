@@ -1,0 +1,4 @@
+{
+  "type": "ValueError",
+  "message": "Config is missing required section(s): ['outputs']"
+}

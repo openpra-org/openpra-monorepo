@@ -1,0 +1,27 @@
+Loading config: input/Polar.txt
+  case_name : polar_single
+  mode      : epz
+  geometry  : polar
+  nuclides  : 20
+  segments  : 2
+  met file  : data\single.met  (1 realizations)
+  sectors   : 12
+  rings     : 4  (100-5000 m)
+  wind shift: disabled
+
+Total released activity : 9.166e+15 Bq  (40 nuclide-segment pairs)
+
+
+======================================================================
+  Wind direction   : 270.0°  (downwind sector 3, centre 90.0°)
+  χ/Q reference    : first-segment downwind sector 3
+
+   Distance(m)     χ/Q(s/m³)   DW TEDE(mSv)   Max TEDE(mSv)   GrdDep(Bq/m²)
+  ------------------------------------------------------------------------
+           100    1.1049e-03     17644.2247      17644.2247       3.303e+10
+           500    5.5254e-05       812.9026        812.9026       1.497e+09
+          1000    1.6116e-05       245.2567        245.2567       4.549e+08
+          5000    1.1409e-06        15.0496         15.0496       2.710e+07
+======================================================================
+
+Results written to: outputs\polar_single\polar_single_results.json

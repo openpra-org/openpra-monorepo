@@ -1,0 +1,28 @@
+[package]
+name = "openrc-node"
+version = "0.1.0"
+edition = "2021"
+authors = ["OpenPRA Contributors"]
+description = "Node-API bindings for the OpenPRA OpenRC consequence engine"
+license = "MIT"
+repository = "https://github.com/openpra-org/openpra-monorepo"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+napi = { version = "3.12.2", features = ["napi9"] }
+napi-derive = "3.6.3"
+openrc = { path = "../openrc" }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = { version = "1.0", features = ["float_roundtrip", "preserve_order"] }
+
+[build-dependencies]
+napi-build = "2.4.1"
+
+[profile.dev.package."*"]
+opt-level = 3
+
+[profile.release]
+lto = true
+strip = "symbols"

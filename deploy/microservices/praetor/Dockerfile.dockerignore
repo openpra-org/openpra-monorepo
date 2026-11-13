@@ -12,6 +12,8 @@
 !apps/solvers/scram
 !apps/solvers/praxis
 !apps/solvers/praxis-node
+!apps/solvers/openrc
+!apps/solvers/openrc-node
 !apps/solvers/tensorbayes
 !apps/backends/web-backend/package.json
 !apps/backends/web-backend/project.json
@@ -37,5 +39,7 @@ apps/solvers/praxis/docs
 apps/solvers/praxis/examples
 apps/solvers/praxis/tests
 apps/solvers/praxis-node/test
+apps/solvers/openrc/tests
+apps/solvers/openrc-node/test
 apps/solvers/tensorbayes/tests
 apps/solvers/tensorbayes/verification

@@ -1,10 +1,10 @@
-import { BadRequestException, ConflictException, ForbiddenException, Injectable, Logger, NotFoundException } from "@nestjs/common";
+import { BadRequestException, ConflictException, ForbiddenException, HttpException, Injectable, Logger, NotFoundException } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
 import { Model } from "mongoose";
 import { createHash, randomUUID } from "crypto";
 import { z } from "zod";
 import type { RadiologicalConsequenceAnalysis } from "interfaces-mef-types/rc/radiological-consequence-analysis";
-import type { RcCaseData, RcCaseDataset, RcCaseRecords, RcCaseSelection, RcCaseSnapshot, RcCaseCheck, RcCaseFile } from "interfaces-mef-types/rc/case-records";
+import type { RcCaseData, RcCaseDataset, RcCaseRecords, RcCaseSelection, RcCaseSnapshot, RcCaseCheck, RcCaseFile, RcResultCalculation, RcResultProfileRow, RcResultStatistics } from "interfaces-mef-types/rc/case-records";
 import type { RcWeatherRecord } from "interfaces-mef-types/rc/weather";
 import { RcCaseRecordsSchema, RcCategoryResultValuesSchema } from "interfaces-mef-types/zod/rc/case-records";
 import { caseChecks, caseDatasets, caseEmbeddedFiles, caseFiles, caseReceptorCount, caseSnapshotMetrics, caseTable, caseVersions, currentRcCase } from "interfaces-shared-types/rc-workbooks/case-records";
@@ -19,6 +19,18 @@ import { RcWorkbook, type RcWorkbookDocument } from "./rc-workbook.schema";
 import { RcDocumentsService } from "./rc-documents.service";
 
 interface Actor { username: string }
+export interface RcCalculatedResultInput {
+  baseRevision: number;
+  snapshotId: string;
+  metricId: string;
+  statistics: RcResultStatistics;
+  profile?: RcResultProfileRow[];
+  calculation: RcResultCalculation;
+  version: string;
+  reference: string;
+  filename: string;
+  outputText: string;
+}
 const revision = z.number().int().nonnegative(), versions = z.string().regex(/^\d+(,\d+){7}$/);
 const readableVersions = z.string().regex(/^\d+(,\d+){5}(,\d+,\d+)?$/);
 const reason = (e: unknown) => e instanceof z.ZodError ? e.issues.slice(0, 5).map(i => i.message).join("; ") : e instanceof Error ? e.message : "Invalid case record";
@@ -116,13 +128,7 @@ export class RcCaseRecordsService {
     if (!p.success) throw new BadRequestException(reason(p.error));
     const loaded = await this.load(id, actor, p.data.baseRevision), { summary, data } = await this.snapshot(id, loaded.records, p.data.result.snapshotId, actor);
     if (loaded.records!.results.length >= 1000) throw new BadRequestException("This workbook already contains 1000 results");
-    if (data.metrics === undefined) throw new BadRequestException("This snapshot predates consequence metrics. Save a new input snapshot");
-    const metric = data.metrics.find(item => item.id === p.data.result.metricId);
-    if (!metric) throw new BadRequestException("Choose a consequence metric from the selected input snapshot");
-    const statistics = p.data.result.statistics, wanted = metric.statistics;
-    const samePercentiles = statistics.percentiles.length === wanted.percentiles.length && wanted.percentiles.every(value => statistics.percentiles.some(row => row.percentile === value));
-    const sameThresholds = statistics.exceedances.length === wanted.exceedanceThresholds.length && wanted.exceedanceThresholds.every(value => statistics.exceedances.some(row => row.threshold === value));
-    if ((statistics.mean !== undefined) !== wanted.mean || !samePercentiles || !sameThresholds) throw new BadRequestException("Enter exactly the statistics the metric asks for");
+    const metric = this.resultMetric(data, p.data.result.metricId, p.data.result.statistics);
     const name = upload.originalname.slice(Math.max(upload.originalname.lastIndexOf("/"), upload.originalname.lastIndexOf("\\")) + 1).slice(0, 255);
     const extension = name.includes(".") ? name.slice(name.lastIndexOf(".") + 1).toLowerCase() : "";
     if (!upload.buffer.length || upload.buffer.length > 15 * 1024 * 1024 || !["txt", "out", "log", "csv", "dat"].includes(extension)) throw new BadRequestException("Choose a nonempty .txt, .out, .log, .csv or .dat output up to 15 MB");
@@ -130,6 +136,36 @@ export class RcCaseRecordsService {
     const file = await this.store(id, name, upload.buffer, actor);
     try {
       return await this.persist(loaded, { ...loaded.records!, results: [...loaded.records!.results, { ...p.data.result, id: randomUUID(), categoryId: summary.categoryId, unit: rcMetricUnit(metric), file, recordedBy: actor.username, valueSource: "transcribed" }] });
+    } catch (e) { await this.rollback(id, file.documentId); throw e; }
+  }
+  private resultMetric(data: RcCaseData, metricId: string, statistics: RcResultStatistics) {
+    if (data.metrics === undefined) throw new BadRequestException("This snapshot predates consequence metrics. Save a new input snapshot");
+    const metric = data.metrics.find(item => item.id === metricId);
+    if (!metric) throw new BadRequestException("Choose a consequence metric from the selected input snapshot");
+    const wanted = metric.statistics;
+    const samePercentiles = statistics.percentiles.length === wanted.percentiles.length && wanted.percentiles.every(value => statistics.percentiles.some(row => row.percentile === value));
+    const sameThresholds = statistics.exceedances.length === wanted.exceedanceThresholds.length && wanted.exceedanceThresholds.every(value => statistics.exceedances.some(row => row.threshold === value));
+    if ((statistics.mean !== undefined) !== wanted.mean || !samePercentiles || !sameThresholds) throw new BadRequestException("Enter exactly the statistics the metric asks for");
+    return metric;
+  }
+  async runCase(id: string, snapshotId: string, actor: Actor) {
+    const loaded = await this.load(id, actor), saved = await this.snapshot(id, loaded.records, snapshotId, actor);
+    try { return { summary: saved.summary, data: saved.data, trials: await this.weatherTrials(id, saved.data, actor), trialIssue: "" }; }
+    catch (e) {
+      if (e instanceof HttpException) throw e;
+      return { summary: saved.summary, data: saved.data, trials: [], trialIssue: e instanceof Error ? e.message : "The weather trials could not be generated" };
+    }
+  }
+  async saveCalculatedResult(id: string, input: RcCalculatedResultInput, actor: Actor) {
+    const loaded = await this.load(id, actor, input.baseRevision), { summary, data } = await this.snapshot(id, loaded.records, input.snapshotId, actor);
+    if (loaded.records!.results.length >= 1000) throw new BadRequestException("This workbook already contains 1000 results");
+    if (loaded.records!.results.some(r => r.calculation?.runId === input.calculation.runId)) throw new ConflictException("This run is already recorded as a category result");
+    const metric = this.resultMetric(data, input.metricId, input.statistics), bytes = Buffer.from(input.outputText, "utf8");
+    if (bytes.length > 50 * 1024 * 1024) throw new BadRequestException("The output of this run is larger than the 50 MB the workbook keeps for one result. Run fewer distances at a time");
+    const file = await this.store(id, input.filename, bytes, actor);
+    try {
+      return await this.persist(loaded, { ...loaded.records!, results: [...loaded.records!.results, { snapshotId: input.snapshotId, metricId: input.metricId, statistics: input.statistics, version: input.version, reference: input.reference, confirmed: true,
+        id: randomUUID(), categoryId: summary.categoryId, unit: rcMetricUnit(metric), file, recordedBy: actor.username, valueSource: "calculated", calculation: input.calculation, ...(input.profile === undefined ? {} : { profile: input.profile }) }] });
     } catch (e) { await this.rollback(id, file.documentId); throw e; }
   }
   async removeResult(id: string, resultId: string, body: unknown, actor: Actor) {

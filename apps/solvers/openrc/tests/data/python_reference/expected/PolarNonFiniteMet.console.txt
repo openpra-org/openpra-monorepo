@@ -1,0 +1,31 @@
+Loading config: input/PolarNonFiniteMet.txt
+  case_name : polar_non_finite_met
+  mode      : lmp
+  geometry  : polar
+  nuclides  : 20
+  segments  : 2
+  met file  : data\nonfinite_short.met  (6 realizations)
+  sectors   : 8
+  rings     : 3  (200-8000 m)
+  wind shift: disabled
+
+Total released activity : 9.166e+15 Bq  (40 nuclide-segment pairs)
+
+  1/6 realizations complete ...
+  2/6 realizations complete ...
+  3/6 realizations complete ...
+  4/6 realizations complete ...
+  5/6 realizations complete ...
+  6/6 realizations complete ...
+
+======================================================================
+  Realizations     : 6
+
+   Distance(m)    p05 TEDE    p50 TEDE    p95 TEDE    max TEDE  (mSv, max sector each realization)
+  --------------------------------------------------------------
+           200         nan     229.706    4704.742    5936.662
+          1000         nan       3.087     259.467     333.162
+          8000         nan       0.250       5.721       7.335
+======================================================================
+
+Results written to: outputs\polar_multi\polar_non_finite_met_results.json

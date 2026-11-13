@@ -1,0 +1,4 @@
+{
+  "type": "ZeroDivisionError",
+  "message": "float division by zero"
+}

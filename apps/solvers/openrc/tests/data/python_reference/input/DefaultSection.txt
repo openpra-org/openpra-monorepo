@@ -1,0 +1,57 @@
+# A config that leans on the less common parts of the file format.
+[DEFAULT]
+Kr-85 = 6.0E13
+
+[run]
+stem = plant_a
+case_name: %(stem)s_default_100%%
+mode : LMP
+modules = RC01_ST,
+    RC04_DCF,
+    RC10_RCAD
+geometry = Centerline
+
+[source_term]
+; a comment between keys
+Cs-137 : 1_000_000_000_000.0
+i-131 =   1.0e12
+XE133   = 1E12
+
+[receptor]
+  x_m = 1000.0
+  y_m = 0.0
+  z_m = 0.0
+
+[meteorology]
+stability_class = d
+wind_speed_m_s = 3.0
+mixing_height_m = None
+
+[release]
+integration_time_s = 8.64e4
+plume_segments = 1
+
+[release.segment_1]
+delay_s = 0.0
+duration_s = 3600.0
+height_m = 0.0
+release_fractions_by_group = 1,1,1,1,1,
+    1,1,1,1,1
+
+[dcf]
+organ = ICRP60ED
+path = data/DCF.json
+
+[decay]
+path = data/Chains.json
+include_ingrowth = False
+simple_decay_at_receptor = false
+collapse_half_life_sec = 1.0
+
+[deposition]
+dry_deposition_velocity_m_s = 0.003
+deposition_velocities_by_group = 0,0.003,0.003,0.003,0.003,0.003,0.003,0.003,0,0.003
+
+[outputs]
+write_csv = TRUE
+output_dir = ./outputs//default/

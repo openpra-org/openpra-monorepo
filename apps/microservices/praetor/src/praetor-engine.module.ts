@@ -5,6 +5,8 @@ import { QueueModule } from './shared';
 import { ConsumerService } from './quantification/services/consumer.service';
 import { PraxisJobConsumerService } from './execution/services/praxis-job-consumer.service';
 import { PraxisJobStore } from './execution/praxis-job-store';
+import { OpenRcJobConsumerService } from './execution/services/openrc-job-consumer.service';
+import { OpenRcJobStore } from './execution/openrc-job-store';
 @Module({
     imports: [
         QueueModule,
@@ -15,7 +17,7 @@ import { PraxisJobStore } from './execution/praxis-job-store';
             ignoreEnvFile: !fs.existsSync('.env'),
         }),
     ],
-    providers: [ConsumerService, PraxisJobConsumerService, PraxisJobStore],
+    providers: [ConsumerService, PraxisJobConsumerService, PraxisJobStore, OpenRcJobConsumerService, OpenRcJobStore],
 })
 export class PraetorEngineModule {
 }

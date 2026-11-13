@@ -9,6 +9,7 @@ import type { RcEarlyResponseModel } from "interfaces-mef-types/rc/early-respons
 import type { RcWeatherInputs, RcWeatherModel, RcWeatherPage, RcWeatherSettings, RcWeatherTrialPage } from "interfaces-mef-types/rc/weather";
 import type { RcTransportInputs, RcTransportSettings, RcLinkedDeposition, RcDecayDetail } from "interfaces-mef-types/rc/transport";
 import type { RcDoseInputs, RcDosePathway, RcDoseFilePage, RcDoseRecord } from "interfaces-mef-types/rc/dose-inputs";
+import type { RcConsequenceRun, RcConsequenceRunDetails, RcConsequenceRunFileKind, RcConsequenceRunRequest, RcConsequenceRunSetup, RcConsequenceRunTextPage, RcConsequenceRunTrialOrder, RcConsequenceRunTrialPage } from "interfaces-mef-types/rc/consequence-runs";
 
 export async function importRcDoseInput(id: string, kind: "exposure" | RcDosePathway, baseRevision: number, file: File, categoryId?: string, sourceRevision?: number): Promise<RcDoseInputs> {
   const form = new FormData(); form.append("baseRevision", String(baseRevision)); form.append("file", file);
@@ -200,3 +201,20 @@ export function readRcCaseTable(id: string, selection: RcCaseSelection, kind: Rc
 export function readRcCaseText(id: string, selection: RcCaseSelection, fileId: string, offset: number): Promise<RcCaseTextPage> { return fetchJson(`${caseUrl(id)}/text/${encodeURIComponent(fileId)}?${caseQuery(selection, offset)}`); }
 export function readRcCaseReview(id: string, selection: RcCaseSelection): Promise<RcCaseReview> { return fetchJson(`${caseUrl(id)}/review?${caseQuery(selection)}`); }
 export function readRcCaseOutput(id: string, resultId: string, offset: number): Promise<RcCaseTextPage> { return fetchJson(`${caseUrl(id)}/results/${encodeURIComponent(resultId)}/output?offset=${offset}`); }
+
+const runUrl = (id: string) => `/api/rc-workbooks/${encodeURIComponent(id)}/consequence-runs`;
+export async function listRcConsequenceRuns(id: string): Promise<RcConsequenceRun[]> { return (await fetchJson<{ runs: RcConsequenceRun[] }>(runUrl(id))).runs; }
+export function readRcConsequenceRunSetup(id: string, snapshotId: string): Promise<RcConsequenceRunSetup> { return fetchJson(`${runUrl(id)}/setup?${new URLSearchParams({ snapshotId }).toString()}`); }
+export function startRcConsequenceRun(id: string, request: RcConsequenceRunRequest): Promise<RcConsequenceRun> { return postJson(runUrl(id), request); }
+export function readRcConsequenceRun(id: string, runId: string): Promise<RcConsequenceRunDetails> { return fetchJson(`${runUrl(id)}/${encodeURIComponent(runId)}`); }
+export function readRcConsequenceRunTrials(id: string, runId: string, distanceIndex: number, offset: number, order: RcConsequenceRunTrialOrder): Promise<RcConsequenceRunTrialPage> {
+  return fetchJson(`${runUrl(id)}/${encodeURIComponent(runId)}/trials?${new URLSearchParams({ distance: String(distanceIndex), offset: String(offset), order }).toString()}`);
+}
+export function readRcConsequenceRunFile(id: string, runId: string, kind: RcConsequenceRunFileKind, offset: number): Promise<RcConsequenceRunTextPage> {
+  return fetchJson(`${runUrl(id)}/${encodeURIComponent(runId)}/files/${kind}?offset=${offset}`);
+}
+export function cancelRcConsequenceRun(id: string, runId: string): Promise<RcConsequenceRun> { return postJson(`${runUrl(id)}/${encodeURIComponent(runId)}/cancel`, {}); }
+export async function removeRcConsequenceRun(id: string, runId: string): Promise<void> { await postJson<{ removed: string }>(`${runUrl(id)}/${encodeURIComponent(runId)}/remove`, {}); }
+export function recordRcConsequenceRun(id: string, runId: string, baseRevision: number, distanceIndex: number): Promise<RcCaseRecords> {
+  return postJson(`${runUrl(id)}/${encodeURIComponent(runId)}/record`, { baseRevision, distanceIndex });
+}

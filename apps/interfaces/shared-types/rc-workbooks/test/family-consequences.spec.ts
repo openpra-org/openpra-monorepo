@@ -53,6 +53,8 @@ describe("Family consequences from category results", () => {
     expect(cleared.consequenceQuantification.eventSequenceConsequences).toEqual([]);
   });
   it("describes percentiles in order and states each threshold chance", () => {
+    expect(rcResultStatisticsText({ mean: 2, percentiles: [{ percentile: 95, value: 2 }, { percentile: 5, value: 2 }, { percentile: 50, value: 2 }], exceedances: [{ threshold: 1, probability: 1 }] }, "Sv", true))
+      .toBe("Mean 2 Sv · 5th percentile — · 50th percentile 2 Sv · 95th percentile — · Chance of exceeding 1 Sv: 1");
     expect(rcResultStatisticsText({ percentiles: [{ percentile: 95, value: 2 }, { percentile: 50, value: 1 }], exceedances: [] }, "person-Sv")).toBe("50th percentile 1 person-Sv · 95th percentile 2 person-Sv");
   });
 });

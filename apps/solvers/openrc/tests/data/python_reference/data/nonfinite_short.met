@@ -1,0 +1,7 @@
+# six trials, two with speeds that are not finite numbers
+D,3.0,270
+F,nan,180
+A,6.5,90
+C,inf,45
+E,1.5,300
+B,4.0,10

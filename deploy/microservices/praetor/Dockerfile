@@ -35,6 +35,7 @@ COPY . .
 RUN pnpm install
 RUN pnpm --filter scram-node exec cmake-js -C --parallel "$(nproc)" rebuild --CDBUILD_TESTS=OFF
 RUN pnpm --filter praxis-node build:linux
+RUN pnpm --filter openrc-node build:linux
 
 # Stage only the runtime PRAXIS package files; Rust targets and sources stay in
 # the builder image.
@@ -47,6 +48,16 @@ RUN mkdir -p /tmp/praxis-node-package \
         apps/solvers/praxis-node/THIRD_PARTY_NOTICES.txt \
         apps/solvers/praxis-node/praxis-node.linux-x64-gnu.node \
         /tmp/praxis-node-package/
+
+RUN mkdir -p /tmp/openrc-node-package \
+    && cp apps/solvers/openrc-node/package.json \
+        apps/solvers/openrc-node/index.js \
+        apps/solvers/openrc-node/index.d.ts \
+        apps/solvers/openrc-node/protocol.js \
+        apps/solvers/openrc-node/protocol.d.ts \
+        apps/solvers/openrc-node/THIRD_PARTY_NOTICES.txt \
+        apps/solvers/openrc-node/openrc-node.linux-x64-gnu.node \
+        /tmp/openrc-node-package/
 
 # Build the App via Nx
 RUN npx nx run praetor:build
@@ -76,6 +87,7 @@ COPY --from=builder /usr/src/app/node_modules ./node_modules
 COPY --from=builder /usr/src/app/apps/microservices/praetor/dist ./dist
 COPY --from=builder /usr/src/app/apps/solvers/scram ./node_modules/scram-node
 COPY --from=builder /tmp/praxis-node-package ./node_modules/praxis-node
+COPY --from=builder /tmp/openrc-node-package ./node_modules/openrc-node
 # Praetor uses this dependency-free shared JSON transport module at runtime.
 COPY --from=builder /usr/src/app/apps/interfaces/shared-types/json.js ./node_modules/interfaces-shared-types/json.js
 COPY --from=builder /usr/src/app/apps/interfaces/shared-types/execution/praetor-job.js ./node_modules/interfaces-shared-types/execution/praetor-job.js

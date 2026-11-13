@@ -19,6 +19,10 @@ export const RcResultStatisticsSchema: z.ZodType<RcResultStatistics> = z.object(
 export const RcCategoryResultValuesSchema: z.ZodType<RcCategoryResultValues> = z.object({
   snapshotId: z.string().uuid(), metricId: z.string().min(1).max(40), statistics: RcResultStatisticsSchema, version: text, reference: text, confirmed: z.literal(true),
 }).strict();
+const calculation = z.object({ engine: z.literal("OPENRC"), engineVersion: z.string().trim().min(1).max(2000), runId: z.string().uuid(), runLabel: text, distanceMetres: positive,
+  heightMetres: z.number().finite().nonnegative(), trialCount: positive.int() }).strict();
+const profile = z.array(z.object({ distanceMetres: positive, statistics: RcResultStatisticsSchema }).strict()).min(1).max(100)
+  .refine(rows => distinct(rows.map(row => row.distanceMetres)), "Profile distances must be unique");
 const snapshotMetric = z.object({ id: z.string().min(1).max(40), name: z.string().max(200), quantity: RcMetricQuantitySchema, windowSeconds: positive.max(1e10).optional(),
   unit: z.string().max(60).optional(), statistics: RcMetricStatisticsSchema.optional() }).strict();
 export const RcCaseRecordsSchema: z.ZodType<RcCaseRecords> = z.object({
@@ -27,9 +31,12 @@ export const RcCaseRecordsSchema: z.ZodType<RcCaseRecords> = z.object({
     reviewItems: count, inventoryCount: count, receptorCount: count, trialCount: count, integrationSeconds: positive.max(1e12).optional(),
     metrics: z.array(snapshotMetric).max(40).optional(), versions: z.string().max(255).optional() })).max(100),
   results: z.array(z.object({ snapshotId: z.string().uuid(), metricId: z.string().min(1).max(40), statistics: RcResultStatisticsSchema, version: text, reference: text, confirmed: z.literal(true),
-    id: z.string().uuid(), categoryId: text, unit: z.string().max(60), file, recordedBy: text, valueSource: z.literal("transcribed") })).max(1000),
+    id: z.string().uuid(), categoryId: text, unit: z.string().max(60), file, recordedBy: text, valueSource: z.enum(["transcribed", "calculated"]),
+    calculation: calculation.optional(), profile: profile.optional() })).max(1000),
 }).superRefine((v, ctx) => {
   if (new Set(v.snapshots.map(s => s.id)).size !== v.snapshots.length || new Set(v.results.map(r => r.id)).size !== v.results.length
     || v.results.some(r => v.snapshots.find(s => s.id === r.snapshotId)?.categoryId !== r.categoryId))
     ctx.addIssue({ code: "custom", message: "Case and result IDs must be unique; each result must link to a saved snapshot of its release category" });
+  if (v.results.some(r => (r.valueSource === "calculated") !== (r.calculation !== undefined) || (r.profile !== undefined && r.calculation === undefined)))
+    ctx.addIssue({ code: "custom", message: "A calculated result names its calculation, and only a calculated result does" });
 });

@@ -1,0 +1,4 @@
+stability_class,wind_speed_m_s,wind_dir_deg,u_star_m_s,mixing_height_m
+D,3.2,270,,500.0
+E,2.1,300,0.18,
+B,6.1,20.5,,1200.0

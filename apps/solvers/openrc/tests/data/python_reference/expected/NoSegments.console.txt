@@ -1,0 +1,10 @@
+Loading config: input/NoSegments.txt
+  case_name : no_segments
+  mode      : lmp
+  geometry  : centerline
+  nuclides  : 3
+  segments  : 0
+  met       : single trial  (class D, 3.0 m/s)
+
+Total released activity : 0.000e+00 Bq  (0 nuclide-segment pairs)
+

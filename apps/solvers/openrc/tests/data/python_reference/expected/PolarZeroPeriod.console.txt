@@ -1,0 +1,13 @@
+Loading config: input/PolarZeroPeriod.txt
+  case_name : polar_zero_period
+  mode      : lmp
+  geometry  : polar
+  nuclides  : 3
+  segments  : 1
+  met file  : data\shift.met  (3 realizations)
+  sectors   : 8
+  rings     : 2  (100-1000 m)
+  wind shift: enabled  (met period 0 s)
+
+Total released activity : 1.350e+12 Bq  (3 nuclide-segment pairs)
+

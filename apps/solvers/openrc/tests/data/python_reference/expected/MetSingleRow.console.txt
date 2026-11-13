@@ -1,0 +1,31 @@
+Loading config: input/MetSingleRow.txt
+  case_name : met_single_row
+  mode      : lmp
+  geometry  : centerline
+  nuclides  : 20
+  segments  : 1
+  met file  : data\single.met  (1 realizations)
+
+Total released activity : 7.103e+15 Bq  (20 nuclide-segment pairs)
+
+
+============================================================
+  TEDE             : 462.8029 mSv  (4.6280e-01 Sv)
+  chi/Q            : 4.1302e-05 s/m³
+  Ground dep total : 8.9468e+08 Bq/m²
+  LMP TEDE (756 m) : 692.8545 mSv  (30-day at EAB)
+============================================================
+
+Top 10 nuclide contributors to TEDE:
+  I-131        289.6182 mSv  (62.6%)
+  Cs-137       53.4315 mSv  (11.5%)
+  I-133        43.5655 mSv  (9.4%)
+  I-132        24.3090 mSv  (5.3%)
+  Cs-134       14.5591 mSv  (3.1%)
+  La-140       10.8747 mSv  (2.3%)
+  Sr-90        10.6925 mSv  (2.3%)
+  Te-132       7.1372 mSv  (1.5%)
+  Ru-106       2.2496 mSv  (0.5%)
+  Te-129m      2.1708 mSv  (0.5%)
+
+Results written to: outputs\met_single_row\met_single_row_results.json

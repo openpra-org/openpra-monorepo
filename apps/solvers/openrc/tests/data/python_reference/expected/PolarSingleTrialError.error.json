@@ -1,0 +1,4 @@
+{
+  "type": "ValueError",
+  "message": "Polar grid mode requires wind_dir_deg in every met record (record 0 is missing it).  Add wind_dir_deg to your met file or supply it in the single-trial [meteorology] section."
+}

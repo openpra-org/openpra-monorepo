@@ -1,0 +1,31 @@
+Loading config: input/MidField.txt
+  case_name : mid_field
+  mode      : lmp
+  geometry  : centerline
+  nuclides  : 20
+  segments  : 1
+  met       : single trial  (class B, 2.5 m/s)
+
+Total released activity : 7.103e+15 Bq  (20 nuclide-segment pairs)
+
+
+============================================================
+  TEDE             : 1435.7576 mSv  (1.4358e+00 Sv)
+  chi/Q            : 1.1979e-04 s/m³
+  Ground dep total : 2.8210e+09 Bq/m²
+  LMP TEDE (756 m) : 160.5810 mSv  (30-day at EAB)
+============================================================
+
+Top 10 nuclide contributors to TEDE:
+  I-131        916.4595 mSv  (63.8%)
+  Cs-137       154.9716 mSv  (10.8%)
+  I-133        137.9269 mSv  (9.6%)
+  I-132        77.1023 mSv  (5.4%)
+  Cs-134       42.2310 mSv  (2.9%)
+  Sr-90        31.0124 mSv  (2.2%)
+  La-140       30.3860 mSv  (2.1%)
+  Te-132       20.7017 mSv  (1.4%)
+  Ru-106       6.5246 mSv  (0.5%)
+  Te-129m      6.2961 mSv  (0.4%)
+
+Results written to: outputs\mid_field\mid_field_results.json

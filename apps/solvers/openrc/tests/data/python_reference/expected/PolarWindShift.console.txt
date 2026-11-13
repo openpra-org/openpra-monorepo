@@ -1,0 +1,28 @@
+Loading config: input/PolarWindShift.txt
+  case_name : polar_wind_shift
+  mode      : lmp
+  geometry  : polar
+  nuclides  : 20
+  segments  : 3
+  met file  : data\shift.met  (3 realizations)
+  sectors   : 12
+  rings     : 4  (100-5000 m)
+  wind shift: enabled  (met period 3600 s)
+
+Total released activity : 1.020e+16 Bq  (60 nuclide-segment pairs)
+
+  Wind shift       : 3 segments
+    seg0→270°(D,3.2m/s)  seg1→300°(E,2.1m/s)  seg2→20°(B,6.1m/s)
+
+======================================================================
+  χ/Q reference    : first-segment downwind sector 3
+
+   Distance(m)     χ/Q(s/m³)   DW TEDE(mSv)   Max TEDE(mSv)   GrdDep(Bq/m²)
+  ------------------------------------------------------------------------
+           100    1.0358e-03     11389.9463      11389.9463       2.223e+10
+           500    5.1801e-05       525.7467        525.7467       1.013e+09
+          1000    1.5109e-05       158.5007        158.5007       3.071e+08
+          5000    1.0696e-06         9.7546         10.3282       1.848e+07
+======================================================================
+
+Results written to: outputs\polar_wind_shift\polar_wind_shift_results.json

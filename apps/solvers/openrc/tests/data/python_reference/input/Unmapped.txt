@@ -1,0 +1,54 @@
+[run]
+case_name = unmapped
+mode = lmp
+modules = RC01_ST, RC04_DCF, RC05_RCRE, RC10_RCAD
+
+[source_term]
+H-3 = 1.0E14
+Co-60 = 4.0E13
+Ag-110m = 2.0E13
+Eu-154 = 1.0E13
+Xx-999 = 5.0E12
+Cs-999 = 7.0E12
+I-999 = 3.0E12
+Cs-137 = 1.0E13
+Kr-85 = 6.0E13
+Sr-90 = 0.0
+
+[receptor]
+x_m = 1000.0
+y_m = 0.0
+z_m = 0.0
+
+[meteorology]
+stability_class = D
+wind_speed_m_s = 3.0
+mixing_height_m = none
+
+[release]
+integration_time_s = 86400
+plume_segments = 1
+
+[release.segment_1]
+delay_s = 0.0
+duration_s = 3600.0
+height_m = 0.0
+release_fractions_by_group = 1.0, 0.10, 0.01, 0.25, 0.10, 0.005, 0.005, 0.001, 0.50, 0.0001
+
+[dcf]
+organ = ICRP60ED
+path = data/DCF.json
+
+[decay]
+path = data/Chains.json
+include_ingrowth = false
+simple_decay_at_receptor = false
+collapse_half_life_sec = 1.0
+
+[deposition]
+dry_deposition_velocity_m_s = 0.003
+deposition_velocities_by_group = 0.000, 0.003, 0.003, 0.010, 0.003, 0.003, 0.003, 0.003, 0.000, 0.003
+
+[outputs]
+write_csv = true
+output_dir = outputs/unmapped

@@ -1,0 +1,31 @@
+Loading config: input/Thyroid.txt
+  case_name : thyroid
+  mode      : lmp
+  geometry  : centerline
+  nuclides  : 20
+  segments  : 2
+  met       : single trial  (class D, 3.0 m/s)
+
+Total released activity : 9.166e+15 Bq  (40 nuclide-segment pairs)
+
+
+============================================================
+  TEDE             : 8945.8642 mSv  (8.9459e+00 Sv)
+  chi/Q            : 4.1302e-05 s/m³
+  Ground dep total : 1.2626e+09 Bq/m²
+  LMP TEDE (756 m) : 1021.6045 mSv  (30-day at EAB)
+============================================================
+
+Top 10 nuclide contributors to TEDE:
+  I-131        7789.2355 mSv  (87.1%)
+  I-133        915.8226 mSv  (10.2%)
+  Te-132       155.4556 mSv  (1.7%)
+  I-132        57.0868 mSv  (0.6%)
+  Cs-137       9.0857 mSv  (0.1%)
+  Cs-134       7.3531 mSv  (0.1%)
+  Te-129m      5.2082 mSv  (0.1%)
+  La-140       3.8845 mSv  (0.0%)
+  Ru-106       1.5538 mSv  (0.0%)
+  Xe-133       0.2761 mSv  (0.0%)
+
+Results written to: outputs\thyroid\thyroid_results.json

@@ -57,13 +57,25 @@ export interface RcCategoryResultValues {
   reference: string;
   confirmed: true;
 }
+export interface RcResultProfileRow { distanceMetres: number; statistics: RcResultStatistics }
+export interface RcResultCalculation {
+  engine: "OPENRC";
+  engineVersion: string;
+  runId: string;
+  runLabel: string;
+  distanceMetres: number;
+  heightMetres: number;
+  trialCount: number;
+}
 export interface RcCategoryResult extends RcCategoryResultValues {
   id: string;
   categoryId: string;
   unit: string;
   file: NonNullable<RcSourceTerm["originalFile"]>;
   recordedBy: string;
-  valueSource: "transcribed";
+  valueSource: "transcribed" | "calculated";
+  calculation?: RcResultCalculation;
+  profile?: RcResultProfileRow[];
 }
 export interface RcCaseRecords { revision: number; snapshots: RcCaseSnapshot[]; results: RcCategoryResult[] }
 export type RcCaseDataset = "inventory" | "releases" | "fractions" | "receptors" | "response" | "weather" | "deposition" | "decay" | "dose" | "health" | "healthModel" | "riskSources" | "regions" | "crops" | "costs" | "economySettings";

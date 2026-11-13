@@ -1,0 +1,303 @@
+{
+ "reference": "Doses that the Python reference engine of OpenRC gives for these requests, which the case adapter writes for the cases of openrc-test-cases.ts",
+ "engine": "apps/solvers/openrc2/RC13_RUN.py, run on the config text with write_csv = true and on the weather text",
+ "python": "3.12.0",
+ "platform": "Windows",
+ "cases": [
+  {
+   "name": "boundary dose, one weather trial",
+   "requests": [
+    {
+     "methodType": "RADIOLOGICAL_CONSEQUENCE",
+     "configText": "[run]\ncase_name = RC-1 RCM-01\nmode = lmp\nmodules = RC01_ST, RC04_DCF, RC05_RCRE, RC10_RCAD\ngeometry = centerline\n\n[source_term]\nCs-137 = 1000000000000\nI-131 = 1000000000000\nXe-133 = 1000000000000\n\n[receptor]\nx_m = 1000\ny_m = 0\nz_m = 0\n\n[meteorology]\nmet_file = weather-trials.met\nmixing_height_m = none\n\n[release]\nintegration_time_s = 2592000\nplume_segments = 1\n\n[release.segment_1]\ndelay_s = 0\nduration_s = 3600\nheight_m = 0\nrelease_fractions_by_group = 1, 1, 0, 1, 0, 0, 0, 0, 0, 0\n\n[dcf]\norgan = ICRP60ED\npath = data/DCF.json\n\n[decay]\npath = data/Chains.json\ninclude_ingrowth = false\nsimple_decay_at_receptor = true\ncollapse_half_life_sec = 1\n\n[deposition]\ndry_deposition_velocity_m_s = 0.003\ndeposition_velocities_by_group = 0, 0.003, 0.003, 0.003, 0.003, 0.003, 0.003, 0.003, 0, 0.003\n\n[outputs]\nwrite_csv = false\noutput_dir = outputs\n",
+     "metFileText": "stability_class,wind_speed_m_s,wind_dir_deg,u_star_m_s,mixing_height_m\nD,3,270,,1000\n"
+    }
+   ],
+   "doses": [
+    {
+     "tede_sv": 0.0008840615508940853,
+     "missing_dcfs": []
+    }
+   ]
+  },
+  {
+   "name": "distance dose, four weather trials, delayed elevated release",
+   "requests": [
+    {
+     "methodType": "RADIOLOGICAL_CONSEQUENCE",
+     "configText": "[run]\ncase_name = RC 100%% = worst case RCM-02\nmode = epz\nmodules = RC01_ST, RC04_DCF, RC05_RCRE, RC10_RCAD\ngeometry = centerline\n\n[source_term]\nCs-137 = 1000000000000\nI-131 = 1000000000000\nXe-133 = 1000000000000\n\n[receptor]\nx_m = 425.5\ny_m = 0\nz_m = 1.5\n\n[meteorology]\nmet_file = weather-trials.met\nmixing_height_m = none\n\n[release]\nintegration_time_s = 346934.1\nplume_segments = 2\n\n[release.segment_1]\ndelay_s = 1334.1\nduration_s = 3600.4\nheight_m = 10\nrelease_fractions_by_group = 0.5, 0.25, 0, 0.125, 0, 0, 0, 0, 0, 0\n\n[release.segment_2]\ndelay_s = 3677.4\nduration_s = 3599.3\nheight_m = 25\nrelease_fractions_by_group = 0.25, 0.125, 0, 0.0000054657, 0, 0, 0, 0, 0, 0\n\n[dcf]\norgan = ICRP60ED\npath = data/DCF.json\n\n[decay]\npath = data/Chains.json\ninclude_ingrowth = false\nsimple_decay_at_receptor = true\ncollapse_half_life_sec = 1\n\n[deposition]\ndry_deposition_velocity_m_s = 0.003\ndeposition_velocities_by_group = 0, 0.015603372126679999, 0.003, 0.003, 0.003, 0.003, 0.003, 0.003, 0, 0.003\n\n[outputs]\nwrite_csv = false\noutput_dir = outputs\n",
+     "metFileText": "stability_class,wind_speed_m_s,wind_dir_deg,u_star_m_s,mixing_height_m\nE,2.2,264.375,,140\nB,1.4,106.875,,177\nF,0.5,202.5,,100\nC,4.5,180,,758\n"
+    }
+   ],
+   "doses": [
+    {
+     "tede_msv": [
+      1.3940016395197234,
+      0.381910183997167,
+      6.966506310118081,
+      0.24060316284988836
+     ],
+     "percentiles_msv": {
+      "p05": 0.26179921602198014,
+      "p50": 0.8879559117584451,
+      "p95": 6.130630609528326
+     }
+    }
+   ]
+  },
+  {
+   "name": "one engine group released two ways",
+   "requests": [
+    {
+     "methodType": "RADIOLOGICAL_CONSEQUENCE",
+     "configText": "[run]\ncase_name = RC-1 RCM-01 part 1 of 2\nmode = lmp\nmodules = RC01_ST, RC04_DCF, RC05_RCRE, RC10_RCAD\ngeometry = centerline\n\n[source_term]\nCs-137 = 1000000000000\nI-131 = 1000000000000\nXe-133 = 1000000000000\nCs-134 = 2000000000000\n\n[receptor]\nx_m = 1000\ny_m = 0\nz_m = 0\n\n[meteorology]\nmet_file = weather-trials.met\nmixing_height_m = none\n\n[release]\nintegration_time_s = 2592000\nplume_segments = 1\n\n[release.segment_1]\ndelay_s = 0\nduration_s = 3600\nheight_m = 0\nrelease_fractions_by_group = 1, 1, 0, 1, 0, 0, 0, 0, 0, 0\n\n[dcf]\norgan = ICRP60ED\npath = data/DCF.json\n\n[decay]\npath = data/Chains.json\ninclude_ingrowth = false\nsimple_decay_at_receptor = true\ncollapse_half_life_sec = 1\n\n[deposition]\ndry_deposition_velocity_m_s = 0.003\ndeposition_velocities_by_group = 0, 0.003, 0.003, 0.003, 0.003, 0.003, 0.003, 0.003, 0, 0.003\n\n[outputs]\nwrite_csv = false\noutput_dir = outputs\n",
+     "metFileText": "stability_class,wind_speed_m_s,wind_dir_deg,u_star_m_s,mixing_height_m\nD,3,270,,1000\n"
+    },
+    {
+     "methodType": "RADIOLOGICAL_CONSEQUENCE",
+     "configText": "[run]\ncase_name = RC-1 RCM-01 part 2 of 2\nmode = lmp\nmodules = RC01_ST, RC04_DCF, RC05_RCRE, RC10_RCAD\ngeometry = centerline\n\n[source_term]\nRb-88 = 4000000000000\n\n[receptor]\nx_m = 1000\ny_m = 0\nz_m = 0\n\n[meteorology]\nmet_file = weather-trials.met\nmixing_height_m = none\n\n[release]\nintegration_time_s = 2592000\nplume_segments = 1\n\n[release.segment_1]\ndelay_s = 0\nduration_s = 3600\nheight_m = 0\nrelease_fractions_by_group = 0, 0.25, 0, 0, 0, 0, 0, 0, 0, 0\n\n[dcf]\norgan = ICRP60ED\npath = data/DCF.json\n\n[decay]\npath = data/Chains.json\ninclude_ingrowth = false\nsimple_decay_at_receptor = true\ncollapse_half_life_sec = 1\n\n[deposition]\ndry_deposition_velocity_m_s = 0.003\ndeposition_velocities_by_group = 0, 0.01, 0.003, 0.003, 0.003, 0.003, 0.003, 0.003, 0, 0.003\n\n[outputs]\nwrite_csv = false\noutput_dir = outputs\n",
+     "metFileText": "stability_class,wind_speed_m_s,wind_dir_deg,u_star_m_s,mixing_height_m\nD,3,270,,1000\n"
+    }
+   ],
+   "doses": [
+    {
+     "tede_sv": 0.0020792683719903235,
+     "missing_dcfs": []
+    },
+    {
+     "tede_sv": 0.0004939407645375934,
+     "missing_dcfs": []
+    }
+   ]
+  },
+  {
+   "name": "daughter ingrowth, four weather trials",
+   "requests": [
+    {
+     "methodType": "RADIOLOGICAL_CONSEQUENCE",
+     "configText": "[run]\ncase_name = RC-1 RCM-01\nmode = lmp\nmodules = RC01_ST, RC04_DCF, RC05_RCRE, RC10_RCAD\ngeometry = centerline\n\n[source_term]\nCs-137 = 1000000000000\nI-131 = 1000000000000\nXe-133 = 1000000000000\n\n[receptor]\nx_m = 1000\ny_m = 0\nz_m = 0\n\n[meteorology]\nmet_file = weather-trials.met\nmixing_height_m = none\n\n[release]\nintegration_time_s = 2592000\nplume_segments = 1\n\n[release.segment_1]\ndelay_s = 0\nduration_s = 3600\nheight_m = 0\nrelease_fractions_by_group = 1, 1, 0, 1, 0, 0, 0, 0, 0, 0\n\n[dcf]\norgan = ICRP60ED\npath = data/DCF.json\n\n[decay]\npath = data/Chains.json\ninclude_ingrowth = true\nsimple_decay_at_receptor = false\ncollapse_half_life_sec = 1\n\n[deposition]\ndry_deposition_velocity_m_s = 0.003\ndeposition_velocities_by_group = 0, 0.003, 0.003, 0.003, 0.003, 0.003, 0.003, 0.003, 0, 0.003\n\n[outputs]\nwrite_csv = false\noutput_dir = outputs\n",
+     "metFileText": "stability_class,wind_speed_m_s,wind_dir_deg,u_star_m_s,mixing_height_m\nE,2.2,264.375,,140\nB,1.4,106.875,,177\nF,0.5,202.5,,100\nC,4.5,180,,758\n"
+    }
+   ],
+   "doses": [
+    {
+     "tede_msv": [
+      2.3170175284092083,
+      0.2935768582454031,
+      9.577517364715018,
+      0.22445530977404976
+     ],
+     "percentiles_msv": {
+      "p05": 0.23482354204475275,
+      "p50": 1.3052971933273054,
+      "p95": 8.488442389269144
+     }
+    }
+   ]
+  },
+  {
+   "name": "published source term, 24 published weather hours, 746 m",
+   "requests": [
+    {
+     "methodType": "RADIOLOGICAL_CONSEQUENCE",
+     "configText": "[run]\ncase_name = MELMACCS-APP-C RCM-01 part 1 of 3\nmode = lmp\nmodules = RC01_ST, RC04_DCF, RC05_RCRE, RC10_RCAD\ngeometry = centerline\n\n[source_term]\nKr-85 = 36319000000000000\nKr-85m = 1497800000000000000\nKr-87 = 2897500000000000000\nKr-88 = 4081400000000000000\nXe-133 = 10974000000000000000\nXe-135 = 2453800000000000000\nXe-135m = 2126200000000000000\nCs-134 = 478040000000000000\nCs-136 = 202660000000000000\nCs-137 = 393840000000000000\nRb-86 = 7559100000000000\nRb-88 = 4330700000000000000\nBa-139 = 10457000000000000000\nBa-140 = 10150000000000000000\nSr-89 = 5904400000000000000\nSr-90 = 300080000000000000\nSr-91 = 7228300000000000000\nSr-92 = 7764600000000000000\nBa-137m = 378400000000000000\nI-131 = 4877600000000000000\nI-132 = 7057800000000000000\nI-133 = 10065000000000000000\nI-134 = 11060000000000000000\nI-135 = 9387800000000000000\nTe-127 = 516240000000000000\nTe-127m = 61776000000000000\nTe-129 = 1586300000000000000\nTe-129m = 236650000000000000\nTe-131m = 734000000000000000\nTe-132 = 7304500000000000000\nTe-131 = 4539000000000000000\nRh-105 = 4758800000000000000\nRu-103 = 7927800000000000000\nRu-105 = 5198600000000000000\nRu-106 = 1862900000000000000\nRh-103m = 7139800000000000000\nRh-106 = 2165900000000000000\nNb-95 = 9344400000000000000\nMo-99 = 10517000000000000000\nNb-97 = 9649800000000000000\nNb-97m = 9072400000000000000\nCe-141 = 3863400000000000000\nCe-143 = 3569400000000000000\nCe-144 = 2253400000000000000\nNp-239 = 44134000000000000000\nPu-238 = 2531800000000000\nPu-239 = 609230000000000\nPu-240 = 712110000000000\nPu-241 = 180140000000000000\nLa-140 = 9000700000000000000\nLa-141 = 8288600000000000000\nLa-142 = 8041600000000000000\n\n[receptor]\nx_m = 746\ny_m = 0\nz_m = 0\n\n[meteorology]\nmet_file = weather-trials.met\nmixing_height_m = none\n\n[release]\nintegration_time_s = 2593334.1\nplume_segments = 8\n\n[release.segment_1]\ndelay_s = 1334.1\nduration_s = 3600.4\nheight_m = 0\nrelease_fractions_by_group = 0.015442, 0.0000054657, 1.2009e-8, 0.0000056863, 0.0000051152, 3.447e-17, 2.4584e-12, 6.2305e-18, 2.2207e-15, 0\n\n[release.segment_2]\ndelay_s = 3677.4\nduration_s = 3599.3\nheight_m = 0\nrelease_fractions_by_group = 0.66658, 0.19973, 0.00082488, 0.21403, 0.18271, 3.476e-9, 0.00020535, 0.0000010668, 2.4642e-7, 0\n\n[release.segment_3]\ndelay_s = 4934.5\nduration_s = 3594.3\nheight_m = 0\nrelease_fractions_by_group = 0.00085732, 2.439e-7, 5.3524e-9, 2.7515e-7, 2.3041e-7, 2.2726e-14, 1.342e-9, 3.833e-10, 1.0443e-11, 0\n\n[release.segment_4]\ndelay_s = 7276.7\nduration_s = 3578.6\nheight_m = 0\nrelease_fractions_by_group = 0.11274, 0.035081, 0.013451, 0.04145, 0.033012, 4.4924e-9, 0.00024019, 0.0022437, 0.000063599, 0\n\n[release.segment_5]\ndelay_s = 8528.8\nduration_s = 3595.8\nheight_m = 0\nrelease_fractions_by_group = 0.00076175, 2.3778e-7, 8.7339e-8, 2.817e-7, 2.2226e-7, 3.0138e-14, 1.5986e-9, 1.4426e-8, 4.1171e-10, 0\n\n[release.segment_6]\ndelay_s = 10855\nduration_s = 3609.2\nheight_m = 0\nrelease_fractions_by_group = 0.021451, 0.0068301, 0.0023666, 0.0086943, 0.0062397, 1.0059e-9, 0.00003495, 0.00043876, 0.000015829, 0\n\n[release.segment_7]\ndelay_s = 12125\nduration_s = 2830\nheight_m = 0\nrelease_fractions_by_group = 0.0002134, 6.7755e-8, 2.3483e-8, 8.6773e-8, 6.2262e-8, 1.0374e-14, 3.4129e-10, 4.3998e-9, 1.6317e-10, 0\n\n[release.segment_8]\ndelay_s = 14465\nduration_s = 490\nheight_m = 0\nrelease_fractions_by_group = 0.0052577, 0.0016519, 0.00056559, 0.0021484, 0.0015363, 2.6519e-10, 0.0000082281, 0.0001061, 0.0000040575, 0\n\n[dcf]\norgan = ICRP60ED\npath = data/DCF.json\n\n[decay]\npath = data/Chains.json\ninclude_ingrowth = false\nsimple_decay_at_receptor = true\ncollapse_half_life_sec = 1\n\n[deposition]\ndry_deposition_velocity_m_s = 0.003\ndeposition_velocities_by_group = 0, 0.015603372126679999, 0.006994954013947, 0.01527769874303, 0.009884736459009998, 0.0025016376410299996, 0.0024205457416100005, 0.002685978214323, 0.0027450646585260004, 0.003\n\n[outputs]\nwrite_csv = false\noutput_dir = outputs\n",
+     "metFileText": "stability_class,wind_speed_m_s,wind_dir_deg,u_star_m_s,mixing_height_m\nE,2.2,264.375,,140\nF,1.9,264.375,,116\nF,1.6,264.375,,100\nF,1.3,264.375,,100\nF,1.1,281.25,,100\nF,1,303.75,,100\nF,1.1,326.25,,100\nF,0.7,320.625,,100\nF,0.5,286.875,,100\nF,0.5,202.5,,100\nF,0.5,106.875,,100\nF,0.6,67.5,,100\nF,1,61.875,,100\nF,1.1,78.75,,100\nD,1.2,90,,122\nB,1.4,106.875,,177\nB,1.5,135,,322\nC,2.1,157.5,,466\nC,2.8,168.75,,611\nC,3.3,174.375,,660\nC,3.9,174.375,,709\nC,4.5,180,,758\nC,4.1,174.375,,800\nD,3.7,168.75,,843\n"
+    },
+    {
+     "methodType": "RADIOLOGICAL_CONSEQUENCE",
+     "configText": "[run]\ncase_name = MELMACCS-APP-C RCM-01 part 2 of 3\nmode = lmp\nmodules = RC01_ST, RC04_DCF, RC05_RCRE, RC10_RCAD\ngeometry = centerline\n\n[source_term]\nTc-99m = 9205600000000000000\nZr-95 = 3852200000000000000\nZr-97 = 3836600000000000000\nAm-241 = 316380000000000\nCm-242 = 92236000000000000\nCm-244 = 3935000000000000\nNd-147 = 3301900000000000000\nPr-143 = 7673400000000000000\nPr-144 = 4955700000000000000\nPr-144m = 58907000000000000\n\n[receptor]\nx_m = 746\ny_m = 0\nz_m = 0\n\n[meteorology]\nmet_file = weather-trials.met\nmixing_height_m = none\n\n[release]\nintegration_time_s = 2593334.1\nplume_segments = 8\n\n[release.segment_1]\ndelay_s = 1334.1\nduration_s = 3600.4\nheight_m = 0\nrelease_fractions_by_group = 0, 0, 0, 0, 0, 2.4584e-12, 6.2305e-18, 2.2207e-15, 0, 0\n\n[release.segment_2]\ndelay_s = 3677.4\nduration_s = 3599.3\nheight_m = 0\nrelease_fractions_by_group = 0, 0, 0, 0, 0, 0.00020535, 0.0000010668, 2.4642e-7, 0, 0\n\n[release.segment_3]\ndelay_s = 4934.5\nduration_s = 3594.3\nheight_m = 0\nrelease_fractions_by_group = 0, 0, 0, 0, 0, 1.342e-9, 3.833e-10, 1.0443e-11, 0, 0\n\n[release.segment_4]\ndelay_s = 7276.7\nduration_s = 3578.6\nheight_m = 0\nrelease_fractions_by_group = 0, 0, 0, 0, 0, 0.00024019, 0.0022437, 0.000063599, 0, 0\n\n[release.segment_5]\ndelay_s = 8528.8\nduration_s = 3595.8\nheight_m = 0\nrelease_fractions_by_group = 0, 0, 0, 0, 0, 1.5986e-9, 1.4426e-8, 4.1171e-10, 0, 0\n\n[release.segment_6]\ndelay_s = 10855\nduration_s = 3609.2\nheight_m = 0\nrelease_fractions_by_group = 0, 0, 0, 0, 0, 0.00003495, 0.00043876, 0.000015829, 0, 0\n\n[release.segment_7]\ndelay_s = 12125\nduration_s = 2830\nheight_m = 0\nrelease_fractions_by_group = 0, 0, 0, 0, 0, 3.4129e-10, 4.3998e-9, 1.6317e-10, 0, 0\n\n[release.segment_8]\ndelay_s = 14465\nduration_s = 490\nheight_m = 0\nrelease_fractions_by_group = 0, 0, 0, 0, 0, 0.0000082281, 0.0001061, 0.0000040575, 0, 0\n\n[dcf]\norgan = ICRP60ED\npath = data/DCF.json\n\n[decay]\npath = data/Chains.json\ninclude_ingrowth = false\nsimple_decay_at_receptor = true\ncollapse_half_life_sec = 1\n\n[deposition]\ndry_deposition_velocity_m_s = 0.003\ndeposition_velocities_by_group = 0, 0.015603372126679999, 0.006994954013947, 0.01527769874303, 0.009884736459009998, 0.0024205457416100005, 0.002685978214323, 0.0027450646585260004, 0.0027450646585260004, 0.003\n\n[outputs]\nwrite_csv = false\noutput_dir = outputs\n",
+     "metFileText": "stability_class,wind_speed_m_s,wind_dir_deg,u_star_m_s,mixing_height_m\nE,2.2,264.375,,140\nF,1.9,264.375,,116\nF,1.6,264.375,,100\nF,1.3,264.375,,100\nF,1.1,281.25,,100\nF,1,303.75,,100\nF,1.1,326.25,,100\nF,0.7,320.625,,100\nF,0.5,286.875,,100\nF,0.5,202.5,,100\nF,0.5,106.875,,100\nF,0.6,67.5,,100\nF,1,61.875,,100\nF,1.1,78.75,,100\nD,1.2,90,,122\nB,1.4,106.875,,177\nB,1.5,135,,322\nC,2.1,157.5,,466\nC,2.8,168.75,,611\nC,3.3,174.375,,660\nC,3.9,174.375,,709\nC,4.5,180,,758\nC,4.1,174.375,,800\nD,3.7,168.75,,843\n"
+    },
+    {
+     "methodType": "RADIOLOGICAL_CONSEQUENCE",
+     "configText": "[run]\ncase_name = MELMACCS-APP-C RCM-01 part 3 of 3\nmode = lmp\nmodules = RC01_ST, RC04_DCF, RC05_RCRE, RC10_RCAD\ngeometry = centerline\n\n[source_term]\nY-90 = 272740000000000000\nY-91 = 6467200000000000000\nY-92 = 6762700000000000000\nY-93 = 7726700000000000000\nY-91m = 3638600000000000000\n\n[receptor]\nx_m = 746\ny_m = 0\nz_m = 0\n\n[meteorology]\nmet_file = weather-trials.met\nmixing_height_m = none\n\n[release]\nintegration_time_s = 2593334.1\nplume_segments = 8\n\n[release.segment_1]\ndelay_s = 1334.1\nduration_s = 3600.4\nheight_m = 0\nrelease_fractions_by_group = 0, 0, 0, 0, 0, 0, 2.2207e-15, 0, 0, 0\n\n[release.segment_2]\ndelay_s = 3677.4\nduration_s = 3599.3\nheight_m = 0\nrelease_fractions_by_group = 0, 0, 0, 0, 0, 0, 2.4642e-7, 0, 0, 0\n\n[release.segment_3]\ndelay_s = 4934.5\nduration_s = 3594.3\nheight_m = 0\nrelease_fractions_by_group = 0, 0, 0, 0, 0, 0, 1.0443e-11, 0, 0, 0\n\n[release.segment_4]\ndelay_s = 7276.7\nduration_s = 3578.6\nheight_m = 0\nrelease_fractions_by_group = 0, 0, 0, 0, 0, 0, 0.000063599, 0, 0, 0\n\n[release.segment_5]\ndelay_s = 8528.8\nduration_s = 3595.8\nheight_m = 0\nrelease_fractions_by_group = 0, 0, 0, 0, 0, 0, 4.1171e-10, 0, 0, 0\n\n[release.segment_6]\ndelay_s = 10855\nduration_s = 3609.2\nheight_m = 0\nrelease_fractions_by_group = 0, 0, 0, 0, 0, 0, 0.000015829, 0, 0, 0\n\n[release.segment_7]\ndelay_s = 12125\nduration_s = 2830\nheight_m = 0\nrelease_fractions_by_group = 0, 0, 0, 0, 0, 0, 1.6317e-10, 0, 0, 0\n\n[release.segment_8]\ndelay_s = 14465\nduration_s = 490\nheight_m = 0\nrelease_fractions_by_group = 0, 0, 0, 0, 0, 0, 0.0000040575, 0, 0, 0\n\n[dcf]\norgan = ICRP60ED\npath = data/DCF.json\n\n[decay]\npath = data/Chains.json\ninclude_ingrowth = false\nsimple_decay_at_receptor = true\ncollapse_half_life_sec = 1\n\n[deposition]\ndry_deposition_velocity_m_s = 0.003\ndeposition_velocities_by_group = 0, 0.015603372126679999, 0.006994954013947, 0.01527769874303, 0.009884736459009998, 0.0025016376410299996, 0.0027450646585260004, 0.002685978214323, 0.0027450646585260004, 0.003\n\n[outputs]\nwrite_csv = false\noutput_dir = outputs\n",
+     "metFileText": "stability_class,wind_speed_m_s,wind_dir_deg,u_star_m_s,mixing_height_m\nE,2.2,264.375,,140\nF,1.9,264.375,,116\nF,1.6,264.375,,100\nF,1.3,264.375,,100\nF,1.1,281.25,,100\nF,1,303.75,,100\nF,1.1,326.25,,100\nF,0.7,320.625,,100\nF,0.5,286.875,,100\nF,0.5,202.5,,100\nF,0.5,106.875,,100\nF,0.6,67.5,,100\nF,1,61.875,,100\nF,1.1,78.75,,100\nD,1.2,90,,122\nB,1.4,106.875,,177\nB,1.5,135,,322\nC,2.1,157.5,,466\nC,2.8,168.75,,611\nC,3.3,174.375,,660\nC,3.9,174.375,,709\nC,4.5,180,,758\nC,4.1,174.375,,800\nD,3.7,168.75,,843\n"
+    }
+   ],
+   "doses": [
+    {
+     "tede_msv": [
+      43816780.57861065,
+      61874022.15381652,
+      55416927.853313036,
+      45351803.79977593,
+      36293033.32491491,
+      31102334.786102083,
+      36293033.32491491,
+      14506679.570236504,
+      5873310.125576886,
+      5873310.125576886,
+      5873310.125576886,
+      9650399.968279015,
+      31102334.786102083,
+      36293033.32491491,
+      27875296.930264395,
+      8893316.504730571,
+      8562827.82550896,
+      13540862.886496339,
+      11358246.050948994,
+      10140752.196388932,
+      8965675.4984308,
+      8024559.70522668,
+      8629388.68994683,
+      21080639.805991266
+     ],
+     "percentiles_msv": {
+      "p05": 5873310.125576886,
+      "p50": 14023771.228366422,
+      "p95": 53907159.24528245
+     }
+    },
+    {
+     "tede_msv": [
+      22803.038942049956,
+      53495.58802195762,
+      60293.534759966315,
+      68754.15849727903,
+      75458.17799820467,
+      79105.40334094927,
+      75458.17799820467,
+      90077.54805362377,
+      93203.26690167261,
+      93203.26690167261,
+      93203.26690167261,
+      92650.59219271773,
+      79105.40334094927,
+      75458.17799820467,
+      19264.355780182745,
+      3224.834918100746,
+      3026.8620988556754,
+      4832.3210052533,
+      3698.377330054483,
+      3167.0336455947704,
+      2701.1325881574476,
+      2354.634597163739,
+      2574.8422400087447,
+      7289.150238658994
+     ],
+     "percentiles_msv": {
+      "p05": 2593.78579223105,
+      "p50": 56894.56139096197,
+      "p95": 93203.26690167261
+     }
+    },
+    {
+     "tede_msv": [
+      827.1842465868466,
+      1936.2108298735793,
+      2180.0077861167456,
+      2482.172123739373,
+      2720.220481957184,
+      2848.989152921062,
+      2720.220481957184,
+      3229.6109041477016,
+      3321.6573497539925,
+      3321.6573497539925,
+      3321.6573497539925,
+      3313.565599398557,
+      2848.989152921062,
+      2720.220481957184,
+      697.9454219617273,
+      117.16619205306145,
+      109.98553163760984,
+      175.58227260697572,
+      134.43394080049154,
+      115.14071723204982,
+      98.21771264658385,
+      85.62824589738165,
+      93.62949693377249,
+      264.8874105698139
+     ],
+     "percentiles_msv": {
+      "p05": 94.31772929069419,
+      "p50": 2058.1093079951625,
+      "p95": 3321.6573497539925
+     }
+    }
+   ]
+  },
+  {
+   "name": "published source term, first published weather hour, 8046.7 m",
+   "requests": [
+    {
+     "methodType": "RADIOLOGICAL_CONSEQUENCE",
+     "configText": "[run]\ncase_name = MELMACCS-APP-C RCM-02 part 1 of 3\nmode = epz\nmodules = RC01_ST, RC04_DCF, RC05_RCRE, RC10_RCAD\ngeometry = centerline\n\n[source_term]\nKr-85 = 36319000000000000\nKr-85m = 1497800000000000000\nKr-87 = 2897500000000000000\nKr-88 = 4081400000000000000\nXe-133 = 10974000000000000000\nXe-135 = 2453800000000000000\nXe-135m = 2126200000000000000\nCs-134 = 478040000000000000\nCs-136 = 202660000000000000\nCs-137 = 393840000000000000\nRb-86 = 7559100000000000\nRb-88 = 4330700000000000000\nBa-139 = 10457000000000000000\nBa-140 = 10150000000000000000\nSr-89 = 5904400000000000000\nSr-90 = 300080000000000000\nSr-91 = 7228300000000000000\nSr-92 = 7764600000000000000\nBa-137m = 378400000000000000\nI-131 = 4877600000000000000\nI-132 = 7057800000000000000\nI-133 = 10065000000000000000\nI-134 = 11060000000000000000\nI-135 = 9387800000000000000\nTe-127 = 516240000000000000\nTe-127m = 61776000000000000\nTe-129 = 1586300000000000000\nTe-129m = 236650000000000000\nTe-131m = 734000000000000000\nTe-132 = 7304500000000000000\nTe-131 = 4539000000000000000\nRh-105 = 4758800000000000000\nRu-103 = 7927800000000000000\nRu-105 = 5198600000000000000\nRu-106 = 1862900000000000000\nRh-103m = 7139800000000000000\nRh-106 = 2165900000000000000\nNb-95 = 9344400000000000000\nMo-99 = 10517000000000000000\nNb-97 = 9649800000000000000\nNb-97m = 9072400000000000000\nCe-141 = 3863400000000000000\nCe-143 = 3569400000000000000\nCe-144 = 2253400000000000000\nNp-239 = 44134000000000000000\nPu-238 = 2531800000000000\nPu-239 = 609230000000000\nPu-240 = 712110000000000\nPu-241 = 180140000000000000\nLa-140 = 9000700000000000000\nLa-141 = 8288600000000000000\nLa-142 = 8041600000000000000\n\n[receptor]\nx_m = 8046.7\ny_m = 0\nz_m = 0\n\n[meteorology]\nmet_file = weather-trials.met\nmixing_height_m = none\n\n[release]\nintegration_time_s = 346934.1\nplume_segments = 8\n\n[release.segment_1]\ndelay_s = 1334.1\nduration_s = 3600.4\nheight_m = 0\nrelease_fractions_by_group = 0.015442, 0.0000054657, 1.2009e-8, 0.0000056863, 0.0000051152, 3.447e-17, 2.4584e-12, 6.2305e-18, 2.2207e-15, 0\n\n[release.segment_2]\ndelay_s = 3677.4\nduration_s = 3599.3\nheight_m = 0\nrelease_fractions_by_group = 0.66658, 0.19973, 0.00082488, 0.21403, 0.18271, 3.476e-9, 0.00020535, 0.0000010668, 2.4642e-7, 0\n\n[release.segment_3]\ndelay_s = 4934.5\nduration_s = 3594.3\nheight_m = 0\nrelease_fractions_by_group = 0.00085732, 2.439e-7, 5.3524e-9, 2.7515e-7, 2.3041e-7, 2.2726e-14, 1.342e-9, 3.833e-10, 1.0443e-11, 0\n\n[release.segment_4]\ndelay_s = 7276.7\nduration_s = 3578.6\nheight_m = 0\nrelease_fractions_by_group = 0.11274, 0.035081, 0.013451, 0.04145, 0.033012, 4.4924e-9, 0.00024019, 0.0022437, 0.000063599, 0\n\n[release.segment_5]\ndelay_s = 8528.8\nduration_s = 3595.8\nheight_m = 0\nrelease_fractions_by_group = 0.00076175, 2.3778e-7, 8.7339e-8, 2.817e-7, 2.2226e-7, 3.0138e-14, 1.5986e-9, 1.4426e-8, 4.1171e-10, 0\n\n[release.segment_6]\ndelay_s = 10855\nduration_s = 3609.2\nheight_m = 0\nrelease_fractions_by_group = 0.021451, 0.0068301, 0.0023666, 0.0086943, 0.0062397, 1.0059e-9, 0.00003495, 0.00043876, 0.000015829, 0\n\n[release.segment_7]\ndelay_s = 12125\nduration_s = 2830\nheight_m = 0\nrelease_fractions_by_group = 0.0002134, 6.7755e-8, 2.3483e-8, 8.6773e-8, 6.2262e-8, 1.0374e-14, 3.4129e-10, 4.3998e-9, 1.6317e-10, 0\n\n[release.segment_8]\ndelay_s = 14465\nduration_s = 490\nheight_m = 0\nrelease_fractions_by_group = 0.0052577, 0.0016519, 0.00056559, 0.0021484, 0.0015363, 2.6519e-10, 0.0000082281, 0.0001061, 0.0000040575, 0\n\n[dcf]\norgan = ICRP60ED\npath = data/DCF.json\n\n[decay]\npath = data/Chains.json\ninclude_ingrowth = false\nsimple_decay_at_receptor = true\ncollapse_half_life_sec = 1\n\n[deposition]\ndry_deposition_velocity_m_s = 0.003\ndeposition_velocities_by_group = 0, 0.015603372126679999, 0.006994954013947, 0.01527769874303, 0.009884736459009998, 0.0025016376410299996, 0.0024205457416100005, 0.002685978214323, 0.0027450646585260004, 0.003\n\n[outputs]\nwrite_csv = false\noutput_dir = outputs\n",
+     "metFileText": "stability_class,wind_speed_m_s,wind_dir_deg,u_star_m_s,mixing_height_m\nE,2.2,264.375,,140\n"
+    },
+    {
+     "methodType": "RADIOLOGICAL_CONSEQUENCE",
+     "configText": "[run]\ncase_name = MELMACCS-APP-C RCM-02 part 2 of 3\nmode = epz\nmodules = RC01_ST, RC04_DCF, RC05_RCRE, RC10_RCAD\ngeometry = centerline\n\n[source_term]\nTc-99m = 9205600000000000000\nZr-95 = 3852200000000000000\nZr-97 = 3836600000000000000\nAm-241 = 316380000000000\nCm-242 = 92236000000000000\nCm-244 = 3935000000000000\nNd-147 = 3301900000000000000\nPr-143 = 7673400000000000000\nPr-144 = 4955700000000000000\nPr-144m = 58907000000000000\n\n[receptor]\nx_m = 8046.7\ny_m = 0\nz_m = 0\n\n[meteorology]\nmet_file = weather-trials.met\nmixing_height_m = none\n\n[release]\nintegration_time_s = 346934.1\nplume_segments = 8\n\n[release.segment_1]\ndelay_s = 1334.1\nduration_s = 3600.4\nheight_m = 0\nrelease_fractions_by_group = 0, 0, 0, 0, 0, 2.4584e-12, 6.2305e-18, 2.2207e-15, 0, 0\n\n[release.segment_2]\ndelay_s = 3677.4\nduration_s = 3599.3\nheight_m = 0\nrelease_fractions_by_group = 0, 0, 0, 0, 0, 0.00020535, 0.0000010668, 2.4642e-7, 0, 0\n\n[release.segment_3]\ndelay_s = 4934.5\nduration_s = 3594.3\nheight_m = 0\nrelease_fractions_by_group = 0, 0, 0, 0, 0, 1.342e-9, 3.833e-10, 1.0443e-11, 0, 0\n\n[release.segment_4]\ndelay_s = 7276.7\nduration_s = 3578.6\nheight_m = 0\nrelease_fractions_by_group = 0, 0, 0, 0, 0, 0.00024019, 0.0022437, 0.000063599, 0, 0\n\n[release.segment_5]\ndelay_s = 8528.8\nduration_s = 3595.8\nheight_m = 0\nrelease_fractions_by_group = 0, 0, 0, 0, 0, 1.5986e-9, 1.4426e-8, 4.1171e-10, 0, 0\n\n[release.segment_6]\ndelay_s = 10855\nduration_s = 3609.2\nheight_m = 0\nrelease_fractions_by_group = 0, 0, 0, 0, 0, 0.00003495, 0.00043876, 0.000015829, 0, 0\n\n[release.segment_7]\ndelay_s = 12125\nduration_s = 2830\nheight_m = 0\nrelease_fractions_by_group = 0, 0, 0, 0, 0, 3.4129e-10, 4.3998e-9, 1.6317e-10, 0, 0\n\n[release.segment_8]\ndelay_s = 14465\nduration_s = 490\nheight_m = 0\nrelease_fractions_by_group = 0, 0, 0, 0, 0, 0.0000082281, 0.0001061, 0.0000040575, 0, 0\n\n[dcf]\norgan = ICRP60ED\npath = data/DCF.json\n\n[decay]\npath = data/Chains.json\ninclude_ingrowth = false\nsimple_decay_at_receptor = true\ncollapse_half_life_sec = 1\n\n[deposition]\ndry_deposition_velocity_m_s = 0.003\ndeposition_velocities_by_group = 0, 0.015603372126679999, 0.006994954013947, 0.01527769874303, 0.009884736459009998, 0.0024205457416100005, 0.002685978214323, 0.0027450646585260004, 0.0027450646585260004, 0.003\n\n[outputs]\nwrite_csv = false\noutput_dir = outputs\n",
+     "metFileText": "stability_class,wind_speed_m_s,wind_dir_deg,u_star_m_s,mixing_height_m\nE,2.2,264.375,,140\n"
+    },
+    {
+     "methodType": "RADIOLOGICAL_CONSEQUENCE",
+     "configText": "[run]\ncase_name = MELMACCS-APP-C RCM-02 part 3 of 3\nmode = epz\nmodules = RC01_ST, RC04_DCF, RC05_RCRE, RC10_RCAD\ngeometry = centerline\n\n[source_term]\nY-90 = 272740000000000000\nY-91 = 6467200000000000000\nY-92 = 6762700000000000000\nY-93 = 7726700000000000000\nY-91m = 3638600000000000000\n\n[receptor]\nx_m = 8046.7\ny_m = 0\nz_m = 0\n\n[meteorology]\nmet_file = weather-trials.met\nmixing_height_m = none\n\n[release]\nintegration_time_s = 346934.1\nplume_segments = 8\n\n[release.segment_1]\ndelay_s = 1334.1\nduration_s = 3600.4\nheight_m = 0\nrelease_fractions_by_group = 0, 0, 0, 0, 0, 0, 2.2207e-15, 0, 0, 0\n\n[release.segment_2]\ndelay_s = 3677.4\nduration_s = 3599.3\nheight_m = 0\nrelease_fractions_by_group = 0, 0, 0, 0, 0, 0, 2.4642e-7, 0, 0, 0\n\n[release.segment_3]\ndelay_s = 4934.5\nduration_s = 3594.3\nheight_m = 0\nrelease_fractions_by_group = 0, 0, 0, 0, 0, 0, 1.0443e-11, 0, 0, 0\n\n[release.segment_4]\ndelay_s = 7276.7\nduration_s = 3578.6\nheight_m = 0\nrelease_fractions_by_group = 0, 0, 0, 0, 0, 0, 0.000063599, 0, 0, 0\n\n[release.segment_5]\ndelay_s = 8528.8\nduration_s = 3595.8\nheight_m = 0\nrelease_fractions_by_group = 0, 0, 0, 0, 0, 0, 4.1171e-10, 0, 0, 0\n\n[release.segment_6]\ndelay_s = 10855\nduration_s = 3609.2\nheight_m = 0\nrelease_fractions_by_group = 0, 0, 0, 0, 0, 0, 0.000015829, 0, 0, 0\n\n[release.segment_7]\ndelay_s = 12125\nduration_s = 2830\nheight_m = 0\nrelease_fractions_by_group = 0, 0, 0, 0, 0, 0, 1.6317e-10, 0, 0, 0\n\n[release.segment_8]\ndelay_s = 14465\nduration_s = 490\nheight_m = 0\nrelease_fractions_by_group = 0, 0, 0, 0, 0, 0, 0.0000040575, 0, 0, 0\n\n[dcf]\norgan = ICRP60ED\npath = data/DCF.json\n\n[decay]\npath = data/Chains.json\ninclude_ingrowth = false\nsimple_decay_at_receptor = true\ncollapse_half_life_sec = 1\n\n[deposition]\ndry_deposition_velocity_m_s = 0.003\ndeposition_velocities_by_group = 0, 0.015603372126679999, 0.006994954013947, 0.01527769874303, 0.009884736459009998, 0.0025016376410299996, 0.0027450646585260004, 0.002685978214323, 0.0027450646585260004, 0.003\n\n[outputs]\nwrite_csv = false\noutput_dir = outputs\n",
+     "metFileText": "stability_class,wind_speed_m_s,wind_dir_deg,u_star_m_s,mixing_height_m\nE,2.2,264.375,,140\n"
+    }
+   ],
+   "doses": [
+    {
+     "tede_sv": 118.23593621254999,
+     "missing_dcfs": [
+      "Nb-97m"
+     ]
+    },
+    {
+     "tede_sv": 0.2591320161392455,
+     "missing_dcfs": []
+    },
+    {
+     "tede_sv": 0.009415616247000555,
+     "missing_dcfs": []
+    }
+   ]
+  },
+  {
+   "name": "very large and very small numbers",
+   "requests": [
+    {
+     "methodType": "RADIOLOGICAL_CONSEQUENCE",
+     "configText": "[run]\ncase_name = RC-1 RCM-01\nmode = lmp\nmodules = RC01_ST, RC04_DCF, RC05_RCRE, RC10_RCAD\ngeometry = centerline\n\n[source_term]\nCs-137 = 1e+21\nI-131 = 2.5e+22\nXe-133 = 1.5e-7\n\n[receptor]\nx_m = 123456.789\ny_m = 0\nz_m = 2.5\n\n[meteorology]\nmet_file = weather-trials.met\nmixing_height_m = none\n\n[release]\nintegration_time_s = 2592000.5\nplume_segments = 1\n\n[release.segment_1]\ndelay_s = 0.5\nduration_s = 0.001\nheight_m = 123.456\nrelease_fractions_by_group = 1, 1e-7, 0, 2.5e-9, 0, 0, 0, 0, 0, 0\n\n[dcf]\norgan = ICRP60ED\npath = data/DCF.json\n\n[decay]\npath = data/Chains.json\ninclude_ingrowth = false\nsimple_decay_at_receptor = true\ncollapse_half_life_sec = 1\n\n[deposition]\ndry_deposition_velocity_m_s = 0.003\ndeposition_velocities_by_group = 0, 1e-7, 0.003, 9.999, 0.003, 0.003, 0.003, 0.003, 0, 0.003\n\n[outputs]\nwrite_csv = false\noutput_dir = outputs\n",
+     "metFileText": "stability_class,wind_speed_m_s,wind_dir_deg,u_star_m_s,mixing_height_m\nA,0.05,179.99,,12345.678\nF,29.75,90,,100.25\n"
+    }
+   ],
+   "doses": [
+    {
+     "tede_msv": [
+      0.0103076903228485,
+      0.022596605422450698
+     ],
+     "percentiles_msv": {
+      "p05": 0.010922136077828609,
+      "p50": 0.0164521478726496,
+      "p95": 0.02198215966747059
+     }
+    }
+   ]
+  },
+  {
+   "name": "stability class G and unequal trial probabilities, three weather trials",
+   "requests": [
+    {
+     "methodType": "RADIOLOGICAL_CONSEQUENCE",
+     "configText": "[run]\ncase_name = RC-1 RCM-01\nmode = lmp\nmodules = RC01_ST, RC04_DCF, RC05_RCRE, RC10_RCAD\ngeometry = centerline\n\n[source_term]\nCs-137 = 1000000000000\nI-131 = 1000000000000\nXe-133 = 1000000000000\n\n[receptor]\nx_m = 1000\ny_m = 0\nz_m = 0\n\n[meteorology]\nmet_file = weather-trials.met\nmixing_height_m = none\n\n[release]\nintegration_time_s = 2592000\nplume_segments = 1\n\n[release.segment_1]\ndelay_s = 0\nduration_s = 3600\nheight_m = 0\nrelease_fractions_by_group = 1, 1, 0, 1, 0, 0, 0, 0, 0, 0\n\n[dcf]\norgan = ICRP60ED\npath = data/DCF.json\n\n[decay]\npath = data/Chains.json\ninclude_ingrowth = false\nsimple_decay_at_receptor = true\ncollapse_half_life_sec = 1\n\n[deposition]\ndry_deposition_velocity_m_s = 0.003\ndeposition_velocities_by_group = 0, 0.003, 0.003, 0.003, 0.003, 0.003, 0.003, 0.003, 0, 0.003\n\n[outputs]\nwrite_csv = false\noutput_dir = outputs\n",
+     "metFileText": "stability_class,wind_speed_m_s,wind_dir_deg,u_star_m_s,mixing_height_m\nD,3,270,,1000\nG,3,270,,1000\nF,1,202.5,,100\n"
+    }
+   ],
+   "doses": [
+    {
+     "tede_msv": [
+      0.8840615508940853,
+      0.8840615508940853,
+      7.964907905022911
+     ],
+     "percentiles_msv": {
+      "p05": 0.8840615508940853,
+      "p50": 0.8840615508940853,
+      "p95": 7.256823269610027
+     }
+    }
+   ]
+  }
+ ]
+}

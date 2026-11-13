@@ -1,0 +1,95 @@
+[run]
+case_name = stress_test_001
+mode      = lmp
+modules   = RC01_ST, RC04_DCF, RC05_RCRE, RC10_RCAD, RC08_RCDO, RC12_RCQ
+
+[source_term]
+; Group 1 — noble gases
+Xe-133 = 3.7E15
+Kr-85  = 1.0E14
+; Group 2 — cesium
+Cs-137 = 1.0E15
+Cs-134 = 5.0E14
+; Group 3 — barium / strontium
+Sr-90  = 5.0E14
+Ba-140 = 8.0E14
+; Group 4 — iodine
+I-131  = 5.0E15
+I-132  = 2.0E15
+I-133  = 3.0E15
+; Group 5 — tellurium
+Te-132 = 1.0E15
+Te-129m= 2.0E14
+; Group 6 — ruthenium
+Ru-106 = 5.0E14
+Ru-103 = 8.0E14
+; Group 7 — molybdenum group
+Mo-99  = 2.0E15
+Zr-95  = 6.0E14
+; Group 8 — cerium / actinides
+Ce-144 = 5.0E14
+Pu-239 = 1.0E12
+Am-241 = 5.0E11
+; Group 9 — lanthanum-analog
+La-140 = 1.0E15
+; Group 10 — uranium
+U-235  = 1.0E13
+
+[receptor]
+; 1 km — typical exclusion area boundary (EAB)
+x_m = 1000.0
+y_m = 0.0
+z_m = 0.0
+
+[meteorology]
+; Stability F + low wind = worst-case stable, maximum ground concentration
+stability_class  = F
+wind_speed_m_s   = 1.5
+mixing_height_m  = 500.0
+
+[release]
+integration_time_s = 86400
+plume_segments     = 2
+
+[release.segment_1]
+; Early volatile release — first hour, ground-level (containment failure)
+; High fractions for noble gases, iodine, cesium; low for refractories
+delay_s    = 0.0
+duration_s = 3600.0
+height_m   = 0.0
+;                          1     2     3     4     5     6     7     8     9    10
+;                        noble   Cs    Ba     I    Te    Ru    Mo    Ce    La     U
+release_fractions_by_group = 1.0, 0.10, 0.01, 0.25, 0.10, 0.005, 0.005, 0.001, 0.50, 0.0001
+
+[release.segment_2]
+; Late refractory release — hours 4-12 (core damage progression)
+; Reduced volatiles; refractories now mobilising
+delay_s    = 14400.0
+duration_s = 28800.0
+height_m   = 0.0
+;                          1     2     3     4     5     6     7     8     9    10
+release_fractions_by_group = 0.20, 0.05, 0.02, 0.10, 0.05, 0.01, 0.01, 0.005, 0.10, 0.0001
+
+[dcf]
+organ = ICRP60ED
+path  = data/DCF.json
+
+[decay]
+path                     = data/Chains.json
+include_ingrowth         = false
+simple_decay_at_receptor = false
+collapse_half_life_sec   = 1.0
+
+[deposition]
+; Group deposition velocities (m/s):
+;   noble gases (1, 9) = 0       — no dry deposition
+;   aerosol groups     = 0.003   — standard 3 mm/s aerosol proxy
+;   iodine (4)         = 0.010   — elemental iodine (higher than pure aerosol)
+;   actinides (8)      = 0.003   — same aerosol proxy
+dry_deposition_velocity_m_s    = 0.003
+;                                    1      2      3      4      5      6      7      8      9     10
+deposition_velocities_by_group = 0.000, 0.003, 0.003, 0.010, 0.003, 0.003, 0.003, 0.003, 0.000, 0.003
+
+[outputs]
+write_csv  = true
+output_dir = outputs/stress_test_001

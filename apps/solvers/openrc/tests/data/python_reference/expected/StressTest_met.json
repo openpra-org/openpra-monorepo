@@ -1,0 +1,124 @@
+{
+  "case_name": "stress_test_001",
+  "geometry": "centerline",
+  "mode": "lmp",
+  "receptor_x_m": 1000.0,
+  "n_realizations": 12,
+  "tede_msv": {
+    "p05": 38.05583247357103,
+    "p50": 663.769914779975,
+    "p95": 3324.8503490709613,
+    "max": 3381.8670938008745,
+    "min": 10.031853152612124
+  },
+  "realizations": [
+    {
+      "index": 0,
+      "stability_class": "D",
+      "wind_speed_m_s": 3.2,
+      "wind_dir_deg": 270.0,
+      "tede_msv": 646.7861448358956,
+      "lmp_tede_msv": 974.0673639538442,
+      "chi_over_q_s_m3": 3.8914075964093686e-05
+    },
+    {
+      "index": 1,
+      "stability_class": "D",
+      "wind_speed_m_s": 3.5,
+      "wind_dir_deg": 265.0,
+      "tede_msv": 601.613563246535,
+      "lmp_tede_msv": 910.1909697638304,
+      "chi_over_q_s_m3": 3.5807444971213716e-05
+    },
+    {
+      "index": 2,
+      "stability_class": "E",
+      "wind_speed_m_s": 2.1,
+      "wind_dir_deg": 280.0,
+      "tede_msv": 1641.2637606370529,
+      "lmp_tede_msv": 2351.0226013616884,
+      "chi_over_q_s_m3": 0.00011260369989683095
+    },
+    {
+      "index": 3,
+      "stability_class": "E",
+      "wind_speed_m_s": 1.8,
+      "wind_dir_deg": 285.0,
+      "tede_msv": 1791.7879547606724,
+      "lmp_tede_msv": 2530.3053896310935,
+      "chi_over_q_s_m3": 0.0001280128686741337
+    },
+    {
+      "index": 4,
+      "stability_class": "F",
+      "wind_speed_m_s": 1.2,
+      "wind_dir_deg": 290.0,
+      "tede_msv": 3381.8670938008745,
+      "lmp_tede_msv": 4655.398296986676,
+      "chi_over_q_s_m3": 0.0003375285959555331
+    },
+    {
+      "index": 5,
+      "stability_class": "F",
+      "wind_speed_m_s": 1.5,
+      "wind_dir_deg": 275.0,
+      "tede_msv": 3278.2002852010323,
+      "lmp_tede_msv": 4613.240518404687,
+      "chi_over_q_s_m3": 0.00029391984954572285
+    },
+    {
+      "index": 6,
+      "stability_class": "D",
+      "wind_speed_m_s": 4.0,
+      "wind_dir_deg": 260.0,
+      "tede_msv": 538.6721760784021,
+      "lmp_tede_msv": 819.9922112541547,
+      "chi_over_q_s_m3": 3.1600524328823336e-05
+    },
+    {
+      "index": 7,
+      "stability_class": "C",
+      "wind_speed_m_s": 5.2,
+      "wind_dir_deg": 255.0,
+      "tede_msv": 164.311596305369,
+      "lmp_tede_msv": 265.76409107939617,
+      "chi_over_q_s_m3": 9.11288689700981e-06
+    },
+    {
+      "index": 8,
+      "stability_class": "B",
+      "wind_speed_m_s": 6.1,
+      "wind_dir_deg": 250.0,
+      "tede_msv": 60.984542827082855,
+      "lmp_tede_msv": 105.08448249895092,
+      "chi_over_q_s_m3": 3.3134222052861755e-06
+    },
+    {
+      "index": 9,
+      "stability_class": "A",
+      "wind_speed_m_s": 7.0,
+      "wind_dir_deg": 245.0,
+      "tede_msv": 10.031853152612124,
+      "lmp_tede_msv": 21.50491366035733,
+      "chi_over_q_s_m3": 5.38354682798206e-07
+    },
+    {
+      "index": 10,
+      "stability_class": "D",
+      "wind_speed_m_s": 3.0,
+      "wind_dir_deg": 270.0,
+      "tede_msv": 680.7536847240546,
+      "lmp_tede_msv": 1021.6044844406775,
+      "chi_over_q_s_m3": 4.130185771102728e-05
+    },
+    {
+      "index": 11,
+      "stability_class": "E",
+      "wind_speed_m_s": 2.4,
+      "wind_dir_deg": 280.0,
+      "tede_msv": 1510.2871780069777,
+      "lmp_tede_msv": 2187.393668546874,
+      "chi_over_q_s_m3": 0.00010046044069528189
+    }
+  ]
+}

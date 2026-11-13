@@ -1,0 +1,69 @@
+[run]
+case_name = polar_non_finite_met
+mode = lmp
+modules = RC01_ST, RC04_DCF, RC05_RCRE, RC10_RCAD
+geometry = polar
+
+[source_term]
+Xe-133 = 3.7E15
+Kr-85  = 1.0E14
+Cs-137 = 1.0E15
+Cs-134 = 5.0E14
+Sr-90  = 5.0E14
+Ba-140 = 8.0E14
+I-131  = 5.0E15
+I-132  = 2.0E15
+I-133  = 3.0E15
+Te-132 = 1.0E15
+Te-129m= 2.0E14
+Ru-106 = 5.0E14
+Ru-103 = 8.0E14
+Mo-99  = 2.0E15
+Zr-95  = 6.0E14
+Ce-144 = 5.0E14
+Pu-239 = 1.0E12
+Am-241 = 5.0E11
+La-140 = 1.0E15
+U-235  = 1.0E13
+
+[meteorology]
+met_file = data/nonfinite_short.met
+mixing_height_m = 500.0
+
+[release]
+integration_time_s = 86400
+plume_segments = 2
+
+[release.segment_1]
+delay_s = 0.0
+duration_s = 3600.0
+height_m = 0.0
+release_fractions_by_group = 1.0, 0.10, 0.01, 0.25, 0.10, 0.005, 0.005, 0.001, 0.50, 0.0001
+
+[release.segment_2]
+delay_s = 14400.0
+duration_s = 28800.0
+height_m = 0.0
+release_fractions_by_group = 0.20, 0.05, 0.02, 0.10, 0.05, 0.01, 0.01, 0.005, 0.10, 0.0001
+
+[dcf]
+organ = ICRP60ED
+path = data/DCF.json
+
+[decay]
+path = data/Chains.json
+include_ingrowth = false
+simple_decay_at_receptor = false
+collapse_half_life_sec = 1.0
+
+[deposition]
+dry_deposition_velocity_m_s = 0.003
+deposition_velocities_by_group = 0.000, 0.003, 0.003, 0.010, 0.003, 0.003, 0.003, 0.003, 0.000, 0.003
+
+[outputs]
+write_csv = true
+output_dir = outputs/polar_multi
+
+[polar_grid]
+sector_count = 8
+ring_distances_m = 200, 1000, 8000

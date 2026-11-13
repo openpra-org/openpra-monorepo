@@ -1,0 +1,24 @@
+Loading config: input/NonFiniteReceptor.txt
+  case_name : non_finite_receptor
+  mode      : lmp
+  geometry  : centerline
+  nuclides  : 3
+  segments  : 1
+  met       : single trial  (class D, 3.0 m/s)
+
+Total released activity : 3.000e+12 Bq  (3 nuclide-segment pairs)
+
+
+============================================================
+  TEDE             : nan mSv  (nan Sv)
+  chi/Q            : nan s/m³
+  Ground dep total : nan Bq/m²
+  LMP TEDE (756 m) : 1.2573 mSv  (30-day at EAB)
+============================================================
+
+Top 10 nuclide contributors to TEDE:
+  Cs-137       nan mSv  (nan%)
+  I-131        nan mSv  (nan%)
+  Xe-133       nan mSv  (nan%)
+
+Results written to: outputs\non_finite_receptor_results.json

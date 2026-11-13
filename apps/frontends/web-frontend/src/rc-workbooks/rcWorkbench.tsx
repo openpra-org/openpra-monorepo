@@ -19,6 +19,7 @@ import { useRcWorkbook, type RcWorkbookData } from "./rcWorkbookContext";
 import { useAuth } from "../auth/AuthContext";
 import { WorkbookDemoSignCard } from "../workbooks/workbookDemoSignCard";
 import { DockDependsChip } from "../workbooks/workbookInterfaces";
+import { TEXT_VIEW, useWorkbookView } from "../workbooks/workbookViewMemory";
 import "../workbooks/css/workbookWorkspace.css";
 import "./css/rcScreens.css";
 import "../welcome/css/newProjectModal.css";
@@ -331,7 +332,7 @@ function RcWorkbench({
   useEffect(() => { setCcId(mefCcId); }, [mefCcId]);
   useEffect(() => { setSite(mefSite); }, [mefSite]);
 
-  const [selectedStepId, setStepIdState] = useState<string>(enabledSteps[0]?.id ?? "scope");
+  const [selectedStepId, setStepIdState] = useWorkbookView<string>("rc.step", enabledSteps[0]?.id ?? "scope", TEXT_VIEW);
   const stepId = enabledSteps.some((step) => step.id === selectedStepId) ? selectedStepId : enabledSteps[0]?.id ?? "scope";
   const [initialSiteTab, setInitialSiteTab] = useState<"location" | "receptors">("receptors");
   const [dockOpen, setDockOpen] = useState(false);

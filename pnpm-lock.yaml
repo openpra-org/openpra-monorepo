@@ -362,6 +362,9 @@ importers:
       nodemailer:
         specifier: 6.9.16
         version: 6.9.16
+      openrc-node:
+        specifier: workspace:*
+        version: link:../../solvers/openrc-node
       otplib:
         specifier: 13.4.0
         version: 13.4.0
@@ -526,6 +529,9 @@ importers:
       interfaces-shared-types:
         specifier: workspace:*
         version: link:../../interfaces/shared-types
+      openrc-node:
+        specifier: workspace:*
+        version: link:../../solvers/openrc-node
       praxis-node:
         specifier: workspace:*
         version: link:../../solvers/praxis-node
@@ -554,6 +560,12 @@ importers:
       typescript:
         specifier: 5.9.3
         version: 5.9.3
+
+  apps/solvers/openrc-node:
+    devDependencies:
+      '@napi-rs/cli':
+        specifier: 3.8.6
+        version: 3.8.6(@emnapi/core@1.9.2)(@emnapi/runtime@1.9.2)(@types/node@25.9.1)
 
   apps/solvers/praxis-node:
     devDependencies:

@@ -1,0 +1,20 @@
+{
+  "case_name": "test_case_001",
+  "geometry": "centerline",
+  "mode": "lmp",
+  "receptor_x_m": 1000.0,
+  "stability_class": "D",
+  "wind_speed_m_s": 3.0,
+  "tede_sv": 0.0008076858265216514,
+  "tede_msv": 0.8076858265216514,
+  "chi_over_q_s_m3": 4.130185771102728e-05,
+  "ground_deposition_bq_m2": 247811.14626616365,
+  "lmp_tede_sv": 0.001257340586429549,
+  "epz_distance_m": 0.0,
+  "missing_dcfs": [],
+  "breakdown_msv": {
+    "Cs-137": 0.5343154577535055,
+    "I-131": 0.2733157950965334,
+    "Xe-133": 5.457367161255855e-05
+  }
+}

@@ -1,4 +1,6 @@
 import { RcQuantificationPanel } from "./rcQuantification";
+import { z } from "zod";
+import { jsonView, useWorkbookView } from "../workbooks/workbookViewMemory";
 import { WorkbookSectionHeading } from "../workbooks/workbookSectionHeading";
 import { WorkbookInput, WorkbookTextarea } from "../workbooks/commitOnDeactivateFields";
 import { JSX, useEffect, useId, useRef, useState } from "react";
@@ -75,10 +77,14 @@ import { weatherRecoveryPercent } from "interfaces-shared-types/rc-workbooks/wea
 import { rcEconomicCostSpecs } from "interfaces-shared-types/rc-workbooks/economic-costs";
 import type { RcEconomicCostCode } from "interfaces-mef-types/rc/economic-inputs";
 
+const STEP08_TABS = ["case", "consequences", "review", "basis", "feedback"] as const;
+const STEP08_TAB_VIEW = jsonView<(typeof STEP08_TABS)[number]>(z.enum(STEP08_TABS));
+
 // ─── 08 — Quantification (RCQ) ─────────────────────────────────────────────
 function QuantifyScreen({ openDrawer, onOpenStep, initialCaseTab }: { openDrawer: (ctx: RcDrawerContext) => void; onOpenStep?: (id: string) => void; initialCaseTab?: "checks" | "prepared" | "results" }): JSX.Element {
   const { rc, editable, mutateRc, links } = useRcWorkbook();
-  const [tab, setTab] = useState<"case" | "consequences" | "review" | "basis" | "feedback">("case");
+  const [tab, setTab] = useWorkbookView<(typeof STEP08_TABS)[number]>("rc.step08.tab", "case", STEP08_TAB_VIEW);
+  useEffect(() => { if (initialCaseTab !== undefined) setTab("case"); }, [initialCaseTab, setTab]);
   const tabId = useId(), tabsRef = useRef<HTMLDivElement>(null);
   const tabLabels = { case: "Case inputs and outputs", consequences: "Consequences", review: "Output review", basis: "Basis and uncertainty", feedback: "RI feedback" } as const;
   const tabOrder = Object.keys(tabLabels) as (keyof typeof tabLabels)[];

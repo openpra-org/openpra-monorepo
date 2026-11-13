@@ -8,12 +8,16 @@ import { decodeRcText } from "interfaces-shared-types/rc-workbooks/source-term-p
 import { WorkbookSectionHeading } from "../workbooks/workbookSectionHeading";
 import { useRcWorkbook, type RcResultDraft } from "./rcWorkbookContext";
 import { RCIcon } from "./rcIcons";
+import { z } from "zod";
+import { TEXT_VIEW, jsonView, useWorkbookView } from "../workbooks/workbookViewMemory";
+import { RcConsequenceRunsTab, RcResultProfile, RcRunJobs, useRcConsequenceRuns } from "./rcConsequenceRuns";
 import "./css/rcQuantification.css";
 
 const steps = { source: "scope", site: "protective", weather: "weather", transport: "dispersion", dose: "dose", health: "health", economy: "economics" };
-const tabs = ["checks", "prepared", "results"] as const;
+const tabs = ["checks", "prepared", "runs", "results"] as const;
 type CaseTab = typeof tabs[number];
-const tabNames = { checks: "Case & checks", prepared: "Prepared inputs", results: "Results" };
+const tabNames = { checks: "Case & checks", prepared: "Prepared inputs", runs: "OpenRC runs", results: "Results" };
+const TAB_VIEW = jsonView<CaseTab>(z.enum(tabs));
 const message = (e: unknown) => e instanceof Error ? e.message : "Could not load the case record";
 const show = (v: number | string | null, rounded = false) => {
   if (v === null) return "Not supplied";
@@ -52,11 +56,13 @@ function SnapshotChoice({ label, value, disabled, onChange, includeCurrent = fal
   const { rc } = useRcWorkbook();
   return <label className="q-snapshot-choice">{label}<select className="posfield__select" aria-label={label} value={value} disabled={disabled} onChange={e => onChange(e.target.value)}>{includeCurrent && <option value="">Current saved inputs</option>}{rc.consequenceQuantification.caseRecords?.snapshots.map(s => <option key={s.id} value={s.id}>{s.label} · {s.categoryId} · {s.metrics ? `${s.metrics.length} ${s.metrics.length === 1 ? "metric" : "metrics"}` : s.integrationSeconds === undefined ? "Time not saved" : `${show(s.integrationSeconds)} s`} · {s.reviewItems} review items</option>)}</select></label>;
 }
-export function RcQuantificationPanel({ onOpenStep, initialTab = "checks" }: { onOpenStep?: (id: string) => void; initialTab?: CaseTab }): JSX.Element {
-  const { rc, editable, caseRecords: actions, sourceTermDrafts, siteReceptorDraft, weatherDraft, weatherDates, transportDrafts, resultDraft, setResultDraft } = useRcWorkbook();
+export function RcQuantificationPanel({ onOpenStep, initialTab }: { onOpenStep?: (id: string) => void; initialTab?: CaseTab }): JSX.Element {
+  const { rc, editable, caseRecords: actions, consequenceRuns, sourceTermDrafts, siteReceptorDraft, weatherDraft, weatherDates, transportDrafts, resultDraft, setResultDraft } = useRcWorkbook();
   const categories = rc.releaseCategoryToConsequence.releaseCategoryInputs, records = rc.consequenceQuantification.caseRecords;
   const snapshotCount = records?.snapshots.length ?? 0, resultCount = records?.results.length ?? 0;
-  const [categoryId, setCategoryId] = useState(categories[0]?.releaseCategory ?? ""), [tab, setTab] = useState<CaseTab>(initialTab), [checked, setChecked] = useState(false);
+  const [categoryId, setCategoryId] = useWorkbookView<string>("rc.case.category", categories[0]?.releaseCategory ?? "", TEXT_VIEW), [tab, setTab] = useWorkbookView<CaseTab>("rc.case.tab", initialTab ?? "checks", TAB_VIEW), [checked, setChecked] = useState(false);
+  useEffect(() => { if (initialTab !== undefined) setTab(initialTab); }, [initialTab, setTab]);
+  const runFeed = useRcConsequenceRuns(consequenceRuns);
   const categoryKey = categories.find(c => c.releaseCategory === categoryId)?.releaseCategory ?? categories[0]?.releaseCategory ?? "";
   const current = useMemo(() => currentRcCase(rc, categoryKey), [rc, categoryKey]), versions = caseVersions(current);
   const checks = useMemo(() => caseChecks(current), [current]), summaries = useMemo(() => caseSummaryRows(current), [current]);
@@ -109,12 +115,12 @@ export function RcQuantificationPanel({ onOpenStep, initialTab = "checks" }: { o
   const valueIssue = filled && !resultValid.success ? resultValid.error.issues.find(issue => issue.path[0] === "statistics")?.message : undefined;
   const canSaveResult = Boolean(snapshot && metric && statistics && resultValid.success && preview?.file === draft.file && !previewError);
   const previewLines = preview?.text.split(/\r\n|\n|\r/);
-  return <div className="poscard rc-case-input-card"><div className="poscard__head"><WorkbookSectionHeading title="Case inputs and results" level={3} /></div>
+  return <div className="poscard rc-case-input-card"><div className="poscard__head"><WorkbookSectionHeading title="Case inputs and results" level={3} /><RcRunJobs feed={runFeed} /></div>
     <section className="rc-quantification" aria-label="Case inputs and results">
       <label className="q-category">Release category<select className="posfield__select" aria-label="Case release category" value={categoryKey} disabled={busy || !categories.length} onChange={e => { setCategoryId(e.target.value); setInspectId(""); setChecked(false); }}>{!categories.length && <option value="">No release category yet</option>}{categories.map(c => <option key={c.releaseCategory}>{c.releaseCategory}</option>)}</select></label>
       <div className="q-tabs" role="tablist" aria-label="Case records" ref={tablist} onKeyDown={e => {
         if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(e.key)) return; e.preventDefault();
-        const index = e.key === "Home" ? 0 : e.key === "End" ? 2 : (tabs.indexOf(tab) + (e.key === "ArrowRight" ? 1 : 2)) % 3;
+        const index = e.key === "Home" ? 0 : e.key === "End" ? tabs.length - 1 : (tabs.indexOf(tab) + (e.key === "ArrowRight" ? 1 : tabs.length - 1)) % tabs.length;
         setTab(tabs[index]); tablist.current?.querySelectorAll<HTMLButtonElement>("button")[index].focus();
       }}>{tabs.map(t => <button key={t} type="button" role="tab" id={`${id}-${t}`} aria-selected={tab === t} aria-controls={`${id}-panel`} tabIndex={t === tab ? 0 : -1} onClick={() => setTab(t)}>{tabNames[t]}</button>)}</div>
       <div role="tabpanel" id={`${id}-panel`} aria-labelledby={`${id}-${tab}`} tabIndex={0}>
@@ -135,8 +141,9 @@ export function RcQuantificationPanel({ onOpenStep, initialTab = "checks" }: { o
           <div className="q-snapshot"><strong>{reviewCount} {reviewCount === 1 ? "item" : "items"} to review</strong>{inspected && `Saved by ${inspected.createdBy} · ${new Date(inspected.file.uploadedAt).toLocaleString()}`}</div>
           <div className="q-footer"><button className="posnav__btn posnav__btn--sm" type="button" onClick={() => { setTab("checks"); setChecked(true); }}>Review current checks</button>{inspected ? <button className="posnav__btn posnav__btn--sm" type="button" onClick={() => inspect("")}>Review current inputs</button> : editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" disabled={busy || !enabled || dirty} onClick={() => void work(async () => { const saved = await actions!.saveSnapshot(records?.revision ?? 0, selection); setSelectedSnapshot(saved.snapshotId); setTab("results"); setNotice("Input snapshot saved."); })}>{busy ? "Saving…" : "Save input snapshot"}</button>}</div>
         </>}
+        {tab === "runs" && <RcConsequenceRunsTab categoryId={categoryKey} feed={runFeed} />}
         {tab === "results" && <><div className="q-topline"><h3>{categoryKey ? `${categoryKey} results` : "Category results"}</h3><span className="q-note">{categoryResults.length} result {categoryResults.length === 1 ? "record" : "records"}</span></div>
-          {records && categoryResults.length ? categoryResults.map(r => { const s = records.snapshots.find(v => v.id === r.snapshotId)!, resultMetric = s.metrics?.find(m => m.id === r.metricId); return <article className="q-record" key={r.id}><strong>{r.categoryId} · {resultMetric?.name.trim() || r.metricId}</strong><p>{rcResultStatisticsText(r.statistics, r.unit)}</p><small>{s.label} · {r.reference}</small><details><summary>Output and linked inputs</summary><p className="q-note">{r.file.filename} · {r.version}</p><p className="q-note">{s.categoryId}: {s.inventoryCount} nuclides · {s.receptorCount} receptors · {s.trialCount} weather records · {s.reviewItems} review items retained</p><div className="q-actions"><button className="posnav__btn posnav__btn--sm" type="button" disabled={!actions} onClick={() => { setOutputId(outputId === r.id ? "" : r.id); setOutputOffset(0); }}>View original output</button><button className="posnav__btn posnav__btn--sm" type="button" onClick={() => inspect(s.id)}>View linked inputs</button>{editable && <button className="posnav__btn posnav__btn--sm" type="button" disabled={busy || !actions} onClick={() => void work(async () => { await actions!.removeResult(records.revision, r.id); if (outputId === r.id) setOutputId(""); setNotice("Result removed."); })}>Remove result</button>}</div></details>{outputId === r.id && <><RemoteStatus remote={output} />{output.data && <TextPage page={output.data} onChange={setOutputOffset} label="Original returned output" />}</>}</article>; }) : <p className="q-empty">No results recorded for this release category.</p>}
+          {records && categoryResults.length ? categoryResults.map(r => { const s = records.snapshots.find(v => v.id === r.snapshotId)!, resultMetric = s.metrics?.find(m => m.id === r.metricId); return <article className="q-record" key={r.id}><strong>{r.categoryId} · {resultMetric?.name.trim() || r.metricId}</strong><p>{rcResultStatisticsText(r.statistics, r.unit, r.calculation?.trialCount === 1)}</p><small>{s.label} · {r.calculation ? `OpenRC ${r.reference}, receptor at ${show(r.calculation.distanceMetres, true)} m, ${r.calculation.trialCount} weather ${r.calculation.trialCount === 1 ? "trial" : "trials"}` : r.reference}</small><details><summary>Output and linked inputs</summary><p className="q-note">{r.file.filename} · {r.version}</p><RcResultProfile result={r} /><p className="q-note">{s.categoryId}: {s.inventoryCount} nuclides · {s.receptorCount} receptors · {s.trialCount} weather records · {s.reviewItems} review items retained</p><div className="q-actions"><button className="posnav__btn posnav__btn--sm" type="button" disabled={!actions} onClick={() => { setOutputId(outputId === r.id ? "" : r.id); setOutputOffset(0); }}>View original output</button><button className="posnav__btn posnav__btn--sm" type="button" onClick={() => inspect(s.id)}>View linked inputs</button>{editable && <button className="posnav__btn posnav__btn--sm" type="button" disabled={busy || !actions} onClick={() => void work(async () => { await actions!.removeResult(records.revision, r.id); if (outputId === r.id) setOutputId(""); setNotice("Result removed."); })}>Remove result</button>}</div></details>{outputId === r.id && <><RemoteStatus remote={output} />{output.data && <TextPage page={output.data} onChange={setOutputOffset} label="Original returned output" />}</>}</article>; }) : <p className="q-empty">No results recorded for this release category.</p>}
           {!snapshotCount ? <button className="posnav__btn posnav__btn--sm" type="button" onClick={() => inspect("")}>Review prepared inputs</button> : editable ? <form className="q-result-form" onSubmit={e => { e.preventDefault(); if (!canSaveResult || !resultValid.success) return; void work(async () => { await actions!.saveResult(records!.revision, resultValid.data, draft.file!); setResultDraft(undefined); if (upload.current) upload.current.value = ""; setNotice("Result saved."); }); }}>
             <h3>Record a category result</h3><SnapshotChoice label="Calculation input snapshot" value={snapshotId} disabled={busy} onChange={next => { setSelectedSnapshot(next); updateDraft({ snapshotId: next, metricId: "", mean: "", percentiles: {}, exceedances: {}, confirmed: false }); }} />
             {snapshot && !snapshot.metrics ? <p className="q-note">This snapshot predates consequence metrics. Save a new input snapshot to record results.</p>
@@ -159,7 +166,7 @@ export function RcQuantificationPanel({ onOpenStep, initialTab = "checks" }: { o
           </form> : <div className="q-footer"><button className="posnav__btn posnav__btn--sm" type="button" onClick={() => inspect(records!.snapshots[0].id)}>Inspect saved inputs</button></div>}
         </>}
       </div>
-      {dirty && tab !== "results" && <p className="q-note" role="status">Steps 01 to 05 contain unsaved edits. Save or discard them in their sections before saving a snapshot.</p>}
+      {dirty && tab !== "results" && tab !== "runs" && <p className="q-note" role="status">Steps 01 to 05 contain unsaved edits. Save or discard them in their sections before saving a snapshot.</p>}
       {error && <p className="q-error" role="alert">{error}</p>}{notice && <p className="q-note" role="status">{notice}</p>}
     </section>
   </div>;

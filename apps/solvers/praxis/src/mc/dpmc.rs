@@ -4,11 +4,14 @@ use crate::mc::bernoulli::threshold_from_probability;
 use crate::mc::core::{ConvergenceSettings, MonteCarloResult, VrtMode, VrtSettings};
 use crate::mc::counter::blueprint_counter_with_increment;
 use crate::mc::gpu_soa::GpuSoaPlan;
-use crate::mc::importance_sampling::bernoulli_log_likelihood_ratio;
+use crate::mc::importance_sampling::{
+    bernoulli_log_likelihood_ratio, effective_bias_factor, proposal_probability, LogWeightTally,
+};
 use crate::mc::memory::HostMemoryTracker;
 use crate::mc::packed_gate::eval_gate_word;
 use crate::mc::philox::{philox4x32_10, Philox4x32Key};
 use crate::mc::plan::{choose_run_params_for_num_trials, DpMcPlan, RunParams};
+use crate::mc::stratified::{draw_seed, StratifiedDesign, StratifiedEstimate};
 use crate::mc::tally::{
     effective_bits_per_iteration, popcount_tallies_from_node_words_u64, NodeTallies,
 };
@@ -408,17 +411,14 @@ impl<'a> DpMonteCarloAnalysis<'a> {
 
         let chosen0 = choose_run_params_for_num_trials(total_trials_requested, self.seed)?;
         let built0 = self.build_dpmc(chosen0.params)?;
-        let strat_ords = Self::pick_event_ords_by_rarity(&built0.event_probabilities, k);
-        let num_strata = 1usize << strat_ords.len();
-
-        let base = total_trials_requested / num_strata;
-        let rem = total_trials_requested % num_strata;
+        let design = StratifiedDesign::new(&built0.event_probabilities, k, total_trials_requested)?;
+        let num_strata = design.strata();
 
         let progress = if watch {
-            let pb = ProgressBar::new(num_strata as u64);
+            let pb = ProgressBar::new(2 * num_strata as u64);
             pb.set_style(
                 ProgressStyle::with_template(
-                    "mc [VRT=strat] [{bar:40.cyan/blue}] {pos}/{len} strata {msg}",
+                    "mc [VRT=strat] [{bar:40.cyan/blue}] {pos}/{len} draws {msg}",
                 )
                 .unwrap()
                 .progress_chars("##-"),
@@ -433,44 +433,19 @@ impl<'a> DpMonteCarloAnalysis<'a> {
         let mut vram_tracker = CudaVramTracker::new_current_process();
         let _ = vram_tracker.sample();
 
-        let mut total_successes: u64 = 0;
-        let mut total_trials_done: usize = 0;
-        let mut p_hat: f64 = 0.0;
-        let mut var_total: f64 = 0.0;
-
-        for s in 0..num_strata {
-            let n_s = base + if s < rem { 1 } else { 0 };
-            if n_s == 0 {
-                continue;
-            }
-
-            let mut pi_s = 1.0f64;
-            for (j, &ord) in strat_ords.iter().enumerate() {
-                let p = built0.event_probabilities[ord].clamp(0.0, 1.0);
-                let x = ((s >> j) & 1usize) == 1usize;
-                pi_s *= if x { p } else { 1.0 - p };
-            }
-
-            let seed_s = self
-                .seed
-                .wrapping_add(0x9e37_79b9_7f4a_7c15u64.wrapping_mul((s as u64).wrapping_add(1)));
-            let chosen = choose_run_params_for_num_trials(n_s, seed_s)?;
+        let run_stratum = |stratum: usize, draw: usize, trials: usize| -> Result<u64> {
+            let seed = draw_seed(self.seed, draw);
+            let chosen = choose_run_params_for_num_trials(trials, seed)?;
             let built = self.build_dpmc(chosen.params)?;
 
             let mut thresholds = built.thresholds.clone();
             let mut full_ranges = built.full_ranges.clone();
-            for (j, &ord) in strat_ords.iter().enumerate() {
-                let x = ((s >> j) & 1usize) == 1usize;
-                if x {
-                    thresholds[ord] = 0u32;
-                    full_ranges[ord] = 1u32;
-                } else {
-                    thresholds[ord] = 0u32;
-                    full_ranges[ord] = 0u32;
-                }
+            for (position, &ord) in design.events().iter().enumerate() {
+                thresholds[ord] = 0u32;
+                full_ranges[ord] = u32::from(design.event_fails(stratum, position));
             }
 
-            let seed_key = [seed_s as u32, (seed_s >> 32) as u32];
+            let seed_key = [seed as u32, (seed >> 32) as u32];
             let tallies = execute_layers_bitpacked_gpu_tallies_many_iters::<R>(
                 &client,
                 &built.pdag,
@@ -487,26 +462,48 @@ impl<'a> DpMonteCarloAnalysis<'a> {
 
             let root_node = built.plan.root;
             let root = root_node.unsigned_abs() as usize;
-            let mut successes_u64 = *tallies.get(root).ok_or_else(|| {
+            let successes = *tallies.get(root).ok_or_else(|| {
                 crate::error::PraxisError::Logic("Root tally index out of bounds".to_string())
             })?;
 
-            if root_node < 0 {
-                successes_u64 = (n_s as u64).saturating_sub(successes_u64);
+            Ok(if root_node < 0 {
+                (trials as u64).saturating_sub(successes)
+            } else {
+                successes
+            })
+        };
+
+        let mut total_successes: u64 = 0;
+        let mut total_trials_done: usize = 0;
+
+        let mut pilot_successes = vec![0u64; num_strata];
+        for stratum in 0..num_strata {
+            let trials = design.pilot_trials(stratum);
+            if trials > 0 {
+                pilot_successes[stratum] = run_stratum(stratum, stratum, trials)?;
+                total_successes = total_successes.saturating_add(pilot_successes[stratum]);
+                total_trials_done = total_trials_done.saturating_add(trials);
+            }
+            if let Some(pb) = progress.as_ref() {
+                pb.inc(1);
+            }
+        }
+
+        let mut estimate = StratifiedEstimate::default();
+        let z = crate::mc::stats::normal_quantile_two_sided(0.95).unwrap_or(1.96);
+
+        for (stratum, &trials) in design.allocate(&pilot_successes).iter().enumerate() {
+            if trials > 0 {
+                let successes = run_stratum(stratum, num_strata + stratum, trials)?;
+                total_successes = total_successes.saturating_add(successes);
+                total_trials_done = total_trials_done.saturating_add(trials);
+                estimate.add(design.weight(stratum), successes, trials);
             }
 
-            total_successes = total_successes.saturating_add(successes_u64);
-            total_trials_done = total_trials_done.saturating_add(n_s);
-
-            let p_s = (successes_u64 as f64) / (n_s as f64);
-            p_hat += pi_s * p_s;
-            var_total += (pi_s * pi_s) * (p_s * (1.0 - p_s)) / (n_s as f64);
-
             if let Some(pb) = progress.as_ref() {
-                let se = var_total.max(0.0).sqrt();
-                let z = crate::mc::stats::normal_quantile_two_sided(0.95).unwrap_or(1.96);
-                let ci_low = (p_hat - z * se).clamp(0.0, 1.0);
-                let ci_high = (p_hat + z * se).clamp(0.0, 1.0);
+                let se = estimate.variance.sqrt();
+                let ci_low = (estimate.probability - z * se).clamp(0.0, 1.0);
+                let ci_high = (estimate.probability + z * se).clamp(0.0, 1.0);
 
                 let vram = vram_tracker.sample();
                 let vram_msg = vram
@@ -515,7 +512,12 @@ impl<'a> DpMonteCarloAnalysis<'a> {
 
                 pb.set_message(format!(
                     "trials {}/{}  p̂={:.6e}  CI95=[{:.3e},{:.3e}]{}",
-                    total_trials_done, total_trials_requested, p_hat, ci_low, ci_high, vram_msg
+                    total_trials_done,
+                    total_trials_requested,
+                    estimate.probability,
+                    ci_low,
+                    ci_high,
+                    vram_msg
                 ));
                 pb.inc(1);
             }
@@ -525,14 +527,8 @@ impl<'a> DpMonteCarloAnalysis<'a> {
             pb.finish_and_clear();
         }
 
-        if total_trials_done == 0 {
-            return Err(crate::error::PraxisError::Logic(
-                "Stratified sampling produced zero total trials".to_string(),
-            ));
-        }
-
-        let z = crate::mc::stats::normal_quantile_two_sided(0.95).unwrap_or(1.96);
-        let se = var_total.max(0.0).sqrt();
+        let p_hat = estimate.probability;
+        let se = estimate.variance.sqrt();
         let ci_lower = (p_hat - z * se).clamp(0.0, 1.0);
         let ci_upper = (p_hat + z * se).clamp(0.0, 1.0);
 
@@ -577,6 +573,11 @@ impl<'a> DpMonteCarloAnalysis<'a> {
 
         let max_events = vrt.is_max_events.min(built.soa.event_nodes.len()).max(0);
         let selected_ords = Self::pick_event_ords_by_rarity(&built.event_probabilities, max_events);
+        let selected_probabilities: Vec<f64> = selected_ords
+            .iter()
+            .map(|&ord| built.event_probabilities[ord])
+            .collect();
+        let bias_factor = effective_bias_factor(&selected_probabilities, vrt.is_bias_factor);
 
         let mut proposal_thresholds = built.thresholds.clone();
         let mut proposal_full_ranges = built.full_ranges.clone();
@@ -587,7 +588,7 @@ impl<'a> DpMonteCarloAnalysis<'a> {
 
         for &ord in &selected_ords {
             let p = built.event_probabilities[ord];
-            let q = (p * vrt.is_bias_factor).clamp(vrt.is_q_min, 1.0 - vrt.is_q_min);
+            let q = proposal_probability(p, bias_factor, vrt.is_q_min);
             let th = threshold_from_probability(q);
             proposal_thresholds[ord] = th.t;
             proposal_full_ranges[ord] = if th.full_range { 1u32 } else { 0u32 };
@@ -603,76 +604,6 @@ impl<'a> DpMonteCarloAnalysis<'a> {
         let mut selected_nodes: Vec<u32> = Vec::with_capacity(1 + selected_event_nodes.len());
         selected_nodes.push(root_abs);
         selected_nodes.extend_from_slice(&selected_event_nodes);
-
-        struct IsAccum {
-            n: usize,
-            raw_successes: usize,
-            logw_max: f64,
-            sum_w_scaled: f64,
-            sum_wy_scaled: f64,
-            sum_w2_scaled: f64,
-        }
-
-        impl IsAccum {
-            fn new() -> Self {
-                Self {
-                    n: 0,
-                    raw_successes: 0,
-                    logw_max: f64::NEG_INFINITY,
-                    sum_w_scaled: 0.0,
-                    sum_wy_scaled: 0.0,
-                    sum_w2_scaled: 0.0,
-                }
-            }
-
-            fn add(&mut self, logw: f64, y: bool) {
-                if self.n == 0 {
-                    self.n = 1;
-                    self.raw_successes = if y { 1 } else { 0 };
-                    self.logw_max = logw;
-                    self.sum_w_scaled = 1.0;
-                    self.sum_wy_scaled = if y { 1.0 } else { 0.0 };
-                    self.sum_w2_scaled = 1.0;
-                    return;
-                }
-
-                if logw > self.logw_max {
-                    let scale = (self.logw_max - logw).exp();
-                    self.sum_w_scaled *= scale;
-                    self.sum_wy_scaled *= scale;
-                    self.sum_w2_scaled *= (2.0 * (self.logw_max - logw)).exp();
-                    self.logw_max = logw;
-                }
-
-                let w_scaled = (logw - self.logw_max).exp();
-                self.sum_w_scaled += w_scaled;
-                if y {
-                    self.sum_wy_scaled += w_scaled;
-                }
-                self.sum_w2_scaled += w_scaled * w_scaled;
-
-                self.n += 1;
-                if y {
-                    self.raw_successes += 1;
-                }
-            }
-
-            fn estimate(&self) -> Option<f64> {
-                if self.sum_w_scaled > 0.0 {
-                    Some(self.sum_wy_scaled / self.sum_w_scaled)
-                } else {
-                    None
-                }
-            }
-
-            fn ess(&self) -> Option<f64> {
-                if self.sum_w_scaled > 0.0 && self.sum_w2_scaled > 0.0 {
-                    Some((self.sum_w_scaled * self.sum_w_scaled) / self.sum_w2_scaled)
-                } else {
-                    None
-                }
-            }
-        }
 
         let client = R::client(device);
         let mut vram_tracker = CudaVramTracker::new_current_process();
@@ -696,13 +627,12 @@ impl<'a> DpMonteCarloAnalysis<'a> {
 
         let t0 = watch.then(Instant::now);
         let mut samples_done: usize = 0;
-        let mut accum = IsAccum::new();
+        let mut accum = LogWeightTally::new();
 
         let is_err: std::cell::RefCell<Option<crate::error::PraxisError>> =
             std::cell::RefCell::new(None);
 
         let num_selected = selected_nodes.len();
-        let bp_count = (built.plan.params.b as usize) * (built.plan.params.p as usize);
 
         execute_layers_bitpacked_gpu_selected_nodes_process_many_iters::<R, _>(
             &client,
@@ -716,7 +646,7 @@ impl<'a> DpMonteCarloAnalysis<'a> {
             built.key,
             &selected_nodes,
             |words, t_counter| {
-                for bp in 0..bp_count {
+                for bp in 0..words.len() / num_selected {
                     let base = bp * num_selected;
                     let root_word = words[base];
 
@@ -752,13 +682,9 @@ impl<'a> DpMonteCarloAnalysis<'a> {
 
                 if let Some(pb) = progress.as_ref() {
                     let p_hat = accum.estimate().unwrap_or(0.0);
-                    let ess = accum.ess().unwrap_or(0.0);
+                    let ess = accum.effective_sample_size().unwrap_or(0.0);
                     let z = crate::mc::stats::normal_quantile_two_sided(0.95).unwrap_or(1.96);
-                    let se = if ess > 0.0 {
-                        (p_hat * (1.0 - p_hat) / ess).max(0.0).sqrt()
-                    } else {
-                        f64::NAN
-                    };
+                    let se = accum.variance().unwrap_or(f64::NAN).sqrt();
                     let ci_low = (p_hat - z * se).clamp(0.0, 1.0);
                     let ci_high = (p_hat + z * se).clamp(0.0, 1.0);
 
@@ -799,20 +725,15 @@ impl<'a> DpMonteCarloAnalysis<'a> {
             pb.finish_and_clear();
         }
 
-        if accum.n == 0 {
+        if accum.trials() == 0 {
             return Err(crate::error::PraxisError::Logic(
                 "Importance sampling produced zero samples".to_string(),
             ));
         }
 
         let p_hat = accum.estimate().unwrap_or(0.0).clamp(0.0, 1.0);
-        let ess = accum.ess().unwrap_or(0.0);
         let z = crate::mc::stats::normal_quantile_two_sided(0.95).unwrap_or(1.96);
-        let se = if ess > 0.0 {
-            (p_hat * (1.0 - p_hat) / ess).max(0.0).sqrt()
-        } else {
-            f64::NAN
-        };
+        let se = accum.variance().unwrap_or(f64::NAN).sqrt();
         let ci_lower = (p_hat - z * se).clamp(0.0, 1.0);
         let ci_upper = (p_hat + z * se).clamp(0.0, 1.0);
 
@@ -822,7 +743,7 @@ impl<'a> DpMonteCarloAnalysis<'a> {
             std_dev: (p_hat * (1.0 - p_hat)).max(0.0).sqrt(),
             confidence_interval_lower: ci_lower,
             confidence_interval_upper: ci_upper,
-            successes: accum.raw_successes,
+            successes: accum.hits(),
             peak_rss_mib: None,
             peak_vram_mib: vram_tracker.peak_used_mib(),
         })
@@ -1229,6 +1150,11 @@ impl<'a> DpMonteCarloAnalysis<'a> {
 
         let max_events = vrt.is_max_events.min(built.soa.event_nodes.len());
         let selected = Self::pick_event_ords_by_rarity(&built.event_probabilities, max_events);
+        let selected_probabilities: Vec<f64> = selected
+            .iter()
+            .map(|&ord| built.event_probabilities[ord])
+            .collect();
+        let bias_factor = effective_bias_factor(&selected_probabilities, vrt.is_bias_factor);
 
         let mut proposal_thresholds = built.thresholds.clone();
         let mut proposal_full_ranges = built.full_ranges.clone();
@@ -1242,83 +1168,13 @@ impl<'a> DpMonteCarloAnalysis<'a> {
         let mut selected_events: Vec<SelectedEvent> = Vec::with_capacity(selected.len());
         for &ord in &selected {
             let p = built.event_probabilities[ord];
-            let q = (p * vrt.is_bias_factor).clamp(vrt.is_q_min, 1.0 - vrt.is_q_min);
+            let q = proposal_probability(p, bias_factor, vrt.is_q_min);
             let th = threshold_from_probability(q);
             proposal_thresholds[ord] = th.t;
             proposal_full_ranges[ord] = if th.full_range { 1u32 } else { 0u32 };
 
             let node = built.soa.event_nodes[ord].unsigned_abs() as usize;
             selected_events.push(SelectedEvent { node, p, q });
-        }
-
-        struct IsAccum {
-            n: usize,
-            raw_successes: usize,
-            logw_max: f64,
-            sum_w_scaled: f64,
-            sum_wy_scaled: f64,
-            sum_w2_scaled: f64,
-        }
-
-        impl IsAccum {
-            fn new() -> Self {
-                Self {
-                    n: 0,
-                    raw_successes: 0,
-                    logw_max: f64::NEG_INFINITY,
-                    sum_w_scaled: 0.0,
-                    sum_wy_scaled: 0.0,
-                    sum_w2_scaled: 0.0,
-                }
-            }
-
-            fn add(&mut self, logw: f64, y: bool) {
-                if self.n == 0 {
-                    self.n = 1;
-                    self.raw_successes = if y { 1 } else { 0 };
-                    self.logw_max = logw;
-                    self.sum_w_scaled = 1.0;
-                    self.sum_wy_scaled = if y { 1.0 } else { 0.0 };
-                    self.sum_w2_scaled = 1.0;
-                    return;
-                }
-
-                if logw > self.logw_max {
-                    let scale = (self.logw_max - logw).exp();
-                    self.sum_w_scaled *= scale;
-                    self.sum_wy_scaled *= scale;
-                    self.sum_w2_scaled *= (2.0 * (self.logw_max - logw)).exp();
-                    self.logw_max = logw;
-                }
-
-                let w_scaled = (logw - self.logw_max).exp();
-                self.sum_w_scaled += w_scaled;
-                if y {
-                    self.sum_wy_scaled += w_scaled;
-                }
-                self.sum_w2_scaled += w_scaled * w_scaled;
-
-                self.n += 1;
-                if y {
-                    self.raw_successes += 1;
-                }
-            }
-
-            fn estimate(&self) -> Option<f64> {
-                if self.sum_w_scaled > 0.0 {
-                    Some(self.sum_wy_scaled / self.sum_w_scaled)
-                } else {
-                    None
-                }
-            }
-
-            fn ess(&self) -> Option<f64> {
-                if self.sum_w_scaled > 0.0 && self.sum_w2_scaled > 0.0 {
-                    Some((self.sum_w_scaled * self.sum_w_scaled) / self.sum_w2_scaled)
-                } else {
-                    None
-                }
-            }
         }
 
         let num_nodes = built.soa.layout.num_nodes as usize;
@@ -1344,7 +1200,7 @@ impl<'a> DpMonteCarloAnalysis<'a> {
         let t0 = watch.then(Instant::now);
         let mut host_mem = HostMemoryTracker::new_current_process();
 
-        let mut accum = IsAccum::new();
+        let mut accum = LogWeightTally::new();
         let mut samples_done: usize = 0;
 
         'outer: for iter in 0..built.plan.params.t {
@@ -1456,13 +1312,9 @@ impl<'a> DpMonteCarloAnalysis<'a> {
                 };
 
                 let p_hat = accum.estimate().unwrap_or(0.0);
-                let ess = accum.ess().unwrap_or(0.0);
+                let ess = accum.effective_sample_size().unwrap_or(0.0);
                 let z = crate::mc::stats::normal_quantile_two_sided(0.95).unwrap_or(1.96);
-                let se = if ess > 0.0 {
-                    (p_hat * (1.0 - p_hat) / ess).max(0.0).sqrt()
-                } else {
-                    f64::NAN
-                };
+                let se = accum.variance().unwrap_or(f64::NAN).sqrt();
 
                 let thr = t0
                     .as_ref()
@@ -1487,21 +1339,16 @@ impl<'a> DpMonteCarloAnalysis<'a> {
             pb.finish_and_clear();
         }
 
-        if accum.n == 0 {
+        if accum.trials() == 0 {
             return Err(crate::error::PraxisError::Logic(
                 "Importance sampling produced zero samples".to_string(),
             ));
         }
 
         let p_hat = accum.estimate().unwrap_or(0.0).clamp(0.0, 1.0);
-        let ess = accum.ess().unwrap_or(0.0);
 
         let z = crate::mc::stats::normal_quantile_two_sided(0.95).unwrap_or(1.96);
-        let se = if ess > 0.0 {
-            (p_hat * (1.0 - p_hat) / ess).max(0.0).sqrt()
-        } else {
-            f64::NAN
-        };
+        let se = accum.variance().unwrap_or(f64::NAN).sqrt();
         let ci_lower = (p_hat - z * se).clamp(0.0, 1.0);
         let ci_upper = (p_hat + z * se).clamp(0.0, 1.0);
 
@@ -1511,7 +1358,7 @@ impl<'a> DpMonteCarloAnalysis<'a> {
             std_dev: (p_hat * (1.0 - p_hat)).max(0.0).sqrt(),
             confidence_interval_lower: ci_lower,
             confidence_interval_upper: ci_upper,
-            successes: accum.raw_successes,
+            successes: accum.hits(),
             peak_rss_mib: host_mem.peak_rss_mib(),
             peak_vram_mib: None,
         })
@@ -1535,7 +1382,7 @@ impl<'a> DpMonteCarloAnalysis<'a> {
 
         let num_nodes = built.soa.layout.num_nodes as usize;
         let b_count = built.plan.params.b as u32;
-        let p_count = built.plan.params.p as u32;
+        let p_count = (built.plan.params.p as u32).min(total_trials_requested.div_ceil(64) as u32);
         let root_node = built.plan.root;
         let root = root_node.unsigned_abs() as usize;
 
@@ -1577,8 +1424,8 @@ impl<'a> DpMonteCarloAnalysis<'a> {
 
                     for b in 0..b_count {
                         for p in 0..p_count {
-                            let idx = built.soa.layout.index(b, p, node as u32);
-                            node_words[idx] = if value { !0u64 } else { 0u64 };
+                            let base = ((b * p_count + p) as usize) * num_nodes;
+                            node_words[base + node as usize] = if value { !0u64 } else { 0u64 };
                         }
                     }
                 }
@@ -1654,19 +1501,34 @@ impl<'a> DpMonteCarloAnalysis<'a> {
         }
 
         let built = self.build_dpmc(params)?;
-        let strat_ords = Self::pick_event_ords_by_rarity(&built.event_probabilities, k);
-        let num_strata = 1usize << strat_ords.len();
+        let design = StratifiedDesign::new(&built.event_probabilities, k, total_trials_requested)?;
+        let num_strata = design.strata();
 
-        let base = total_trials_requested / num_strata;
-        let rem = total_trials_requested % num_strata;
+        let run_stratum = |stratum: usize, draw: usize, trials: usize| -> Result<u64> {
+            let mut thresholds = built.thresholds.clone();
+            let mut full_ranges = built.full_ranges.clone();
+            for (position, &ord) in design.events().iter().enumerate() {
+                thresholds[ord] = 0u32;
+                full_ranges[ord] = u32::from(design.event_fails(stratum, position));
+            }
+            let seed = draw_seed(params.seed, draw);
+            let key = [seed as u32, (seed >> 32) as u32];
+            self.run_cpu_root_successes_with_thresholds(
+                &built,
+                key,
+                &thresholds,
+                &full_ranges,
+                trials,
+            )
+        };
 
         let mut host_mem = HostMemoryTracker::new_current_process();
 
         let progress = if watch {
-            let pb = ProgressBar::new(num_strata as u64);
+            let pb = ProgressBar::new(2 * num_strata as u64);
             pb.set_style(
                 ProgressStyle::with_template(
-                    "mc [VRT=strat] [{bar:40.cyan/blue}] {pos}/{len} strata {msg}",
+                    "mc [VRT=strat] [{bar:40.cyan/blue}] {pos}/{len} draws {msg}",
                 )
                 .unwrap()
                 .progress_chars("##-"),
@@ -1679,67 +1541,47 @@ impl<'a> DpMonteCarloAnalysis<'a> {
 
         let mut total_successes: u64 = 0;
         let mut total_trials_done: usize = 0;
-        let mut p_hat: f64 = 0.0;
-        let mut var_total: f64 = 0.0;
 
-        for s in 0..num_strata {
-            let n_s = base + if s < rem { 1 } else { 0 };
-            if n_s == 0 {
-                continue;
+        let mut pilot_successes = vec![0u64; num_strata];
+        for stratum in 0..num_strata {
+            let trials = design.pilot_trials(stratum);
+            if trials > 0 {
+                pilot_successes[stratum] = run_stratum(stratum, stratum, trials)?;
+                total_successes = total_successes.saturating_add(pilot_successes[stratum]);
+                total_trials_done = total_trials_done.saturating_add(trials);
             }
-
-            let mut pi_s = 1.0f64;
-            for (j, &ord) in strat_ords.iter().enumerate() {
-                let p = built.event_probabilities[ord].clamp(0.0, 1.0);
-                let x = ((s >> j) & 1usize) == 1usize;
-                pi_s *= if x { p } else { 1.0 - p };
+            if let Some(pb) = progress.as_ref() {
+                pb.inc(1);
             }
+        }
 
-            let mut thresholds = built.thresholds.clone();
-            let mut full_ranges = built.full_ranges.clone();
-            for (j, &ord) in strat_ords.iter().enumerate() {
-                let x = ((s >> j) & 1usize) == 1usize;
-                if x {
-                    thresholds[ord] = 0u32;
-                    full_ranges[ord] = 1u32;
-                } else {
-                    thresholds[ord] = 0u32;
-                    full_ranges[ord] = 0u32;
-                }
+        let mut estimate = StratifiedEstimate::default();
+        let z = crate::mc::stats::normal_quantile_two_sided(0.95).unwrap_or(1.96);
+
+        for (stratum, &trials) in design.allocate(&pilot_successes).iter().enumerate() {
+            if trials > 0 {
+                let successes = run_stratum(stratum, num_strata + stratum, trials)?;
+                total_successes = total_successes.saturating_add(successes);
+                total_trials_done = total_trials_done.saturating_add(trials);
+                estimate.add(design.weight(stratum), successes, trials);
             }
-
-            let seed_s = params
-                .seed
-                .wrapping_add(0x9e37_79b9_7f4a_7c15u64.wrapping_mul((s as u64).wrapping_add(1)));
-            let key_s = [seed_s as u32, (seed_s >> 32) as u32];
-
-            let successes_s = self.run_cpu_root_successes_with_thresholds(
-                &built,
-                key_s,
-                &thresholds,
-                &full_ranges,
-                n_s,
-            )?;
-
-            total_successes = total_successes.saturating_add(successes_s);
-            total_trials_done = total_trials_done.saturating_add(n_s);
-
-            let p_s = (successes_s as f64) / (n_s as f64);
-            p_hat += pi_s * p_s;
-            var_total += (pi_s * pi_s) * (p_s * (1.0 - p_s)) / (n_s as f64);
 
             if let Some(pb) = progress.as_ref() {
                 let mem_sample = host_mem.sample();
-                let se = var_total.max(0.0).sqrt();
-                let z = crate::mc::stats::normal_quantile_two_sided(0.95).unwrap_or(1.96);
-                let ci_low = (p_hat - z * se).clamp(0.0, 1.0);
-                let ci_high = (p_hat + z * se).clamp(0.0, 1.0);
+                let se = estimate.variance.sqrt();
+                let ci_low = (estimate.probability - z * se).clamp(0.0, 1.0);
+                let ci_high = (estimate.probability + z * se).clamp(0.0, 1.0);
                 let mem_msg = mem_sample
                     .map(|m| format!("  rss={:.0}MiB/{:.1}%", m.rss_mib(), m.percent_used()))
                     .unwrap_or_default();
                 pb.set_message(format!(
                     "trials {}/{}  p̂={:.6e}  CI95=[{:.3e},{:.3e}]{}",
-                    total_trials_done, total_trials_requested, p_hat, ci_low, ci_high, mem_msg
+                    total_trials_done,
+                    total_trials_requested,
+                    estimate.probability,
+                    ci_low,
+                    ci_high,
+                    mem_msg
                 ));
                 pb.inc(1);
             }
@@ -1749,14 +1591,8 @@ impl<'a> DpMonteCarloAnalysis<'a> {
             pb.finish_and_clear();
         }
 
-        if total_trials_done == 0 {
-            return Err(crate::error::PraxisError::Logic(
-                "Stratified sampling produced zero total trials".to_string(),
-            ));
-        }
-
-        let z = crate::mc::stats::normal_quantile_two_sided(0.95).unwrap_or(1.96);
-        let se = var_total.max(0.0).sqrt();
+        let p_hat = estimate.probability;
+        let se = estimate.variance.sqrt();
         let ci_lower = (p_hat - z * se).clamp(0.0, 1.0);
         let ci_upper = (p_hat + z * se).clamp(0.0, 1.0);
 

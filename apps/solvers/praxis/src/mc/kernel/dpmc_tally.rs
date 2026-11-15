@@ -68,15 +68,16 @@ pub fn tally_popcount_per_node_reduced_kernel(
     smem[tid as usize] = local;
     sync_cube();
 
-    if tid < 128u32 {
+    // Workgroup memory is not zeroed, so slots past the cube hold stale values.
+    if tid < 128u32 && CUBE_DIM > 128u32 {
         smem[tid as usize] = smem[tid as usize] + smem[(tid + 128u32) as usize];
     }
     sync_cube();
-    if tid < 64u32 {
+    if tid < 64u32 && CUBE_DIM > 64u32 {
         smem[tid as usize] = smem[tid as usize] + smem[(tid + 64u32) as usize];
     }
     sync_cube();
-    if tid < 32u32 {
+    if tid < 32u32 && CUBE_DIM > 32u32 {
         smem[tid as usize] = smem[tid as usize] + smem[(tid + 32u32) as usize];
     }
     sync_cube();

@@ -160,6 +160,7 @@ pub fn sample_events_bitpacked_to_nodes_kernel(
     num_nodes: u32,
     b_count: u32,
     p_count: u32,
+    p_start: u32,
     t: u32,
     key0: u32,
     key1: u32,
@@ -188,7 +189,7 @@ pub fn sample_events_bitpacked_to_nodes_kernel(
     } else {
         let c0_base = event + 1u32;
         let c1_base = b + 1u32;
-        let c2_base = p + 1u32;
+        let c2_base = p_start + p + 1u32;
         let c3_base = (t + 1u32) << 6u32;
 
         for block in 0u32..16u32 {

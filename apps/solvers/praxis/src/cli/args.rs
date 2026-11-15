@@ -184,8 +184,8 @@ pub struct Args {
     #[arg(long = "is-bias-factor", default_value = "10.0")]
     pub is_bias_factor: f64,
 
-    #[arg(long = "is-max-events", default_value = "32")]
-    pub is_max_events: u32,
+    #[arg(long = "is-max-events")]
+    pub is_max_events: Option<u32>,
 
     #[arg(long = "is-q-min", default_value = "1e-12")]
     pub is_q_min: f64,

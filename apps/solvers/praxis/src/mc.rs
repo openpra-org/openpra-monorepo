@@ -15,6 +15,7 @@ pub mod prng;
 pub mod rng_harness;
 pub mod scheduler;
 pub mod stats;
+pub mod stratified;
 pub mod tally;
 
 pub mod dpmc;

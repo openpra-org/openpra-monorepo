@@ -967,19 +967,22 @@ pub fn run_post_event_tree(
             burn_in: cli.burn_in,
         };
 
+        let is_max_events = cli
+            .is_max_events
+            .map_or(usize::MAX, |events| events as usize);
         let vrt = match cli.vrt {
             CliVrt::None => VrtSettings::none(),
             CliVrt::Importance => VrtSettings {
                 mode: VrtMode::ImportanceSampling,
                 is_bias_factor: cli.is_bias_factor,
-                is_max_events: cli.is_max_events as usize,
+                is_max_events,
                 is_q_min: cli.is_q_min,
                 stratify_events: cli.stratify_events as usize,
             },
             CliVrt::Stratified => VrtSettings {
                 mode: VrtMode::StratifiedSampling,
                 is_bias_factor: cli.is_bias_factor,
-                is_max_events: cli.is_max_events as usize,
+                is_max_events,
                 is_q_min: cli.is_q_min,
                 stratify_events: cli.stratify_events as usize,
             },

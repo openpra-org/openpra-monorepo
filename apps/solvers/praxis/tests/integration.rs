@@ -73,6 +73,8 @@ mod event_tree_parser_integration;
 mod event_tree_dpmc_scaffolding;
 #[path = "integration/mc/unary_gate_mc.rs"]
 mod unary_gate_mc;
+#[path = "integration/mc/variance_reduction.rs"]
+mod variance_reduction;
 
 #[path = "integration/workflow/full_pra_workflow.rs"]
 mod full_pra_workflow;

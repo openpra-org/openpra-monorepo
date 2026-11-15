@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
@@ -269,6 +271,15 @@ describe("FaultTreeEditor", () => {
     expect(within(basicEvent).getByText("2.0e-2")).toBeInTheDocument();
     expect(within(basicEvent).queryByText("Repair credited")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /(?:Show|Hide) names/ })).not.toBeInTheDocument();
+  });
+
+  it("gives the top-gate result its full width and lets a long gate code shrink instead", () => {
+    const stylesheet = readFileSync(resolve(__dirname, "../css/faultTree.css"), "utf8");
+    const centeredMeta = /\.ftbox__be-meta--centered\s*\{([^}]*)\}/.exec(stylesheet)?.[1] ?? "";
+    const columns = /grid-template-columns:\s*([^;]+);/.exec(centeredMeta)?.[1]?.trim().split(/\s+(?![^(]*\))/) ?? [];
+    expect(columns).toHaveLength(3);
+    expect(columns[1]).toMatch(/^minmax\(0,\s*/);
+    expect(columns[2]).toMatch(/^minmax\(max-content,\s*/);
   });
 
   it("keeps navigation controls on the canvas and authoring actions on node context menus", () => {

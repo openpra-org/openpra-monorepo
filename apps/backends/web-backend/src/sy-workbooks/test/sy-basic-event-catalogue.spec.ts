@@ -391,6 +391,18 @@ describe("canonical SY workbook fault-tree storage", () => {
     ).toBe(true);
   });
 
+  it("keeps the nodes of a canonical tree whose null top gate was stripped", () => {
+    const model = SY_ANALYSIS.systemLogicModels.find(({ gates }) => gates.length > 1);
+    if (model === undefined) throw new Error("Expected the SY seed to contain a multi-gate tree");
+    const { topGate: _topGate, ...withoutTopGate } = structuredClone(model);
+    expect(SystemLogicModelSchema.parse(withoutTopGate)).toEqual({ ...model, topGate: null });
+
+    const workbook = structuredClone(SY_ANALYSIS) as unknown as { systemLogicModels: Array<Record<string, unknown>> };
+    const index = SY_ANALYSIS.systemLogicModels.indexOf(model);
+    delete workbook.systemLogicModels[index]!.topGate;
+    expect(SystemsAnalysisSchema.parse(workbook).systemLogicModels[index]).toEqual({ ...model, topGate: null });
+  });
+
   it("projects the sole SY catalogue into the reusable FT basic-event contract without persisting defaults", () => {
     const source: SystemBasicEvent = {
       uuid: "BE-1",

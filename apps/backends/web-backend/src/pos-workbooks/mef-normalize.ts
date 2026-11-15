@@ -21,7 +21,8 @@ function stripNulls(
     const out: Record<string, unknown> = {};
     const law = holdsLaw(value);
     for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
-      if (law && v === null) {
+      // Fault-tree schemas require topGate and store null for a tree without one.
+      if ((law || k === "topGate") && v === null) {
         out[k] = null;
         continue;
       }

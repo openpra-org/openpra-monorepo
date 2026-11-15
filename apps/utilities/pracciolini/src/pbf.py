@@ -18,15 +18,33 @@ events (one per fault tree, referenced by ftid), and the sequences (seqid, end
 state name, and an ordered list of functional-event-index plus state, where
 state 0 is failure, 1 is success, and a bypassed functional event is simply
 absent). Pure fault tree models keep encoding as version 1 byte-identically.
+
+Version 4 is the fault tree layout that PRAXIS writes. It reassigns expression
+tags from 44 up to sampling laws and adds CCF forms. This module reads it, and
+writes it for a model that version 1 cannot hold or that came from a version 4
+file. Version 3 is taken by the event tree layout of the offline SAPHIRE
+package, and PRAXIS refuses versions 2 and 3.
+
+An annex may follow the model. It starts with PBX1 and holds what the node table
+cannot: the nodes no top reaches and the model's meta, which keeps the source
+order of the definitions, labels, attributes and each format's own details, so
+that a model converts through any format and comes back the same. After PBX1
+comes a zlib stream of a string table and one tagged value (null, false, true,
+zigzag integer, f64, string reference, bytes, list, map or tuple), where the
+node names of the table above count as the first strings. PRAXIS reads the
+model and stops before the annex.
 """
 from __future__ import annotations
 
 import struct
+import zlib
 from dataclasses import dataclass, field
 
 VERSION = 1
 ET_VERSION = 2
+PRAXIS_VERSION = 4
 MODEL_MAGIC = b"PBM1"
+ANNEX_MAGIC = b"PBX1"
 
 # Expr is represented as a tuple whose first element names the variant, e.g.
 # ("Constant", 0.1), ("Parameter", "lambda"), ("MissionTime",),
@@ -61,6 +79,17 @@ _EXPR_BY_TAG = {
 }
 _EXPR_BY_NAME = {name: (tag, kind) for tag, (name, kind) in _EXPR_BY_TAG.items()}
 
+_PRAXIS_EXPR_BY_TAG = {
+    **{tag: entry for tag, entry in _EXPR_BY_TAG.items() if tag < 44},
+    44: ("Draw", "law"),
+    45: ("StandbyAverage", "expr2"),
+    46: ("Fragility", "expr3"),
+    47: ("Component", "vector_law"),
+}
+_PRAXIS_EXPR_BY_NAME = {name: (tag, kind) for tag, (name, kind) in _PRAXIS_EXPR_BY_TAG.items()}
+
+EXPR_KINDS = {name: kind for name, (_, kind) in (*_EXPR_BY_NAME.items(), *_PRAXIS_EXPR_BY_NAME.items())}
+
 # Gate connective to operator nibble, matching formula_to_nibble in pbf.rs.
 _FORMULA_TO_NIBBLE = {
     "And": 0, "Or": 1, "Not": 2, "AtLeast": 3,
@@ -90,7 +119,7 @@ class CcfGroup:
     id: str
     members: list[str]
     model: tuple                 # ("BetaFactor", f) | ("AlphaFactor", scheme, [f]) | ("Mgl", [f]) | ("PhiFactor", [f])
-    distribution: str | None = None
+    distribution: str | tuple | None = None   # numeric text, or an Expr from version 4
 
 
 @dataclass
@@ -103,6 +132,7 @@ class FaultTree:
     basic_events: dict[str, BasicEvent] = field(default_factory=dict)
     house_events: dict[str, bool] = field(default_factory=dict)
     ccf_groups: list[CcfGroup] = field(default_factory=list)
+    meta: dict = field(default_factory=dict)
 
 
 @dataclass
@@ -141,6 +171,17 @@ class EventTreeModel:
     tops: list[FaultTreeTop] = field(default_factory=list)
     ccf_groups: list[CcfGroup] = field(default_factory=list)
     event_trees: list[EventTreeDef] = field(default_factory=list)
+    meta: dict = field(default_factory=dict)
+
+
+Model = FaultTree | EventTreeModel
+
+
+def roots(model: Model) -> list[str]:
+    """The node each top of the model starts from, in order."""
+    if isinstance(model, FaultTree):
+        return [model.top]
+    return [top.top for top in model.tops]
 
 
 # ----------------------------------------------------------------- primitives
@@ -171,6 +212,7 @@ class _Reader:
     def __init__(self, buf: bytes):
         self.buf = buf
         self.pos = 0
+        self.expr_tags = _EXPR_BY_TAG
 
     def u8(self) -> int:
         if self.pos >= len(self.buf):
@@ -209,9 +251,12 @@ class _Reader:
 
 # ------------------------------------------------------------- expression codec
 
-def _encode_expr(out: bytearray, e: tuple) -> None:
+def _encode_expr(out: bytearray, e: tuple, version: int = VERSION) -> None:
+    table = _PRAXIS_EXPR_BY_NAME if version == PRAXIS_VERSION else _EXPR_BY_NAME
     name = e[0]
-    tag, kind = _EXPR_BY_NAME[name]
+    if name not in table:
+        raise ValueError(f"PBF: {name} has no version {version} encoding")
+    tag, kind = table[name]
     out.append(tag)
     if kind == "f64":
         _put_f64(out, e[1])
@@ -219,33 +264,44 @@ def _encode_expr(out: bytearray, e: tuple) -> None:
         _put_string(out, e[1])
     elif kind == "nullary":
         pass
+    elif kind == "law":
+        _put_string(out, e[1])
+        _put_string(out, e[2])
+    elif kind == "vector_law":
+        _put_string(out, e[1])
+        _put_uvarint(out, e[2])
+        _put_string(out, e[3])
     elif kind == "vec":
-        _encode_expr_vec(out, e[1])
+        _encode_expr_vec(out, e[1], version)
     elif kind == "vec2":
-        _encode_expr_vec(out, e[1])
-        _encode_expr_vec(out, e[2])
+        _encode_expr_vec(out, e[1], version)
+        _encode_expr_vec(out, e[2], version)
     else:  # expr1, expr2, expr3, expr4
         for sub in e[1:]:
-            _encode_expr(out, sub)
+            _encode_expr(out, sub, version)
 
 
-def _encode_expr_vec(out: bytearray, items: list) -> None:
+def _encode_expr_vec(out: bytearray, items: list, version: int = VERSION) -> None:
     _put_uvarint(out, len(items))
     for e in items:
-        _encode_expr(out, e)
+        _encode_expr(out, e, version)
 
 
 def _decode_expr(r: _Reader) -> tuple:
     tag = r.u8()
-    if tag not in _EXPR_BY_TAG:
+    if tag not in r.expr_tags:
         raise ValueError(f"PBF: unknown expression tag {tag}")
-    name, kind = _EXPR_BY_TAG[tag]
+    name, kind = r.expr_tags[tag]
     if kind == "f64":
         return (name, r.f64())
     if kind == "str":
         return (name, r.string())
     if kind == "nullary":
         return (name,)
+    if kind == "law":
+        return (name, r.string(), r.string())
+    if kind == "vector_law":
+        return (name, r.string(), r.uvarint(), r.string())
     if kind == "vec":
         return (name, _decode_expr_vec(r))
     if kind == "vec2":
@@ -259,25 +315,96 @@ def _decode_expr_vec(r: _Reader) -> list:
     return [_decode_expr(r) for _ in range(n)]
 
 
+def expressions(model: Model) -> list[tuple]:
+    """Every expression the model holds, for checking which version can encode it."""
+    found = [expr for _, expr in model.params]
+    found += [be.value for be in model.basic_events.values() if be.value is not None]
+    for group in model.ccf_groups:
+        if isinstance(group.distribution, tuple):
+            found.append(group.distribution)
+        found += [f for f in _ccf_factors(group.model) if isinstance(f, tuple)]
+    return found
+
+
+def _expr_names(e: tuple) -> set[str]:
+    names = {e[0]}
+    kind = EXPR_KINDS.get(e[0])
+    if kind == "vec":
+        for sub in e[1]:
+            names |= _expr_names(sub)
+    elif kind == "vec2":
+        for sub in (*e[1], *e[2]):
+            names |= _expr_names(sub)
+    elif kind in ("expr1", "expr2", "expr3", "expr4"):
+        for sub in e[1:]:
+            names |= _expr_names(sub)
+    return names
+
+
 # --------------------------------------------------------------------- ccf codec
 
-def _encode_ccf_model(out: bytearray, m: tuple) -> None:
-    kind = m[0]
+def _ccf_factors(model: tuple) -> list:
+    kind = model[0]
     if kind == "BetaFactor":
-        out.append(0)
-        _put_f64(out, m[1])
+        return [model[1]]
+    if kind == "AlphaFactor":
+        return list(model[2])
+    return list(model[1])
+
+
+def _numeric(values: list) -> bool:
+    return all(isinstance(v, float) for v in values)
+
+
+def _as_exprs(values: list) -> list:
+    return [v if isinstance(v, tuple) else ("Constant", v) for v in values]
+
+
+def _encode_ccf_model(out: bytearray, m: tuple, version: int = VERSION) -> None:
+    kind = m[0]
+    praxis = version == PRAXIS_VERSION
+    factors = _ccf_factors(m)
+    numeric = _numeric(factors)
+    if not numeric and not praxis:
+        raise ValueError(f"PBF: CCF model {kind} with expressions has no version {version} encoding")
+    if kind == "BetaFactor":
+        if numeric:
+            out.append(0)
+            _put_f64(out, m[1])
+        else:
+            out.append(5)
+            _encode_expr(out, m[1], version)
     elif kind == "AlphaFactor":
-        out.append(1)
+        out.append(1 if numeric else 6)
         out.append(0 if m[1] == "NonStaggered" else 1)
-        _put_f64_vec(out, m[2])
-    elif kind == "Mgl":
-        out.append(2)
-        _put_f64_vec(out, m[1])
-    elif kind == "PhiFactor":
-        out.append(3)
-        _put_f64_vec(out, m[1])
+        if numeric:
+            _put_f64_vec(out, m[2])
+        else:
+            _encode_expr_vec(out, _as_exprs(m[2]), version)
+    elif kind in ("Mgl", "PhiFactor"):
+        base = 2 if kind == "Mgl" else 3
+        out.append(base if numeric else base + 5)
+        if numeric:
+            _put_f64_vec(out, m[1])
+        else:
+            _encode_expr_vec(out, _as_exprs(m[1]), version)
+    elif kind == "RaspMgl" and praxis:
+        out.append(4 if numeric else 9)
+        if numeric:
+            _put_f64_vec(out, m[1])
+        else:
+            _encode_expr_vec(out, _as_exprs(m[1]), version)
+        _put_uvarint(out, len(m[2]))
+        for event_id, indices in m[2]:
+            _put_string(out, event_id)
+            _put_uvarint(out, len(indices))
+            for index in indices:
+                _put_uvarint(out, index)
+    elif kind == "BinomialFailureRate" and praxis:
+        out.append(10)
+        _encode_expr_vec(out, _as_exprs(m[1]), version)
     else:
-        raise ValueError(f"PBF: unknown CCF model {kind}")
+        raise ValueError(f"PBF: CCF model {kind} has no version {version} encoding")
 
 
 def _decode_ccf_model(r: _Reader) -> tuple:
@@ -291,7 +418,30 @@ def _decode_ccf_model(r: _Reader) -> tuple:
         return ("Mgl", _read_f64_vec(r))
     if tag == 3:
         return ("PhiFactor", _read_f64_vec(r))
+    if tag == 4:
+        return ("RaspMgl", _read_f64_vec(r), _read_virtual_events(r))
+    if tag == 5:
+        return ("BetaFactor", _decode_expr(r))
+    if tag == 6:
+        scheme = "NonStaggered" if r.u8() == 0 else "Staggered"
+        return ("AlphaFactor", scheme, _decode_expr_vec(r))
+    if tag == 7:
+        return ("Mgl", _decode_expr_vec(r))
+    if tag == 8:
+        return ("PhiFactor", _decode_expr_vec(r))
+    if tag == 9:
+        return ("RaspMgl", _decode_expr_vec(r), _read_virtual_events(r))
+    if tag == 10:
+        return ("BinomialFailureRate", _decode_expr_vec(r))
     raise ValueError(f"PBF: unknown CCF model tag {tag}")
+
+
+def _read_virtual_events(r: _Reader) -> list[tuple[str, list[int]]]:
+    events = []
+    for _ in range(r.uvarint()):
+        event_id = r.string()
+        events.append((event_id, [r.uvarint() for _ in range(r.uvarint())]))
+    return events
 
 
 def _put_f64_vec(out: bytearray, v: list[float]) -> None:
@@ -356,14 +506,204 @@ def _collect_order(ft: FaultTree) -> list[str]:
     return _collect_order_from(ft.gates, ft.basic_events, ft.house_events, [ft.top])
 
 
+# ----------------------------------------------------------------- annex codec
+
+def _zigzag(v: int) -> int:
+    return v << 1 if v >= 0 else ((-v) << 1) - 1
+
+
+def _unzigzag(v: int) -> int:
+    return v >> 1 if v & 1 == 0 else -((v + 1) >> 1)
+
+
+def pack(value, seed: list[str] = ()) -> bytes:
+    """A compact byte string for a tree of None, bool, int, float, str, bytes,
+    list, tuple and str-keyed dict, with each dict's keys in sorted order so that
+    equal trees give equal bytes. Each distinct string is stored once, and a
+    string in seed, which the reader supplies too, is not stored at all."""
+    strings: list[str] = []
+    index: dict[str, int] = {}
+    for s in seed:
+        index.setdefault(s, len(index))
+    base = len(index)
+    body = bytearray()
+
+    def ref(s: str) -> int:
+        i = index.get(s)
+        if i is None:
+            i = index[s] = base + len(strings)
+            strings.append(s)
+        return i
+
+    def put(v) -> None:
+        t = type(v)
+        if v is None:
+            body.append(0)
+        elif v is False:
+            body.append(1)
+        elif v is True:
+            body.append(2)
+        elif t is int:
+            body.append(3)
+            _put_uvarint(body, _zigzag(v))
+        elif t is float:
+            body.append(4)
+            _put_f64(body, v)
+        elif t is str:
+            body.append(5)
+            _put_uvarint(body, ref(v))
+        elif t is bytes:
+            body.append(6)
+            _put_uvarint(body, len(v))
+            body.extend(v)
+        elif t is list or t is tuple:
+            body.append(7 if t is list else 9)
+            _put_uvarint(body, len(v))
+            for item in v:
+                put(item)
+        elif t is dict:
+            body.append(8)
+            _put_uvarint(body, len(v))
+            for key in sorted(v):
+                _put_uvarint(body, ref(key))
+                put(v[key])
+        else:
+            raise TypeError(f"PBF: cannot pack {t.__name__}")
+
+    put(value)
+    out = bytearray()
+    _put_uvarint(out, len(strings))
+    for s in strings:
+        _put_string(out, s)
+    return bytes(out + body)
+
+
+def unpack(data: bytes, seed: list[str] = ()):
+    r = _Reader(data)
+    value = _unpack(r, seed)
+    if r.pos != len(data):
+        raise ValueError("PBF: unexpected bytes after the annex")
+    return value
+
+
+def _unpack(r: _Reader, seed: list[str] = ()):
+    strings = list(dict.fromkeys(seed))
+    strings += [r.string() for _ in range(r.uvarint())]
+
+    def get():
+        tag = r.u8()
+        if tag == 0:
+            return None
+        if tag == 1:
+            return False
+        if tag == 2:
+            return True
+        if tag == 3:
+            return _unzigzag(r.uvarint())
+        if tag == 4:
+            return r.f64()
+        if tag == 5:
+            return strings[r.uvarint()]
+        if tag == 6:
+            return r.take(r.uvarint())
+        if tag in (7, 9):
+            items = [get() for _ in range(r.uvarint())]
+            return items if tag == 7 else tuple(items)
+        if tag == 8:
+            out = {}
+            for _ in range(r.uvarint()):
+                key = strings[r.uvarint()]
+                out[key] = get()
+            return out
+        raise ValueError(f"PBF: unknown annex tag {tag}")
+
+    return get()
+
+
+def _node_record(name: str, model: Model) -> list:
+    if name in model.gates:
+        gate = model.gates[name]
+        return ["g", name, gate.formula, gate.k, list(gate.operands)]
+    if name in model.basic_events:
+        be = model.basic_events[name]
+        return ["b", name, be.prob, be.value, be.initiator]
+    return ["h", name, model.house_events[name]]
+
+
+def _add_node(model: Model, record: list) -> None:
+    kind, name = record[0], record[1]
+    if kind == "g":
+        model.gates[name] = Gate(record[2], list(record[4]), record[3])
+    elif kind == "b":
+        model.basic_events[name] = BasicEvent(prob=record[2], value=record[3], initiator=record[4])
+    else:
+        model.house_events[name] = record[2]
+
+
+def _detached(model: Model, order: list[str]) -> list[list]:
+    reached = set(order)
+    names = [*model.gates, *model.basic_events, *model.house_events]
+    rest = [name for name in names if name not in reached]
+    if rest:
+        _collect_order_from(model.gates, model.basic_events, model.house_events, rest)
+    return [_node_record(name, model) for name in sorted(rest)]
+
+
+def _encode_annex(out: bytearray, model: Model, order: list[str]) -> None:
+    payload = {}
+    meta = {key: value for key, value in model.meta.items() if key != "pbf"}
+    if meta:
+        payload["meta"] = meta
+    detached = _detached(model, order)
+    if detached:
+        payload["detached"] = detached
+    if payload:
+        out += ANNEX_MAGIC
+        out += zlib.compress(pack(payload, order), 9)
+
+
+def _decode_annex(r: _Reader, model: Model, names: list[str]) -> None:
+    if r.pos == len(r.buf):
+        return
+    if r.take(4) != ANNEX_MAGIC:
+        raise ValueError("PBF: unexpected bytes after the model")
+    payload = unpack(zlib.decompress(r.buf[r.pos:]), names)
+    for record in payload.get("detached", []):
+        _add_node(model, record)
+    model.meta = payload.get("meta", {})
+
+
+def apply_order(model: Model) -> None:
+    """Put the model's dicts and lists in the source order the meta records. An
+    entry is a node name, or p: and c: before a parameter or CCF group name."""
+    order = model.meta.get("order")
+    if not order:
+        return
+    rank: dict[str, int] = {}
+    for position, key in enumerate(order):
+        rank.setdefault(key, position)
+    last = len(order)
+
+    def by_rank(names, prefix: str = "") -> list:
+        return sorted(names, key=lambda name: rank.get(prefix + name, last))
+
+    model.gates = {name: model.gates[name] for name in by_rank(model.gates)}
+    model.basic_events = {name: model.basic_events[name] for name in by_rank(model.basic_events)}
+    model.house_events = {name: model.house_events[name] for name in by_rank(model.house_events)}
+    params = dict(model.params)
+    model.params = [(name, params[name]) for name in by_rank(params, "p:")]
+    groups = {group.id: group for group in model.ccf_groups}
+    model.ccf_groups = [groups[gid] for gid in by_rank(groups, "c:")]
+
+
 # ----------------------------------------------------------------- model codec
 
-def _encode_params(out: bytearray, params: list[tuple[str, tuple]]) -> None:
+def _encode_params(out: bytearray, params: list[tuple[str, tuple]], version: int = VERSION) -> None:
     ordered = sorted(params, key=lambda kv: kv[0])
     _put_uvarint(out, len(ordered))
     for name, expr in ordered:
         _put_string(out, name)
-        _encode_expr(out, expr)
+        _encode_expr(out, expr, version)
 
 
 def _decode_params(r: _Reader) -> list[tuple[str, tuple]]:
@@ -381,6 +721,7 @@ def _encode_nodes(
     gates: dict[str, Gate],
     basic_events: dict[str, BasicEvent],
     house_events: dict[str, bool],
+    version: int = VERSION,
 ) -> dict[str, int]:
     pos = {name: i for i, name in enumerate(order)}
     _put_uvarint(out, len(order))
@@ -400,7 +741,7 @@ def _encode_nodes(
             _put_f64(out, be.prob)
             if be.value is not None:
                 out.append(1)
-                _encode_expr(out, be.value)
+                _encode_expr(out, be.value, version)
             else:
                 out.append(0)
         else:  # house event
@@ -453,7 +794,7 @@ def _apply_nodes(names: list[str], decoded: list[tuple], target) -> None:
             target.gates[name] = Gate(formula=formula, operands=[names[o] for o in ops], k=k)
 
 
-def _encode_ccf_groups(out: bytearray, ccf_groups: list[CcfGroup]) -> None:
+def _encode_ccf_groups(out: bytearray, ccf_groups: list[CcfGroup], version: int = VERSION) -> None:
     groups = sorted(ccf_groups, key=lambda g: g.id)
     _put_uvarint(out, len(groups))
     for g in groups:
@@ -461,12 +802,28 @@ def _encode_ccf_groups(out: bytearray, ccf_groups: list[CcfGroup]) -> None:
         _put_uvarint(out, len(g.members))
         for m in g.members:
             _put_string(out, m)
-        if g.distribution is not None:
+        if isinstance(g.distribution, tuple):
+            if version != PRAXIS_VERSION:
+                raise ValueError(f"PBF: CCF group '{g.id}' total has no version {version} encoding")
+            out.append(2)
+            _encode_expr(out, g.distribution, version)
+        elif g.distribution is not None:
             out.append(1)
             _put_string(out, g.distribution)
         else:
             out.append(0)
-        _encode_ccf_model(out, g.model)
+        _encode_ccf_model(out, g.model, version)
+
+
+def _decode_ccf_total(r: _Reader) -> str | tuple | None:
+    tag = r.u8()
+    if tag == 0:
+        return None
+    if tag == 1:
+        return r.string()
+    if tag == 2:
+        return _decode_expr(r)
+    raise ValueError(f"PBF: unknown CCF total tag {tag}")
 
 
 def _decode_ccf_groups(r: _Reader) -> list[CcfGroup]:
@@ -476,24 +833,50 @@ def _decode_ccf_groups(r: _Reader) -> list[CcfGroup]:
         cid = r.string()
         mc = r.uvarint()
         members = [r.string() for _ in range(mc)]
-        dist = r.string() if r.u8() == 1 else None
-        ccf.append(CcfGroup(id=cid, members=members, model=_decode_ccf_model(r), distribution=dist))
+        total = _decode_ccf_total(r)
+        ccf.append(CcfGroup(id=cid, members=members, model=_decode_ccf_model(r), distribution=total))
     return ccf
+
+
+def _fits(model: Model, version: int) -> bool:
+    table = _PRAXIS_EXPR_BY_NAME if version == PRAXIS_VERSION else _EXPR_BY_NAME
+    for expr in expressions(model):
+        if not _expr_names(expr) <= table.keys():
+            return False
+    if version == PRAXIS_VERSION:
+        return True
+    for group in model.ccf_groups:
+        if group.model[0] not in ("BetaFactor", "AlphaFactor", "Mgl", "PhiFactor"):
+            return False
+        if isinstance(group.distribution, tuple) or not _numeric(_ccf_factors(group.model)):
+            return False
+    return True
+
+
+def fault_tree_version(ft: FaultTree) -> int:
+    """The version a fault tree is written as: the one it was read from, else 1,
+    else 4 when it holds what only version 4 encodes."""
+    wanted = ft.meta.get("pbf", {}).get("version")
+    if wanted is not None:
+        return wanted
+    return VERSION if _fits(ft, VERSION) or not _fits(ft, PRAXIS_VERSION) else PRAXIS_VERSION
 
 
 def encode_fault_tree(ft: FaultTree) -> bytes:
     """Serialize a FaultTree to its canonical PBM1 byte string."""
+    version = fault_tree_version(ft)
     order = _collect_order(ft)
 
     out = bytearray()
     out += MODEL_MAGIC
-    out.append(VERSION)
+    out.append(version)
     _put_string(out, ft.id)
     _put_f64(out, ft.mission_time)
-    _encode_params(out, ft.params)
-    pos = _encode_nodes(out, order, ft.gates, ft.basic_events, ft.house_events)
+    _encode_params(out, ft.params, version)
+    pos = _encode_nodes(out, order, ft.gates, ft.basic_events, ft.house_events, version)
     _put_uvarint(out, pos[ft.top])
-    _encode_ccf_groups(out, ft.ccf_groups)
+    _encode_ccf_groups(out, ft.ccf_groups, version)
+    _encode_annex(out, ft, order)
     return bytes(out)
 
 
@@ -503,7 +886,9 @@ def decode_fault_tree(data: bytes) -> FaultTree:
     if r.take(4) != MODEL_MAGIC:
         raise ValueError("PBF: bad model magic")
     version = r.u8()
-    if version != VERSION:
+    if version == PRAXIS_VERSION:
+        r.expr_tags = _PRAXIS_EXPR_BY_TAG
+    elif version != VERSION:
         raise ValueError(f"PBF: unsupported model version {version}")
     ft_id = r.string()
     mission_time = r.f64()
@@ -519,6 +904,10 @@ def decode_fault_tree(data: bytes) -> FaultTree:
     ft = FaultTree(id=ft_id, top=names[top_pos], mission_time=mission_time, params=params)
     _apply_nodes(names, decoded, ft)
     ft.ccf_groups = ccf
+    _decode_annex(r, ft, names)
+    if fault_tree_version(ft) != version:
+        ft.meta["pbf"] = {"version": version}
+    apply_order(ft)
     return ft
 
 
@@ -569,6 +958,7 @@ def encode_event_tree_model(m: EventTreeModel) -> bytes:
                 _put_uvarint(out, fe_index)
                 out.append(1 if success else 0)
 
+    _encode_annex(out, m, order)
     return bytes(out)
 
 
@@ -635,4 +1025,19 @@ def decode_event_tree_model(data: bytes) -> EventTreeModel:
     m.tops = tops
     m.ccf_groups = ccf
     m.event_trees = event_trees
+    _decode_annex(r, m, names)
+    apply_order(m)
     return m
+
+
+def decode_model(data: bytes) -> Model:
+    """A fault tree or, for version 2, an event tree model."""
+    if is_event_tree_model(data):
+        return decode_event_tree_model(data)
+    return decode_fault_tree(data)
+
+
+def encode_model(model: Model) -> bytes:
+    if isinstance(model, EventTreeModel):
+        return encode_event_tree_model(model)
+    return encode_fault_tree(model)

@@ -2,12 +2,12 @@ import os
 import re
 import sys
 
-_KEYWORDS = frozenset({"and", "or", "not", "atleast", "true", "false"})
+_KEYWORDS = frozenset({"and", "or", "not", "nand", "nor", "atleast", "atmost", "cardinality", "true", "false"})
 
 _LINE_PATTERNS = [
-    ("gate",        re.compile(r"^gate\s+([^\s=]+)\s*=\s*(.+);$")),
-    ("basic-event", re.compile(r"^basic-event\s+([^\s=]+)\s*=\s*(.+);$")),
-    ("house-event", re.compile(r"^house-event\s+([^\s=]+)\s*=\s*(true|false);$")),
+    ("gate",        re.compile(r"^(?:gate|flow)\s+([^\s=]+)\s*=\s*(.+);$")),
+    ("basic-event", re.compile(r"^(?:basic-event|state)\s+([^\s=]+)\s*=\s*(.+);$")),
+    ("house-event", re.compile(r"^(?:house-event|source)\s+([^\s=]+)\s*=\s*(true|false);$")),
     ("parameter",   re.compile(r"^parameter\s+([^\s=]+)\s*=\s*(.+);$")),
 ]
 
@@ -17,12 +17,34 @@ def _extract_refs(formula: str) -> set:
     return {t for t in tokens if t and t.lower() not in _KEYWORDS and not t.isdigit()}
 
 
+def _statements(text: str) -> list[tuple[int, str]]:
+    """Each declaration with the line it starts on, comments removed and a
+    declaration spread over several lines joined into one."""
+    text = re.sub(r"/\*.*?\*/", lambda m: "\n" * m.group(0).count("\n"), text, flags=re.S)
+    text = re.sub(r"//[^\n]*", "", text)
+    out, start, line = [], None, 1
+    current = []
+    for char in text:
+        if char == "\n":
+            line += 1
+        if start is None and not char.isspace():
+            start = line
+        current.append(char)
+        if char == ";":
+            out.append((start, " ".join("".join(current).split())))
+            current, start = [], None
+    rest = "".join(current).strip()
+    if rest:
+        out.append((start, " ".join(rest.split())))
+    return out
+
+
 def verify_s2ml_file(file_path: str) -> tuple:
     """
     Verify syntax and semantic consistency of a single S2ML+SBE (.sbe) file.
 
     Checks performed:
-      1. Every non-empty line matches a known declaration pattern.
+      1. Every declaration matches a known pattern; // and /* */ comments are skipped.
       2. All names referenced in gate formulas are defined.
       3. No circular dependencies between gates.
       4. At least one top-level gate exists (a gate not referenced by any other gate).
@@ -34,18 +56,14 @@ def verify_s2ml_file(file_path: str) -> tuple:
         return False, [f"File not found: {file_path}"]
 
     with open(file_path, encoding="utf-8") as f:
-        raw_lines = f.readlines()
+        statements = _statements(f.read())
 
     definitions = {}   # name -> declaration type
     gate_formulas = {} # gate name -> formula string (for reference extraction)
     errors = []
 
     # --- Pass 1: syntax + collect definitions ---
-    for lineno, raw in enumerate(raw_lines, start=1):
-        line = raw.strip()
-        if not line:
-            continue
-
+    for lineno, line in statements:
         matched = False
         for decl_type, pattern in _LINE_PATTERNS:
             m = pattern.match(line)

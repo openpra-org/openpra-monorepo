@@ -1,3 +1,11 @@
+"""Syntax verifier for FTAP (.ftp) files.
+
+The checks follow FTREX. A file passes if FTREX reads it, with three exceptions that
+FTREX lets through and that are faults all the same: an undefined name, a top that is
+not a gate, and a gate with no operands. A missing PROCESS statement passes because
+FTREX assigns the tops itself. FTREX negates with `-` only, so `/A` is an undefined
+name there, and it refuses a `Fault tree` header (FTAP-003).
+"""
 from __future__ import annotations
 import argparse
 import os
@@ -12,85 +20,79 @@ def verify_ftap_file(file_path: str) -> tuple[bool, list[str]]:
         lines = f.readlines()
 
     errors: list[str] = []
-    gate_names: set[str] = set()
+    gate_operands: dict[str, int] = {}
     basic_events: dict[str, float] = {}
-    top_event: str | None = None
+    top_events: list[str] = []
     child_refs: set[str] = set()
 
-    has_fault_tree = False
     has_endtree = False
-    has_process = False
     has_import = False
-    section: str | None = None
+    section: str | None = "GATES"
+    last_gate: str | None = None
 
     for lineno, raw in enumerate(lines, start=1):
         line = raw.strip()
-        if not line or line.startswith(";"):
+        if not line or line.startswith((";", "**")):
             continue
+        parts = line.split()
         upper = line.upper()
+        # FTREX takes ENDTREE as a prefix, and the other keywords only as whole words.
+        keyword = parts[0].upper()
 
         if upper.startswith("FAULT TREE"):
-            has_fault_tree = True
-            section = "GATES"
+            errors.append(f"Line {lineno}: FTREX refuses a 'Fault tree' header")
         elif upper.startswith("ENDTREE"):
             has_endtree = True
             section = None
-        elif upper.startswith("PROCESS"):
-            has_process = True
+        elif keyword == "PROCESS":
             section = "PROCESS"
-            parts = line.split()
-            if len(parts) > 1:
-                top_event = parts[1]
-        elif upper.startswith("IMPORT"):
+            top_events.extend(parts[1:])
+        elif keyword == "IMPORT":
             has_import = True
             section = "IMPORT"
-        elif upper.startswith("LIMIT") or upper.startswith("*XEQ"):
+        elif keyword in ("LIMIT", "*XEQ"):
             section = None
         elif section == "GATES":
-            parts = line.split()
-            if len(parts) < 3:
-                errors.append(f"Line {lineno}: gate definition too short: {line!r}")
+            op_char = parts[1] if len(parts) >= 2 else ""
+            if op_char in ("+", "*") or (op_char.isdigit() and len(parts) >= 3):
+                last_gate = parts[0]
+                gate_operands.setdefault(last_gate, 0)
+                operands = parts[2:]
+            elif last_gate is None:
+                errors.append(f"Line {lineno}: invalid operator {op_char!r} (expected '+', '*' or an integer)")
                 continue
-            name, op_char = parts[0], parts[1]
-            if op_char not in ("+", "*"):
-                errors.append(f"Line {lineno}: invalid operator {op_char!r} (expected '+' or '*')")
-                continue
-            gate_names.add(name)
-            for token in parts[2:]:
-                child_refs.add(token.lstrip("-/"))
+            else:
+                operands = parts
+            gate_operands[last_gate] += len(operands)
+            for token in operands:
+                child_refs.add(token.lstrip("-"))
         elif section == "PROCESS":
-            parts = line.split()
-            if parts and top_event is None:
-                top_event = parts[0]
+            top_events.extend(parts)
         elif section == "IMPORT":
-            parts = line.split()
-            if len(parts) >= 2:
-                try:
-                    basic_events[parts[1]] = float(parts[0])
-                except ValueError:
-                    try:
-                        basic_events[parts[0]] = float(parts[1])
-                    except ValueError:
-                        errors.append(f"Line {lineno}: unrecognized IMPORT entry: {line!r}")
+            try:
+                basic_events[parts[1]] = float(parts[0])
+            except (IndexError, ValueError):
+                errors.append(f"Line {lineno}: unrecognized IMPORT entry: {line!r}")
 
-    if not has_fault_tree:
-        errors.append("Missing 'Fault tree' section header")
     if not has_endtree:
         errors.append("Missing 'ENDTREE' keyword")
-    if not has_process:
-        errors.append("Missing 'PROCESS' section")
     if not has_import:
         errors.append("Missing 'IMPORT' section")
-    if not gate_names:
+    if not gate_operands:
         errors.append("No gate definitions found")
     if not basic_events:
         errors.append("No basic events found in IMPORT section")
 
-    if top_event and top_event not in gate_names:
-        errors.append(f"Top event {top_event!r} is not defined as a gate")
+    for top in top_events:
+        if top not in gate_operands:
+            errors.append(f"Top event {top!r} is not defined as a gate")
 
-    for ref in child_refs:
-        if ref not in gate_names and ref not in basic_events:
+    for name, count in gate_operands.items():
+        if count == 0:
+            errors.append(f"Gate {name!r} has no operands")
+
+    for ref in sorted(child_refs):
+        if ref not in gate_operands and ref not in basic_events:
             errors.append(f"Undefined reference: {ref!r}")
 
     return len(errors) == 0, errors
@@ -101,7 +103,7 @@ def verify_directory(directory: str) -> tuple[int, int]:
     ftap_files = sorted(
         os.path.join(directory, f)
         for f in os.listdir(directory)
-        if f.endswith(".ftp") or f.endswith(".ftap")
+        if f.lower().endswith((".ftp", ".ftap"))
     )
     if not ftap_files:
         print(f"No .ftp/.ftap files found in {directory}")

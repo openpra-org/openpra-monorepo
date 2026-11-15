@@ -42,6 +42,8 @@ mod cli_mocus;
 mod cli_pbf_export;
 #[path = "integration/cli/cli_pbf_input.rs"]
 mod cli_pbf_input;
+#[path = "integration/cli/cli_pbf_interop.rs"]
+mod cli_pbf_interop;
 #[path = "integration/cli/cli_test.rs"]
 mod cli_test;
 #[path = "integration/cli/cli_variable_order.rs"]

@@ -47,22 +47,20 @@ def _read(path: str, fmt: str, black_box: list[str] | None = None):
     raise ValueError(f"Format '{fmt}' is write-only.")
 
 
-def _write(model, path: str, fmt: str, cutoff: float = 1e-12) -> None:
+def _write(model, path: str, fmt: str, cutoff: float | None = None, schema_names: bool = False) -> None:
+    if schema_names and fmt != "openpsa-xml":
+        raise ValueError("--schema-names applies only to OpenPSA XML output.")
     if fmt == "pbf":
         with open(path, "wb") as f:
             f.write(model)
     elif fmt == "openpsa-xml":
-        openpsa_xml.write(model, path)
+        openpsa_xml.write(model, path, schema_names)
     elif fmt == "ftap":
         ftap.write(model, path)
     elif fmt == "s2ml":
         s2ml.write(model, path)
     elif fmt == "jsinp":
-        ok = jsinp.write(model, path, cutoff)
-        if not ok:
-            raise ValueError(
-                "JSINP conversion failed (unsupported gate types or empty model)."
-            )
+        jsinp.write(model, path, cutoff)
     else:
         raise ValueError(f"Unknown format: '{fmt}'")
 
@@ -82,14 +80,21 @@ def main() -> None:
         help="Target format: pbf | openpsa-xml | ftap | s2ml | jsinp (auto-detected from extension)",
     )
     parser.add_argument(
-        "--cutoff", type=float, default=1e-12,
-        help="MCS probability cutoff for JSINP output (default: 1e-12)",
+        "--cutoff", type=float, default=None,
+        help="MCS probability cutoff for JSINP output (default: the cutoffs of the SAPHIRE file "
+             "the model came from, else 1e-12)",
     )
     parser.add_argument(
         "--black-box", dest="black_box", default="",
         help="JSINP input: comma-separated system names whose fault tree is not expanded, "
              "so the system is quantified from its placeholder event. SAPHSOLVE does this for "
              "some systems and the file does not say which, so they must be named",
+    )
+    parser.add_argument(
+        "--schema-names", dest="schema_names", action="store_true",
+        help="OpenPSA XML output: rename every name the MEF schema rejects, so %%TF "
+             "becomes x25TF and A--B becomes A-B. Each renamed definition keeps its old "
+             "name in an original-name attribute, which reading the file back restores",
     )
     parser.add_argument(
         "--top-event", action="store_true",
@@ -120,8 +125,10 @@ def main() -> None:
 
     try:
         model = _read(args.input, src_fmt, black_box)
-        _write(model, args.output, dst_fmt, cutoff=args.cutoff)
+        _write(model, args.output, dst_fmt, cutoff=args.cutoff, schema_names=args.schema_names)
         note = f" [black-box: {', '.join(black_box)}]" if black_box else ""
+        if args.schema_names:
+            note += " [schema names]"
         print(f"OK: {args.input} ({src_fmt}) -> {args.output} ({dst_fmt}){note}")
     except Exception as e:
         print(f"Error: {e}", file=sys.stderr)

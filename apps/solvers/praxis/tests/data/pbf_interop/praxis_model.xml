@@ -1,0 +1,41 @@
+<?xml version="1.0"?>
+<opsa-mef>
+  <define-fault-tree name="exported">
+    <define-gate name="TOP">
+      <or>
+        <gate name="TRAINS"/>
+        <basic-event name="VALVE"/>
+      </or>
+    </define-gate>
+    <define-gate name="TRAINS">
+      <and>
+        <basic-event name="P1"/>
+        <basic-event name="P2"/>
+      </and>
+    </define-gate>
+    <define-basic-event name="P1">
+      <float value="0.01"/>
+    </define-basic-event>
+    <define-basic-event name="P2">
+      <float value="0.01"/>
+    </define-basic-event>
+    <define-basic-event name="VALVE">
+      <uniform-deviate>
+        <float value="0.001"/>
+        <float value="0.002"/>
+      </uniform-deviate>
+    </define-basic-event>
+  </define-fault-tree>
+  <define-CCF-group name="PUMPS" model="beta-factor">
+    <members>
+      <basic-event name="P1"/>
+      <basic-event name="P2"/>
+    </members>
+    <distribution>
+      <float value="0.01"/>
+    </distribution>
+    <factor level="2">
+      <float value="0.1"/>
+    </factor>
+  </define-CCF-group>
+</opsa-mef>

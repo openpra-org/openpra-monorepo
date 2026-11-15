@@ -30,7 +30,9 @@ use crate::Result;
 
 pub const MAGIC: [u8; 4] = *b"PBF1";
 pub const VERSION: u8 = 1;
-pub const MODEL_VERSION: u8 = 2;
+// Model versions 2 and 3 are Pracciolini event tree layouts, so they stay unused here.
+pub const MODEL_VERSION: u8 = 4;
+pub const LEGACY_MODEL_VERSION: u8 = 1;
 pub const RESULT_VERSION: u8 = 2;
 
 // ----------------------------------------------------------------- primitives
@@ -50,11 +52,16 @@ fn put_uvarint(out: &mut Vec<u8>, mut v: u64) {
 struct Reader<'a> {
     buf: &'a [u8],
     pos: usize,
+    legacy_model: bool,
 }
 
 impl<'a> Reader<'a> {
     fn new(buf: &'a [u8]) -> Self {
-        Reader { buf, pos: 0 }
+        Reader {
+            buf,
+            pos: 0,
+            legacy_model: false,
+        }
     }
 
     fn truncated() -> PraxisError {
@@ -669,6 +676,12 @@ fn decode_expr_vec(r: &mut Reader) -> Result<Vec<Expr>> {
 
 fn decode_expr(r: &mut Reader) -> Result<Expr> {
     let tag = r.u8()?;
+    // Version 1 used tags 44 to 50 for deviates that version 4 reassigned.
+    if r.legacy_model && tag >= 44 {
+        return Err(PraxisError::Logic(format!(
+            "PBF: version {LEGACY_MODEL_VERSION} expression tag {tag} is a sampling deviate this reader does not support; supply the model as OpenPSA XML"
+        )));
+    }
     Ok(match tag {
         0 => Expr::Constant(r.f64()?),
         1 => Expr::Parameter(r.string()?),
@@ -1162,11 +1175,19 @@ pub fn decode_fault_tree(bytes: &[u8]) -> Result<FaultTree> {
     if r.take(4)? != MODEL_MAGIC {
         return Err(PraxisError::Logic("PBF: bad model magic".to_string()));
     }
-    let version = r.u8()?;
-    if version != MODEL_VERSION {
-        return Err(PraxisError::Logic(format!(
-            "PBF: unsupported model version {version}"
-        )));
+    match r.u8()? {
+        MODEL_VERSION => {}
+        LEGACY_MODEL_VERSION => r.legacy_model = true,
+        version @ (2 | 3) => {
+            return Err(PraxisError::Logic(format!(
+                "PBF: model version {version} is a Pracciolini event tree model; convert it to OpenPSA XML"
+            )))
+        }
+        version => {
+            return Err(PraxisError::Logic(format!(
+                "PBF: unsupported model version {version}"
+            )))
+        }
     }
     let ft_id = r.string()?;
     let mission_time = r.f64()?;
@@ -1265,6 +1286,8 @@ pub fn decode_fault_tree(bytes: &[u8]) -> Result<FaultTree> {
         let model = decode_ccf_model(&mut r, &id)?;
         ccf.push((id, members, total, model));
     }
+    // Pracciolini may append a PBX1 annex here. It holds no logic, only what the
+    // node table cannot (unreached nodes, source order, labels), so it is not read.
 
     let mut ft = FaultTree::new(ft_id, names[top_pos].clone())?;
     ft.set_mission_time(mission_time);

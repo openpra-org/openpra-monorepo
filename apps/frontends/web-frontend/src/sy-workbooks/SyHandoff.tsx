@@ -29,8 +29,6 @@ function SyHandoffScreen(): JSX.Element {
   const totals = useExpressionPoints(totaled.map(({ total }) => total), eventCells.values.table);
   const totalById = new Map(totaled.map(({ id }, index) => [id, totals[index]]));
   const modelCode = new Map(sy.systemLogicModels.map((model) => [model.uuid, model.code]));
-  const networks = sy.dependencyBayesianNetworks ?? [];
-  const configurations = sy.dependencyHclConfigurations ?? [];
 
   const uncertaintyRows: HandoffRow[] = (sy.uncertaintyAnalyses ?? []).flatMap((analysis) => {
     const system = shortOf(analysis.system);
@@ -85,18 +83,6 @@ function SyHandoffScreen(): JSX.Element {
           joinedOrNone(memberEvents(group, sy).map((event) => event.code)),
           ccfModelText(group.factors),
           totalById.has(group.uuid) ? <PointValue state={totalById.get(group.uuid)} /> : "From the model",
-        ],
-      })),
-    },
-    {
-      key: "dependency-networks",
-      columns: [{ label: "Network" }, { label: "Nodes", numeric: true }, { label: "HCL configurations" }],
-      rows: networks.map((network) => ({
-        id: network.modelId,
-        cells: [
-          handoffName(network.code, network.name),
-          network.nodes.length,
-          joinedOrNone(configurations.filter((configuration) => configuration.bayesianNetwork.modelId === network.modelId).map((configuration) => configuration.code)),
         ],
       })),
     },

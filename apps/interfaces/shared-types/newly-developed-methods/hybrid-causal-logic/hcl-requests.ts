@@ -142,6 +142,7 @@ interface HclExecuteRequest {
   workbookRevision: WorkbookRevision;
   faultTreeTopGate: FaultTreeTopEventReference;
   evidenceScenarioId?: WorkbookEntityId;
+  sampling?: HclRunSampling;
   dependencyCutSets?: HclFaultTreeCutSetSettings;
   dependencyImportance?: boolean;
   dependencyImportanceEvents?: number;
@@ -153,7 +154,6 @@ interface HclEventTreeExecuteRequest {
   modelId: WorkbookModelId;
   workbookRevision: WorkbookRevision;
   eventTree: WorkbookModelAddress;
-  dependencyConfiguration?: WorkbookModelAddress;
   evidenceScenarioId?: WorkbookEntityId;
   sampling?: HclRunSampling;
   dependencyCutSets?: HclDependencyCutSetSettings;
@@ -183,6 +183,7 @@ interface HclFaultTreeBatchExecuteRequest {
   evidenceScenarioIds: WorkbookEntityId[];
   batchInput?: HclBatchInput;
   integrateHazardGrid?: boolean;
+  sampling?: HclRunSampling;
   dependencyCutSets?: HclFaultTreeCutSetSettings;
   dependencyImportance?: boolean;
   dependencyImportanceEvents?: number;
@@ -194,7 +195,6 @@ interface HclEventTreeBatchExecuteRequest {
   modelId: WorkbookModelId;
   workbookRevision: WorkbookRevision;
   eventTree: WorkbookModelAddress;
-  dependencyConfiguration?: WorkbookModelAddress;
   evidenceScenarioIds: WorkbookEntityId[];
   batchInput?: HclBatchInput;
   integrateHazardGrid?: boolean;
@@ -257,6 +257,7 @@ const HclExecuteRequestSchema = z
     workbookRevision: WorkbookRevisionSchema,
     faultTreeTopGate: FaultTreeTopEventReferenceSchema,
     evidenceScenarioId: WorkbookEntityIdSchema.optional(),
+    sampling: HclRunSamplingSchema.optional(),
     dependencyCutSets: HclFaultTreeCutSetSettingsSchema.optional(),
     dependencyImportance: z.boolean().optional(),
     dependencyImportanceEvents: z.number().int().min(1, "Sample at least one event").max(100, "Sample at most 100 events").optional(),
@@ -274,7 +275,6 @@ const HclEventTreeExecuteRequestSchema = z
     modelId: WorkbookModelIdSchema,
     workbookRevision: WorkbookRevisionSchema,
     eventTree: HclEventTreeAddressSchema,
-    dependencyConfiguration: WorkbookModelAddressSchema.optional(),
     evidenceScenarioId: WorkbookEntityIdSchema.optional(),
     sampling: HclRunSamplingSchema.optional(),
     dependencyCutSets: HclDependencyCutSetSettingsSchema.optional(),
@@ -302,6 +302,7 @@ const HclFaultTreeBatchExecuteRequestSchema = z
     evidenceScenarioIds: EvidenceScenarioIdsSchema,
     batchInput: HclBatchInputSchema.optional(),
     integrateHazardGrid: z.boolean().optional(),
+    sampling: HclRunSamplingSchema.optional(),
     dependencyCutSets: HclFaultTreeCutSetSettingsSchema.optional(),
     dependencyImportance: z.boolean().optional(),
     dependencyImportanceEvents: z.number().int().min(1, "Sample at least one event").max(100, "Sample at most 100 events").optional(),
@@ -315,7 +316,6 @@ const HclEventTreeBatchExecuteRequestSchema = z
     modelId: WorkbookModelIdSchema,
     workbookRevision: WorkbookRevisionSchema,
     eventTree: HclEventTreeAddressSchema,
-    dependencyConfiguration: WorkbookModelAddressSchema.optional(),
     evidenceScenarioIds: EvidenceScenarioIdsSchema,
     batchInput: HclBatchInputSchema.optional(),
     integrateHazardGrid: z.boolean().optional(),

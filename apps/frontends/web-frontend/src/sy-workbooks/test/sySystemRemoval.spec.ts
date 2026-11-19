@@ -1,6 +1,5 @@
 import { ImportanceLevel } from "interfaces-mef-types/core/shared-patterns";
 import type { SystemLogicModel, SystemsAnalysis } from "interfaces-mef-types/sy/systems-analysis";
-import type { WorkbookHclConfiguration } from "interfaces-mef-types/modeling/workbook-models";
 import { removalMessage, withoutSystem } from "../sySystemRemoval";
 
 const LAYOUT: SystemLogicModel["layout"] = { viewport: { x: 0, y: 0, zoom: 1 }, mode: "AUTOMATIC", direction: "TOP_TO_BOTTOM" };
@@ -43,21 +42,6 @@ function group(uuid: string, affectedSystems: string[], members: string[]): Syst
   };
 }
 
-const HCL: WorkbookHclConfiguration = {
-  modelId: "hcl-1",
-  code: "HCL-1",
-  name: "Shared room",
-  description: "",
-  bayesianNetwork: { workbookId: "sy-1", modelId: "bn-1" },
-  faultTrees: [{ workbookId: "sy-1", modelId: "FT-A" }, { workbookId: "sy-1", modelId: "FT-B" }],
-  bindings: [
-    { id: "bind-a", faultTreeBasicEvent: { workbookId: "sy-1", entityId: "BE-A1", referenceType: "FAULT_TREE_BASIC_EVENT" }, bayesianNetworkNode: { workbookId: "sy-1", modelId: "bn-1", entityId: "node-1", referenceType: "BAYESIAN_NETWORK_NODE" }, trueStateIds: ["failed"] },
-    { id: "bind-b", faultTreeBasicEvent: { workbookId: "sy-1", entityId: "BE-B1", referenceType: "FAULT_TREE_BASIC_EVENT" }, bayesianNetworkNode: { workbookId: "sy-1", modelId: "bn-1", entityId: "node-1", referenceType: "BAYESIAN_NETWORK_NODE" }, trueStateIds: ["failed"] },
-  ],
-  baseEvidence: { observations: [] },
-  solverSettings: { variableOrder: null, foldConstants: false, spliceNullGates: false },
-};
-
 function makeAnalysis(): SystemsAnalysis {
   const analysis: Partial<SystemsAnalysis> = {
     systemDefinitions: ["SYS-A", "SYS-B", "SYS-C"].map((uuid) => ({
@@ -83,7 +67,6 @@ function makeAnalysis(): SystemsAnalysis {
       { uuid: "dep-cb", dependentSystem: "SYS-C", supportingSystem: "SYS-B", type: "FUNCTIONAL", implementsSrs: [] },
     ],
     componentDependencies: [],
-    dependencyHclConfigurations: [HCL],
     dependencySearchMethodology: { uuid: "dsm", name: "Search", description: "", reference: "", systemsAnalyzed: ["SYS-A", "SYS-B", "SYS-C"], implementsSrs: [] },
     commonCauseFailureGroups: [
       group("CCF-A", ["SYS-A", "SYS-B"], ["BE-A1", "BE-A2"]),
@@ -207,13 +190,6 @@ describe("SY system removal", () => {
     expect(analysis.uncertaintyAnalyses?.[0]?.ccfUncertainties?.map(({ uncertaintyId }) => uncertaintyId)).toEqual(["CU-B"]);
     expect(analysis.uncertaintyAnalyses?.[0]?.dependencyUncertainties?.map(({ uncertaintyId }) => uncertaintyId)).toEqual(["DU-C"]);
     expect(analysis.sensitivityStudies?.map(({ uuid }) => uuid)).toEqual(["ss-cu-b", "ss-free"]);
-  });
-
-  it("drops dependency-network references to the removed fault tree and its events", () => {
-    const { analysis } = withoutSystem(makeAnalysis(), "SYS-A");
-    const configuration = analysis.dependencyHclConfigurations?.[0];
-    expect(configuration?.faultTrees.map(({ modelId }) => modelId)).toEqual(["FT-B"]);
-    expect(configuration?.bindings.map(({ id }) => id)).toEqual(["bind-b"]);
   });
 
   it("counts every removed record and says what goes with the system", () => {

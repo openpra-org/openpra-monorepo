@@ -1,194 +1,278 @@
-import { act, render, screen, waitFor } from "@testing-library/react";
-import { useState } from "react";
-import type { SystemsAnalysis } from "interfaces-mef-types/sy/systems-analysis";
-import type { WorkbookHclConfiguration } from "interfaces-mef-types/modeling";
+import { JSX, useCallback, useState } from "react";
+import { act, render, screen, waitFor, type RenderResult } from "@testing-library/react";
+import type { EventSequenceQuantification } from "interfaces-mef-types/esq/event-sequence-quantification";
+import type {
+  BayesianNetworkAnalysisResult,
+  BayesianNetworkBatchAnalysisResult,
+  BayesianNetworkExecuteResult,
+} from "interfaces-shared-types/newly-developed-methods/bayesian-network";
 import type { BayesianNetworkEditorProps } from "../../bayesian-network/bayesianNetworkTypes";
 import { deleteNode } from "../../bayesian-network/bayesianNetworkOperations";
-import { testBayesianNetworkModel, TEST_ID } from "../../bayesian-network/test/bayesianNetworkTestModel";
-import { SyBayesianNetworkWorkspace } from "../../../sy-workbooks/syBayesianNetworkWorkspace";
-import { studyTree } from "../../../esq-workbooks/EsqDependencies";
-import { ToastProvider } from "../../../toast/toastProvider";
+import { TEST_ID, testBayesianNetworkModel } from "../../bayesian-network/test/bayesianNetworkTestModel";
+import { EsqDependencyNetwork } from "../../../esq-workbooks/EsqDependencyNetwork";
+import { EsqWorkbookProvider } from "../../../esq-workbooks/esqWorkbookContext";
+import {
+  getEsqBayesianNetworkBatchResult,
+  getEsqBayesianNetworkResult,
+  runEsqBayesianNetwork,
+  runEsqBayesianNetworkBatch,
+} from "../../../esq-workbooks/esqWorkbookApi";
+import { ESQ_ID, NOW, SAVED, dependencyConfiguration, dependencyEsq, dependencyScenarios } from "../../../esq-workbooks/test/esqDependencyFixtures";
 import type { RevisionedSaveStatus } from "../../../workbooks/useRevisionedMefPatch";
 
-let mockEditor: BayesianNetworkEditorProps;
-let mockSyContext: unknown;
-const mockExecute = jest.fn();
-const mockResult = jest.fn();
-jest.mock("../../../sy-workbooks/syWorkbookContext", () => ({ useSyWorkbook: () => mockSyContext }));
+type RunKind = "QUERY" | "QUERY_BATCH";
+
+interface Deferred<T> {
+  promise: Promise<T>;
+  resolve: (value: T) => void;
+  reject: (error: Error) => void;
+}
+
+let mockEditor: BayesianNetworkEditorProps | undefined;
+
 jest.mock("../../bayesian-network", () => ({
-  ...jest.requireActual("../../bayesian-network"),
+  ...jest.requireActual<typeof import("../../bayesian-network")>("../../bayesian-network"),
   BayesianNetworkEditor: (props: BayesianNetworkEditorProps) => {
     mockEditor = props;
-    return <>
-      <output data-testid="result">{JSON.stringify([props.analysisResult, props.queryBatchResult ?? null, props.hclRunResult, props.hclBatchRunResult])}</output>
-      <output data-testid="error">{props.runError ?? props.hclRunError}</output>
-      <output data-testid="blocked">{props.saveBlockedReason}</output>
-    </>;
+    return (
+      <>
+        <output data-testid="result">{JSON.stringify([props.analysisResult, props.queryBatchResult ?? null])}</output>
+        <output data-testid="error">{props.runError}</output>
+        <output data-testid="blocked">{props.saveBlockedReason}</output>
+      </>
+    );
   },
 }));
-jest.mock("../../../sy-workbooks/syWorkbookApi", () => ({
-  runSyBayesianNetwork: (...args: unknown[]) => mockExecute(...args),
-  runSyBayesianNetworkBatch: (...args: unknown[]) => mockExecute(...args),
-  runSyHclFaultTree: (...args: unknown[]) => mockExecute(...args),
-  runSyHclFaultTreeBatch: (...args: unknown[]) => mockExecute(...args),
-  generateSyHclScenarios: (...args: unknown[]) => mockExecute(...args),
-  getSyBayesianNetworkResult: () => mockResult(),
-  getSyBayesianNetworkBatchResult: () => mockResult(),
-  getSyHclFaultTreeResult: () => mockResult(),
-}));
+
 jest.mock("../../../esq-workbooks/esqWorkbookApi", () => ({
-  runEsqHclEventTree: (...args: unknown[]) => mockExecute(...args),
-  runEsqHclEventTreeBatch: (...args: unknown[]) => mockExecute(...args),
-  generateEsqHclScenarios: (...args: unknown[]) => mockExecute(...args),
-  getEsqHclEventTreeResult: () => mockResult(),
+  ...jest.requireActual<typeof import("../../../esq-workbooks/esqWorkbookApi")>("../../../esq-workbooks/esqWorkbookApi"),
+  runEsqBayesianNetwork: jest.fn(),
+  runEsqBayesianNetworkBatch: jest.fn(),
+  getEsqBayesianNetworkResult: jest.fn(),
+  getEsqBayesianNetworkBatchResult: jest.fn(),
 }));
 
-const original = testBayesianNetworkModel();
-function configuration(host: string): WorkbookHclConfiguration {
+const RUN_ID = "40000000-0000-4000-8000-000000000001";
+const NO_RESULT = "[null,null]";
+const KINDS: RunKind[] = ["QUERY", "QUERY_BATCH"];
+const BLOCKS: (readonly [RevisionedSaveStatus, string])[] = [
+  ["saving", "Saving changes. Run after saving finishes."],
+  ["failed", "Save failed. Reload or save successfully before running."],
+];
+
+function execution(): BayesianNetworkExecuteResult {
   return {
-    modelId: "hcl", code: "HCL", name: "HCL", description: "",
-    bayesianNetwork: { workbookId: host, modelId: TEST_ID.model }, faultTrees: [{ workbookId: "sy", modelId: "ft" }],
-    bindings: [], baseEvidence: { observations: [{ nodeId: TEST_ID.a, stateId: TEST_ID.aTrue }] },
-    evidenceScenarios: [{ id: "scenario", code: "S1", name: "Earthquake", enabled: true,
-      evidence: { observations: [{ nodeId: TEST_ID.a, stateId: TEST_ID.aFalse }] } }],
-    solverSettings: { variableOrder: null, foldConstants: true, spliceNullGates: true },
+    schemaVersion: "1.0.0",
+    run: {
+      schemaVersion: "1.0.0",
+      id: RUN_ID,
+      owner: { workbookId: ESQ_ID, modelId: TEST_ID.model, workbookRevision: 5 },
+      sourceWorkbooks: [{ workbookId: ESQ_ID, workbookRevision: 5 }],
+      methodType: "BAYESIAN_NETWORK",
+      status: "SUCCEEDED",
+      requestedBy: "analyst",
+      requestedAt: NOW,
+      startedAt: NOW,
+      completedAt: NOW,
+      engine: null,
+      failure: null,
+    },
   };
 }
-function Harness({ saveStatus = "saved", revision = 1 }: { saveStatus?: RevisionedSaveStatus; revision?: number }) {
-  const [sy, setSy] = useState(() => ({ dependencyBayesianNetworks: [structuredClone(original)],
-    dependencyHclConfigurations: [configuration("sy")], systemLogicModels: [], systemBasicEvents: [] }) as unknown as SystemsAnalysis);
-  mockSyContext = { sy, editable: true, mutateSy: setSy, runtime: { workbookId: "sy", revision, saveStatus } };
-  return <ToastProvider><SyBayesianNetworkWorkspace /></ToastProvider>;
+
+function posterior(): BayesianNetworkAnalysisResult {
+  return {
+    schemaVersion: "1.0.0",
+    runId: RUN_ID,
+    owner: { workbookId: ESQ_ID, modelId: TEST_ID.model, workbookRevision: 5 },
+    evidence: { observations: [] },
+    marginals: [{ nodeId: TEST_ID.b, values: [{ stateId: TEST_ID.bFalse, probability: 0.5 }, { stateId: TEST_ID.bTrue, probability: 0.5 }] }],
+    validationIssues: [],
+    completedAt: NOW,
+  };
 }
-type RunKind = "BN" | "BN_BATCH" | "FT" | "FT_BATCH";
-function run(kind: RunKind) {
-  const config = mockEditor.hclConfigurations[0]!;
-  const tree = { workbookId: "sy", workbookName: "SY", modelId: "ft", modelName: "FT", modelCode: "FT", topGateId: "top", basicEvents: [] };
-  if (kind === "BN") mockEditor.onRun();
-  if (kind === "BN_BATCH") mockEditor.onRunBatch!(config.evidenceScenarios!);
-  if (kind === "FT") mockEditor.onRunHclFaultTree(config, tree, "PROBABILITY");
-  if (kind === "FT_BATCH") mockEditor.onRunHclFaultTreeBatch(config, tree, ["scenario"], false, "PROBABILITY");
+
+function batchPosterior(): BayesianNetworkBatchAnalysisResult {
+  return {
+    schemaVersion: "1.0.0",
+    runId: RUN_ID,
+    owner: { workbookId: ESQ_ID, modelId: TEST_ID.model, workbookRevision: 5 },
+    queryNodeIds: [TEST_ID.a],
+    scenarios: dependencyScenarios().map((scenario) => ({ scenarioId: scenario.id, scenarioCode: scenario.code, scenarioName: scenario.name, status: "SUCCEEDED", failure: null, result: posterior() })),
+    diagnostics: { junctionTreeCompilations: 1, scenarioEvaluations: 2 },
+    completedAt: NOW,
+  };
 }
-async function ready(saveStatus: RevisionedSaveStatus = "saved") {
+
+function deferred<T>(): Deferred<T> {
+  let resolve: (value: T) => void = () => undefined;
+  let reject: (error: Error) => void = () => undefined;
+  const promise = new Promise<T>((done, fail) => {
+    resolve = done;
+    reject = fail;
+  });
+  return { promise, resolve, reject };
+}
+
+function Harness({ saveStatus = "saved", revision = 5 }: { saveStatus?: RevisionedSaveStatus; revision?: number }): JSX.Element {
+  const [esq, setEsq] = useState(() => dependencyEsq([dependencyConfiguration({
+    baseEvidence: { observations: [{ nodeId: TEST_ID.a, stateId: TEST_ID.aTrue }] },
+    evidenceScenarios: dependencyScenarios(),
+  })]));
+  const mutateEsq = useCallback((mutator: (current: EventSequenceQuantification) => EventSequenceQuantification): void => setEsq(mutator), []);
+  return (
+    <EsqWorkbookProvider data={{ esq }} editable mutateEsq={mutateEsq} runtime={{ ...SAVED, revision, saveStatus }}>
+      <EsqDependencyNetwork network={esq.bayesianNetworks[0]} faultTreeOptions={[]} onNetwork={() => undefined} />
+    </EsqWorkbookProvider>
+  );
+}
+
+function editor(): BayesianNetworkEditorProps {
+  if (mockEditor === undefined) throw new Error("the editor is not on screen");
+  return mockEditor;
+}
+
+function run(kind: RunKind): void {
+  if (kind === "QUERY") editor().onRun();
+  else editor().onRunBatch?.(dependencyScenarios());
+}
+
+function ready(saveStatus: RevisionedSaveStatus = "saved"): RenderResult {
   const view = render(<Harness saveStatus={saveStatus} />);
-  await waitFor(() => expect(mockEditor.hclConfigurations).toHaveLength(1));
+  expect(editor().hclConfigurations).toHaveLength(1);
   return view;
 }
-async function faultTreeBatch() {
-  await ready();
-  act(() => run("FT_BATCH"));
-  await waitFor(() => expect(mockEditor.hclBatchRunResult).not.toBeNull());
-  return mockEditor.hclBatchRunResult;
+
+function shown(): HTMLElement {
+  return screen.getByTestId("result");
 }
-async function eventTreeBatch() {
-  const study = await studyTree({ workbookId: "esq", revision: 1, option: { key: "sy:hcl", workbookId: "sy", configuration: configuration("sy") },
-    treeId: "et", result: "PROBABILITY", evidence: "SCENARIOS", scenarioIds: ["scenario"], batchInput: null });
-  return study.batchRunResult;
-}
-it("passes ranked cut set settings from a dependency study to the single and batch run calls", async () => {
-  const cutSets = { score: "FAILED_EVENTS" as const, keep: 25, limitOrder: 3 };
-  const input = { workbookId: "esq", revision: 1, option: { key: "sy:hcl", workbookId: "sy", configuration: configuration("sy") },
-    treeId: "et", result: "PROBABILITY" as const, scenarioIds: ["scenario"], batchInput: null };
-  await studyTree({ ...input, evidence: "BASE", cutSets });
-  await studyTree({ ...input, evidence: "HAZARD", cutSets });
-  await studyTree({ ...input, evidence: "BASE" });
-  expect(mockExecute.mock.calls.map((call) => call.length)).toEqual([9, 12, 9]);
-  expect(mockExecute.mock.calls[0]?.[7]).toEqual(cutSets);
-  expect(mockExecute.mock.calls[1]?.[10]).toEqual(cutSets);
-  expect(mockExecute.mock.calls[2]?.[7]).toBeUndefined();
-});
 
 beforeEach(() => {
-  jest.clearAllMocks();
-  mockExecute.mockResolvedValue({ run: { id: "run", status: "SUCCEEDED" }, runs: [{ scenarioId: "scenario", scenarioCode: "S1", scenarioName: "Earthquake", run: { id: "run", status: "SUCCEEDED" } }] });
-  mockResult.mockResolvedValue({ probability: 0.2, marginals: [], sequences: [], scenarios: [] });
+  mockEditor = undefined;
+  jest.mocked(runEsqBayesianNetwork).mockReset();
+  jest.mocked(runEsqBayesianNetwork).mockResolvedValue(execution());
+  jest.mocked(runEsqBayesianNetworkBatch).mockReset();
+  jest.mocked(runEsqBayesianNetworkBatch).mockResolvedValue(execution());
+  jest.mocked(getEsqBayesianNetworkResult).mockReset();
+  jest.mocked(getEsqBayesianNetworkResult).mockResolvedValue(posterior());
+  jest.mocked(getEsqBayesianNetworkBatchResult).mockReset();
+  jest.mocked(getEsqBayesianNetworkBatchResult).mockResolvedValue(batchPosterior());
 });
 
-it("preserves SY evidence through deletion, undo and rename", async () => {
-  await ready();
-  const before = structuredClone(mockEditor.hclConfigurations);
-  act(() => mockEditor.onModelChange(deleteNode(mockEditor.model, TEST_ID.a)));
-  expect(mockEditor.hclConfigurations).toEqual(before);
-  expect(mockEditor.validation.some((issue) => issue.code === "BN_EVIDENCE_NODE_NOT_FOUND")).toBe(true);
-  act(() => mockEditor.onModelChange(original));
-  expect(mockEditor.hclConfigurations).toEqual(before);
-  expect(mockEditor.validation).toEqual([]);
-  act(() => mockEditor.onModelChange({ ...original, name: "Renamed network" }));
-  expect(mockEditor.hclConfigurations).toEqual(before);
+it("preserves the evidence of the configuration through deletion, undo and rename", () => {
+  ready();
+  const before = structuredClone(editor().hclConfigurations);
+  act(() => editor().onModelChange(deleteNode(editor().model, TEST_ID.a)));
+  expect(editor().hclConfigurations).toEqual(before);
+  expect(editor().validation.some((issue) => issue.code === "BN_EVIDENCE_NODE_NOT_FOUND")).toBe(true);
+  act(() => editor().onModelChange(testBayesianNetworkModel()));
+  expect(editor().hclConfigurations).toEqual(before);
+  expect(editor().validation).toEqual([]);
+  act(() => editor().onModelChange({ ...testBayesianNetworkModel(), name: "Renamed network" }));
+  expect(editor().hclConfigurations).toEqual(before);
 });
 
-const kinds: RunKind[] = ["BN", "BN_BATCH", "FT", "FT_BATCH"];
-it.each(kinds.flatMap((kind) => (["saving", "failed"] as const).map((status) => [kind, status] as const)))(
-  "blocks %s callbacks while saving is %s", async (kind, status) => {
-    await ready(status);
+it.each(KINDS.flatMap((kind) => BLOCKS.map(([status, reason]) => [kind, status, reason] as const)))(
+  "blocks %s callbacks while saving is %s",
+  (kind, status, reason) => {
+    ready(status);
     act(() => run(kind));
-    expect(mockExecute).not.toHaveBeenCalled();
-    expect(screen.getByTestId("blocked").textContent).not.toBe("");
+    expect(runEsqBayesianNetwork).not.toHaveBeenCalled();
+    expect(runEsqBayesianNetworkBatch).not.toHaveBeenCalled();
+    expect(editor().saving).toBe(status === "saving");
+    if (status === "saving") expect(screen.getByTestId("blocked")).toBeEmptyDOMElement();
+    else expect(screen.getByTestId("blocked")).toHaveTextContent(reason);
+    expect(screen.getByTestId("error")).toHaveTextContent(reason);
   },
 );
-it.each(kinds)("clears completed %s results after a CPT edit", async (kind) => {
-  await ready();
+
+it.each(KINDS)("keeps completed %s results through a save that leaves the network alone", async (kind) => {
+  const view = ready();
   act(() => run(kind));
-  await waitFor(() => expect(screen.getByTestId("result")).not.toHaveTextContent("[null,null,null,null]"));
-  act(() => mockEditor.onModelChange({ ...mockEditor.model, conditionalProbabilityTables: mockEditor.model.conditionalProbabilityTables.map((table) => ({
-    ...table, rows: table.rows.map((row) => ({ ...row, values: row.values.map((value) => ({ ...value, probability: 0.5 })) })),
-  })) }));
-  expect(screen.getByTestId("result")).toHaveTextContent("[null,null,null,null]");
-});
-it.each(kinds)("discards late %s results after inputs change", async (kind) => {
-  let resolve!: (value: unknown) => void;
-  mockResult.mockReturnValue(new Promise((done) => { resolve = done; }));
-  await ready();
-  act(() => run(kind));
-  await waitFor(() => expect(mockResult).toHaveBeenCalled());
-  act(() => mockEditor.onModelChange({ ...mockEditor.model, name: "Edited during execution" }));
-  await act(async () => { resolve({ probability: 0.9, marginals: [], scenarios: [], sequences: [] }); });
-  expect(screen.getByTestId("result")).toHaveTextContent("[null,null,null,null]");
-});
-it("uses the saved revision after saving completes", async () => {
-  const view = await ready("saving");
-  act(() => run("BN"));
-  view.rerender(<Harness saveStatus="saved" revision={2} />);
-  act(() => run("BN"));
-  await waitFor(() => expect(mockExecute).toHaveBeenCalledTimes(1));
-  expect(mockExecute.mock.calls[0][2]).toBe(2);
-});
-it("discards stale errors and does not clear a newer run", async () => {
-  let rejectOld!: (error: Error) => void;
-  mockExecute.mockImplementationOnce(() => new Promise((_resolve, reject) => { rejectOld = reject; }));
-  await ready();
-  act(() => run("BN"));
-  act(() => mockEditor.onModelChange({ ...mockEditor.model, name: "New input" }));
-  act(() => run("BN"));
-  await waitFor(() => expect(mockEditor.analysisResult).not.toBeNull());
-  await act(async () => { rejectOld(new Error("Old failure")); });
-  expect(mockEditor.analysisResult).not.toBeNull();
-  expect(screen.getByTestId("error")).toBeEmptyDOMElement();
+  await waitFor(() => expect(shown()).not.toHaveTextContent(NO_RESULT));
+  view.rerender(<Harness saveStatus="saving" />);
+  expect(shown()).not.toHaveTextContent(NO_RESULT);
+  view.rerender(<Harness saveStatus="saved" revision={6} />);
+  expect(shown()).not.toHaveTextContent(NO_RESULT);
 });
 
+it.each(KINDS)("shows the %s result of the selected network", async (kind) => {
+  ready();
+  act(() => run(kind));
+  await waitFor(() => expect(shown()).not.toHaveTextContent(NO_RESULT));
+  if (kind === "QUERY") {
+    expect(runEsqBayesianNetwork).toHaveBeenCalledWith(ESQ_ID, TEST_ID.model, 5, { observations: [{ nodeId: TEST_ID.a, stateId: TEST_ID.aTrue }] }, TEST_ID.a);
+    expect(getEsqBayesianNetworkResult).toHaveBeenCalledWith(ESQ_ID, TEST_ID.model, RUN_ID);
+    expect(editor().analysisResult).toEqual(posterior());
+  } else {
+    expect(runEsqBayesianNetworkBatch).toHaveBeenCalledWith(ESQ_ID, TEST_ID.model, 5, dependencyScenarios(), TEST_ID.a);
+    expect(getEsqBayesianNetworkBatchResult).toHaveBeenCalledWith(ESQ_ID, TEST_ID.model, RUN_ID);
+    expect(editor().queryBatchResult).toEqual({ queryNodeId: TEST_ID.a, scenarios: batchPosterior().scenarios });
+  }
+  expect(editor().running).toBe(false);
+});
 
-it.each(["FT_BATCH", "ET_BATCH"] as const)("preserves %s compilation counts and saved diagnostics", async (kind) => {
-  const compilationReuse = {
-    ...(kind === "FT_BATCH" ? { bddCompilations: 1 } : { sequenceBddCompilations: 2 }),
-    junctionTreeCompilations: 1,
-    scenarioEvaluations: 1,
-  };
-  const diagnostics = {
-    bdd: { nodes: 3, variables: 2, variableOrder: ["B", "A"] },
-    bridge: { quantifications: 1, bddContextCacheHits: 0, bddContextCacheMisses: 2, bnQueryCacheHits: 0, bnQueryCacheMisses: 1 },
-    junctionTree: { numCliques: 1, maxCliqueSize: 2, treewidth: 1, totalTableEntries: 4 },
-  };
-  mockExecute.mockResolvedValue({
-    compilationReuse,
-    runs: [{ scenarioId: "scenario", scenarioCode: "S1", scenarioName: "Earthquake", run: { id: "run", status: "SUCCEEDED" } }],
+it.each(KINDS)("clears completed %s results after a CPT edit", async (kind) => {
+  ready();
+  act(() => run(kind));
+  await waitFor(() => expect(shown()).not.toHaveTextContent(NO_RESULT));
+  act(() => editor().onModelChange({
+    ...editor().model,
+    conditionalProbabilityTables: editor().model.conditionalProbabilityTables.map((table) => ({
+      ...table,
+      rows: table.rows.map((row) => ({ ...row, values: [{ ...row.values[0], probability: 0.5 }, ...row.values.slice(1).map((value) => ({ ...value, probability: 0.5 }))] })),
+    })),
+  }));
+  expect(shown()).toHaveTextContent(NO_RESULT);
+});
+
+it.each(KINDS)("clears completed %s results when the evidence or the query node changes", async (kind) => {
+  ready();
+  act(() => run(kind));
+  await waitFor(() => expect(shown()).not.toHaveTextContent(NO_RESULT));
+  act(() => editor().onEvidenceChange({ observations: [] }));
+  expect(shown()).toHaveTextContent(NO_RESULT);
+  act(() => run(kind));
+  await waitFor(() => expect(shown()).not.toHaveTextContent(NO_RESULT));
+  act(() => editor().onQueryNodeChange(TEST_ID.b));
+  expect(shown()).toHaveTextContent(NO_RESULT);
+});
+
+it.each(KINDS)("discards late %s results after inputs change", async (kind) => {
+  const single = deferred<BayesianNetworkAnalysisResult>();
+  const batch = deferred<BayesianNetworkBatchAnalysisResult>();
+  jest.mocked(getEsqBayesianNetworkResult).mockReturnValue(single.promise);
+  jest.mocked(getEsqBayesianNetworkBatchResult).mockReturnValue(batch.promise);
+  ready();
+  act(() => run(kind));
+  await waitFor(() => expect(kind === "QUERY" ? getEsqBayesianNetworkResult : getEsqBayesianNetworkBatchResult).toHaveBeenCalled());
+  act(() => editor().onModelChange({ ...editor().model, name: "Edited during the run" }));
+  await act(async () => {
+    single.resolve(posterior());
+    batch.resolve(batchPosterior());
   });
-  const savedResult = kind === "FT_BATCH"
-    ? { probability: 0.2, bddNodes: 3, bddVariables: 2, variableOrder: ["B", "A"], bridge: diagnostics.bridge, junctionTree: diagnostics.junctionTree, compilationReuse }
-    : { sequences: [{ sequenceId: "S1", probability: 0.2, diagnostics }], compilationReuse };
-  mockResult.mockResolvedValue(savedResult);
-  const batch = kind === "FT_BATCH" ? await faultTreeBatch() : await eventTreeBatch();
-  expect(batch?.compilationReuse).toEqual(compilationReuse);
-  expect(batch?.scenarios[0]?.result?.result).toEqual(savedResult);
-  expect(mockExecute).toHaveBeenCalledTimes(1);
-  expect(mockResult).toHaveBeenCalledTimes(1);
+  expect(shown()).toHaveTextContent(NO_RESULT);
+});
+
+it("uses the saved revision after saving completes", async () => {
+  const view = ready("saving");
+  act(() => run("QUERY"));
+  view.rerender(<Harness saveStatus="saved" revision={6} />);
+  act(() => run("QUERY"));
+  await waitFor(() => expect(runEsqBayesianNetwork).toHaveBeenCalledTimes(1));
+  expect(jest.mocked(runEsqBayesianNetwork).mock.calls[0]?.[2]).toBe(6);
+  await waitFor(() => expect(shown()).not.toHaveTextContent(NO_RESULT));
+});
+
+it("discards stale errors and does not clear a newer run", async () => {
+  const old = deferred<BayesianNetworkExecuteResult>();
+  jest.mocked(runEsqBayesianNetwork).mockReturnValueOnce(old.promise);
+  ready();
+  act(() => run("QUERY"));
+  act(() => editor().onModelChange({ ...editor().model, name: "New input" }));
+  act(() => run("QUERY"));
+  await waitFor(() => expect(editor().analysisResult).not.toBeNull());
+  await act(async () => { old.reject(new Error("Old failure")); });
+  expect(editor().analysisResult).not.toBeNull();
+  expect(screen.getByTestId("error")).toBeEmptyDOMElement();
 });

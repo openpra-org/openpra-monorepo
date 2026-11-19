@@ -97,6 +97,7 @@ import {
   type SyCcfFacts,
 } from "./uncertainty-migration";
 import { numberField, recordField } from "./uncertainty-migration-json";
+import { withoutNetworkNodes } from "./sy-network-migration";
 import { failQuestions } from "./uncertainty-migration-laws";
 
 const UNCERTAINTY_MIGRATION_ID = "uncertainty-contract-2026-10";
@@ -416,9 +417,9 @@ function snapshotIssue(snapshot: StoredSnapshot): string | undefined {
     case "DA":
       return daIssue(mef);
     case "ESQ":
-      return esqIssue(mef);
+      return esqIssue(withoutNetworkNodes(mef));
     case "ES":
-      return esIssue(mef);
+      return esIssue(withoutNetworkNodes(mef));
     case "HRA":
       return hrIssue(mef);
     default:
@@ -1043,5 +1044,5 @@ export class UncertaintyMigrationService implements OnApplicationBootstrap {
   }
 }
 
-export { BACKUP_COLLECTION, MIGRATIONS_COLLECTION, UNCERTAINTY_MIGRATION_ID, runIssue };
+export { BACKUP_COLLECTION, MIGRATIONS_COLLECTION, UNCERTAINTY_MIGRATION_ID, previousRecord, runIssue };
 export type { UncertaintyConversionSummary, WorkbookTally };

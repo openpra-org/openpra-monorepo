@@ -182,6 +182,18 @@ describe("HCL integration-workbook event-tree execution", () => {
     expect(HclEventTreeExecuteRequestSchema.safeParse(request).success).toBe(false);
     expect(HclEventTreeBatchExecuteRequestSchema.safeParse({ ...request, evidenceScenarioIds: [SCENARIO_ID] }).success).toBe(false);
   });
+
+  it("rejects a configuration address from another workbook", () => {
+    const request = {
+      schemaVersion: "1.0.0",
+      modelId: CONFIGURATION_ID,
+      workbookRevision: 3,
+      eventTree: { workbookId: "esq-workbook", modelId: EVENT_TREE_MODEL_ID },
+      dependencyConfiguration: { workbookId: FT_WORKBOOK_ID, modelId: CONFIGURATION_ID },
+    };
+    expect(HclEventTreeExecuteRequestSchema.safeParse(request).success).toBe(false);
+    expect(HclEventTreeBatchExecuteRequestSchema.safeParse({ ...request, evidenceScenarioIds: [SCENARIO_ID] }).success).toBe(false);
+  });
 });
 
 describe("HCL evidence-scenario batches", () => {
@@ -207,6 +219,27 @@ describe("HCL evidence-scenario batches", () => {
     for (const dependencyCutSets of [{}, { keep: 0 }, { keep: 1001 }, { keep: 5, limitOrder: 0 }, { keep: 5, cutOff: 0 }, { keep: 5, cutOff: 2 }, { keep: 5, causes: 0 }, { keep: 5, causes: 2.5 }, { keep: 5, score: "FAILED_EVENTS" }]) {
       expect(HclExecuteRequestSchema.safeParse({ ...request, dependencyCutSets }).success).toBe(false);
       expect(HclFaultTreeBatchExecuteRequestSchema.safeParse({ ...request, evidenceScenarioIds: [SCENARIO_ID], dependencyCutSets }).success).toBe(false);
+    }
+  });
+
+  it("accepts and checks run sampling on fault-tree runs", () => {
+    const request = {
+      schemaVersion: "1.0.0",
+      modelId: CONFIGURATION_ID,
+      workbookRevision: 3,
+      calculationType: "UNCERTAINTY",
+      faultTreeTopGate: { referenceType: "FAULT_TREE_TOP_EVENT", workbookId: FT_WORKBOOK_ID, modelId: FT_MODEL_ID, entityId: TOP_GATE_ID },
+    };
+    for (const sampling of [
+      { sampleCount: 200, sampler: "MC" },
+      { sampleCount: 513, seed: 42, sampler: "LHS", cptSampler: "MC", correlation: "INDEPENDENT", clipProbabilities: true, cptClipEpsilon: 1e-6, zeroProbabilityContexts: "FAIL" },
+    ]) {
+      expect(HclExecuteRequestSchema.safeParse({ ...request, sampling }).success).toBe(true);
+      expect(HclFaultTreeBatchExecuteRequestSchema.safeParse({ ...request, evidenceScenarioIds: [SCENARIO_ID], sampling }).success).toBe(true);
+    }
+    for (const sampling of [{ sampler: "MC" }, { sampleCount: 1, sampler: "MC" }, { sampleCount: 200, sampler: "SOBOL" }, { sampleCount: 200, sampler: "MC", seed: -1 }, { sampleCount: 200, sampler: "MC", basicEvents: [] }]) {
+      expect(HclExecuteRequestSchema.safeParse({ ...request, sampling }).success).toBe(false);
+      expect(HclFaultTreeBatchExecuteRequestSchema.safeParse({ ...request, evidenceScenarioIds: [SCENARIO_ID], sampling }).success).toBe(false);
     }
   });
 

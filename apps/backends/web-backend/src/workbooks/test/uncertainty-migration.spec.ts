@@ -22,6 +22,7 @@ import { DA_ANALYSIS_HTGR } from "../../example-workbooks/seeds/da-seed-htgr";
 import { SY_ANALYSIS_HTGR } from "../../example-workbooks/seeds/sy-seed-htgr";
 import { createBlankIe } from "../../ie-workbooks/blank-ie";
 import { createBlankSc } from "../../sc-workbooks/blank-sc";
+import { receiveSyNetworks } from "../sy-network-migration";
 import {
   ConversionScope,
   PraxisAnswers,
@@ -806,16 +807,20 @@ describe("uncertainty contract conversions", () => {
     expect(nodes.map((node) => field(node, "expression"))).toEqual([undefined, point("PROBABILITY", 0.004), undefined]);
   });
 
-  it("converts SY and ESQ HCL uncertainty settings into contract laws and Dirichlet rows", () => {
+  it("converts the HCL uncertainty settings ESQ holds, moved from SY or its own, into contract laws and Dirichlet rows", () => {
     const sy = fixture("sy-hcl");
     const configurations = records(field(sy, "dependencyHclConfigurations"));
     const configuration = configurations[0] ?? {};
     const old = { ...sy, dependencyHclConfigurations: [{ ...configuration, solverSettings: { ...record(field(configuration, "solverSettings")), uncertainty: fixture("hcl-sy-uncertainty") } }] };
-    expect(syIssue(old)).toBeDefined();
-    const next = convertSy(old);
-    expect(syIssue(next)).toBeUndefined();
-    expect(convertSy(next)).toBe(next);
-    const nextConfiguration = records(field(next, "dependencyHclConfigurations"))[0] ?? {};
+    expect(syIssue(convertSy(old))).toBeUndefined();
+    expect(field(convertSy(old), "dependencyHclConfigurations")).toEqual(field(old, "dependencyHclConfigurations"));
+    const moved = receiveSyNetworks(without(fixture("esq-hcl"), ["bayesianNetworks", "hclConfigurations"]), "esq-wb", old, "example-sy-hcl-case-study");
+    expect(esqIssue(moved)).toBeDefined();
+    const next = convertEsq(moved);
+    expect(esqIssue(next)).toBeUndefined();
+    expect(jsonTextOf(convertEsq(next))).toBe(jsonTextOf(next));
+    const nextConfiguration = records(field(next, "hclConfigurations"))[0] ?? {};
+    expect(field(nextConfiguration, "bayesianNetwork")).toEqual({ workbookId: "esq-wb", modelId: field(record(field(configuration, "bayesianNetwork")), "modelId") });
     expect(WorkbookHclUncertaintyConfigurationSchema.safeParse(nextConfiguration).success).toBe(true);
     const settings = record(field(record(field(nextConfiguration, "solverSettings")), "uncertainty"));
     expect(Object.keys(settings).sort()).toEqual(["basicEvents", "cptGenerators", "cptRows", "sampleCount", "sampler", "seed"]);

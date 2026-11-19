@@ -1,4 +1,5 @@
 import type { EventSequenceQuantification } from "interfaces-mef-types/esq/event-sequence-quantification";
+import type { EsqBayesianNetwork } from "interfaces-mef-types/esq/workbook-models";
 import type { EventSequenceAnalysis, EventTree } from "interfaces-mef-types/es/event-sequence-analysis";
 import type { CommonCauseFailureGroup, SystemsAnalysis, SystemLogicModel } from "interfaces-mef-types/sy/systems-analysis";
 import type { DataAnalysis } from "interfaces-mef-types/da/data-analysis";
@@ -158,6 +159,25 @@ const POS = {
   ],
 } as PlantOperatingStatesAnalysis;
 
+const NETWORK: EsqBayesianNetwork = {
+  modelId: "BN-1",
+  code: "DN-01",
+  name: "Cooling dependencies",
+  description: "",
+  nodes: [
+    { id: "N-ROOM", kind: "CHANCE_NODE", code: "ROOM", name: "Pump room", description: "", states: [{ id: "S-DRY", code: "DRY", name: "Dry" }, { id: "S-WET", code: "WET", name: "Wet" }, { id: "S-FLOODED", code: "FLOODED", name: "Flooded" }] },
+    { id: "N-GRID", kind: "CHANCE_NODE", code: "GRID", name: "Offsite power", description: "", states: [{ id: "S-ON", code: "ON", name: "Available" }, { id: "S-OFF", code: "OFF", name: "Lost" }] },
+  ],
+  edges: [],
+  conditionalProbabilityTables: [],
+  nodePositions: [],
+  layout: { viewport: { x: 0, y: 0, zoom: 1 }, mode: "AUTOMATIC", direction: "LEFT_TO_RIGHT" },
+};
+
+function dependencyNetwork(): EsqBayesianNetwork {
+  return structuredClone(NETWORK);
+}
+
 function modelUpstream(): EsqUpstream {
   return { ...EMPTY_UPSTREAM, es: structuredClone(ES), sy: structuredClone(SY), da: structuredClone(DA), hr: structuredClone(HR), ie: structuredClone(IE), pos: structuredClone(POS) };
 }
@@ -170,4 +190,4 @@ function liveImport(esq: EventSequenceQuantification, upstream: EsqUpstream, now
   return liveEsqOf(withModelImported(esq, upstream, now), upstream.da);
 }
 
-export { PUMP_ESTIMATE, daParameter, fanMission, linkedEsq, liveImport, modelUpstream };
+export { PUMP_ESTIMATE, daParameter, dependencyNetwork, fanMission, linkedEsq, liveImport, modelUpstream };

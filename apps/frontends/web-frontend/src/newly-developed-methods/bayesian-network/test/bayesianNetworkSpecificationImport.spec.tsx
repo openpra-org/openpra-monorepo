@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState, type JSX } from "react";
 import {
@@ -30,9 +30,11 @@ const BUILT_NETWORK = `<?xml version='1.0' encoding='UTF-8'?>
 function Harness({
   onBuildFromSpecification,
   onModelChange,
+  onModelImport = jest.fn(),
 }: {
   onBuildFromSpecification?: BayesianNetworkEditorProps["onBuildFromSpecification"];
   onModelChange: (model: BayesianNetworkModel) => void;
+  onModelImport?: (model: BayesianNetworkModel) => void;
 }): JSX.Element {
   const [model, setModel] = useState(testBayesianNetworkModel());
   return (
@@ -40,7 +42,6 @@ function Harness({
       <BayesianNetworkEditor
         model={model}
         editable
-        showAnalysis={false}
         evidence={{ observations: [] }}
         queryNodeId={model.nodes[0]?.id ?? null}
         validation={validateBayesianNetworkModel(model)}
@@ -50,22 +51,14 @@ function Harness({
         workbookId={null}
         hclConfigurations={[]}
         faultTreeOptions={[]}
-        eventTreeOptions={[]}
-        hclRunning={false}
-        hclRunError={null}
-        hclRunResult={null}
-        hclBatchRunResult={null}
         onModelChange={(next) => {
           setModel(next);
           onModelChange(next);
         }}
+        onModelImport={onModelImport}
         onEvidenceChange={() => undefined}
         onQueryNodeChange={() => undefined}
         onHclConfigurationsChange={() => undefined}
-        onRunHclFaultTree={() => undefined}
-        onRunHclEventTree={() => undefined}
-        onRunHclFaultTreeBatch={() => undefined}
-        onRunHclEventTreeBatch={() => undefined}
         onRun={() => undefined}
         onBuildFromSpecification={onBuildFromSpecification}
       />
@@ -108,13 +101,15 @@ describe("building a Bayesian network from a specification", () => {
     ["site.yaml", "YAML"],
     ["site.yml", "YAML"],
     ["SITE.JSON", "JSON"],
-  ])("sends %s as %s and replaces the network after confirmation", async (name, format) => {
+  ])("sends %s as %s and adds the built network as a new one", async (name, format) => {
     const user = userEvent.setup();
     const changed = jest.fn();
+    const imported = jest.fn();
     const build = jest.fn().mockResolvedValue(BUILT_NETWORK);
     const { container } = render(
       <Harness
         onModelChange={changed}
+        onModelImport={imported}
         onBuildFromSpecification={build}
       />,
     );
@@ -123,22 +118,25 @@ describe("building a Bayesian network from a specification", () => {
     fireEvent.change(container.querySelector('input[type="file"][accept*=".yaml"]')!, {
       target: { files: [specificationFile(name, "schema_version: '0.1'")] },
     });
-    const dialog = await screen.findByRole("alertdialog", { name: "Replace this Bayesian network?" });
+    await waitFor(() => expect(imported).toHaveBeenCalledTimes(1));
     expect(build).toHaveBeenCalledWith(format, "schema_version: '0.1'");
+    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
     expect(changed).not.toHaveBeenCalled();
-    await user.click(within(dialog).getByRole("button", { name: "Replace network" }));
-    const built: BayesianNetworkModel = changed.mock.lastCall![0];
+    const built: BayesianNetworkModel = imported.mock.lastCall![0];
+    expect(built.modelId).not.toBe(testBayesianNetworkModel().modelId);
     expect(built.nodes.map((node) => node.code)).toEqual(["PGA", "SEISMIC_FAIL_DG_A"]);
     expect(built.edges).toHaveLength(1);
   });
 
-  it("shows the builder's message and keeps the network when the build fails", async () => {
+  it("shows the builder's message and adds no network when the build fails", async () => {
     const user = userEvent.setup();
     const changed = jest.fn();
+    const imported = jest.fn();
     const build = jest.fn().mockRejectedValue(new Error("seismic.DG_A.theta must be > 0."));
     const { container } = render(
       <Harness
         onModelChange={changed}
+        onModelImport={imported}
         onBuildFromSpecification={build}
       />,
     );
@@ -148,7 +146,7 @@ describe("building a Bayesian network from a specification", () => {
       target: { files: [specificationFile("site.yaml", "x")] },
     });
     expect(await screen.findByText("seismic.DG_A.theta must be > 0.")).toBeInTheDocument();
-    expect(screen.queryByRole("alertdialog", { name: "Replace this Bayesian network?" })).not.toBeInTheDocument();
+    expect(imported).not.toHaveBeenCalled();
     expect(changed).not.toHaveBeenCalled();
   });
 });

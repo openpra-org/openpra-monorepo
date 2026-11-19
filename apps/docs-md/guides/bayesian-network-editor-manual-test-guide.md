@@ -1,7 +1,7 @@
 ### BN-01 — Empty state and create a network
 
-1. Open **Systems Analysis → Step 05 Dependencies**.
-2. If no BN exists, confirm the section shows only **Bayesian dependency network** and **Add network**.
+1. Open **Event Sequence Quantification → Step 05 Solve and converge → Dependencies**.
+2. If no network exists, confirm the tab shows only the **Dependencies** heading and **Add network**.
 3. Click **Add network** and inspect the empty canvas.
 4. Click the large central **+** above **Add node to begin.**
 
@@ -10,13 +10,13 @@ Expected: the empty canvas shows the central **+** and **Add node to begin.**, w
 ### BN-02 — Create another network
 
 1. Click **Add network** again.
-2. Open the **Bayesian network** dropdown.
+2. Open the **Dependency network** dropdown.
 
 Expected: the new network is selected and both networks appear as `code · name` options.
 
 ### BN-03 — Switch networks
 
-1. Open the **Bayesian network** dropdown.
+1. Open the **Dependency network** dropdown.
 2. Select a different network.
 
 Expected: code, name, canvas, node selection, evidence, results, and undo history change to the selected network. Undo and redo history do not leak between networks.
@@ -46,7 +46,7 @@ Use only a disposable network.
 3. Review the styled confirmation dialog.
 4. Click **Delete network** in the dialog.
 
-Expected: the selected network and any HCL configurations attached to it are removed, then another network is selected. Cancel must leave everything unchanged.
+Expected: the selected network and the dependency configurations that use it are removed, then another network is selected. Cancel must leave everything unchanged.
 
 ## B. File import and export
 
@@ -66,38 +66,35 @@ Expected: the browser downloads `<network-code>.xdsl`. Discrete CPTs, parent ord
 
 ### BN-09 — Import valid JSON
 
-Use a new disposable network.
+Select any network and note its code.
 
 1. Click **File → Import JSON**.
 2. Choose `bn-editor-smoke-test.json` from the test kit.
-3. In **Replace this Bayesian network?**, click **Replace network**.
 
-Expected: the canvas becomes `HAZARD → SUPPORT → OUTCOME`, all row totals are `1.000000`, and no validation errors appear. Cancel must retain the original network.
+Expected: a new network is added and selected. Its canvas is `HAZARD → SUPPORT → OUTCOME`, all row totals are `1.00`, and no validation errors appear. The network that was open is still in the **Dependency network** list with its nodes, evidence and dependency configuration unchanged.
 
 ### BN-10 — Import valid XDSL
 
-1. Create or select another disposable network.
-2. Click the **File** icon → **Import XDSL**.
-3. Choose `bn-editor-smoke-test.xdsl`.
-4. Confirm **Replace network**.
+1. Click the **File** icon → **Import XDSL**.
+2. Choose `bn-editor-smoke-test.xdsl`.
 
-Expected: the same three-node graph, state codes, parent order, CPT values, names, descriptions, and positions appear.
+Expected: another new network is added and selected, with the same three-node graph, state codes, parent order, CPT values, names, descriptions, and positions. No confirmation window opens.
 
 ### BN-11 — Verify XDSL round trip
 
 1. After BN-10, edit a node name and drag one node.
 2. Click **File → Export XDSL**.
-3. Import the downloaded XDSL into another disposable network.
+3. Import the downloaded XDSL.
 
-Expected: the edits and positions survive the round trip, together with supported XDSL metadata.
+Expected: the import adds one more network. The edits and positions survive the round trip, together with supported XDSL metadata.
 
 ### BN-12 — Reject unsupported XDSL safely
 
-1. Select a disposable network and note its code.
+1. Select a network and note its code.
 2. Click the **File** icon → **Import XDSL**.
 3. Choose `invalid-bn-unsupported-decision.xdsl`.
 
-Expected: a styled editor error says that only discrete CPT nodes are supported. The current network remains unchanged and no replacement confirmation appears.
+Expected: a styled editor error says that only discrete CPT nodes are supported. The current network remains unchanged and no network is added.
 
 ## C. Canvas, selection, movement, and layout
 
@@ -305,7 +302,7 @@ Expected: the related node becomes selected so the offending field and CPT can b
 1. Leave a CPT row invalid.
 2. Select a query node.
 
-Expected: **Run exact inference** is disabled. HCL runs are also disabled for blocking HCL validation errors.
+Expected: **Run inference** is disabled. Dependency runs are also blocked while the network has a blocking error.
 
 ## H. Common evidence and exact BN inference
 
@@ -425,7 +422,7 @@ Expected: the reusable definition disappears. Attempting this while instances re
 ### BN-53 — Module JSON/XDSL persistence
 
 1. Create two instances and export **OpenPRA JSON** and **XDSL**.
-2. Import each into separate disposable networks.
+2. Import each file. Each import adds its own network.
 3. In the OpenPRA copy, delete one instance, export both formats again, and inspect the remaining graph and XDSL extensions.
 
 Expected: OpenPRA JSON preserves templates, instances and their wiring. XDSL preserves the materialized solver-ready nodes and GeNIe submodels; it does not carry reusable template definitions. Deleted instance node records do not reappear after either export. The other instance and unrelated vendor extensions remain, including foreign-namespace records whose IDs match deleted records.
@@ -442,395 +439,384 @@ Expected: ROOT shows top-level groups and ungrouped nodes. Each scope shows its 
 
 Group membership comes from existing XDSL submodels and materialized template instances. This feature adds their visualization, not an arbitrary group-authoring workflow. A deleted instance disappears from the view; imported empty groups can remain. Malformed grouping metadata produces an error while **All nodes** stays available.
 
-## J. HCL configuration and fault-tree bindings in Systems Analysis
+## J. Dependency configuration and fault tree bindings
 
-Use the dissertation example’s Systems Analysis workbook and its original dependency network for these tests.
+Use the case study example. Stay in **Event Sequence Quantification → Step 05 Solve and converge → Dependencies**. The fault trees come from the linked Systems Analysis workbook.
 
-### BN-54 — Create an HCL configuration
+### BN-54: Create a dependency configuration
 
-Use a disposable network if testing the empty state.
+Use a disposable network to test the first step.
 
-1. Click the **HCL quantification** tab.
-2. If the panel says **No HCL configuration**, click **Create HCL configuration**.
+1. Pick or add a network that has no configuration.
+2. Click **Create dependency configuration** under the network.
 
-Expected: a configuration is created for the selected BN, its manager opens, and its status summarizes fault-tree count, binding count, and scenario count. An unsaved workbook must ask you to save before configuration creation.
+Expected: the configuration gets the next `DEP-n` code. **Configuration** and **Advanced** appear, and the run controls appear under the network. An unsaved workbook shows "Save this workbook before creating a dependency configuration."
 
-### BN-55 — Open and close the configuration manager
+### BN-55: Open and close the configuration panel
 
-1. Click **Manage**.
+1. Click **Configuration**.
 2. Click **Close**.
 
-Expected: the manager expands/collapses without losing configuration data or changing the selected quantification target.
+Expected: the panel shows **Fault trees**, **Bindings** and **Uncertainty**. Closing it changes no data.
 
-### BN-56 — Include a fault tree without a binding
+### BN-56: Include a fault tree without a binding
 
-1. Open **Manage → Fault trees**.
-2. Choose a **Fault tree**.
-3. Click **Include selected fault tree**.
+1. Open **Configuration**.
+2. Under **Fault trees**, choose a **Fault tree**.
+3. Click **Include**.
 
-Expected: its code appears under **Included fault trees**. Adding the same tree again produces a clear error.
+Expected: its code appears under **Included**. Including it again shows "That fault tree is already included."
 
-### BN-57 — Create a basic-event binding
+### BN-57: Create a basic event binding
 
-1. Open **Manage → Bindings**.
-2. Choose a **Fault tree**.
-3. Choose one of that tree’s **Basic event** codes.
-4. Choose a **BN node**.
-5. Under **True states**, check one or more states that mean the basic event is true.
-6. Click **Add binding**.
+1. Under **Bindings**, choose a **Fault tree**.
+2. Choose one of its **Basic event** codes.
+3. Choose a **Network node**.
+4. Under **True states**, check the states in which the basic event is true.
+5. Click **Add binding**.
 
-Expected: the list shows `FT / basic event → BN node = true state(s)`, and the fault tree is included automatically if necessary.
+Expected: the list shows the fault tree and basic event next to the network condition, and the mapping count goes up. The fault tree is included if it was not.
 
-### BN-58 — Verify binding guards
+### BN-58: Check the binding guards
 
 Try each case:
 
-1. Select no true state.
-2. Select every state as true.
+1. Check no true state.
+2. Check every state.
 3. Bind a basic event that already has a binding.
 
-Expected: each attempt is rejected with a concise explanation. A valid binding must select at least one—but not every—BN state, and each FT basic event can have only one binding in the configuration.
+Expected: the messages are "Select at least one true state.", "The true-state selection cannot contain every state of the node." and "That basic event already has a binding." Nothing is saved.
 
-### BN-59 — Delete a binding
+### BN-59: Delete a binding
 
-1. Find a disposable binding in the binding list.
-2. Click its **Delete** button.
+1. Find a disposable binding in the list.
+2. Click its delete button.
 
-Expected: only that binding is removed. The BN node and fault-tree basic event remain.
+Expected: only that binding is removed. The network node and the basic event stay.
 
-### BN-60 — Interpret a binding
+### BN-60: Read a binding
 
-For a row such as `ACP-4160-A-FT / ACP-4160-A-DEP → ACP-4160-A-DEP = TRUE`, verify this meaning:
+For a row such as `ACP-4160-A-FT / ACP-4160-A-DEP` with the condition `ACP-4160-A-DEP = TRUE`, check this meaning:
 
-1. The item before the arrow identifies the FT and its basic event.
-2. The item after the arrow identifies the BN node and the state set that makes that basic event logically true.
+1. The first part names the fault tree and its basic event.
+2. The condition names the network node and the states in which that basic event is true.
 
-Expected: HCL substitutes the BN-derived Boolean event for that FT basic event; it does not copy a standalone probability into the FT.
+Expected: a dependency run replaces that basic event with the network condition. It does not copy a fixed probability into the fault tree.
 
-## K. Evidence scenarios and file interchange
+## K. Evidence scenarios
 
-Remain in **Systems Analysis → Step 05 → HCL quantification → Manage → Evidence scenarios**.
+Set **Evidence** to **Evidence scenarios** in the run controls. The **Evidence scenarios** section opens under them. Its **Evidence scenarios** button closes and opens the section, and a closed section shows only the scenario count.
 
-### BN-61 — Add an evidence scenario
+### BN-61: Add an evidence scenario
 
 1. Click **Add scenario**.
 
-Expected: a selected enabled row such as `SCN-1` appears, with editable code/name and one dropdown per BN node.
+Expected: a scenario such as `SCN-1` is saved and its window opens with **Code**, **Name** and one state dropdown for each network node. While a hazard grid is set, the new scenario starts turned off.
 
-### BN-62 — Edit scenario identity
+### BN-62: Edit the scenario code and name
 
-1. Edit the selected scenario’s **Code** and **Name**.
+1. Change **Code** and **Name** in the scenario window.
 
-Expected: the scenario list updates immediately and preserves the edits after save/reload. Codes must be unique and no more than 64 characters; names are required and no more than 200 characters.
+Expected: a field is saved when the cursor leaves it or on Enter. The list shows the new values, and they stay after a reload. An empty code, an empty name or a code that another scenario has is refused with one sentence in the window, and the field goes back to its saved value.
 
-### BN-63 — Override common evidence in one scenario
+### BN-63: Set evidence in one scenario
 
-1. In the selected scenario, choose a state for one BN node.
-2. Leave another node on **Use common evidence**.
+1. Choose a state for one node.
+2. Leave another node on **Base evidence**.
 
-Expected: the scenario’s override count increases. Listed scenario evidence overrides common evidence only for the selected nodes; all other nodes inherit common evidence.
+Expected: the **Evidence** column lists only the nodes the scenario sets. Every other node keeps the base evidence.
 
-### BN-64 — Enable and disable a scenario
+### BN-64: Turn a scenario on and off
 
-1. Use the checkbox at the left of a scenario row.
+1. Use the **On** checkbox of a scenario row.
 
-Expected: disabled rows remain stored and editable but are excluded from scenario batches and hazard convolution. The **Enabled scenarios (n)** count updates.
+Expected: a scenario that is off stays saved and is left out of scenario runs and hazard convolution. The closed section shows how many are turned on.
 
-### BN-65 — Switch scenarios
+### BN-65: Open another scenario
 
-1. Click another scenario’s code/name row.
+1. Click the code of another scenario.
 
-Expected: the detail pane switches to that scenario without enabling, disabling, or running it.
+Expected: its window opens. Nothing runs and nothing is turned on or off.
 
-### BN-66 — Delete a scenario
+### BN-66: Remove a scenario
 
-1. Click **Delete** on a disposable scenario row.
+1. Click **Remove** on a disposable scenario row.
 
-Expected: only that scenario is removed and another valid scenario becomes selected.
+Expected: only that scenario is removed.
 
-### BN-67 — Import dissertation evidence CSV
+### BN-67: Upload evidence rows from CSV
 
-1. Click **Import JSON/CSV**.
+1. Click **Upload**.
 2. Choose `dissertation-evidence-smoke-test.csv`.
 
-Expected: six enabled `HZ-SMOKE-*` scenarios appear. Existing scenarios with matching codes are replaced in place; unrelated codes are preserved.
+Expected: six `HZ-SMOKE-*` rows appear as temporary rows. The saved scenarios are not changed until **Save scenarios** is clicked. **Use saved scenarios** drops the temporary rows.
 
-### BN-68 — Import dissertation evidence JSON
+### BN-68: Upload evidence rows from JSON
 
-1. Delete or change one imported `HZ-SMOKE-*` row.
-2. Click **Import JSON/CSV**.
-3. Choose `dissertation-evidence-smoke-test.json`.
+1. Click **Upload**.
+2. Choose `dissertation-evidence-smoke-test.json`.
 
-Expected: the same six scenarios are restored using node/state codes rather than internal UUIDs.
+Expected: the same six rows appear. Node and state codes are used, not internal ids.
 
-### BN-69 — Reject invalid evidence safely
+### BN-69: Reject invalid evidence
 
-1. Click **Import JSON/CSV**.
+1. Click **Upload**.
 2. Choose `invalid-evidence-unknown-state.json`.
 
-Expected: the editor reports the unknown state `NOT_A_REAL_STATE` on `SEISMIC-LEVEL`; no scenario is imported and existing scenarios remain unchanged.
+Expected: the section reports the unknown state `NOT_A_REAL_STATE` on `SEISMIC-LEVEL`. No row is added and the saved scenarios stay as they were.
 
-### BN-70 — Export evidence JSON and CSV
+### BN-70: Sample and export files
 
-1. Click **Export OpenPRA JSON**.
-2. Click **Export CSV**.
+1. Open **Sample** and pick JSON, then CSV.
+2. Open **Export** and pick JSON, then CSV.
 
-Expected: both downloads use the HCL configuration code in their filename and contain portable node/state codes, not UUIDs. Export buttons are disabled when no scenarios exist.
+Expected: the files are named after the network code and hold node and state codes, not internal ids. **Export** shows only when there are rows.
 
-## L. Hazard-grid configuration and convolution
+### BN-70A: Generate scenarios
 
-Use the six imported `HZ-SMOKE-*` scenarios and keep all six enabled.
+1. Click **Generate**.
+2. Check the grid nodes and their states.
+3. Add an excluded combination and a scenario limit if wanted.
+4. Click **Generate**.
 
-### BN-71 — Inspect hazard readiness
+Expected: the count of combinations shows before the run. The generated rows appear as temporary rows with a hazard grid over the chosen nodes.
 
-1. In **Evidence scenarios**, locate **Hazard convolution**.
+### BN-70B: Repair a scenario after the network changed
 
-Expected: the status says **Ready to enable** and identifies `SEISMIC-LEVEL + FLOOD-LEVEL` as sufficient to distinguish all six enabled grid cells.
+1. Delete a state or a node that a saved scenario sets.
+2. Set **Evidence** to **Evidence scenarios**.
 
-### BN-72 — Enable the hazard grid
+Expected: the run is blocked with "Evidence scenario … sets a node or a state that is not in the network." The scenario window shows **Missing state** or **Missing node**, and choosing **Base evidence** there clears it.
 
-1. Click **Enable**.
+## L. Hazard grid and hazard convolution
 
-Expected: the hazard-grid fields become visible. The algorithm chooses the smallest complete set of BN dimensions that uniquely identifies enabled cells; values are not hardcoded to particular node names.
+Set **Evidence** to **Hazard convolution**. Use the six `HZ-SMOKE-*` scenarios and keep all six turned on.
 
-### BN-73 — Edit hazard-grid identity and annual frequency
+### BN-71: Pick the grid nodes
 
-1. Edit **Name**.
-2. Set **Annual scale**, for example `0.01`.
-3. Set **Unit**, for example `per year`.
-4. Set **Year basis**.
-5. Review or edit **Hours/year**.
+1. In the **Evidence** table, check the **Grid nodes** that tell the scenarios apart.
 
-Expected: the typed frequency and annualization convention persist. Conversion uses the selected unit and year definition rather than assuming every number is already per year.
+Expected: only nodes that every scenario sets are offered. With `SEISMIC-LEVEL` and `FLOOD-LEVEL` checked the run is no longer blocked.
 
-### BN-74 — Normalize selected grid mass
+### BN-72: Set the annual scale
 
-1. Toggle **Normalize selected grid mass**.
+1. Type the **Annual scale** and pick its unit.
+2. Type **Hours per year**.
 
-Expected: when enabled, selected cell weights are divided by their covered BN probability mass before annual scaling. When disabled, uncovered probability mass remains visibly excluded.
+Expected: a typed value is saved when the cursor leaves the field or on Enter, and the page does not move while it saves. A negative scale or an empty field is not accepted and the field goes back to its saved value.
 
-### BN-75 — Change hazard dimensions
+### BN-73: Choose the weights
 
-1. Review **Hazard dimensions**.
-2. Try removing or adding a complete node.
+1. Set **Weights** to **Raw**, then to **Normalized**.
 
-Expected: a change is enabled only if every enabled scenario assigns the proposed dimensions and the resulting cell keys remain unique. A change that would create duplicates is disabled with an explanatory tooltip.
+Expected: the choice is saved and shown in the result of the next hazard run.
 
-### BN-76 — Verify blocked enablement
+### BN-74: Check the grid guards
 
-1. Disable or edit rows until two enabled scenarios have identical hazard evidence, or remove a shared hazard-node override from one enabled row.
-2. Disable the grid if it is already enabled.
-3. Click **Enable**.
+Try each case:
 
-Expected: no invalid grid is saved. The status explains duplicate cells or names the scenarios missing the best-covered node.
+1. Uncheck a grid node that leaves two scenarios with the same states.
+2. Clear a grid node in one scenario that is on.
+3. Turn off or remove the last scenario that is on.
+4. With one grid node checked, uncheck it.
 
-### BN-77 — Repair stale dimensions
+Expected: the first three changes are refused and nothing is saved. The section says "Scenarios … and … would share one grid cell.", "Scenario … would not set every grid node." and "The hazard grid needs one scenario that is on." No save error shows and the workbook does not reload. With no grid node left the grid is removed and the run is blocked with "The evidence scenarios have no hazard grid." A grid node that a scenario no longer sets stays in the list so it can be unchecked.
 
-1. With a grid enabled, alter enabled scenarios so the stored dimensions no longer identify unique cells but another valid dimension set exists.
-2. Click **Repair dimensions**.
+## M. Advanced settings
 
-Expected: dimensions are recalculated algorithmically from the enabled scenario evidence.
+### BN-79: Rename the dependency configuration
 
-### BN-78 — Disable the hazard grid
+1. Click **Advanced**.
+2. Edit **Code** and **Name**.
 
-1. Click **Disable**.
+Expected: the jobs list and the run of record name the configuration by its new code.
 
-Expected: hazard-grid settings are removed, while the evidence scenarios remain.
-
-## M. Advanced HCL settings
-
-### BN-79 — Rename the HCL configuration
-
-1. Open **Manage → Advanced**.
-2. Edit configuration **Code** and **Name**.
-
-Expected: the summary and exported evidence filenames use the revised identity.
-
-### BN-80 — Fold constants
+### BN-80: Fold constants
 
 1. Toggle **Fold constants**.
 
-Expected: when enabled, PRAXIS simplifies constant logic before solving. The choice persists and is applied to subsequent HCL runs.
+Expected: when on, constant logic is simplified before solving. The choice is saved and used by later dependency runs.
 
-### BN-81 — Splice null gates
+### BN-81: Splice null gates
 
 1. Toggle **Splice null gates**.
 
-Expected: when enabled, pass-through/null gates are removed from the solver representation without changing logical meaning.
+Expected: when on, pass-through gates are removed from the solver model without changing the logic.
 
-### BN-82 — Inspect variable order
+### BN-83: Delete a dependency configuration
 
-1. Read **Variable order**.
-
-Expected: it says **Automatic** when no explicit order is stored, or reports the number of configured variables. There is currently no interactive custom-order editor on this screen.
-
-### BN-83 — Delete an HCL configuration
-
-Use only a configuration attached to a disposable network.
+Use only a configuration of a disposable network.
 
 1. Click **Delete configuration**.
-2. Review the number of bindings that will also be removed.
+2. Read how many bindings will also be removed.
 3. Confirm.
 
-Expected: the configuration, its bindings, scenarios, and hazard-grid settings disappear; the BN itself remains. Cancel leaves it unchanged.
+Expected: the configuration, its bindings and its scenarios are removed. The network stays. Cancel leaves everything unchanged.
 
-## N. Fault-tree HCL quantification in Systems Analysis
+## N. Fault tree dependency runs
 
-### BN-84 — Run with common evidence
+Set **Quantify** to **Fault trees** in the run controls.
 
-1. In the HCL run bar, confirm **Quantify** is fixed to **Fault tree**.
-2. Choose a linked **Top event**.
-3. Set **Evidence** to **Common evidence**.
-4. Click **Run HCL quantification**.
+### BN-84: Run with base evidence
 
-Expected: the button shows **Running…**, then a styled **Top event probability** result appears. This number is the linked FT top-event probability after the BN evidence and bindings are applied.
+1. Set **Workflow** to **Manual**, **Result** to **Probability** and **Evidence** to **Base evidence**.
+2. Choose a **Fault tree**.
+3. Click **Run dependencies**.
 
-### BN-85 — Run an evidence-scenario batch
+Expected: the button shows **Running…**, then **Top event probability** appears. Only included fault trees that have a top event are offered.
 
-1. Open the batch workflow and select **Evidence scenarios** under **Batch type**.
-2. Upload or enable at least one scenario.
-3. Choose a linked top event.
-4. Click **Run probability batch**.
+### BN-85: Run the evidence scenarios
 
-Expected: every included FT with a top event is offered, regardless of whether the evidence varies its result. Each scenario shows its run status and probability; a no-variation notice appears only when all scenarios succeeded and their returned numbers are exactly equal. A single scenario or identical evidence in different rows is valid.
+1. Set **Evidence** to **Evidence scenarios**.
+2. Click **Run dependencies**.
 
-### BN-86 — Run hazard convolution for a fault tree
+Expected: every scenario that is turned on shows its status and probability. One scenario, or two scenarios with the same evidence, are valid. The **Evidence scenarios** section closes when the results arrive and stays closed, also after a reload, until its button is clicked.
 
-1. Enable a valid hazard grid.
-2. In the batch workflow, select **Hazard convolution** under **Batch type**.
-3. Choose a linked top event.
-4. Click **Run probability batch**.
+### BN-86: Run hazard convolution
 
-Expected: the result shows grid name, covered probability, annual scale, integrated annual frequency, and one row per scenario with its convolution weight and annual contribution.
+1. Set **Evidence** to **Hazard convolution** with a valid grid.
+2. Click **Run dependencies**.
 
-### BN-87 — Verify batch target availability
+Expected: the result shows the covered probability and the convolved probability, with one row for each scenario. The integrated frequency shows only when the annual scale is not 1 per year, since it then equals the probability. The grid name, the annual scale and the weights are not repeated in the result.
 
-1. Compare the linked top events in the manual and batch workflows.
-2. Try one enabled scenario, two rows with identical evidence, and evidence that leaves a target's probability unchanged.
-3. Try a BN-linked event whose unused FT probability is zero.
-4. Disable all scenarios.
+### BN-87: Run several fault trees
 
-Expected: evidence and FT placeholder probabilities do not hide targets. The solver computes each valid requested scenario using the BN bindings. With no enabled scenarios, targets remain visible but the batch run button is disabled. Normal model and reference validation still applies.
+1. Set **Workflow** to **Batch**.
+2. Check the fault trees to run.
+3. Click **Run dependencies batch**.
 
-## O. Event-tree HCL quantification in ESQ
+Expected: the count of selected fault trees shows above the list. A **Fault tree** picker above the results switches between them.
 
-First complete the BN, FT inclusion, and bindings in Systems Analysis.
+### BN-87A: Rank cut sets and read importance
 
-### BN-88 — Select the dependency configuration
+1. Set **Ranked cut sets** to **Failed events** and **Importance** to **On**.
+2. Set **Cut sets kept**, **Maximum cut set order**, **Cut set cutoff** and **Causes per cut set** as wanted.
+3. Run, then click **Ranked cut sets** and **Importance** in the result.
 
-1. Open the related **Event Sequence Quantification** workbook.
-2. Go to **Step 05 Dependencies**.
-3. Under **Event-tree Bayesian dependency network**, open **Dependency configuration**.
-4. Select the desired Systems Analysis configuration.
+Expected: both open in a window over the tab. Cut sets name basic events by code, also for events in transferred fault trees. **Causes** lists the network nodes a cut set shifts most.
 
-Expected: only configurations connected to available event trees are listed. The selected BN appears below in read-only form.
+### BN-87B: Run under uncertainty
 
-### BN-89 — Verify intentional read-only ownership
+1. Set **Result** to **Uncertainty**.
+2. Set the sampling fields, for example **Samples** and **Seed value**.
+3. Click **Run dependencies**.
 
-1. Try the network identity, Add node, node inspector, CPT, and common-evidence controls.
+Expected: the result shows the mean, the median and the 5th and 95th percentiles. An empty **Seed value** blocks the run. **Samples**, **CPT floor**, **Cut sets kept** and **Events sampled for importance** can be emptied before a new value is typed, and an emptied field shows its last value again when the cursor leaves it.
 
-Expected: a Systems Analysis-owned network is inspectable but not editable in ESQ. Export, zoom, fit, selection, and result interactions remain available. Make source changes in Systems Analysis.
+## O. Event tree dependency runs
 
-### BN-90 — Inspect automatically linked fault trees
+Set **Quantify** to **Event trees** in the run controls.
 
-1. In the HCL run bar, choose an **Event tree**.
-2. Inspect **Linked fault trees**.
+### BN-88: Link a functional event to a network node
 
-Expected: every fault tree referenced by functional events in that event tree—and recursively connected transfer trees—is listed with its model code and functional-event code(s). This list is derived from event-tree links, not manually selected in ESQ.
+1. Open **Step 02 Model → Functions** and open a function.
+2. In a **Linked to** dropdown, choose **Network node**.
+3. Pick the **Network** and the **Node**, check the failing states and click **Save**.
 
-### BN-91 — Run event-tree HCL with common evidence
+Expected: the row reads **Network node** with the node and network codes, and an **Edit** button sits next to it. **Save** needs at least one failing state and not all of them.
 
-1. Set **Evidence** to **Common evidence**.
-2. Choose an event tree.
-3. Click **Run HCL quantification**.
+### BN-91: Run with base evidence
 
-Expected: the result reports the number of sequences calculated.
+1. Back in **Step 05 → Dependencies**, choose an **Event tree**.
+2. Click **Run dependencies**.
 
-### BN-92 — Inspect event-sequence results
+Expected: the run joins the run list at the top of Step 05 and its sequences show under the run controls. It can be made the run of record with **Use as values of record**, which sits at the right of the result's **Event tree**, **Order** and **Group by** pickers.
 
-1. After BN-91, inspect the sequence rows.
-2. For more than 25 sequences, use **Next**, **Last**, and **Rows per page**.
-3. Click **Export results CSV** while viewing a later page.
+### BN-92: Read the sequence results
 
-Expected: each visible sequence identifies its path and shows conditional probability and annual frequency `/yr`. The CSV includes every sequence, both quantities, returned end-state aggregates, and available UQ statistics. In uncertainty mode, sequence probability and annual-frequency summaries each show mean, standard deviation, minimum, maximum, median and the 5th/95th percentiles. CSV export does not calculate new end-state or hazard totals.
+1. Change **Order** and open **Details**.
+2. With more than 10 rows, use the pager.
+3. Click **Export results CSV**.
 
-### BN-93 — Run an event-tree scenario batch
+Expected: each sequence shows its end state and frequency. The CSV holds every sequence.
 
-1. Import/enable scenarios in the Systems Analysis-owned configuration.
-2. Return to ESQ Step 05 and select **Evidence scenarios** in the batch workflow.
-3. Choose a linked event tree.
-4. Click **Run probability batch**.
+### BN-93: Run the evidence scenarios
 
-Expected: each scenario summary labels the combined frequency **All outcomes**, or the selected end state. Expand a scenario to inspect individual sequences and returned end-state totals/UQ. The list retains event trees connected to the chosen HCL configuration, including transferred trees. Evidence variation does not filter this list; single and identical-evidence rows are valid.
+1. Set **Evidence** to **Evidence scenarios**.
+2. Click **Run dependencies**.
 
-### BN-94 — Run event-tree hazard convolution
+Expected: a **Scenario** picker switches between the scenarios. **All scenarios** lists each scenario with its totals.
 
-1. Enable the grid in Systems Analysis.
-2. Return to ESQ and select **Hazard convolution** in the batch workflow.
-3. Choose a linked event tree.
-4. Click **Run probability batch**.
+### BN-94: Run hazard convolution
 
-Expected: the summary shows grid name, covered probability, annual scale and raw/normalized weight mode. Separate tables show integrated sequences and end states. Select **Release** to exclude safe outcomes from the view. Expand a scenario for raw/normalized/applied weights and each sequence's conditional probability, probability contribution and annual contribution. Hazard-grid UQ remains disabled.
+1. Set **Evidence** to **Hazard convolution** with a valid grid.
+2. Click **Run dependencies**.
 
-### BN-95 — Inspect immutable run provenance
+Expected: a **Cell** picker switches between the grid cells, and the integrated tables show sequences and end states.
 
-1. After exact inference or HCL quantification, scroll below the editor to **Immutable analysis runs**.
+### BN-94A: Rank cut sets and read importance
+
+1. Set **Ranked cut sets** to **Failed events** or **Failed events and success branches**, and **Importance** to **On**.
+2. Run, then click a sequence or an **Importance** button.
+
+Expected: the cut sets and the importance measures open in a window over the tab.
+
+### BN-95: Read a saved run
+
+1. After a network query or a dependency run, open **Analysis history** below the card.
 2. Open the newest run.
 
-Expected: the record shows run status/type, exact workbook revisions, source models, entity references, and owner snapshots used for that calculation.
+Expected: the record shows the run status and type, the workbook revisions and the models used for that calculation.
 
-## P. Loading, errors, confirmations, and persistence
+## P. Loading, errors, confirmations and persistence
 
-### BN-96 — Confirm destructive dialogs are styled and cancellable
+### BN-96: Confirm that destructive windows can be cancelled
 
-Open each applicable action without confirming: import replacement, delete node, delete network, delete module instance/template, delete HCL configuration, and add/delete/reorder state. Parent reordering preserves probabilities and needs no destructive confirmation.
+Open each action without confirming: delete node, delete network, delete module instance or template, delete dependency configuration, and add, delete or reorder a state.
 
-Expected: each uses the application’s confirmation dialog, explains impact, has a clear action label, and leaves data unchanged when canceled.
+Expected: each uses the application's confirmation window, says what will be removed and changes nothing when cancelled. Deleting a network also says how many dependency configurations go with it and how many function links in Step 02 lose their node.
 
-### BN-97 — Verify operation errors are local and readable
+### BN-97: Check that errors are local and readable
 
-Trigger the invalid XDSL and invalid evidence imports from the kit.
+Upload the invalid XDSL and the invalid evidence file from the kit.
 
-Expected: errors appear inside the editor/HCL section rather than in a browser-native alert. Long technical details should not overflow or force horizontal page scrolling.
+Expected: the errors show inside the editor or the evidence section, not in a browser alert. Long details do not force the page to scroll sideways.
 
-### BN-98 — Verify save and reload
+### BN-98: Check save and reload
 
 1. Make a small edit.
 2. Wait for **Saved**.
 3. Reload the browser page.
-4. Return to Step 05.
+4. Return to **Step 05 → Dependencies**.
 
-Expected: persisted model/configuration changes remain; temporary UI state such as an open menu or selected tab may reset safely.
+Expected: the network, the configuration, the picked network and the run control choices are still there.
 
-### BN-99 — Verify backend-unavailable handling
+### BN-99: Check a failed run
 
-Only do this if intentionally testing infrastructure failure.
+Only do this when testing an infrastructure failure on purpose.
 
-1. Stop Praetor or make it unreachable.
-2. Run exact inference or HCL quantification.
+1. Stop the job service or make it unreachable.
+2. Run a network query or a dependency run.
 
-Expected: the editor reports that Praetor cannot be reached without losing model data. Restarting Praetor and rerunning succeeds without rebuilding the BN.
+Expected: the tab reports that the job service cannot be reached and no model data is lost. A new run works once the service is back.
 
-### BN-100 — Verify no unintended cross-workbook editing
+### BN-100: Check that results survive a tab switch
 
-1. Edit a dependency model in Systems Analysis and wait for save.
-2. Open ESQ Step 05 and verify the updated model is visible.
-3. Confirm ESQ does not create a second editable copy of the Systems Analysis network.
+1. Run a fault tree dependency run.
+2. Open the **Runs** tab, then return to **Dependencies**.
+3. Change the network, for example rename a node.
 
-Expected: Systems Analysis remains the source of truth for FT-related dependency modeling; ESQ consumes the connected configuration for event-tree quantification.
+Expected: the results are still there after the tab switch. They are dropped after the network changed.
+
+### BN-101: Check that other workbooks hold no network
+
+1. Open **Systems Analysis → Step 05 Dependencies**.
+2. Open **Event Sequence Analysis**, select a functional event and click **Link**.
+
+Expected: Systems Analysis shows no network editor, and the Event Sequence Analysis link window offers fault trees only. Networks, bindings and node links live in Event Sequence Quantification.
 
 ## Suggested test order
 
 1. BN-01 through BN-12: network lifecycle and files.
-2. BN-13 through BN-39: graph editing, states, CPTs, and validation.
-3. BN-40 through BN-46: evidence and exact inference.
+2. BN-13 through BN-39: graph editing, states, CPTs and validation.
+3. BN-40 through BN-46: evidence and network queries.
 4. BN-47 through BN-53: reusable modules.
-5. BN-54 through BN-60: HCL configuration and FT bindings.
-6. BN-61 through BN-70: scenario editing and import/export.
-7. BN-71 through BN-83: hazard grid and advanced settings.
-8. BN-84 through BN-87: FT HCL results in Systems Analysis.
-9. BN-88 through BN-95: ET HCL results and provenance in ESQ.
-10. BN-96 through BN-100: error, confirmation, persistence, and ownership checks.
+5. BN-54 through BN-60: dependency configuration and bindings.
+6. BN-61 through BN-74: evidence scenarios and the hazard grid.
+7. BN-79 through BN-83: advanced settings.
+8. BN-84 through BN-87B: fault tree dependency runs.
+9. BN-88 through BN-95: event tree dependency runs and saved runs.
+10. BN-96 through BN-101: errors, confirmations, persistence and ownership.
 
 For each interaction, record: interaction ID, what you clicked, what happened, what you expected, desired change, and a screenshot if the problem is visual.
 
@@ -841,8 +827,7 @@ For each interaction, record: interaction ID, what you clicked, what happened, w
   a referenced state. The evidence must remain, with a missing-reference notice;
   invalid calculations must be blocked. Undo restores the original references.
   Remove an observation explicitly to repair it without undoing the edit.
-- Repeat in an ESQ-owned network. Inspect a SY-owned network from ESQ in read-only
-  mode; repair its source in Systems Analysis.
+- Every network is owned by the ESQ workbook. Repair it in ESQ Step 05, Dependencies.
 - Delay a workbook save, then simulate a save failure. BN inference and HCL
   probability/uncertainty runs must remain disabled until a successful save.
 - Complete a manual or batch run, then edit its CPTs, evidence, bindings or
@@ -858,9 +843,9 @@ For each interaction, record: interaction ID, what you clicked, what happened, w
 1. Export **canonical JSON**, then use **Import JSON** to reload it. This is main PRAXIS's name-based `{id, variables}` format; it carries the BN calculation data. OpenPRA JSON also carries layout, descriptions and reusable modules.
 2. Reorder CPT rows in OpenPRA JSON while keeping each row's parent-state assignments. Import it, export XDSL and reload. Each conditional probability must stay with the same parent states.
 3. Import a one-state CPT (`Only` with probability `1`), including namespace-prefixed XDSL. Save, then run inference. The marginal must be `1`.
-4. Import a cycle, repeated state code or a CPT row totaling `0.8`. Import must show an error before replacement. Invalid exports must show an error rather than download a file.
+4. Import a cycle, repeated state code or a CPT row totaling `0.8`. Import must show an error and add no network. Invalid exports must show an error rather than download a file.
 5. Change network/node names, descriptions and positions. XDSL reload must retain them and preserve unrelated vendor extensions.
-6. Replace a network containing module instances with XDSL or canonical JSON. Old instances must disappear; independent templates remain available. Undo restores the previous model. Saved evidence and HCL links require repair if they reference replaced nodes.
+6. With a network containing module instances open, import XDSL or canonical JSON. The import must add a new network that has no templates or instances. The open network must keep its instances, templates, saved evidence and dependency bindings. Only **Delete network** removes a network.
 
 Node/state codes are case-sensitive, as in main. CPT row totals use main TensorBayes's `1e-6` tolerance; values are never silently normalized. New editor nodes still start with two states; at least one state is required.
 
@@ -887,11 +872,8 @@ Node/state codes are case-sensitive, as in main. CPT row totals use main TensorB
 
 ## Task 39 regression checks
 
-- Expand **Solver diagnostics** after an HCL FT run. Compare BDD nodes, variables, actual basic-event order, bridge counters and junction-tree fields with the API result. Order must not be alphabetically resorted.
-- Run a two-row evidence batch. Compare **Batch compilation diagnostics** with the batch response. Open both scenario results: point evaluation counters belong to each row, while compilation counts cover the whole batch. Retrieve a saved result and confirm those counts remain present.
-- Repeat for ET probability and UQ. Each sequence has its own BDD diagnostics. Counters describe the point calculation only, even when UQ is enabled; sample-chunk compilations and hazard-weight queries are excluded.
-- Check an unconditional sequence: it reports that no BDD was built, rather than an invented zero-size BDD. Historical records without diagnostics show **not recorded**. Actual zero counters remain zero.
-- Check a long variable order: pages retain their original positions; a new run resets paging. Expand panels in a narrow view and confirm labels and identifiers wrap without hiding counts.
+- Open an FT result, a scenario row of a batch and an ET sequence. None shows a **Solver diagnostics** block. The BDD, bridge and junction-tree numbers stay in the API result and are not displayed.
+- Run a two-row evidence batch for FT and for ET, in probability and in UQ. No result shows a **Batch compilation diagnostics** block. The compilation counts stay in the batch response and in the saved record.
 - No GUI order override, cut-set display, importance calculation or new solver algorithm is introduced. See [source definitions](result-presentation-source-map.md#task-39-bdd-junction-tree-and-cache-diagnostics).
 
 ## Task 40 regression checks

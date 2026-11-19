@@ -10,7 +10,7 @@ function stripNulls(
   // Uncertainty is opaque saved draft data. Preserve even malformed/null
   // entries for later review; execution validates only the selected settings.
   const savedUncertainty = path.length === 4
-    && (path[0] === "hclConfigurations" || path[0] === "dependencyHclConfigurations")
+    && path[0] === "hclConfigurations"
     && typeof path[1] === "number" && path[2] === "solverSettings" && path[3] === "uncertainty";
   if (savedUncertainty) return value;
   if (value === null) return preserveNull(path) ? null : undefined;

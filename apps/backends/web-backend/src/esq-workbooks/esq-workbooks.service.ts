@@ -34,6 +34,7 @@ import {
   reconcileExampleEsqDataAnalysisLinks,
   reconcileExampleEsqDependencyReferences,
   reconcileExampleEsqMissionTimeReferences,
+  reconcileExampleEsqNetworkOwnership,
   reconcileExampleEsqSystemsLinks,
   relinkExampleDataAnalysis,
   relinkExampleMissionTimes,
@@ -208,10 +209,9 @@ export class EsqWorkbooksService {
     const variant = (SY_EXAMPLES.find((entry) => entry.id === exampleId) ?? SY_EXAMPLES[0]).slug;
     const syDocument = await this.syWorkbookModel.findOne({ projectId: doc.projectId, "mef.uuid": variant }).exec();
     const systems = syDocument === null ? null : SystemsAnalysisSchema.safeParse(syDocument.mef);
-    let reconciled = sourceParsed.data;
-    if (syDocument !== null && systems?.success === true) {
-      reconciled = reconcileExampleEsqDependencyReferences(sourceParsed.data, workbookId, systems.data, syDocument.workbookId);
-    }
+    const reconciled = syDocument !== null && systems?.success === true
+      ? reconcileExampleEsqDependencyReferences(sourceParsed.data, workbookId, systems.data, syDocument.workbookId)
+      : reconcileExampleEsqNetworkOwnership(sourceParsed.data, workbookId);
     const missionTimes = await this.exampleWorkbooksService.projectMissionTimeSources(doc.projectId);
     const relinked = relinkExampleMissionTimes(reconciled, esqMissionTimeExpressions(reconciled), missionTimes, reconcileExampleEsqMissionTimeReferences);
     const dataAnalyses = await this.exampleWorkbooksService.projectDataAnalysisSources(doc.projectId);

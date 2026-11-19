@@ -1,184 +1,18 @@
 import { useEffect, useRef, useState } from "react";
-import { z } from "zod";
 import type {
   HclCutSetCause,
   HclEventImportance,
-  HclFaultTreeCutSetSettings,
   HclFaultTreeDependencyCutSets,
 } from "interfaces-shared-types/newly-developed-methods/hybrid-causal-logic";
-import { jsonView } from "../../workbooks/workbookViewMemory";
 import { PagedResults } from "../shared/resultPresentation";
 import type { HclFaultTreeOption } from "./hclBindingTypes";
 import { formatScientific } from "./hclResultMetrics";
 import "./css/hclFaultTreeCutSets.css";
 
-interface HclCutSetChoice {
-  ranked: boolean;
-  keep: number;
-  limitOrder: number | null;
-  cutOff: number | null;
-  causes: number | null;
-  importance: boolean;
-  importanceEvents: number;
-}
-
 interface HclCauseNode {
   id: string;
   code: string;
   states: readonly { id: string; code: string }[];
-}
-
-const KEEP_LIMIT = 1000;
-const CAUSE_LIMIT = 100;
-const START_CUT_SET_CHOICE: HclCutSetChoice = { ranked: false, keep: 100, limitOrder: null, cutOff: null, causes: null, importance: false, importanceEvents: 10 };
-const CUT_OFF_EXPONENTS = Array.from({ length: 20 }, (_, index) => -(index + 1));
-
-const CUT_SET_CHOICE_VIEW = jsonView<HclCutSetChoice>(
-  z.object({
-    ranked: z.boolean(),
-    keep: z.number().int().min(1).max(KEEP_LIMIT),
-    limitOrder: z.number().int().positive().nullable(),
-    cutOff: z.number().int().negative().nullable(),
-    causes: z.number().int().min(1).max(CAUSE_LIMIT).nullable().default(null),
-    importance: z.boolean().default(false),
-    importanceEvents: z.number().int().min(1).max(CAUSE_LIMIT).default(10),
-  }),
-);
-
-function cutSetSettingsOf(choice: HclCutSetChoice): HclFaultTreeCutSetSettings | undefined {
-  if (!choice.ranked) return undefined;
-  return {
-    keep: choice.keep,
-    ...(choice.limitOrder === null ? {} : { limitOrder: choice.limitOrder }),
-    ...(choice.cutOff === null ? {} : { cutOff: Number(`1e${choice.cutOff}`) }),
-    ...(choice.causes === null ? {} : { causes: choice.causes }),
-  };
-}
-
-function HclCutSetControls({ choice, sampled = false, onChange }: { choice: HclCutSetChoice; sampled?: boolean; onChange: (next: HclCutSetChoice) => void }) {
-  if (sampled) {
-    return (
-      <div className="hcleditor__cut-set-row" role="group" aria-label="Importance settings">
-        <label className="hcleditor__run-field">
-          <span>Importance</span>
-          <select
-            aria-label="Importance"
-            value={choice.importance ? "ON" : "OFF"}
-            onChange={(event) => onChange({ ...choice, importance: event.target.value === "ON" })}
-          >
-            <option value="OFF">Off</option>
-            <option value="ON">On</option>
-          </select>
-        </label>
-        {choice.importance && (
-          <label className="hcleditor__run-field">
-            <span>Events sampled for importance</span>
-            <input
-              aria-label="Events sampled for importance"
-              type="number"
-              min={1}
-              max={CAUSE_LIMIT}
-              step={1}
-              value={choice.importanceEvents}
-              onChange={(event) => {
-                const value = Math.round(Number(event.target.value));
-                if (value >= 1) onChange({ ...choice, importanceEvents: Math.min(value, CAUSE_LIMIT) });
-              }}
-            />
-          </label>
-        )}
-      </div>
-    );
-  }
-  return (
-    <div className="hcleditor__cut-set-row" role="group" aria-label="Ranked cut set settings">
-      <label className="hcleditor__run-field">
-        <span>Importance</span>
-        <select
-          aria-label="Importance"
-          value={choice.importance ? "ON" : "OFF"}
-          onChange={(event) => onChange({ ...choice, importance: event.target.value === "ON" })}
-        >
-          <option value="OFF">Off</option>
-          <option value="ON">On</option>
-        </select>
-      </label>
-      <label className="hcleditor__run-field">
-        <span>Ranked cut sets</span>
-        <select
-          aria-label="Ranked cut sets"
-          value={choice.ranked ? "ON" : "OFF"}
-          onChange={(event) => onChange({ ...choice, ranked: event.target.value === "ON" })}
-        >
-          <option value="OFF">Off</option>
-          <option value="ON">Failed events</option>
-        </select>
-      </label>
-      {choice.ranked && (
-        <>
-          <label className="hcleditor__run-field">
-            <span>Cut sets kept</span>
-            <input
-              aria-label="Cut sets kept"
-              type="number"
-              min={1}
-              max={KEEP_LIMIT}
-              step={1}
-              value={choice.keep}
-              onChange={(event) => {
-                const value = Math.round(Number(event.target.value));
-                if (value >= 1) onChange({ ...choice, keep: Math.min(value, KEEP_LIMIT) });
-              }}
-            />
-          </label>
-          <label className="hcleditor__run-field">
-            <span>Maximum cut set order</span>
-            <input
-              aria-label="Maximum cut set order"
-              type="number"
-              min={1}
-              step={1}
-              placeholder="No limit"
-              value={choice.limitOrder ?? ""}
-              onChange={(event) => {
-                const value = Math.round(Number(event.target.value));
-                onChange({ ...choice, limitOrder: event.target.value.trim().length === 0 || !(value >= 1) ? null : value });
-              }}
-            />
-          </label>
-          <label className="hcleditor__run-field">
-            <span>Cut set cutoff</span>
-            <select
-              aria-label="Cut set cutoff"
-              value={choice.cutOff ?? ""}
-              onChange={(event) => onChange({ ...choice, cutOff: event.target.value === "" ? null : Number(event.target.value) })}
-            >
-              <option value="">None</option>
-              {CUT_OFF_EXPONENTS.map((exponent) => (
-                <option key={exponent} value={exponent}>{`1E${exponent}`}</option>
-              ))}
-            </select>
-          </label>
-          <label className="hcleditor__run-field">
-            <span>Causes per cut set</span>
-            <input
-              aria-label="Causes per cut set"
-              type="number"
-              min={1}
-              max={CAUSE_LIMIT}
-              step={1}
-              placeholder="Off"
-              value={choice.causes ?? ""}
-              onChange={(event) => {
-                const value = Math.round(Number(event.target.value));
-                onChange({ ...choice, causes: event.target.value.trim().length === 0 || !(value >= 1) ? null : Math.min(value, CAUSE_LIMIT) });
-              }}
-            />
-          </label>
-        </>
-      )}
-    </div>
-  );
 }
 
 function HclCauseTable({ causes, nodes, label }: { causes: readonly HclCutSetCause[]; nodes: readonly HclCauseNode[]; label: string }) {
@@ -591,5 +425,5 @@ function HclImportanceButton({
   );
 }
 
-export { CUT_SET_CHOICE_VIEW, HclCutSetControls, HclCutSetsButton, HclImportanceButton, START_CUT_SET_CHOICE, cutSetSettingsOf };
-export type { HclCauseNode, HclCutSetChoice };
+export { HclCutSetsButton, HclImportanceButton };
+export type { HclCauseNode };

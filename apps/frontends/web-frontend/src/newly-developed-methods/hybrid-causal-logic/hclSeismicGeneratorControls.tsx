@@ -75,10 +75,10 @@ function StateSelect({ label, value, states, disabled, onChange }: {
 
 function SlotField({ label, children }: { label: string; children: JSX.Element }): JSX.Element {
   return (
-    <fieldset className="hcleditor__uncertainty-slot">
-      <legend>{label}</legend>
+    <div className="hcleditor__uncertainty-slot" role="group" aria-label={label}>
+      <span className="hcleditor__uncertainty-slot-name" title={label}>{label}</span>
       {children}
-    </fieldset>
+    </div>
   );
 }
 
@@ -115,7 +115,7 @@ function FragilityParameters({ generator, node, parents, disabled, update }: {
 }): JSX.Element {
   const parent = parents.find((candidate) => candidate.id === generator.pgaParentId);
   return (
-    <div className="hcleditor__uncertainty-generator">
+    <>
       <p>P = Φ(ln(demand / median) / randomness). Use one acceleration unit for the median and the demands. Give the median a lognormal law to carry the capacity uncertainty, β U. Every row shares one median draw.</p>
       <div className="hcleditor__uncertainty-parameters">
         <StateSelect label="PGA parent" value={generator.pgaParentId} states={parents} disabled={disabled} onChange={(id) => {
@@ -133,18 +133,20 @@ function FragilityParameters({ generator, node, parents, disabled, update }: {
       <SlotField label="Randomness, β R">
         <ExpressionEditor expression={generator.randomness} unit="FACTOR" disabled={disabled} onChange={(randomness) => update({ ...generator, randomness })} />
       </SlotField>
-      <div className="hcleditor__uncertainty-parameters" role="group" aria-label="Demand per PGA state">
-        {generator.demands.map((entry, index) => (
-          <NumberField
-            key={entry.stateId}
-            label={`Demand at ${parent?.states.find((state) => state.id === entry.stateId)?.code ?? entry.stateId}`}
-            value={entry.demand}
-            disabled={disabled}
-            onChange={(demand) => update({ ...generator, demands: generator.demands.map((item, at) => (at === index ? { ...item, demand } : item)) })}
-          />
-        ))}
-      </div>
-    </div>
+      <SlotField label="Demand per PGA state">
+        <div className="hcleditor__uncertainty-parameters">
+          {generator.demands.map((entry, index) => (
+            <NumberField
+              key={entry.stateId}
+              label={`Demand at ${parent?.states.find((state) => state.id === entry.stateId)?.code ?? entry.stateId}`}
+              value={entry.demand}
+              disabled={disabled}
+              onChange={(demand) => update({ ...generator, demands: generator.demands.map((item, at) => (at === index ? { ...item, demand } : item)) })}
+            />
+          ))}
+        </div>
+      </SlotField>
+    </>
   );
 }
 
@@ -155,7 +157,7 @@ function PgaBinsParameters({ generator, node, disabled, update }: {
   update: (generator: HclCptGenerator) => boolean;
 }): JSX.Element {
   return (
-    <div className="hcleditor__uncertainty-generator">
+    <>
       <p>Each bin turns its frequency into a probability over the mission time. The none state takes the rest. A total above one is an error.</p>
       <div className="hcleditor__uncertainty-parameters">
         <StateSelect label="No-earthquake state" value={generator.noneStateId} states={node.states} disabled={disabled} onChange={(id) => update({
@@ -179,7 +181,7 @@ function PgaBinsParameters({ generator, node, disabled, update }: {
           <ExpressionEditor expression={bin.frequency} unit="PER_YEAR" disabled={disabled} onChange={(frequency) => update({ ...generator, bins: generator.bins.map((item, at) => (at === index ? { ...item, frequency } : item)) })} />
         </SlotField>
       ))}
-    </div>
+    </>
   );
 }
 
@@ -247,24 +249,34 @@ function HclSeismicGeneratorControls({ model, reference, settings, disabled, onC
           <button type="button" className="posnav__btn posnav__btn--sm" disabled={selected === undefined} onClick={add}>Add generator</button>
         </div>
       )}
-      {generators.map((definition, index) => {
-        const node = model.nodes.find((candidate) => candidate.id === definition.bayesianNetworkNode.entityId);
-        const generator = definition.generator;
-        return (
-          <details key={definition.bayesianNetworkNode.entityId} className="hcleditor__uncertainty-item">
-            <summary>{node?.code ?? definition.bayesianNetworkNode.entityId} · {GENERATOR_LABELS[generator.kind]}</summary>
-            {node === undefined ? <p role="alert">The configured BN node is missing.</p>
-              : generator.kind === "SEISMIC_FRAGILITY"
-                ? <FragilityParameters generator={generator} node={node} parents={parentsOf(node.id)} disabled={disabled} update={(next) => replace(index, next)} />
-                : <PgaBinsParameters generator={generator} node={node} disabled={disabled} update={(next) => replace(index, next)} />}
-            {!disabled && (
-              <button type="button" className="hcleditor__uncertainty-delete" onClick={() => onChange({ ...settings, cptGenerators: generators.filter((_, at) => at !== index) })}>
-                Delete generator
-              </button>
-            )}
-          </details>
-        );
-      })}
+      {generators.length > 0 && (
+        <div className="hcleditor__uncertainty-list">
+          {generators.map((definition, index) => {
+            const node = model.nodes.find((candidate) => candidate.id === definition.bayesianNetworkNode.entityId);
+            const generator = definition.generator;
+            return (
+              <details key={definition.bayesianNetworkNode.entityId} className="hcleditor__uncertainty-item">
+                <summary>
+                  <span className="hcleditor__uncertainty-item-name"><small>BN / node</small><strong>{node?.code ?? "Missing network node"}</strong></span>
+                  <span className="hcleditor__uncertainty-family">{GENERATOR_LABELS[generator.kind]}</span>
+                  <span className="hcleditor__uncertainty-expand">Settings</span>
+                </summary>
+                <div className="hcleditor__uncertainty-generator">
+                  {node === undefined ? <p role="alert">The configured BN node is missing.</p>
+                    : generator.kind === "SEISMIC_FRAGILITY"
+                      ? <FragilityParameters generator={generator} node={node} parents={parentsOf(node.id)} disabled={disabled} update={(next) => replace(index, next)} />
+                      : <PgaBinsParameters generator={generator} node={node} disabled={disabled} update={(next) => replace(index, next)} />}
+                  {!disabled && (
+                    <button type="button" className="hcleditor__uncertainty-delete" onClick={() => onChange({ ...settings, cptGenerators: generators.filter((_, at) => at !== index) })}>
+                      Delete generator
+                    </button>
+                  )}
+                </div>
+              </details>
+            );
+          })}
+        </div>
+      )}
     </section>
   );
 }

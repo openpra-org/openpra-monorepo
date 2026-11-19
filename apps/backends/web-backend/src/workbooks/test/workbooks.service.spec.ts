@@ -123,7 +123,6 @@ describe("WorkbooksService", () => {
       let syRevision = 1;
       let syMef = {
         systemLogicModels: [],
-        dependencyHclConfigurations: [],
         commonCauseFailureGroups: [],
         systemBasicEvents: [{
           uuid: "be-1",
@@ -258,10 +257,10 @@ describe("WorkbooksService", () => {
             }),
           ]),
         }),
-        2,
+        1,
       );
       expect(syAdapter.save).toHaveBeenNthCalledWith(
-        3,
+        2,
         "sy-workbook",
         expect.objectContaining({
           systemBasicEvents: expect.arrayContaining([
@@ -285,7 +284,7 @@ describe("WorkbooksService", () => {
             },
           })],
         }),
-        3,
+        2,
       );
       expect(daAdapter.save).toHaveBeenCalledWith("da-workbook", expect.objectContaining({ linkedWorkbooks: { SY: "sy-workbook", HRA: "hr-workbook" } }), 1);
       expect(hrAdapter.save).toHaveBeenCalledWith("hr-workbook", expect.objectContaining({ linkedWorkbooks: { SY: "sy-workbook", DA: "da-workbook" } }), 1);

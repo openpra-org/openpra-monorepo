@@ -346,8 +346,6 @@ function EsqWorkbench({
   const visibleSteps = useMemo(() => stepsFromMef(liveEsq, persona, upstream), [liveEsq, persona, upstream]);
   const [searchParams] = useSearchParams();
   const requestedStepId = searchParams.get("step");
-  const requestedNetworkId = searchParams.get("network");
-  const requestedSourceWorkbookId = searchParams.get("sourceWorkbook");
   const mefCcId = data.esq.capabilityCategory === "CC-I" ? "cc-i" : "cc-ii";
   const mefStage: Stage = data.esq.plantStage === "OPERATIONAL" ? "operational" : "pre_operational";
   const [ccId, setCcId] = useState<string>(mefCcId);
@@ -457,7 +455,7 @@ function EsqWorkbench({
           </>
         );
       case "model": return <EsqModelTabs onPickSy={pickSy} reopenLink={reopenLink} onReopened={clearReopenLink} />;
-      case "solve": return <EsqSolveTabs initialNetworkId={requestedNetworkId} initialSourceWorkbookId={requestedSourceWorkbookId} />;
+      case "solve": return <EsqSolveTabs />;
       case "logic": return <EsqLogicTabs />;
       case "barriers": return <EsqBarrierTabs />;
       case "results": return <ResultsScreen openWindow={setWindowCtx} />;

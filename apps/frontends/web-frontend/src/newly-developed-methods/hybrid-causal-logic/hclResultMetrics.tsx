@@ -1,6 +1,6 @@
 import type { JSX } from "react";
 import type { HclUncertaintySummary } from "interfaces-shared-types/newly-developed-methods/hybrid-causal-logic";
-import { HclAdjustments, HclDistributionDetails } from "./hclSampleOutputs";
+import { HclAdjustments } from "./hclSampleOutputs";
 
 function resultBarWidth(value: number): string {
   const percent = Math.max(0, Math.min(1, value)) * 100;
@@ -83,9 +83,6 @@ export function HclUncertaintyResults({
     >
       <div className="hcleditor__uncertainty-result-head">
         <strong>{label}</strong>
-        <span>
-          {String(summary.sampleCount)} PRAXIS samples · seed {String(summary.seed)}
-        </span>
       </div>
       <dl className="hcleditor__uncertainty-metrics">
         {metrics.map((metric) => (
@@ -99,7 +96,6 @@ export function HclUncertaintyResults({
         ))}
       </dl>
       <HclAdjustments adjustments={summary.adjustments} />
-      <HclDistributionDetails summary={summary} annual={annual} />
     </section>
   );
 }

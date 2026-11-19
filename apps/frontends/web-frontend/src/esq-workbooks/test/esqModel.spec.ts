@@ -1,5 +1,5 @@
-import type { EventSequenceQuantification } from "interfaces-mef-types/esq/event-sequence-quantification";
-import { EsqEventRecordSchema, EsqParameterRecordSchema } from "interfaces-mef-types/zod/esq/event-sequence-quantification";
+import type { EsqFunctionTarget, EsqNetworkNodeTarget, EventSequenceQuantification } from "interfaces-mef-types/esq/event-sequence-quantification";
+import { EsqEventRecordSchema, EsqFunctionLinkSchema, EsqParameterRecordSchema } from "interfaces-mef-types/zod/esq/event-sequence-quantification";
 import type { CcfFactorModel, UncertainExpression, UncertainParameter, UncertainUnit } from "interfaces-mef-types/core/uncertainty";
 import { FrequencyUnit, type UncertainFrequency } from "interfaces-mef-types/core/events";
 import type { InitiatingEventsAnalysis } from "interfaces-mef-types/ie/initiating-event-analysis";
@@ -12,12 +12,14 @@ import {
   modelViewOf,
   nextTypedInitiatorCode,
   parameterTableOf,
+  withDefaultLink,
   withFamilyChoice,
   withFunctionLink,
   withInitiatorChoice,
   withInitiatorCode,
   withModelImported,
   withSequenceChoice,
+  withTreeLink,
   withTreeMissionTime,
   withTypedInitiator,
   withTypedInitiatorRecord,
@@ -32,7 +34,7 @@ import { parametersFor } from "../../newly-developed-methods/shared/useUncertain
 import { pointsOf } from "../../newly-developed-methods/shared/uncertaintyPoints";
 import { evaluateUncertainty } from "../../newly-developed-methods/shared/uncertaintyApi";
 import { praxisUncertainty, settledWithPraxis } from "../../newly-developed-methods/shared/test/praxisUncertainty";
-import { PUMP_ESTIMATE, daParameter, fanMission, linkedEsq, liveImport, modelUpstream } from "./esqModelFixtures";
+import { PUMP_ESTIMATE, daParameter, dependencyNetwork, fanMission, linkedEsq, liveImport, modelUpstream } from "./esqModelFixtures";
 
 jest.mock("../../newly-developed-methods/shared/uncertaintyApi", () => ({ evaluateUncertainty: jest.fn() }));
 
@@ -372,6 +374,86 @@ describe("ESQ Step 02 model import", () => {
     expect(checks(esq).filter((entry) => entry.startsWith("error"))).toEqual([]);
     expect(modelComplete(esq)).toBe(true);
     expect(stepsFromMef(esq, "preparer").find((step) => step.id === "model")?.status).toBe("complete");
+  });
+});
+
+describe("ESQ Step 02 network node targets", () => {
+  const cooling: EsqFunctionTarget = { kind: "FAULT_TREE", top: { workbookId: "sy-1", modelId: "M-COOL", gateId: "G-COOL" } };
+  const missing = "RT links to a network node that is not in this workbook's dependency networks.";
+  const badStates = "RT needs at least one failing state of ROOM and not all of them.";
+
+  function node(trueStateIds: string[], nodeId = "N-ROOM"): EsqNetworkNodeTarget {
+    return { kind: "NETWORK_NODE", node: { workbookId: "esq-1", modelId: "BN-1", nodeId }, trueStateIds };
+  }
+
+  function networked(esq: EventSequenceQuantification = imported()): EventSequenceQuantification {
+    return { ...esq, bayesianNetworks: [dependencyNetwork()] };
+  }
+
+  function coolLinks(esq: EventSequenceQuantification): string[] {
+    return (modelViewOf(esq)?.functions.find((view) => view.record.id === "COOL")?.resolved ?? []).map((entry) => `${entry.tree.id}:${entry.link.origin}:${entry.link.target?.kind ?? "NONE"}`);
+  }
+
+  function details(esq: EventSequenceQuantification, check: string): string[] {
+    return (modelViewOf(esq)?.findings ?? []).filter((finding) => finding.check === check).map((finding) => finding.detail);
+  }
+
+  it("resolves a network node from a tree rule, then the ESQ default, then the ES link", () => {
+    let esq = networked();
+    expect(coolLinks(esq)).toEqual(["ET-A:ES:FAULT_TREE", "ET-B:NONE:NONE", "ET-T:ES:FAULT_TREE"]);
+    esq = withTreeLink(esq, "COOL", "ET-B", node(["S-FLOODED"]));
+    expect(coolLinks(esq)).toEqual(["ET-A:ES:FAULT_TREE", "ET-B:RULE:NETWORK_NODE", "ET-T:ES:FAULT_TREE"]);
+    esq = withDefaultLink(esq, "COOL", node(["S-WET", "S-FLOODED"]));
+    expect(coolLinks(esq)).toEqual(["ET-A:ESQ:NETWORK_NODE", "ET-B:RULE:NETWORK_NODE", "ET-T:ESQ:NETWORK_NODE"]);
+    esq = withTreeLink(esq, "COOL", "ET-A", cooling);
+    expect(coolLinks(esq)).toEqual(["ET-A:RULE:FAULT_TREE", "ET-B:RULE:NETWORK_NODE", "ET-T:ESQ:NETWORK_NODE"]);
+    expect(modelViewOf(esq)?.functions.find((view) => view.record.id === "COOL")?.targets.map((target) => target.kind)).toEqual(["FAULT_TREE", "NETWORK_NODE", "NETWORK_NODE"]);
+    expect(checks(esq)).toEqual(expect.arrayContaining(["error:Changed without a reason:COOL", "error:Changed without a reason:COOL in ET-A"]));
+    expect(checks(esq)).not.toContain("error:Changed without a reason:COOL in ET-B");
+  });
+
+  it("stores a network node as an ordinary function target that the workbook schema accepts", () => {
+    const esq = withTreeLink(withDefaultLink(networked(), "RT", node(["S-FLOODED"])), "RT", "ET-A", node(["S-OFF"], "N-GRID"));
+    const link = esq.modelDecisions?.functionLinks?.find((entry) => entry.functionId === "RT");
+    expect(link).toEqual({ functionId: "RT", target: node(["S-FLOODED"]), rules: [{ id: "tree:ET-A", treeIds: ["ET-A"], groupIds: [], stateIds: [], target: node(["S-OFF"], "N-GRID"), reason: "" }] });
+    expect(EsqFunctionLinkSchema.safeParse(link).success).toBe(true);
+    expect(EsqFunctionLinkSchema.safeParse({ functionId: "RT", target: node([]) }).success).toBe(false);
+    expect((esq.model?.functions ?? []).map((record) => Object.keys(record).sort().join(","))).toEqual(["esLinks,id,name,treeIds", "esLinks,id,name,treeIds"]);
+  });
+
+  it("counts a function linked only to a network node as linked and reaches no basic event through it", () => {
+    const esq = withDefaultLink(networked(), "RT", node(["S-FLOODED"]));
+    const view = modelViewOf(esq);
+    expect(view?.functions.find((entry) => entry.record.id === "RT")).toMatchObject({ unlinked: [], targets: [node(["S-FLOODED"])], fromEs: false, edited: false });
+    expect(checks(esq).filter((entry) => entry.endsWith(":RT"))).toEqual([]);
+    expect(checks(imported())).toContain("error:Not linked:RT");
+    expect(view?.values.some((value) => value.functionIds.includes("RT"))).toBe(false);
+    expect(modelViewOf(linkCooling(networked()))?.values.some((value) => value.functionIds.includes("RT"))).toBe(true);
+  });
+
+  it("flags a network node whose network or node is not in this workbook", () => {
+    expect(details(withDefaultLink(imported(), "RT", node(["S-FLOODED"])), "Node missing")).toEqual([missing]);
+    expect(details(withDefaultLink(networked(), "RT", node(["S-FLOODED"], "N-GONE")), "Node missing")).toEqual([missing]);
+    expect(details(withTreeLink(networked(), "RT", "ET-A", node(["S-FLOODED"], "N-GONE")), "Node missing")).toEqual([missing]);
+    expect(details(withDefaultLink(networked(), "RT", node(["S-FLOODED"])), "Node missing")).toEqual([]);
+    expect(checks(withDefaultLink(imported(), "RT", node(["S-FLOODED"])))).toContain("error:Node missing:RT");
+  });
+
+  it("flags failing states that the node does not have, and a node that fails in every state", () => {
+    const states = (ids: string[]): string[] => details(withDefaultLink(networked(), "RT", node(ids)), "Failing states");
+    expect(states(["S-FLOODED"])).toEqual([]);
+    expect(states(["S-WET", "S-FLOODED"])).toEqual([]);
+    expect(states(["S-GONE"])).toEqual([badStates]);
+    expect(states(["S-FLOODED", "S-GONE"])).toEqual([badStates]);
+    expect(states(["S-DRY", "S-WET", "S-FLOODED"])).toEqual([badStates]);
+    expect(details(withDefaultLink(networked(), "RT", node(["S-FLOODED"], "N-GONE")), "Failing states")).toEqual([]);
+  });
+
+  it("completes the step when a network node is the link of a function", () => {
+    const esq = withDefaultLink(networked(resolvedEsq()), "RT", node(["S-FLOODED"]));
+    expect(checks(esq).filter((entry) => entry.startsWith("error"))).toEqual([]);
+    expect(modelComplete(esq)).toBe(true);
+    expect(modelComplete(withDefaultLink(resolvedEsq(), "RT", node(["S-FLOODED"])))).toBe(false);
   });
 });
 

@@ -698,19 +698,6 @@ const adaptEsqBayesianNetworkSnapshot = (
   return adaptBayesianNetworkModelSnapshot(source, model);
 };
 
-const adaptSyBayesianNetworkSnapshot = (
-  source: WorkbookMefSnapshot<SystemsAnalysis>,
-  modelId: string,
-): PraxisModelSnapshot => {
-  const model = (source.mef.dependencyBayesianNetworks ?? []).find(
-    (candidate) => candidate.modelId === modelId,
-  );
-  if (model === undefined) {
-    throw new WorkbookPraxisAdapterError(`SY Bayesian network '${modelId}' was not found`);
-  }
-  return adaptBayesianNetworkModelSnapshot(source, model);
-};
-
 const adaptBayesianNetworkModelSnapshot = (
   source: Pick<WorkbookMefSnapshot<unknown>, "workbookRevision">,
   model: WorkbookBayesianNetwork,
@@ -935,26 +922,6 @@ const adaptHclSolverSettings = (
   };
 };
 
-const adaptEsqHclSnapshot = (
-  source: WorkbookMefSnapshot<EventSequenceQuantification>,
-  modelId: string,
-  calculationType: HclCalculationType = "PROBABILITY",
-  faultTreeBasicEventIdsByModel?: ReadonlyMap<string, ReadonlySet<string>>,
-  baseEvidenceOverride?: BayesianNetworkEvidenceConfiguration,
-  sources: UncertaintySources = {},
-): PraxisModelSnapshot => {
-  const configuration = source.mef.hclConfigurations.find(
-    (candidate) => candidate.modelId === modelId,
-  );
-  if (configuration === undefined) {
-    throw new WorkbookPraxisAdapterError(`ESQ HCL configuration '${modelId}' was not found`);
-  }
-
-  return adaptHclConfigurationSnapshot(
-    source, configuration, calculationType, faultTreeBasicEventIdsByModel, baseEvidenceOverride, configuration.faultTrees, sources,
-  );
-};
-
 const adaptHclConfigurationSnapshot = (
   source: Pick<WorkbookMefSnapshot<unknown>, "workbookRevision">,
   configuration: WorkbookHclConfiguration,
@@ -1000,32 +967,6 @@ const adaptHclConfigurationSnapshot = (
   };
 };
 
-const adaptSyHclSnapshot = (
-  source: WorkbookMefSnapshot<SystemsAnalysis>,
-  modelId: string,
-  calculationType: HclCalculationType = "PROBABILITY",
-  faultTreeBasicEventIdsByModel?: ReadonlyMap<string, ReadonlySet<string>>,
-  baseEvidenceOverride?: BayesianNetworkEvidenceConfiguration,
-  effectiveFaultTrees?: WorkbookModelAddress[],
-  sources: UncertaintySources = {},
-): PraxisModelSnapshot => {
-  const configuration = (source.mef.dependencyHclConfigurations ?? []).find(
-    (candidate) => candidate.modelId === modelId,
-  );
-  if (configuration === undefined) {
-    throw new WorkbookPraxisAdapterError(`SY HCL configuration '${modelId}' was not found`);
-  }
-  return adaptHclConfigurationSnapshot(
-    source,
-    configuration,
-    calculationType,
-    faultTreeBasicEventIdsByModel,
-    baseEvidenceOverride,
-    effectiveFaultTrees,
-    sources,
-  );
-};
-
 const collectLoadCapacityReferences = (
   input: Pick<LoadCapacitySnapshotInput, "load" | "capacity">,
 ): UncertaintyReferences =>
@@ -1061,10 +1002,7 @@ export {
   adaptSyCcfGroup,
   adaptLoadCapacitySnapshot,
   adaptEsqBayesianNetworkSnapshot,
-  adaptSyBayesianNetworkSnapshot,
   adaptEsEventTreeSnapshot,
-  adaptEsqHclSnapshot,
-  adaptSyHclSnapshot,
   adaptBayesianNetworkModelSnapshot,
   adaptHclConfigurationSnapshot,
 };

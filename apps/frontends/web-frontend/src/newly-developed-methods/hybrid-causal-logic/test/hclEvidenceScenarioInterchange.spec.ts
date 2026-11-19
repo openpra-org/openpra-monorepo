@@ -1,6 +1,9 @@
 import type { HclEvidenceScenario } from "interfaces-mef-types/modeling";
+import { addNode } from "../../bayesian-network/bayesianNetworkOperations";
 import { TEST_ID, testBayesianNetworkModel } from "../../bayesian-network/test/bayesianNetworkTestModel";
 import {
+  createEvidenceScenarioSamples,
+  downloadText,
   exportHclEvidenceScenariosCsv,
   exportHclEvidenceScenariosJson,
   importHclEvidenceScenariosCsv,
@@ -71,6 +74,53 @@ describe("HCL evidence-scenario interchange", () => {
       JSON.stringify({ scenarios: [{ code: "BAD", evidence: { A: "MISSING" } }] }),
       model,
     )).toThrow("unknown state 'MISSING'");
+  });
+
+  it("builds two sample scenarios over the first three nodes and none for a network without nodes", () => {
+    const model = testBayesianNetworkModel();
+    const samples = createEvidenceScenarioSamples(model);
+    expect(samples).toEqual([
+      {
+        id: expect.any(String),
+        code: "SAMPLE-01",
+        name: "Sample evidence 1",
+        enabled: true,
+        evidence: { observations: [{ nodeId: TEST_ID.a, stateId: TEST_ID.aFalse }, { nodeId: TEST_ID.b, stateId: TEST_ID.bFalse }] },
+      },
+      {
+        id: expect.any(String),
+        code: "SAMPLE-02",
+        name: "Sample evidence 2",
+        enabled: true,
+        evidence: { observations: [{ nodeId: TEST_ID.a, stateId: TEST_ID.aTrue }, { nodeId: TEST_ID.b, stateId: TEST_ID.bTrue }] },
+      },
+    ]);
+    expect(samples[0]?.id).not.toBe(samples[1]?.id);
+    expect(importHclEvidenceScenariosJson(exportHclEvidenceScenariosJson(samples, model), model).map((sample) => sample.evidence)).toEqual(samples.map((sample) => sample.evidence));
+    const larger = addNode(addNode(model).model).model;
+    expect(createEvidenceScenarioSamples(larger).map((sample) => sample.evidence.observations.map((observation) => observation.nodeId))).toEqual([
+      larger.nodes.slice(0, 3).map((node) => node.id),
+      larger.nodes.slice(0, 3).map((node) => node.id),
+    ]);
+    expect(createEvidenceScenarioSamples({ ...model, nodes: [] })).toEqual([]);
+  });
+
+  it("hands a text to the browser as a named file and releases it", () => {
+    const blobs: Blob[] = [];
+    const released: string[] = [];
+    const links: { href: string; download: string }[] = [];
+    Object.defineProperty(URL, "createObjectURL", { configurable: true, value: (blob: Blob) => { blobs.push(blob); return "blob:evidence"; } });
+    Object.defineProperty(URL, "revokeObjectURL", { configurable: true, value: (url: string) => { released.push(url); } });
+    const click = jest.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(function record(this: HTMLAnchorElement) {
+      links.push({ href: this.href, download: this.download });
+    });
+    downloadText("BN-TEST-evidence-sample.csv", "code,evidence\r\n", "text/csv");
+    click.mockRestore();
+    Reflect.deleteProperty(URL, "createObjectURL");
+    Reflect.deleteProperty(URL, "revokeObjectURL");
+    expect(links).toEqual([{ href: "blob:evidence", download: "BN-TEST-evidence-sample.csv" }]);
+    expect(blobs.map((blob) => [blob.type, blob.size])).toEqual([["text/csv", 15]]);
+    expect(released).toEqual(["blob:evidence"]);
   });
 
 });

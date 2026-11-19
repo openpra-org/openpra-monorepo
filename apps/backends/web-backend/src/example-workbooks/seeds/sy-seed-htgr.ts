@@ -5,7 +5,6 @@ import { TechnicalElementTypes } from "interfaces-mef-types/technical-element";
 import { type SRReference, type SRConformance, type HlrId, type PlantStage, type SRStatus } from "interfaces-mef-types/core/pra-common";
 import { ImportanceLevel, type SensitivityStudy } from "interfaces-mef-types/core/shared-patterns";
 import { SY_SR_CATALOG } from "interfaces-mef-types/sy/systems-analysis";
-import { createExampleDependencyNetwork, createExampleHclConfiguration } from "./dependency-model-seed";
 import { DA_ANALYSIS_HTGR } from "./da-seed-htgr";
 import { SC_ANALYSIS_HTGR } from "./sc-seed-htgr";
 
@@ -1501,8 +1500,6 @@ export const SY_ANALYSIS_HTGR: SystemsAnalysis = SystemsAnalysisSchema.parse({
   activePeerReviewIds: [],
   activeAuditIds: [],
   praScope: "Full-scope systems analysis for the Generic HTGR, pre-operational stage, capability category CC-II.",
-  dependencyBayesianNetworks: [createExampleDependencyNetwork()],
-  dependencyHclConfigurations: [createExampleHclConfiguration()],
   systemDefinitions,
   variableSuccessCriteria,
   systemToSafetyFunctionMappings,

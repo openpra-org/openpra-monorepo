@@ -64,7 +64,6 @@ const HANDOFF_SECTIONS = [
   { element: "SY", key: "fault-trees", name: "Fault trees", contents: "Logic models with top gate, gates, events and transfers.", readers: ["DA", "ES", "ESQ"] },
   { element: "SY", key: "basic-events", name: "Basic events", contents: "Basic events with their values, value sources and failure modes.", readers: ["DA", "ES", "ESQ"] },
   { element: "SY", key: "common-cause-groups", name: "Common cause groups", contents: "Groups with members, factors and totals.", readers: ["DA", "ESQ"] },
-  { element: "SY", key: "dependency-networks", name: "Dependency networks", contents: "Bayesian networks and their HCL configurations.", readers: ["ES", "ESQ"] },
   { element: "SY", key: "qualification", name: "Qualification", contents: "Environmental design basis and over-capacity considerations.", readers: ["ESQ"] },
   { element: "SY", key: "assumptions", name: "Assumptions", contents: "Model uncertainty, uncertainty analyses and pre-operational assumptions.", readers: ["ESQ"] },
 
@@ -83,7 +82,7 @@ const HANDOFF_SECTIONS = [
 
   { element: "ES", key: "scope", name: "Scope", contents: "Initiator groups, operating states and sources in scope.", readers: ["SY", "ESQ"] },
   { element: "ES", key: "safety-functions", name: "Safety functions", contents: "Key safety functions with their supporting systems.", readers: ["SC", "SY"] },
-  { element: "ES", key: "event-trees", name: "Event trees", contents: "Trees with functional events, fault tree and network node links, sequences and transfers.", readers: ["ESQ", "RI"] },
+  { element: "ES", key: "event-trees", name: "Event trees", contents: "Trees with functional events, fault tree links, sequences and transfers.", readers: ["ESQ", "RI"] },
   { element: "ES", key: "sequences", name: "Sequences", contents: "Sequence records with path, end state, family and release category.", readers: ["SC", "ESQ", "RI"] },
   { element: "ES", key: "families", name: "Families", contents: "Families with members, release categories and representative initiator and state.", readers: ["ESQ", "MS", "RC", "RI"] },
   { element: "ES", key: "release-categories", name: "Release categories", contents: "Release categories with their sequences.", readers: ["MS", "RC"] },

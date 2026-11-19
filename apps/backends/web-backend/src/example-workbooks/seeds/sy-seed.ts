@@ -5,7 +5,6 @@ import { TechnicalElementTypes } from "interfaces-mef-types/technical-element";
 import { type SRReference, type SRConformance, type HlrId, type PlantStage, type SRStatus } from "interfaces-mef-types/core/pra-common";
 import { ImportanceLevel, type SensitivityStudy } from "interfaces-mef-types/core/shared-patterns";
 import { SY_SR_CATALOG } from "interfaces-mef-types/sy/systems-analysis";
-import { createExampleDependencyNetwork, createExampleHclConfiguration } from "./dependency-model-seed";
 import { DA_ANALYSIS } from "./da-seed";
 import { SC_ANALYSIS } from "./sc-seed";
 
@@ -1599,8 +1598,6 @@ export const SY_ANALYSIS: SystemsAnalysis = SystemsAnalysisSchema.parse({
   activePeerReviewIds: [],
   activeAuditIds: [],
   praScope: "Full-scope systems analysis for the Generic SFR, pre-operational stage, capability category CC-II.",
-  dependencyBayesianNetworks: [createExampleDependencyNetwork()],
-  dependencyHclConfigurations: [createExampleHclConfiguration()],
   systemDefinitions,
   variableSuccessCriteria,
   systemToSafetyFunctionMappings,

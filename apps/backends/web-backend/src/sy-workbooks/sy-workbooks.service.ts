@@ -38,7 +38,6 @@ import { WorkbookDependencyDiscoveryService } from "../newly-developed-methods/s
 import {
   keptExampleLinkMessage,
   reconcileExampleSyDataAnalysisLinks,
-  reconcileExampleSyDependencyOwnership,
   reconcileExampleSyMissionTimeReferences,
   relinkExampleDataAnalysis,
   relinkExampleMissionTimes,
@@ -276,7 +275,7 @@ export class SyWorkbooksService {
     const linked = relinkExampleDataAnalysis(relinked, syDataAnalysisLinks(relinked), dataAnalyses, reconcileExampleSyDataAnalysisLinks);
     linked.kept.forEach((kept) => this.logger.warn(keptExampleLinkMessage("SY", "DA", kept)));
     const cleaned = {
-      ...reconcileExampleSyDependencyOwnership(linked.mef, workbookId),
+      ...linked.mef,
       workflowState: "DRAFT",
       workflowHistory: [{ state: "DRAFT", enteredAt: new Date().toISOString(), actor: acting.username, note: "Loaded from example workbook" }],
     };

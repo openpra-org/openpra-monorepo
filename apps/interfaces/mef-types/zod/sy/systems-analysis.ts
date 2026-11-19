@@ -17,7 +17,6 @@ import { CanvasLayoutMetadataSchema, CanvasPositionSchema } from "../modeling/sh
 import { HumanFailureEventReferenceSchema } from "../modeling/references";
 import { FaultTreeControlledDataSourceReferenceSchema } from "../modeling/fault-tree";
 import { FaultTreeBasicEventQuantificationBasisSchema } from "../modeling/quantitative-semantics";
-import { WorkbookBayesianNetworkSchema, WorkbookHclConfigurationSchema } from "../modeling/workbook-models";
 import {
   normalizeSystemLogicModel,
   normalizeSystemsAnalysisModels,
@@ -790,8 +789,6 @@ const CanonicalSystemsAnalysisSchema = z.object({
   plantRepresentationAccuracy: PlantRepresentationAccuracySchema,
   systemDependencies: z.array(SystemDependencySchema),
   componentDependencies: z.array(ComponentDependencySchema),
-  dependencyBayesianNetworks: z.array(WorkbookBayesianNetworkSchema).optional(),
-  dependencyHclConfigurations: z.array(WorkbookHclConfigurationSchema).optional(),
   dependencySearchMethodology: DependencySearchMethodologySchema,
   commonCauseFailureGroups: z.array(CommonCauseFailureGroupSchema),
   supportSystemNeedAnalyses: z.array(SupportSystemNeedAnalysisSchema).optional(),

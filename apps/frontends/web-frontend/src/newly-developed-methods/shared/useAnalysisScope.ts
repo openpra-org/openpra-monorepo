@@ -1,15 +1,22 @@
 import { useCallback, useEffect, useLayoutEffect, useRef } from "react";
 import type { RevisionedSaveStatus } from "../../workbooks/useRevisionedMefPatch";
 
-function analysisSaveBlock(runtime: {
+interface AnalysisSaveState {
   workbookId: string | null;
   revision: number | null;
   saveStatus: RevisionedSaveStatus;
-}): string | null {
+}
+
+function analysisSaveNotice(runtime: AnalysisSaveState): string | null {
   if (runtime.workbookId === null || runtime.revision === null) return "Save the workbook before running.";
-  if (runtime.saveStatus === "saving") return "Saving changes. Run after saving finishes.";
-  if (runtime.saveStatus !== "saved") return "Save failed. Reload or save successfully before running.";
+  if (runtime.saveStatus === "failed") return "Save failed. Reload or save successfully before running.";
   return null;
+}
+
+function analysisSaveBlock(runtime: AnalysisSaveState): string | null {
+  const lasting = analysisSaveNotice(runtime);
+  if (lasting !== null) return lasting;
+  return runtime.saveStatus === "saving" ? "Saving changes. Run after saving finishes." : null;
 }
 
 /** Discard displayed and in-flight results when their inputs change. */
@@ -40,4 +47,4 @@ function useAnalysisScope(inputKey: string, clearResults: () => void) {
   return { invalidate, capture };
 }
 
-export { analysisSaveBlock, useAnalysisScope };
+export { analysisSaveBlock, analysisSaveNotice, useAnalysisScope };

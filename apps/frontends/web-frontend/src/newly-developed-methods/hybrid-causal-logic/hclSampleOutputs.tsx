@@ -1,38 +1,18 @@
 import { useState, type JSX } from "react";
-import type { BaseLaw, MixtureLaw } from "interfaces-mef-types/core/uncertainty";
 import type {
-  HclDistributionFit,
-  HclExceedancePoint,
-  HclFitFamily,
   HclHazardExceedancePoint,
-  HclHistogram,
   HclSampleVector,
   HclUncertaintyAdjustments,
-  HclUncertaintySummary,
 } from "interfaces-shared-types/newly-developed-methods/hybrid-causal-logic";
 import { getAnalysisRunSamples, type AnalysisHost } from "../shared/analysisRunWait";
 import { downloadResultCsv, type ResultCsvRecord } from "../shared/resultCsv";
 import { ResultCsvButton } from "../shared/resultPresentation";
-import { lawText, numberText } from "../shared/uncertainText";
 import "./css/hclSampleOutputs.css";
-
-type ChartView = "DISTRIBUTION" | "EXCEEDANCE";
 
 interface DecadeRange {
   low: number;
   high: number;
 }
-
-const FIT_FAMILY_TEXT: Record<HclFitFamily, string> = {
-  BETA: "Beta",
-  LOGIT_NORMAL: "Logit-normal",
-  ZERO_ONE_INFLATED_BETA: "Zero and one inflated beta",
-  ZERO_ONE_INFLATED_LOGIT_NORMAL: "Zero and one inflated logit-normal",
-  LOGNORMAL: "Lognormal",
-  GAMMA: "Gamma",
-  ZERO_INFLATED_LOGNORMAL: "Zero inflated lognormal",
-  ZERO_INFLATED_GAMMA: "Zero inflated gamma",
-};
 
 const CHART_WIDTH = 560;
 const CHART_HEIGHT = 196;
@@ -40,27 +20,9 @@ const PLOT_LEFT = 48;
 const PLOT_RIGHT = 548;
 const PLOT_TOP = 12;
 const PLOT_BASE = 168;
-const TICKS = 4;
 
 function counted(count: number, one: string, many: string): string {
   return `${count.toLocaleString()} ${count === 1 ? one : many}`;
-}
-
-function axisText(value: number): string {
-  return value === 0 ? "0" : value.toExponential(1).toUpperCase();
-}
-
-function criterionText(value: number): string {
-  return String(Number(value.toPrecision(6)));
-}
-
-function fitLawText(law: BaseLaw | MixtureLaw): string {
-  if (law.family !== "MIXTURE") return lawText(law);
-  return law.components
-    .map((component) => (component.law.family === "POINT"
-      ? `${numberText(component.weight)} at ${numberText(component.law.value)}`
-      : `${numberText(component.weight)} × ${lawText(component.law)}`))
-    .join(" + ");
 }
 
 function decadeRange(values: readonly number[]): DecadeRange | undefined {
@@ -104,147 +66,6 @@ function HclAdjustments({ adjustments }: { adjustments: HclUncertaintyAdjustment
   ].filter((part) => part !== "");
   if (parts.length === 0) return null;
   return <p className="hclsamples__adjustments">{parts.join(" · ")}</p>;
-}
-
-function HclSampleChart({ summary, histogram, exceedance, unit }: {
-  summary: HclUncertaintySummary;
-  histogram: HclHistogram;
-  exceedance: readonly HclExceedancePoint[];
-  unit: string;
-}): JSX.Element {
-  const [view, setView] = useState<ChartView>("DISTRIBUTION");
-  const low = histogram.edges[0] ?? 0;
-  const high = histogram.edges[histogram.edges.length - 1] ?? low;
-  const span = high > low ? high - low : 1;
-  const x = (value: number): number => PLOT_LEFT + ((value - low) / span) * (PLOT_RIGHT - PLOT_LEFT);
-  const y = (share: number): number => PLOT_BASE - share * (PLOT_BASE - PLOT_TOP);
-  const largest = Math.max(0, ...histogram.densities);
-  const ticks = Array.from({ length: TICKS + 1 }, (_, index) => low + (index / TICKS) * (high - low));
-  const curve = exceedance.map((point) => `${x(point.value).toFixed(1)},${y(point.probability).toFixed(1)}`).join(" ");
-  const marker = (value: number, className: string): JSX.Element | null => (value < low || value > high
-    ? null
-    : <line className={className} x1={x(value)} y1={PLOT_TOP} x2={x(value)} y2={PLOT_BASE} />);
-  const label = view === "DISTRIBUTION"
-    ? `Histogram of the ${counted(summary.sampleCount, "PRAXIS sample", "PRAXIS samples")}`
-    : `Share of the ${counted(summary.sampleCount, "PRAXIS sample", "PRAXIS samples")} at or above each value`;
-  return (
-    <div className="hclsamples__chart">
-      <div className="hclsamples__views" role="group" aria-label="Chart view">
-        <button type="button" className="hclsamples__view" aria-pressed={view === "DISTRIBUTION"} onClick={() => setView("DISTRIBUTION")}>Distribution</button>
-        <button type="button" className="hclsamples__view" aria-pressed={view === "EXCEEDANCE"} disabled={exceedance.length === 0} onClick={() => setView("EXCEEDANCE")}>Exceedance</button>
-      </div>
-      <svg className="hclsamples__svg" viewBox={`0 0 ${String(CHART_WIDTH)} ${String(CHART_HEIGHT)}`} role="img" aria-label={`${label}, marked at the 5th percentile, median, mean and 95th percentile`}>
-        {view === "EXCEEDANCE" && [0, 0.5, 1].map((share) => (
-          <g key={share}>
-            <line className="hclsamples__grid" x1={PLOT_LEFT} y1={y(share)} x2={PLOT_RIGHT} y2={y(share)} />
-            <text className="hclsamples__number" x={PLOT_LEFT - 6} y={y(share) + 3} textAnchor="end">{String(share)}</text>
-          </g>
-        ))}
-        {view === "DISTRIBUTION" && histogram.densities.map((density, index) => {
-          if (!(density > 0) || largest === 0) return null;
-          const left = x(histogram.edges[index] ?? low);
-          const right = x(histogram.edges[index + 1] ?? high);
-          const top = y(density / largest);
-          return <rect key={index} className="hclsamples__bar" x={left + 0.5} y={top} width={Math.max(1, right - left - 1)} height={PLOT_BASE - top} />;
-        })}
-        {view === "EXCEEDANCE" && curve !== "" && <polyline className="hclsamples__curve" points={curve} />}
-        {marker(summary.percentile05, "hclsamples__percentile")}
-        {marker(summary.percentile95, "hclsamples__percentile")}
-        {marker(summary.median, "hclsamples__median")}
-        {marker(summary.mean, "hclsamples__mean")}
-        <line className="hclsamples__axis" x1={PLOT_LEFT} y1={PLOT_BASE} x2={PLOT_RIGHT} y2={PLOT_BASE} />
-        {ticks.map((value, index) => (
-          <g key={index}>
-            <line className="hclsamples__axis" x1={x(value)} y1={PLOT_BASE} x2={x(value)} y2={PLOT_BASE + 4} />
-            <text className="hclsamples__number" x={x(value)} y={PLOT_BASE + 16} textAnchor={index === 0 ? "start" : index === TICKS ? "end" : "middle"}>
-              {`${axisText(value)}${index === TICKS ? unit : ""}`}
-            </text>
-          </g>
-        ))}
-      </svg>
-      <ul className="hclsamples__legend" aria-label="Chart legend">
-        <li><span className="hclsamples__key hclsamples__key--percentile" aria-hidden="true" />5th and 95th percentiles</li>
-        <li><span className="hclsamples__key hclsamples__key--median" aria-hidden="true" />Median</li>
-        <li><span className="hclsamples__key hclsamples__key--mean" aria-hidden="true" />Mean</li>
-      </ul>
-    </div>
-  );
-}
-
-function HclFitTable({ fit }: { fit: HclDistributionFit }): JSX.Element {
-  const rejected = fit.rejected ?? [];
-  const counts = [
-    `Fitted to ${counted(fit.samples, "sample", "samples")}`,
-    fit.zeroSamples > 0 ? `${fit.zeroSamples.toLocaleString()} at 0` : "",
-    fit.oneSamples > 0 ? `${fit.oneSamples.toLocaleString()} at 1` : "",
-  ].filter((part) => part !== "");
-  return (
-    <section className="hclsamples__fit" aria-label="Distribution fit">
-      <p className="hclsamples__fit-head">{counts.join(" · ")}</p>
-      {fit.candidates.length > 0 && (
-        <div className="hclsamples__table">
-          <table>
-            <thead>
-              <tr>
-                <th scope="col">Family</th>
-                <th scope="col">AIC</th>
-                <th scope="col">BIC</th>
-                <th scope="col">KS</th>
-                <th scope="col">CDF RMSE</th>
-                <th scope="col">PDF RMSE</th>
-              </tr>
-            </thead>
-            <tbody>
-              {fit.candidates.map((candidate, index) => (
-                <tr key={candidate.family}>
-                  <th scope="row">
-                    <span className="hclsamples__family">
-                      {FIT_FAMILY_TEXT[candidate.family]}
-                      {index === 0 && <small>Best fit</small>}
-                    </span>
-                    <span className="hclsamples__law">{fitLawText(candidate.law)}</span>
-                  </th>
-                  <td>{criterionText(candidate.aic)}</td>
-                  <td>{criterionText(candidate.bic)}</td>
-                  <td>{numberText(candidate.ksStatistic)}</td>
-                  <td>{numberText(candidate.cdfRmse)}</td>
-                  <td>{numberText(candidate.pdfRmse)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-      {rejected.length > 0 && (
-        <ul className="hclsamples__rejected" aria-label="Families not fitted">
-          {rejected.map((entry) => (
-            <li key={entry.family}>
-              <strong>{FIT_FAMILY_TEXT[entry.family]}</strong>
-              <span>{entry.reason}</span>
-            </li>
-          ))}
-        </ul>
-      )}
-    </section>
-  );
-}
-
-function HclDistributionDetails({ summary, annual }: { summary: HclUncertaintySummary; annual: boolean }): JSX.Element | null {
-  const [open, setOpen] = useState(false);
-  if (summary.histogram === undefined && summary.fit === undefined) return null;
-  return (
-    <details className="hclsamples" onToggle={(event) => setOpen(event.currentTarget.open)}>
-      <summary>Distribution and fit</summary>
-      {open && (
-        <div className="hclsamples__body">
-          {summary.histogram !== undefined && (
-            <HclSampleChart summary={summary} histogram={summary.histogram} exceedance={summary.exceedance ?? []} unit={annual ? "/yr" : ""} />
-          )}
-          {summary.fit !== undefined && <HclFitTable fit={summary.fit} />}
-        </div>
-      )}
-    </details>
-  );
 }
 
 function HclSampleCsvButton({ host, workbookId, runId, filename, columnName }: {
@@ -323,12 +144,8 @@ function HclHazardExceedance({ points, label }: { points: readonly HclHazardExce
           </g>
         ))}
       </svg>
-      <p className="hclsamples__axes">
-        <span>Across: conditional probability threshold</span>
-        <span>Up: annual frequency at or above it /yr</span>
-      </p>
     </section>
   );
 }
 
-export { HclAdjustments, HclDistributionDetails, HclHazardExceedance, HclSampleCsvButton };
+export { HclAdjustments, HclHazardExceedance, HclSampleCsvButton };

@@ -70,16 +70,11 @@ function toCanonicalBayesianNetwork(input: BayesianNetworkModel): CanonicalBayes
   };
 }
 
-function fromCanonicalBayesianNetwork(input: unknown, current?: BayesianNetworkModel): BayesianNetworkModel {
+function fromCanonicalBayesianNetwork(input: unknown): BayesianNetworkModel {
   const canonical = CanonicalBayesianNetworkSchema.parse(input);
   const code = canonical.id?.trim() || "BN-IMPORTED";
   const model = createEmptyBayesianNetwork(code);
   model.code = code;
-  if (current !== undefined) {
-    model.modelId = current.modelId;
-    // Templates are self-contained; instances refer to the replaced graph.
-    if (current.moduleTemplates !== undefined) model.moduleTemplates = current.moduleTemplates;
-  }
   const codes = new Set<string>();
   model.nodes = canonical.variables.map((variable) => {
     if (codes.has(variable.name)) throw new Error(`Bayesian node '${variable.name}' is duplicated.`);

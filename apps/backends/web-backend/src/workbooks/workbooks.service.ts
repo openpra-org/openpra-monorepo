@@ -37,7 +37,6 @@ import {
   reconcileExampleSyMissionTimeReferences,
   reconcileExampleSyHumanReliabilityReferences,
   reconcileExampleRiskResultReferences,
-  reconcileExampleSyDependencyOwnership,
   esqDataAnalysisLinks,
   relinkExampleDataAnalysis,
 } from "../example-workbooks/seeds/dependency-model-seed";
@@ -414,13 +413,11 @@ export class WorkbooksService {
       let systems = await syAdapter.load(syEntry.workbookId);
       if (systems === null || systems.revision === undefined) continue;
 
-      const ownedSystems = reconcileExampleSyDependencyOwnership(
-        missionTimes === undefined ? systems.mef as SystemsAnalysis : reconcileExampleSyMissionTimeReferences(systems.mef as SystemsAnalysis, missionTimes.sc, missionTimes.workbookId),
-        syEntry.workbookId,
-      );
-      await syAdapter.save(syEntry.workbookId, ownedSystems, systems.revision);
-      systems = await syAdapter.load(syEntry.workbookId);
-      if (systems === null || systems.revision === undefined) continue;
+      if (missionTimes !== undefined) {
+        await syAdapter.save(syEntry.workbookId, reconcileExampleSyMissionTimeReferences(systems.mef as SystemsAnalysis, missionTimes.sc, missionTimes.workbookId), systems.revision);
+        systems = await syAdapter.load(syEntry.workbookId);
+        if (systems === null || systems.revision === undefined) continue;
+      }
 
       if (daAdapter !== undefined && daEntry?.workbookId !== null && daEntry?.workbookId !== undefined) {
         const dataAnalysis = await daAdapter.load(daEntry.workbookId);

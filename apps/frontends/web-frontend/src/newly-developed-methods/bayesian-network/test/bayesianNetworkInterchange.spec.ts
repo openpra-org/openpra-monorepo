@@ -60,7 +60,7 @@ describe("Bayesian-network interchange", () => {
     };
 
     const xdsl = exportBayesianNetworkXdsl(withConditionalValues);
-    const imported = importBayesianNetworkXdsl(xdsl, testBayesianNetworkModel());
+    const imported = importBayesianNetworkXdsl(xdsl);
     const importedB = imported.nodes.find(({ code }) => code === "B")!;
     const importedTable = imported.conditionalProbabilityTables.find(({ nodeId }) => nodeId === importedB.id)!;
 
@@ -110,7 +110,7 @@ describe("Bayesian-network interchange", () => {
         </extensions>
       </smile>`;
 
-    const imported = importBayesianNetworkXdsl(xdsl, testBayesianNetworkModel());
+    const imported = importBayesianNetworkXdsl(xdsl);
     const importedA = imported.nodes.find(({ code }) => code === "A")!;
     const importedB = imported.nodes.find(({ code }) => code === "B")!;
     expect(importedA.name).toBe("Hazard driver");
@@ -150,7 +150,7 @@ describe("Bayesian-network interchange", () => {
     expect(exportedNestedNode?.querySelector("position")?.textContent).toBe("350 260 470 320");
     expect(exported).toContain("<parents>A_RENAMED</parents>");
 
-    const roundTripped = importBayesianNetworkXdsl(exported, testBayesianNetworkModel());
+    const roundTripped = importBayesianNetworkXdsl(exported);
     const roundTrippedB = roundTripped.nodes.find(({ code }) => code === "B_RENAMED")!;
     const roundTrippedParent = roundTripped.conditionalProbabilityTables
       .find(({ nodeId }) => nodeId === roundTrippedB.id)!.parents[0]!;
@@ -332,19 +332,14 @@ describe("source-compatible BN interchange", () => {
     expect(rt.nodes[0]!.description).toBe(model.nodes[0]!.description);
   });
 
-  it("replaces instances while retaining self-contained templates and workbook identity", () => {
-    const created = createBayesianNetworkModuleFromBranch(connectNodes(testBayesianNetworkModel(), TEST_ID.a, TEST_ID.b), TEST_ID.b);
-    const template = created.model.moduleTemplates![0]!;
-    const current = instantiateBayesianNetworkModule(created.model, template.id, {
-      inputBindings: [{ portId: template.inputPorts[0]!.id, nodeId: TEST_ID.a }],
-    }).model;
-    for (const imported of [importBayesianNetworkXdsl(simpleXdsl, current), importBayesianNetworkJson(JSON.stringify(sourceNetwork), current)]) {
-      expect(imported.modelId).toBe(current.modelId);
-      expect(imported.moduleTemplates).toEqual(current.moduleTemplates);
+  it("gives a canonical import its own identity with no templates or instances", () => {
+    const first = importBayesianNetworkXdsl(simpleXdsl);
+    for (const imported of [importBayesianNetworkXdsl(simpleXdsl), importBayesianNetworkJson(JSON.stringify(sourceNetwork))]) {
+      expect(imported.modelId).not.toBe(first.modelId);
+      expect(imported.moduleTemplates).toBeUndefined();
       expect(imported.moduleInstances).toBeUndefined();
       expect(validateBayesianNetworkModel(imported)).toEqual([]);
     }
-    expect(current.moduleInstances).toHaveLength(1);
   });
 
   it("rejects unsupported canonical fields instead of guessing another format", () => {

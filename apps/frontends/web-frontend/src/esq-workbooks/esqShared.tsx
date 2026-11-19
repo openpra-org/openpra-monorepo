@@ -2,8 +2,9 @@ import { JSX, ReactNode, useId, useLayoutEffect, useMemo, useRef, useState, type
 import type { EsqModel, EsqSolveRun, EventSequenceQuantification } from "interfaces-mef-types/esq/event-sequence-quantification";
 import { eventInputKey, sampledInputsOf } from "interfaces-mef-types/esq/esq-measure-inputs";
 import { esqTreeRunId } from "interfaces-mef-types/esq/esq-run-inputs";
-import type { SystemLogicModel, SystemsAnalysis } from "interfaces-mef-types/sy/systems-analysis";
-import type { WorkbookHclConfiguration } from "interfaces-mef-types/modeling";
+import type { SystemLogicModel } from "interfaces-mef-types/sy/systems-analysis";
+import type { EsqHclConfiguration } from "interfaces-mef-types/esq/workbook-models";
+import { esqModelRunId } from "interfaces-mef-types/esq/esq-solve-inputs";
 import type { AnalysisRunMetadata } from "interfaces-shared-types/newly-developed-methods";
 import { cancelAnalysisRun, runProgressText, type RunProgressListener } from "../newly-developed-methods/shared/analysisRunWait";
 import { FaultTreeEditor, type FaultTreeSelection } from "../newly-developed-methods/fault-tree";
@@ -224,29 +225,42 @@ interface FailedTree {
   failure: string | null;
 }
 
-interface NetworkOption {
-  key: string;
-  workbookId: string;
-  configuration: WorkbookHclConfiguration;
-}
-
-function linkedWorkbookId(id: string | undefined): string | undefined {
-  return id === undefined || id.length === 0 || id.startsWith("example") ? undefined : id;
-}
-
 function trimmedText(text: string | null | undefined): string | undefined {
   return typeof text === "string" && text.trim().length > 0 ? text.trim() : undefined;
 }
 
-function networkLabel(option: NetworkOption): string {
-  const code = trimmedText(option.configuration.code);
-  const name = trimmedText(option.configuration.name);
-  return code !== undefined && name !== undefined && code !== name ? `${code} · ${name}` : code ?? name ?? option.configuration.modelId;
+function configurationLabel(configuration: EsqHclConfiguration): string {
+  const code = trimmedText(configuration.code);
+  const name = trimmedText(configuration.name);
+  return code !== undefined && name !== undefined && code !== name ? `${code} · ${name}` : code ?? name ?? "Dependency configuration";
 }
 
-function networkOptionsOf(esq: EventSequenceQuantification, sy: SystemsAnalysis | undefined): NetworkOption[] {
-  const syId = linkedWorkbookId(esq.linkedWorkbooks?.SY);
-  return syId === undefined ? [] : (sy?.dependencyHclConfigurations ?? []).map((configuration) => ({ key: `${syId}:${configuration.modelId}`, workbookId: syId, configuration }));
+function esqJobLabel(esq: EventSequenceQuantification, model: EsqModel): (modelId: string) => string | undefined {
+  return (modelId) => {
+    if (modelId === esqModelRunId()) return "Event trees";
+    const configuration = esq.hclConfigurations.find((candidate) => candidate.modelId === modelId);
+    if (configuration !== undefined) return `Dependencies · ${configurationLabel(configuration)}`;
+    const network = esq.bayesianNetworks.find((candidate) => candidate.modelId === modelId);
+    if (network !== undefined) return `Network query · ${network.code}`;
+    const tree = model.trees.find((candidate) => esqTreeRunId(candidate.id) === modelId);
+    return tree === undefined ? undefined : treeLabel(model, tree.id);
+  };
+}
+
+function optionOf<T extends string>(options: readonly (readonly [T, string])[], value: string): T | undefined {
+  return options.find(([option]) => option === value)?.[0];
+}
+
+type RunWorkflow = "MANUAL" | "BATCH";
+
+const WORKFLOWS: readonly (readonly [RunWorkflow, string])[] = [["MANUAL", "Manual"], ["BATCH", "Batch"]];
+
+function decadeText(exponent: number): string {
+  return `1E${exponent}`;
+}
+
+function countOf(count: number, one: string, many: string): string {
+  return `${String(count)} ${count === 1 ? one : many}`;
 }
 
 interface Runner {
@@ -396,7 +410,7 @@ function CutOffField({ id, value, onChange }: { id: string; value: number; onCha
     <label className="esq-run__field esq-run__field--small" htmlFor={id}>
       <span>Cutoff (/yr)</span>
       <select id={id} value={value} onChange={(event) => onChange(Number(event.target.value))}>
-        {CUT_OFF_EXPONENTS.map((exponent) => <option key={exponent} value={exponent}>{`1E${exponent}`}</option>)}
+        {CUT_OFF_EXPONENTS.map((exponent) => <option key={exponent} value={exponent}>{decadeText(exponent)}</option>)}
       </select>
     </label>
   );
@@ -692,12 +706,16 @@ export {
   decade,
   exponentOf,
   failedTrees,
-  networkLabel,
-  networkOptionsOf,
+  WORKFLOWS,
+  configurationLabel,
+  countOf,
+  decadeText,
+  esqJobLabel,
+  optionOf,
   treeLabel,
   useRunner,
   type FailedTree,
-  type NetworkOption,
+  type RunWorkflow,
   type FindingRow,
   type FindingSeverity,
   type Runner,

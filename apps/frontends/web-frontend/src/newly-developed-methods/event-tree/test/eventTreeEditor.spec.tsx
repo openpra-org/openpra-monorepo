@@ -374,6 +374,25 @@ describe("EventTreeEditor", () => {
     expect(onSelectLink).toHaveBeenCalledWith(expect.objectContaining({ uuid: "FE-1" }));
   });
 
+  it("names the linked fault tree in the inspector and removes the link as a fault-tree operation", () => {
+    const onSelectLink = jest.fn();
+    const { onOperation } = renderEditor({ selection: "FE-1", onSelectLink, faultTreeName: () => "Trip fault tree" });
+
+    const inspector = within(screen.getByLabelText("Event-tree selection inspector"));
+    expect(inspector.getByText("Fault-tree top event")).toBeInTheDocument();
+    fireEvent.click(inspector.getByRole("button", { name: "Trip fault tree" }));
+    fireEvent.click(inspector.getByRole("button", { name: "Change link" }));
+    expect(onSelectLink).toHaveBeenCalledTimes(2);
+    fireEvent.click(inspector.getByRole("button", { name: "Remove link" }));
+    expect(onOperation).toHaveBeenCalledWith({ kind: "SET_FAULT_TREE_REFERENCE", functionalEventId: "FE-1", reference: undefined });
+
+    const rail = within(screen.getByLabelText("Event-tree node actions"));
+    expect(rail.getByRole("button", { name: "Change link" })).toBeInTheDocument();
+    fireEvent.click(rail.getByRole("button", { name: "Remove link" }));
+    expect(onOperation).toHaveBeenCalledTimes(2);
+    expect(onOperation.mock.calls.map(([operation]) => operation.kind)).toEqual(["SET_FAULT_TREE_REFERENCE", "SET_FAULT_TREE_REFERENCE"]);
+  });
+
   it("highlights only the selected route through a classic event-tree fork", () => {
     const { linkedModel, eventSequences } = classifiedTreeFixture();
     const { container } = renderEditor({ model: linkedModel, eventSequences, representation: "event-tree" });

@@ -6,6 +6,7 @@ import type {
   EsqCcfRecord,
   EsqEventRecord,
   EsqFamilyRecord,
+  EsqFunctionLink,
   EsqFunctionRecord,
   EsqHumanRecord,
   EsqInitiatorRecord,
@@ -15,7 +16,6 @@ import type {
   EsqStateRecord,
   EsqTopRecord,
   EsqTreeRecord,
-  EventSequenceQuantification,
 } from "interfaces-mef-types/esq/event-sequence-quantification";
 import { isEventTreeBranchState, type EventSequenceAnalysis, type EventTree, type FunctionalEvent } from "interfaces-mef-types/es/event-sequence-analysis";
 import type { DataAnalysis } from "interfaces-mef-types/da/data-analysis";
@@ -23,7 +23,6 @@ import type { HumanReliabilityAnalysis } from "interfaces-mef-types/hr/human-rel
 import type { InitiatingEventsAnalysis } from "interfaces-mef-types/ie/initiating-event-analysis";
 import type { PlantOperatingStatesAnalysis } from "interfaces-mef-types/pos/plant-operating-state-analysis";
 import { expressionReferences, type UncertainExpression } from "interfaces-mef-types/core/uncertainty";
-import { from, mergeMap, type Observable } from "rxjs";
 import { WorkbookOracle, assertPopulation, assertProbability, type PopulationSummary } from "./hcl-independent-oracle";
 import { parseNativeResponse, type NativeResponse } from "praxis-node/protocol";
 import type { PraetorJobOperation, PraetorJobState } from "interfaces-shared-types/execution/praetor-job";
@@ -39,10 +38,8 @@ import {
   HttpStatus,
   NotFoundException,
   Param,
-  type CallHandler,
   type CanActivate,
   type ExecutionContext,
-  type NestInterceptor,
   type INestApplication,
   Post,
 } from "@nestjs/common";
@@ -100,7 +97,6 @@ import {
   reconcileExampleSyDataAnalysisReferences,
   reconcileExampleSyMissionTimeReferences,
   reconcileExampleSyHumanReliabilityReferences,
-  reconcileExampleSyDependencyOwnership,
 } from "../../../example-workbooks/seeds/dependency-model-seed";
 import { SY_ANALYSIS } from "../../../example-workbooks/seeds/sy-seed";
 import { SY_ANALYSIS_HTGR } from "../../../example-workbooks/seeds/sy-seed-htgr";
@@ -122,7 +118,7 @@ import { createBlankSy } from "../../../sy-workbooks/blank-sy";
 import { createBlankDa } from "../../../da-workbooks/blank-da";
 import { DaWorkbook, DaWorkbookSchema } from "../../../da-workbooks/da-workbook.schema";
 import { HrWorkbook, HrWorkbookSchema } from "../../../hr-workbooks/hr-workbook.schema";
-import { SyWorkbook, SyWorkbookSchema, type SyWorkbookDocument } from "../../../sy-workbooks/sy-workbook.schema";
+import { SyWorkbook, SyWorkbookSchema } from "../../../sy-workbooks/sy-workbook.schema";
 import { SyWorkbooksController } from "../../../sy-workbooks/sy-workbooks.controller";
 import { SyWorkbooksService } from "../../../sy-workbooks/sy-workbooks.service";
 import { WorkbookModelAccessService } from "../../../workbooks/workbook-model-access.service";
@@ -145,6 +141,7 @@ const DA_PARAMETER_ID = "40000000-0000-4000-8000-000000000001";
 const CONTROLLED_SY_WORKBOOK_ID = "controlled-sy-workbook-runs";
 const HCL_CASE_SY_WORKBOOK_ID = "hcl-case-sy-workbook-runs";
 const HCL_CASE_STALE_SY_WORKBOOK_ID = "hcl-case-stale-sy-workbook-runs";
+const HCL_CASE_STALE_ESQ_WORKBOOK_ID = "hcl-case-stale-esq-workbook-runs";
 const HCL_CASE_DA_WORKBOOK_ID = "hcl-case-da-workbook-runs";
 const HCL_CASE_HR_WORKBOOK_ID = "hcl-case-hr-workbook-runs";
 const HCL_CASE_ES_WORKBOOK_ID = "hcl-case-es-workbook-runs";
@@ -446,13 +443,7 @@ function esqFamiliesOf(es: EventSequenceAnalysis, sequences: readonly EsqSequenc
   return records;
 }
 
-function esqFunctionsOf(es: EventSequenceAnalysis, sy: SystemsAnalysis, syWorkbookId: string): EsqFunctionRecord[] {
-  const networks = sy.dependencyBayesianNetworks ?? [];
-  const labelOf = (reference: { workbookId: string; modelId: string; entityId: string }): string => {
-    const network = reference.workbookId === syWorkbookId ? networks.find((candidate) => candidate.modelId === reference.modelId) : undefined;
-    const node = network?.nodes.find((candidate) => candidate.id === reference.entityId);
-    return network === undefined || node === undefined ? "" : `${node.code} · ${node.name} · ${network.code}`;
-  };
+function esqFunctionsOf(es: EventSequenceAnalysis): EsqFunctionRecord[] {
   const out = new Map<string, EsqFunctionRecord>();
   for (const tree of es.eventTrees ?? []) {
     for (const { key, event } of orderedFunctionsOf(tree)) {
@@ -463,16 +454,6 @@ function esqFunctionsOf(es: EventSequenceAnalysis, sy: SystemsAnalysis, syWorkbo
       const gateId = textOf(top?.entityId);
       if (modelId !== undefined && gateId !== undefined && !record.esLinks.some((link) => link.treeId === tree.uuid)) {
         record.esLinks.push({ treeId: tree.uuid, top: { workbookId: textOf(top?.workbookId) ?? "", modelId, gateId } });
-      }
-      const node = event.networkNode;
-      if (node !== undefined && !(record.nodeLinks ?? []).some((link) => link.treeId === tree.uuid)) {
-        const reference = node.bayesianNetworkNode;
-        record.nodeLinks = [...(record.nodeLinks ?? []), {
-          treeId: tree.uuid,
-          node: { workbookId: reference.workbookId, modelId: reference.modelId, nodeId: reference.entityId },
-          trueStateIds: [...node.trueStateIds],
-          label: labelOf(reference),
-        }];
       }
       out.set(key, record);
     }
@@ -649,7 +630,7 @@ function esqModelFrom(input: EsqModelSourceWorkbooks): EsqModel {
     trees,
     sequences,
     families: esqFamiliesOf(input.es, sequences),
-    functions: esqFunctionsOf(input.es, input.sy, input.syWorkbookId),
+    functions: esqFunctionsOf(input.es),
     tops: esqTopsOf(input.sy),
     initiators: input.ie === undefined ? esqInitiatorsOf(input.es, trees) : esqIeInitiatorsOf(input.ie.mef),
     states: input.pos === undefined ? [...new Set(textsOf(trees.map((tree) => tree.stateId)))].map((id) => ({ id, name: id })) : esqPosStatesOf(input.pos.mef),
@@ -658,55 +639,6 @@ function esqModelFrom(input: EsqModelSourceWorkbooks): EsqModel {
     parameters: input.da === undefined ? [] : esqParameterLinks(input.da.mef),
     humanEvents: input.hr === undefined ? [] : esqHumanEventsOf(input.hr.mef),
   };
-}
-
-interface EsqDependencyRoute {
-  workbookId: string;
-  configurationId: string;
-}
-
-function esqDependencyTreeRoute(path: string): EsqDependencyRoute | undefined {
-  const [, prefix, collection, workbookId, kind, configurationId, route, ...rest] = path.split("/");
-  if (rest.length > 0 || prefix !== "api" || collection !== "esq-workbooks" || kind !== "hcl-configurations") return undefined;
-  if (route !== "event-tree-runs" && route !== "event-tree-batch-runs") return undefined;
-  if (workbookId === undefined || configurationId === undefined) return undefined;
-  return { workbookId, configurationId };
-}
-
-async function withSyDependency(
-  route: EsqDependencyRoute,
-  body: { dependencyConfiguration?: { workbookId: string; modelId: string } },
-  esqWorkbooks: Model<EsqWorkbookDocument>,
-  syWorkbooks: Model<SyWorkbookDocument>,
-): Promise<void> {
-  const esq = (await esqWorkbooks.findOne({ workbookId: route.workbookId }).lean<{ mef: EventSequenceQuantification }>().exec())?.mef;
-  const syWorkbookId = esq?.model?.sources.find((source) => source.element === "SY")?.workbookId;
-  if (esq === undefined || syWorkbookId === undefined) return;
-  body.dependencyConfiguration ??= { workbookId: syWorkbookId, modelId: route.configurationId };
-  const configuration = esq.hclConfigurations.find((candidate) => candidate.modelId === route.configurationId);
-  const network = esq.bayesianNetworks.find((candidate) => candidate.modelId === configuration?.bayesianNetwork.modelId);
-  const sy = (await syWorkbooks.findOne({ workbookId: syWorkbookId }).lean<{ mef: SystemsAnalysis }>().exec())?.mef;
-  if (configuration === undefined || network === undefined || sy === undefined) return;
-  const mirrored = reconcileExampleSyDependencyOwnership({
-    ...sy,
-    dependencyBayesianNetworks: [...(sy.dependencyBayesianNetworks ?? []).filter((candidate) => candidate.modelId !== network.modelId), network],
-    dependencyHclConfigurations: [...(sy.dependencyHclConfigurations ?? []).filter((candidate) => candidate.modelId !== configuration.modelId), configuration],
-  }, syWorkbookId);
-  await syWorkbooks.updateOne({ workbookId: syWorkbookId }, { $set: { mef: mirrored } }).exec();
-}
-
-class SyDependencyRoutes implements NestInterceptor {
-  constructor(
-    private readonly esqWorkbooks: Model<EsqWorkbookDocument>,
-    private readonly syWorkbooks: Model<SyWorkbookDocument>,
-  ) {}
-
-  intercept(context: ExecutionContext, next: CallHandler): Observable<object> {
-    const request = context.switchToHttp().getRequest<ExpressRequest>();
-    const route = request.method === "POST" ? esqDependencyTreeRoute(request.path) : undefined;
-    if (route === undefined) return next.handle();
-    return from(withSyDependency(route, request.body, this.esqWorkbooks, this.syWorkbooks)).pipe(mergeMap(() => next.handle()));
-  }
 }
 
 @Controller()
@@ -1323,7 +1255,6 @@ describe("workbook-owned analysis-run APIs", () => {
     api.setGlobalPrefix("api");
     const runService = moduleRef.get(WorkbookAnalysisRunsService);
     api.use(settledRunResponses(moduleRef.get(getModelToken(AnalysisRunRecord.name)), (id) => runService["metadataOf"](id)));
-    api.useGlobalInterceptors(new SyDependencyRoutes(moduleRef.get(getModelToken(EsqWorkbook.name)), moduleRef.get(getModelToken(SyWorkbook.name))));
     await api.init();
     runs = moduleRef.get(getModelToken(AnalysisRunRecord.name));
     syWorkbooks = moduleRef.get(getModelToken(SyWorkbook.name));
@@ -1417,32 +1348,7 @@ describe("workbook-owned analysis-run APIs", () => {
       revision: 6,
       mef: da,
     });
-    const hclCaseSystems = reconcileExampleSyDataAnalysisReferences(
-      reconcileExampleSyDependencyOwnership(structuredClone(SY_ANALYSIS_HCL), HCL_CASE_SY_WORKBOOK_ID),
-      DA_ANALYSIS_HCL,
-      HCL_CASE_DA_WORKBOOK_ID,
-    );
-    const hclCaseNetwork = hclCaseSystems.dependencyBayesianNetworks?.find(
-      ({ modelId }) => modelId === HCL_CASE_BAYESIAN_IDS.model,
-    )!;
-    const seismicNode = hclCaseNetwork.nodes.find(({ id }) => id === HCL_CASE_BAYESIAN_IDS.seismic)!;
-    delete hclCaseSystems.dependencyHclConfigurations![0]!.hazardGrid;
-    hclCaseSystems.dependencyHclConfigurations![0]!.evidenceScenarios = [
-      {
-        id: HCL_CASE_SCENARIO_BASE_ID,
-        code: "SCN-SEISMIC-0",
-        name: "Baseline seismic evidence regression scenario",
-        enabled: true,
-        evidence: { observations: [{ nodeId: seismicNode.id, stateId: seismicNode.states[0]!.id }] },
-      },
-      {
-        id: HCL_CASE_SCENARIO_SEISMIC_ID,
-        code: "SCN-SEISMIC-1",
-        name: "Alternate seismic evidence regression scenario",
-        enabled: true,
-        evidence: { observations: [{ nodeId: seismicNode.id, stateId: seismicNode.states[1]!.id }] },
-      },
-    ];
+    const hclCaseSystems = reconcileExampleSyDataAnalysisReferences(structuredClone(SY_ANALYSIS_HCL), DA_ANALYSIS_HCL, HCL_CASE_DA_WORKBOOK_ID);
     await moduleRef.get<Model<unknown>>(getModelToken(DaWorkbook.name)).create({
       workbookId: HCL_CASE_DA_WORKBOOK_ID,
       projectId: PROJECT_ID,
@@ -1478,6 +1384,25 @@ describe("workbook-owned analysis-run APIs", () => {
       hclCaseSystems,
       HCL_CASE_SY_WORKBOOK_ID,
     );
+    const hclCaseNetwork = hclCaseQuantification.bayesianNetworks.find(({ modelId }) => modelId === HCL_CASE_BAYESIAN_IDS.model)!;
+    const seismicNode = hclCaseNetwork.nodes.find(({ id }) => id === HCL_CASE_BAYESIAN_IDS.seismic)!;
+    delete hclCaseQuantification.hclConfigurations[0]!.hazardGrid;
+    hclCaseQuantification.hclConfigurations[0]!.evidenceScenarios = [
+      {
+        id: HCL_CASE_SCENARIO_BASE_ID,
+        code: "SCN-SEISMIC-0",
+        name: "Baseline seismic evidence regression scenario",
+        enabled: true,
+        evidence: { observations: [{ nodeId: seismicNode.id, stateId: seismicNode.states[0]!.id }] },
+      },
+      {
+        id: HCL_CASE_SCENARIO_SEISMIC_ID,
+        code: "SCN-SEISMIC-1",
+        name: "Alternate seismic evidence regression scenario",
+        enabled: true,
+        evidence: { observations: [{ nodeId: seismicNode.id, stateId: seismicNode.states[1]!.id }] },
+      },
+    ];
     hclCaseQuantification.linkedWorkbooks = {
       ...hclCaseQuantification.linkedWorkbooks,
       ES: HCL_CASE_ES_WORKBOOK_ID,
@@ -2500,19 +2425,19 @@ describe("workbook-owned analysis-run APIs", () => {
     }
   });
 
-  it.each(["ESQ", "SY"] as const)(
-    "executes a %s-owned native BN batch with one saved run",
+  it.each(["fixture", "case study"] as const)(
+    "executes a native BN batch on the %s network that ESQ owns with one saved run",
     async (host) => {
-      const syNetwork = SY_ANALYSIS_HCL.dependencyBayesianNetworks!.find(
+      const caseNetwork = ESQ_ANALYSIS_HCL.bayesianNetworks.find(
         (network) => network.modelId === HCL_CASE_BAYESIAN_IDS.model,
       )!;
-      const syNode = syNetwork.nodes.find((node) => node.id === HCL_CASE_BAYESIAN_IDS.seismic)!;
-      const workbookId = host === "SY" ? HCL_CASE_SY_WORKBOOK_ID : ESQ_WORKBOOK_ID;
-      const modelId = host === "SY" ? HCL_CASE_BAYESIAN_IDS.model : BN;
-      const workbookRevision = host === "SY" ? 1 : 7;
-      const nodeId = host === "SY" ? syNode.id : NODE_B;
-      const stateId = host === "SY" ? syNode.states[1]!.id : B_TRUE;
-      const queryNodeIds = host === "SY" ? [syNode.id] : [NODE_A, NODE_B];
+      const caseNode = caseNetwork.nodes.find((node) => node.id === HCL_CASE_BAYESIAN_IDS.seismic)!;
+      const workbookId = host === "case study" ? HCL_CASE_ESQ_WORKBOOK_ID : ESQ_WORKBOOK_ID;
+      const modelId = host === "case study" ? HCL_CASE_BAYESIAN_IDS.model : BN;
+      const workbookRevision = host === "case study" ? 1 : 7;
+      const nodeId = host === "case study" ? caseNode.id : NODE_B;
+      const stateId = host === "case study" ? caseNode.states[1]!.id : B_TRUE;
+      const queryNodeIds = host === "case study" ? [caseNode.id] : [NODE_A, NODE_B];
       const scenarios = [[], [{ nodeId, stateId }], [{ nodeId, stateId: EVENT_A }], [{ nodeId, stateId }]].map(
         (observations, index) => ({
           id: `70000000-0000-4000-8000-00000000000${index + 1}`,
@@ -2521,7 +2446,7 @@ describe("workbook-owned analysis-run APIs", () => {
           evidence: { observations },
         }),
       );
-      const endpoint = `/api/${host.toLowerCase()}-workbooks/${workbookId}/bayesian-networks/${modelId}/runs`;
+      const endpoint = `/api/esq-workbooks/${workbookId}/bayesian-networks/${modelId}/runs`;
       const body = { schemaVersion: "1.0.0", modelId, workbookRevision, query: { queryNodeIds, scenarios } };
       const before = await runs.countDocuments({ "owner.workbookId": workbookId, methodType: "BAYESIAN_NETWORK" });
       const response = await request(api.getHttpServer()).post(endpoint).send(body);
@@ -2559,7 +2484,7 @@ describe("workbook-owned analysis-run APIs", () => {
         expect(result.scenarios[index].result.evidence).toEqual(scenarios[index]!.evidence);
         expect(result.scenarios[index].result.runId).toBe(response.body.run.id);
       }
-      if (host === "ESQ") expect(result.scenarios[1].result.marginals[0].values[1].probability).toBeCloseTo(0.64, 12);
+      if (host === "fixture") expect(result.scenarios[1].result.marginals[0].values[1].probability).toBeCloseTo(0.64, 12);
     },
     120_000,
   );
@@ -3745,34 +3670,21 @@ describe("workbook-owned analysis-run APIs", () => {
     }
   });
 
-  it.each(["SY", "ESQ"])("generates scenarios for a SY-owned dependency from the %s host", async (host) => {
-    const saved = (await syWorkbooks.findOne({ workbookId: HCL_CASE_SY_WORKBOOK_ID }).lean().exec()) as unknown as {
-      mef: ReturnType<typeof createSyMef>;
-    };
-    const configuration = saved.mef.dependencyHclConfigurations![0]!;
-    const network = saved.mef.dependencyBayesianNetworks!.find(
-      (n) => n.modelId === configuration.bayesianNetwork.modelId,
-    )!;
+  it("generates scenarios for the case study dependency configuration that ESQ owns", async () => {
+    const modelId = HCL_CASE_BAYESIAN_IDS.hclConfiguration;
+    const network = ESQ_ANALYSIS_HCL.bayesianNetworks.find((candidate) => candidate.modelId === HCL_CASE_BAYESIAN_IDS.model)!;
     const node = network.nodes[0]!;
-    const workbookId = host === "SY" ? HCL_CASE_SY_WORKBOOK_ID : HCL_CASE_ESQ_WORKBOOK_ID;
-    const ownerModel = host === "SY" ? syWorkbooks : api.get<Model<unknown>>(getModelToken(EsqWorkbook.name));
-    const owner = (await ownerModel.findOne({ workbookId }).lean().exec()) as unknown as { revision: number };
-    const response = await request(api.getHttpServer())
-      .post(
-        `/api/${host.toLowerCase()}-workbooks/${workbookId}/hcl-configurations/${configuration.modelId}/generate-scenarios`,
-      )
-      .send({
-        schemaVersion: "1.0.0",
-        modelId: configuration.modelId,
-        workbookRevision: owner.revision,
-        ...(host === "SY" ?
-          {}
-        : { dependencyConfiguration: { workbookId: HCL_CASE_SY_WORKBOOK_ID, modelId: configuration.modelId } }),
-        spec: {
-          dimensions: [{ id: node.code, bnNode: node.id, states: node.states.map((s) => s.id) }],
-          maxScenarios: 1,
-        },
-      });
+    const route = `/api/esq-workbooks/${HCL_CASE_ESQ_WORKBOOK_ID}/hcl-configurations/${modelId}/generate-scenarios`;
+    const body = {
+      schemaVersion: "1.0.0",
+      modelId,
+      workbookRevision: 1,
+      spec: {
+        dimensions: [{ id: node.code, bnNode: node.id, states: node.states.map((s) => s.id) }],
+        maxScenarios: 1,
+      },
+    };
+    const response = await request(api.getHttpServer()).post(route).send(body);
     expect(response.status).toBe(200);
     expect(response.body.scenarios).toEqual([
       expect.objectContaining({
@@ -3780,6 +3692,12 @@ describe("workbook-owned analysis-run APIs", () => {
         evidence: { observations: [{ nodeId: node.id, stateId: node.states[0]!.id }] },
       }),
     ]);
+    const foreign = await request(api.getHttpServer()).post(route).send({ ...body, dependencyConfiguration: { workbookId: HCL_CASE_SY_WORKBOOK_ID, modelId } });
+    expect(foreign.status).toBe(400);
+    const removed = await request(api.getHttpServer())
+      .post(`/api/sy-workbooks/${HCL_CASE_SY_WORKBOOK_ID}/hcl-configurations/${modelId}/generate-scenarios`)
+      .send(body);
+    expect(removed.status).toBe(404);
   });
 
   it("runs HCL fault-tree and event-tree targets for a saved evidence-scenario set", async () => {
@@ -4305,7 +4223,7 @@ describe("workbook-owned analysis-run APIs", () => {
               expect.arrayContaining(
                 config.bindings.map((binding) => ({
                   referenceType: "HCL_BINDING",
-                  workbookId: kind === "fault-tree" ? ESQ_WORKBOOK_ID : SY_WORKBOOK_ID,
+                  workbookId: ESQ_WORKBOOK_ID,
                   modelId: HCL,
                   entityId: binding.id,
                 })),
@@ -4505,6 +4423,289 @@ describe("workbook-owned analysis-run APIs", () => {
       await workbooks.updateOne({ workbookId: ESQ_WORKBOOK_ID }, { $set: { mef: original.mef } }).exec();
     }
   });
+
+  it.each(["fault-tree", "event-tree"] as const)(
+    "applies run sampling to %s dependency runs and batches and keeps the stored laws",
+    async (kind) => {
+      const workbooks = api.get<Model<EsqWorkbookDocument>>(getModelToken(EsqWorkbook.name));
+      const original = await workbooks.findOne({ workbookId: ESQ_WORKBOOK_ID }).lean().exec();
+      if (original === null) throw new Error("The fixture ESQ workbook is missing");
+      const settings = (sampleCount: number, seed: number, sampler: "MC" | "LHS", concentrations: number[]) => ({
+        sampleCount,
+        seed,
+        sampler,
+        basicEvents: [],
+        cptRows: [
+          {
+            bayesianNetworkNode: { referenceType: "BAYESIAN_NETWORK_NODE" as const, workbookId: ESQ_WORKBOOK_ID, modelId: BN, entityId: NODE_B },
+            cptRowId: "20000000-0000-4000-8000-000000000012",
+            row: { node: "VALUE" as const, law: { family: "DIRICHLET" as const, concentrations } },
+          },
+        ],
+        cptGenerators: [],
+      });
+      const sampling = { sampleCount: 64, seed: 7, sampler: "LHS" as const };
+      const route = `/api/esq-workbooks/${ESQ_WORKBOOK_ID}/hcl-configurations/${HCL}`;
+      const body = {
+        schemaVersion: "1.0.0",
+        modelId: HCL,
+        workbookRevision: 7,
+        calculationType: "UNCERTAINTY",
+        ...(kind === "fault-tree" ?
+          { faultTreeTopGate: topReference(FT_AND, TOP_AND) }
+        : { eventTree: { workbookId: ES_WORKBOOK_ID, modelId: ET_HCL } }),
+      };
+      const store = async (uncertainty?: ReturnType<typeof settings>) => {
+        const mef = createEsqMef();
+        if (uncertainty !== undefined) mef.hclConfigurations[0]!.solverSettings.uncertainty = uncertainty;
+        await workbooks.updateOne({ workbookId: ESQ_WORKBOOK_ID }, { $set: { mef } }).exec();
+      };
+      const storedMef = async () => (await workbooks.findOne({ workbookId: ESQ_WORKBOOK_ID }).lean().exec())?.mef;
+      const run = async (extra: object): Promise<string> => {
+        const response = await request(api.getHttpServer()).post(`${route}/${kind}-runs`).send({ ...body, ...extra });
+        expect({ status: response.status, failure: response.body.run?.failure ?? null }).toEqual({ status: 200, failure: null });
+        return response.body.run.id;
+      };
+      const summaryOf = async (runId: string): Promise<PopulationSummary & { seed: number }> => {
+        const result = await request(api.getHttpServer()).get(`${route}/runs/${runId}/result`);
+        expect(result.status).toBe(200);
+        return kind === "fault-tree" ?
+            result.body.uncertainty
+          : result.body.sequences.find((sequence: { sequenceId: string }) => sequence.sequenceId === ESQ_HCL_FF).uncertainty
+              .conditionalProbability;
+      };
+      const storedSampling = async (runId: string) => (await runs.findOne({ id: runId }).lean().exec())?.request["sampling"];
+      try {
+        await store();
+        const unset = await summaryOf(await run({ sampling }));
+        expect(unset).toMatchObject({ sampleCount: 64, seed: 7 });
+        expect(unset.standardDeviation).toBeCloseTo(0, 12);
+
+        await store(settings(10, 42, "MC", [2, 8]));
+        const kept = await storedMef();
+        const sampledId = await run({ sampling });
+        const details = await request(api.getHttpServer()).get(
+          `/api/esq-workbooks/${ESQ_WORKBOOK_ID}/analysis-runs/${sampledId}/details`,
+        );
+        expect(details.status).toBe(200);
+        const snapshot = details.body.nativeRequest.modelSnapshots.find(
+          (candidate: { methodType: string }) => candidate.methodType === "HYBRID_CAUSAL_LOGIC",
+        );
+        expect(snapshot.solverSettings).toMatchObject({
+          uncertainty: {
+            ...sampling,
+            cptRows: [
+              {
+                bayesianNetworkNode: { modelId: BN, entityId: NODE_B },
+                cptRowId: "20000000-0000-4000-8000-000000000012",
+                row: { node: "VALUE", law: { family: "DIRICHLET", concentrations: [2, 8] } },
+              },
+            ],
+          },
+        });
+        const sampled = await summaryOf(sampledId);
+        expect(sampled).toMatchObject({ sampleCount: 64, seed: 7 });
+        expect(sampled.standardDeviation).toBeGreaterThan(0);
+        expect(await storedSampling(sampledId)).toEqual(sampling);
+
+        const batch = await request(api.getHttpServer())
+          .post(`${route}/${kind}-batch-runs`)
+          .send({ ...body, sampling, evidenceScenarioIds: [SCENARIO_A_TRUE, SCENARIO_A_FALSE] });
+        expect(batch.status).toBe(200);
+        expect(batch.body.runs).toHaveLength(2);
+        for (const row of batch.body.runs) {
+          expect(row.run).toMatchObject({ status: "SUCCEEDED", failure: null });
+          expect(await summaryOf(row.run.id)).toMatchObject({ sampleCount: 64, seed: 7 });
+          expect(await storedSampling(row.run.id)).toEqual(sampling);
+        }
+        expect(await storedMef()).toEqual(kept);
+
+        await store(settings(64, 7, "LHS", [2, 8]));
+        expect(await summaryOf(await run({}))).toEqual(sampled);
+
+        await store(settings(10, 42, "MC", [0, 0]));
+        for (const target of ["runs", "batch-runs"]) {
+          const refused = await request(api.getHttpServer())
+            .post(`${route}/${kind}-${target}`)
+            .send({ ...body, sampling, ...(target === "runs" ? {} : { evidenceScenarioIds: [SCENARIO_A_TRUE] }) });
+          expect(refused.status).toBe(400);
+          expect(refused.body.message).toContain("The uncertainty laws of dependency configuration 'HCL-1' need review.");
+        }
+      } finally {
+        await workbooks.updateOne({ workbookId: ESQ_WORKBOOK_ID }, { $set: { mef: original.mef } }).exec();
+      }
+    },
+    120_000,
+  );
+
+  it("quantifies functions linked to network nodes through stand-in fault trees in dependency runs", async () => {
+    const workbooks = api.get<Model<EsqWorkbookDocument>>(getModelToken(EsqWorkbook.name));
+    const original = await workbooks.findOne({ workbookId: ESQ_WORKBOOK_ID }).lean().exec();
+    if (original === null) throw new Error("The fixture ESQ workbook is missing");
+    const nodeLink = (functionId: string, nodeId: string, stateId: string): EsqFunctionLink => ({
+      functionId,
+      rules: [
+        {
+          id: `node-rule-${nodeId}`,
+          treeIds: [ET_HCL],
+          groupIds: [],
+          stateIds: [],
+          target: { kind: "NETWORK_NODE", node: { workbookId: ESQ_WORKBOOK_ID, modelId: BN, nodeId }, trueStateIds: [stateId] },
+          reason: "",
+        },
+      ],
+    });
+    const store = async (functionLinks: EsqFunctionLink[]) => {
+      const mef = createEsqMef();
+      mef.modelDecisions = { ...mef.modelDecisions, functionLinks };
+      mef.hclConfigurations[0]!.solverSettings.variableOrder = null;
+      await workbooks.updateOne({ workbookId: ESQ_WORKBOOK_ID }, { $set: { mef } }).exec();
+    };
+    const route = `/api/esq-workbooks/${ESQ_WORKBOOK_ID}`;
+    const body = {
+      schemaVersion: "1.0.0",
+      modelId: HCL,
+      workbookRevision: 7,
+      eventTree: { workbookId: ES_WORKBOOK_ID, modelId: ET_HCL },
+    };
+    const expectSequences = async (runId: string, expected: Record<string, number>) => {
+      const result = await request(api.getHttpServer()).get(`${route}/hcl-configurations/${HCL}/runs/${runId}/result`);
+      expect(result.status).toBe(200);
+      expect(result.body.sequences).toEqual(
+        Object.entries(expected).map(([sequenceId, probability]) =>
+          expect.objectContaining({ sequenceId, conditionalProbability: expect.closeTo(probability, 12) }),
+        ),
+      );
+    };
+    const logic: EsqEventTreeRunLogic = { flags: true, loopBreaks: "AS_SET", exclusions: true, expandCcf: false };
+    try {
+      await store([nodeLink("AND tree second use", NODE_B, B_TRUE)]);
+      const single = await request(api.getHttpServer()).post(`${route}/hcl-configurations/${HCL}/event-tree-runs`).send(body);
+      expect({ status: single.status, failure: single.body.run?.failure ?? null }).toEqual({ status: 200, failure: null });
+      await expectSequences(single.body.run.id, { [ESQ_HCL_SS]: 0.75, [ESQ_HCL_SF]: 0.09, [ESQ_HCL_FS]: 0, [ESQ_HCL_FF]: 0.16 });
+
+      const recorded = (await runs.findOne({ id: single.body.run.id }).lean().exec())!;
+      expect(recorded.target).toMatchObject({
+        targetType: "HCL_EVENT_TREE",
+        configuration: { workbookId: ESQ_WORKBOOK_ID, modelId: HCL, workbookRevision: 7 },
+      });
+      expect(recorded.contributions!.flatMap((contribution) => contribution.entities)).toEqual(
+        expect.arrayContaining([
+          { referenceType: "BAYESIAN_NETWORK_NODE", workbookId: ESQ_WORKBOOK_ID, modelId: BN, entityId: NODE_B },
+        ]),
+      );
+      const details = await request(api.getHttpServer()).get(`${route}/analysis-runs/${single.body.run.id}/details`);
+      expect(details.status).toBe(200);
+      const configuration = details.body.nativeRequest.modelSnapshots.find(
+        (snapshot: { methodType: string }) => snapshot.methodType === "HYBRID_CAUSAL_LOGIC",
+      );
+      const standIns = configuration.bindings.filter(
+        (binding: { faultTreeBasicEvent: { modelId: string } }) => binding.faultTreeBasicEvent.modelId !== FT_AND,
+      );
+      expect(standIns).toEqual([
+        {
+          id: expect.any(String),
+          faultTreeBasicEvent: { modelId: expect.any(String), entityId: expect.any(String) },
+          bayesianNetworkNode: { modelId: BN, entityId: NODE_B },
+          trueStateIds: [B_TRUE],
+        },
+      ]);
+      expect(configuration.faultTrees).toEqual([
+        { faultTree: { modelId: FT_AND } },
+        { faultTree: { modelId: standIns[0].faultTreeBasicEvent.modelId } },
+      ]);
+      expect(
+        details.body.nativeRequest.modelSnapshots.find(
+          (snapshot: { id: string }) => snapshot.id === standIns[0].faultTreeBasicEvent.modelId,
+        ),
+      ).toMatchObject({ methodType: "FAULT_TREE", leafNodes: [{ basicEventId: standIns[0].faultTreeBasicEvent.entityId }] });
+
+      const batch = await request(api.getHttpServer())
+        .post(`${route}/hcl-configurations/${HCL}/event-tree-batch-runs`)
+        .send({ ...body, evidenceScenarioIds: [SCENARIO_A_TRUE, SCENARIO_A_FALSE] });
+      expect(batch.status).toBe(200);
+      expect(batch.body.runs.map((row: { run: { status: string } }) => row.run.status)).toEqual(["SUCCEEDED", "SUCCEEDED"]);
+      await expectSequences(batch.body.runs[0].run.id, { [ESQ_HCL_SS]: 0.2, [ESQ_HCL_SF]: 0, [ESQ_HCL_FS]: 0, [ESQ_HCL_FF]: 0.8 });
+      await expectSequences(batch.body.runs[1].run.id, { [ESQ_HCL_SS]: 0.8875, [ESQ_HCL_SF]: 0.1125, [ESQ_HCL_FS]: 0, [ESQ_HCL_FF]: 0 });
+
+      const model = await request(api.getHttpServer())
+        .post(`${route}/model-runs`)
+        .send({ schemaVersion: "1.0.0", workbookRevision: 7, logic, calculation: "EXACT", hcl: { workbookId: ESQ_WORKBOOK_ID, modelId: HCL } });
+      expect(model.status).toBe(200);
+      expect(model.body.run).toMatchObject({ status: "SUCCEEDED", scope: "BATCH" });
+      const summary = await request(api.getHttpServer()).get(`${route}/model-runs/${model.body.run.id}/result`);
+      expect(summary.status).toBe(200);
+      expect(summary.body.hcl).toEqual({ workbookId: ESQ_WORKBOOK_ID, modelId: HCL, treeIds: [ET_HCL] });
+      expect(
+        summary.body.sequences
+          .filter((sequence: { treeId: string }) => sequence.treeId === ET_HCL)
+          .map((sequence: { sequenceIds: string[]; conditionalProbability: number }) => [sequence.sequenceIds, sequence.conditionalProbability]),
+      ).toEqual([
+        [["ss"], expect.closeTo(0.75, 12)],
+        [["sf"], expect.closeTo(0.09, 12)],
+        [["fs"], expect.closeTo(0, 12)],
+        [["ff"], expect.closeTo(0.16, 12)],
+      ]);
+
+      const ordinary = await request(api.getHttpServer())
+        .post(`${route}/event-trees/${ET_HCL}/runs`)
+        .send({ schemaVersion: "1.0.0", treeId: ET_HCL, workbookRevision: 7, logic });
+      expect(ordinary.status).toBe(400);
+      expect(ordinary.body.message).toContain(
+        "links to the network node B · B · BN-1, which only a dependency run on that network quantifies.",
+      );
+
+      await store([nodeLink("AND tree first use", NODE_A, A_TRUE), nodeLink("AND tree second use", NODE_B, B_TRUE)]);
+      const nodesOnly = await request(api.getHttpServer()).post(`${route}/hcl-configurations/${HCL}/event-tree-runs`).send(body);
+      expect({ status: nodesOnly.status, failure: nodesOnly.body.run?.failure ?? null }).toEqual({ status: 200, failure: null });
+      await expectSequences(nodesOnly.body.run.id, { [ESQ_HCL_SS]: 0.71, [ESQ_HCL_SF]: 0.09, [ESQ_HCL_FS]: 0.04, [ESQ_HCL_FF]: 0.16 });
+
+      await store([nodeLink("AND tree second use", "20000000-0000-4000-8000-0000000000ff", B_TRUE)]);
+      const absent = await request(api.getHttpServer()).post(`${route}/hcl-configurations/${HCL}/event-tree-runs`).send(body);
+      expect(absent.status).toBe(400);
+      expect(absent.body.message).toContain(
+        "links to a node that the dependency networks of this workbook do not have. Link it again in Step 02.",
+      );
+    } finally {
+      await workbooks.updateOne({ workbookId: ESQ_WORKBOOK_ID }, { $set: { mef: original.mef } }).exec();
+    }
+  }, 120_000);
+
+  it("runs the model under a dependency configuration of the same workbook and refuses one from another workbook", async () => {
+    const logic: EsqEventTreeRunLogic = { flags: true, loopBreaks: "AS_SET", exclusions: true, expandCcf: false };
+    const run = (workbookId: string) =>
+      request(api.getHttpServer())
+        .post(`/api/esq-workbooks/${ESQ_WORKBOOK_ID}/model-runs`)
+        .send({ schemaVersion: "1.0.0", workbookRevision: 7, logic, calculation: "EXACT", hcl: { workbookId, modelId: HCL } });
+    const before = await runs.countDocuments({ "owner.workbookId": ESQ_WORKBOOK_ID }).exec();
+    const foreign = await run(SY_WORKBOOK_ID);
+    expect(foreign.status).toBe(400);
+    expect(foreign.body.message).toBe("Pick a dependency configuration from this workbook.");
+    expect(await runs.countDocuments({ "owner.workbookId": ESQ_WORKBOOK_ID }).exec()).toBe(before);
+
+    const own = await run(ESQ_WORKBOOK_ID);
+    expect(own.status).toBe(200);
+    expect(own.body.run).toMatchObject({ status: "SUCCEEDED", scope: "BATCH" });
+    const summary = await request(api.getHttpServer()).get(
+      `/api/esq-workbooks/${ESQ_WORKBOOK_ID}/model-runs/${own.body.run.id}/result`,
+    );
+    expect(summary.status).toBe(200);
+    expect(summary.body.hcl).toEqual({ workbookId: ESQ_WORKBOOK_ID, modelId: HCL, treeIds: [ET_HCL] });
+    expect(
+      summary.body.sequences.map((sequence: { treeId: string; sequenceIds: string[]; conditionalProbability: number }) => [
+        sequence.treeId,
+        sequence.sequenceIds,
+        sequence.conditionalProbability,
+      ]),
+    ).toEqual([
+      [ET_INDEPENDENT, ["success"], expect.closeTo(0.72, 12)],
+      [ET_INDEPENDENT, ["failure"], expect.closeTo(0.28, 12)],
+      [ET_HCL, ["ss"], expect.closeTo(0.84, 12)],
+      [ET_HCL, ["sf"], expect.closeTo(0, 12)],
+      [ET_HCL, ["fs"], expect.closeTo(0, 12)],
+      [ET_HCL, ["ff"], expect.closeTo(0.16, 12)],
+    ]);
+  }, 120_000);
 
   it("allows one-cell hazard grids with raw or normalized probability totals", async () => {
     const workbooks = api.get<Model<unknown>>(getModelToken(EsqWorkbook.name));
@@ -4730,7 +4931,7 @@ describe("workbook-owned analysis-run APIs", () => {
           target: {
             targetType: "HCL_EVENT_TREE",
             configuration: {
-              workbookId: ids.sy,
+              workbookId: ids.esq,
               workbookRevision: 1,
               modelId: EXAMPLE_DEPENDENCY_IDS.hclConfiguration,
             },
@@ -4738,11 +4939,6 @@ describe("workbook-owned analysis-run APIs", () => {
               workbookId: ids.esq,
               workbookRevision: 1,
               modelId: esqTreeRunId(treeId),
-            },
-            orchestrator: {
-              workbookId: ids.esq,
-              workbookRevision: 1,
-              modelId: EXAMPLE_DEPENDENCY_IDS.hclConfiguration,
             },
           },
           contributions: expect.arrayContaining([
@@ -4765,9 +4961,9 @@ describe("workbook-owned analysis-run APIs", () => {
     120_000,
   );
 
-  it("executes exact BN inference and fault-tree HCL from the SY-owned dependency configuration", async () => {
+  it("executes exact BN inference and fault-tree HCL from the case study configuration that ESQ owns", async () => {
     const bn = await request(api.getHttpServer())
-      .post(`/api/sy-workbooks/${HCL_CASE_SY_WORKBOOK_ID}/bayesian-networks/${HCL_CASE_BAYESIAN_IDS.model}/runs`)
+      .post(`/api/esq-workbooks/${HCL_CASE_ESQ_WORKBOOK_ID}/bayesian-networks/${HCL_CASE_BAYESIAN_IDS.model}/runs`)
       .send({
         schemaVersion: "1.0.0",
         modelId: HCL_CASE_BAYESIAN_IDS.model,
@@ -4780,13 +4976,17 @@ describe("workbook-owned analysis-run APIs", () => {
     expect(bn.status).toBe(200);
     expect(bn.body.run.status).toBe("SUCCEEDED");
     const bnResult = await request(api.getHttpServer()).get(
-      `/api/sy-workbooks/${HCL_CASE_SY_WORKBOOK_ID}/bayesian-networks/${HCL_CASE_BAYESIAN_IDS.model}/runs/${bn.body.run.id}/result`,
+      `/api/esq-workbooks/${HCL_CASE_ESQ_WORKBOOK_ID}/bayesian-networks/${HCL_CASE_BAYESIAN_IDS.model}/runs/${bn.body.run.id}/result`,
     );
     expect(bnResult.status).toBe(200);
+    const removed = await request(api.getHttpServer())
+      .post(`/api/sy-workbooks/${HCL_CASE_SY_WORKBOOK_ID}/bayesian-networks/${HCL_CASE_BAYESIAN_IDS.model}/runs`)
+      .send({ schemaVersion: "1.0.0", modelId: HCL_CASE_BAYESIAN_IDS.model, workbookRevision: 1, query: { evidence: { observations: [] }, queryNodeIds: [HCL_CASE_BAYESIAN_IDS.seismic] } });
+    expect(removed.status).toBe(404);
 
     const hcl = await request(api.getHttpServer())
       .post(
-        `/api/sy-workbooks/${HCL_CASE_SY_WORKBOOK_ID}/hcl-configurations/${HCL_CASE_BAYESIAN_IDS.hclConfiguration}/fault-tree-runs`,
+        `/api/esq-workbooks/${HCL_CASE_ESQ_WORKBOOK_ID}/hcl-configurations/${HCL_CASE_BAYESIAN_IDS.hclConfiguration}/fault-tree-runs`,
       )
       .send({
         schemaVersion: "1.0.0",
@@ -4803,12 +5003,8 @@ describe("workbook-owned analysis-run APIs", () => {
     expect(hcl.body.run.status).toBe("SUCCEEDED");
   });
 
-  it("runs HCL from SY-owned human values and the linked DA without loading HRA workbooks", async () => {
-    const staleSystems = reconcileExampleSyDataAnalysisReferences(
-      reconcileExampleSyDependencyOwnership(structuredClone(SY_ANALYSIS_HCL), HCL_CASE_STALE_SY_WORKBOOK_ID),
-      DA_ANALYSIS_HCL,
-      HCL_CASE_DA_WORKBOOK_ID,
-    );
+  it("runs HCL from SY-held human values and the linked DA without loading HRA workbooks", async () => {
+    const staleSystems = reconcileExampleSyDataAnalysisReferences(structuredClone(SY_ANALYSIS_HCL), DA_ANALYSIS_HCL, HCL_CASE_DA_WORKBOOK_ID);
     await syWorkbooks.create({
       workbookId: HCL_CASE_STALE_SY_WORKBOOK_ID,
       projectId: PROJECT_ID,
@@ -4816,10 +5012,17 @@ describe("workbook-owned analysis-run APIs", () => {
       revision: 1,
       mef: staleSystems,
     });
+    await api.get<Model<EsqWorkbookDocument>>(getModelToken(EsqWorkbook.name)).create({
+      workbookId: HCL_CASE_STALE_ESQ_WORKBOOK_ID,
+      projectId: PROJECT_ID,
+      ownerUsername: USERNAME,
+      revision: 1,
+      mef: reconcileExampleEsqDependencyReferences(structuredClone(ESQ_ANALYSIS_HCL), HCL_CASE_STALE_ESQ_WORKBOOK_ID, staleSystems, HCL_CASE_STALE_SY_WORKBOOK_ID),
+    });
 
     const response = await request(api.getHttpServer())
       .post(
-        `/api/sy-workbooks/${HCL_CASE_STALE_SY_WORKBOOK_ID}/hcl-configurations/${HCL_CASE_BAYESIAN_IDS.hclConfiguration}/fault-tree-runs`,
+        `/api/esq-workbooks/${HCL_CASE_STALE_ESQ_WORKBOOK_ID}/hcl-configurations/${HCL_CASE_BAYESIAN_IDS.hclConfiguration}/fault-tree-runs`,
       )
       .send({
         schemaVersion: "1.0.0",
@@ -4836,6 +5039,7 @@ describe("workbook-owned analysis-run APIs", () => {
     expect(response.status).toBe(200);
     expect(response.body.run.status).toBe("SUCCEEDED");
     expect(response.body.run.sourceWorkbooks).toEqual([
+      { workbookId: HCL_CASE_STALE_ESQ_WORKBOOK_ID, workbookRevision: 1 },
       { workbookId: HCL_CASE_STALE_SY_WORKBOOK_ID, workbookRevision: 1 },
       { workbookId: HCL_CASE_DA_WORKBOOK_ID, workbookRevision: 2 },
     ]);
@@ -4845,7 +5049,7 @@ describe("workbook-owned analysis-run APIs", () => {
     const configurationId = HCL_CASE_BAYESIAN_IDS.hclConfiguration;
     const runIds: string[] = [];
     const faultTree = await request(api.getHttpServer())
-      .post(`/api/sy-workbooks/${HCL_CASE_SY_WORKBOOK_ID}/hcl-configurations/${configurationId}/fault-tree-runs`)
+      .post(`/api/esq-workbooks/${HCL_CASE_ESQ_WORKBOOK_ID}/hcl-configurations/${configurationId}/fault-tree-runs`)
       .send({
         schemaVersion: "1.0.0",
         modelId: configurationId,
@@ -4858,8 +5062,9 @@ describe("workbook-owned analysis-run APIs", () => {
         },
       });
     expect(faultTree.status).toBe(200);
+    runIds.push(faultTree.body.run.id);
     const faultTreeResult = await request(api.getHttpServer()).get(
-      `/api/sy-workbooks/${HCL_CASE_SY_WORKBOOK_ID}/hcl-configurations/${configurationId}/runs/${faultTree.body.run.id}/result`,
+      `/api/esq-workbooks/${HCL_CASE_ESQ_WORKBOOK_ID}/hcl-configurations/${configurationId}/runs/${faultTree.body.run.id}/result`,
     );
     expect(faultTreeResult.status).toBe(200);
     const savedFt = (await runs.findOne({ id: faultTree.body.run.id }).lean().exec())!;
@@ -4871,6 +5076,7 @@ describe("workbook-owned analysis-run APIs", () => {
       "Case-study FT",
     );
     expect(faultTree.body.run.sourceWorkbooks).toEqual([
+      { workbookId: HCL_CASE_ESQ_WORKBOOK_ID, workbookRevision: 1 },
       { workbookId: HCL_CASE_SY_WORKBOOK_ID, workbookRevision: 1 },
       { workbookId: HCL_CASE_DA_WORKBOOK_ID, workbookRevision: 2 },
     ]);
@@ -4881,10 +5087,6 @@ describe("workbook-owned analysis-run APIs", () => {
         schemaVersion: "1.0.0",
         modelId: configurationId,
         workbookRevision: 1,
-        dependencyConfiguration: {
-          workbookId: HCL_CASE_SY_WORKBOOK_ID,
-          modelId: configurationId,
-        },
         eventTree: {
           workbookId: HCL_CASE_ES_WORKBOOK_ID,
           modelId: HCL_CASE_EVENT_TREE_IDS.LOOP,
@@ -4931,10 +5133,6 @@ describe("workbook-owned analysis-run APIs", () => {
         schemaVersion: "1.0.0",
         modelId: configurationId,
         workbookRevision: 1,
-        dependencyConfiguration: {
-          workbookId: HCL_CASE_SY_WORKBOOK_ID,
-          modelId: configurationId,
-        },
         eventTree: {
           workbookId: HCL_CASE_ES_WORKBOOK_ID,
           modelId: HCL_CASE_EVENT_TREE_IDS.LOOP,
@@ -4970,48 +5168,43 @@ describe("workbook-owned analysis-run APIs", () => {
       `/api/esq-workbooks/${HCL_CASE_ESQ_WORKBOOK_ID}/analysis-runs`,
     );
     expect(provenance.status).toBe(200);
-    expect(provenance.body.runs.map((entry: { run: { id: string } }) => entry.run.id).sort()).toEqual(
-      [...runIds].sort(),
-    );
+    const owned = await runs.find({ "owner.workbookId": HCL_CASE_ESQ_WORKBOOK_ID, scope: { $ne: "SCENARIO" } }).lean().exec();
+    const listed = provenance.body.runs.map((entry: { run: { id: string } }) => entry.run.id);
+    expect([...listed].sort()).toEqual(owned.map((run) => run.id).sort());
+    expect(listed).toEqual(expect.arrayContaining(runIds));
     const eventTreeProvenance = provenance.body.runs.find(
-      (entry: { target: { targetType: string } }) => entry.target.targetType === "HCL_EVENT_TREE",
+      (entry: { run: { id: string } }) => entry.run.id === eventTree.body.run.id,
     );
-    expect(eventTreeProvenance).toMatchObject({
-      target: {
-        targetType: "HCL_EVENT_TREE",
-        configuration: {
-          workbookId: HCL_CASE_SY_WORKBOOK_ID,
-          workbookRevision: 1,
-          modelId: configurationId,
-        },
-        orchestrator: {
-          workbookId: HCL_CASE_ESQ_WORKBOOK_ID,
-          workbookRevision: 1,
-          modelId: configurationId,
-        },
-        eventTree: {
-          workbookId: HCL_CASE_ESQ_WORKBOOK_ID,
-          workbookRevision: 1,
-          modelId: esqTreeRunId(HCL_CASE_EVENT_TREE_IDS.LOOP),
-        },
+    expect(eventTreeProvenance.target).toEqual({
+      targetType: "HCL_EVENT_TREE",
+      configuration: {
+        workbookId: HCL_CASE_ESQ_WORKBOOK_ID,
+        workbookRevision: 1,
+        modelId: configurationId,
+      },
+      eventTree: {
+        workbookId: HCL_CASE_ESQ_WORKBOOK_ID,
+        workbookRevision: 1,
+        modelId: esqTreeRunId(HCL_CASE_EVENT_TREE_IDS.LOOP),
       },
     });
     expect(eventTreeProvenance.contributions).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
           hostType: "ESQ",
-          models: expect.arrayContaining([{ workbookId: HCL_CASE_ESQ_WORKBOOK_ID, modelId: esqTreeRunId(HCL_CASE_EVENT_TREE_IDS.LOOP) }]),
+          models: expect.arrayContaining([
+            { workbookId: HCL_CASE_ESQ_WORKBOOK_ID, modelId: esqTreeRunId(HCL_CASE_EVENT_TREE_IDS.LOOP) },
+            { workbookId: HCL_CASE_ESQ_WORKBOOK_ID, modelId: configurationId },
+            { workbookId: HCL_CASE_ESQ_WORKBOOK_ID, modelId: HCL_CASE_BAYESIAN_IDS.model },
+          ]),
+          entities: expect.arrayContaining([
+            expect.objectContaining({ referenceType: "HCL_BINDING", workbookId: HCL_CASE_ESQ_WORKBOOK_ID }),
+            expect.objectContaining({ referenceType: "BAYESIAN_NETWORK_NODE", workbookId: HCL_CASE_ESQ_WORKBOOK_ID }),
+          ]),
         }),
         expect.objectContaining({
           hostType: "SY",
-          models: expect.arrayContaining([
-            { workbookId: HCL_CASE_SY_WORKBOOK_ID, modelId: configurationId },
-            { workbookId: HCL_CASE_SY_WORKBOOK_ID, modelId: HCL_CASE_BAYESIAN_IDS.model },
-          ]),
-          entities: expect.arrayContaining([
-            expect.objectContaining({ referenceType: "HCL_BINDING" }),
-            expect.objectContaining({ referenceType: "BAYESIAN_NETWORK_NODE" }),
-          ]),
+          entities: expect.arrayContaining([expect.objectContaining({ referenceType: "FAULT_TREE_BASIC_EVENT", workbookId: HCL_CASE_SY_WORKBOOK_ID })]),
         }),
       ]),
     );
@@ -5026,7 +5219,6 @@ describe("workbook-owned analysis-run APIs", () => {
       schemaVersion: "1.0.0",
       modelId: configurationId,
       workbookRevision: 1,
-      dependencyConfiguration: { workbookId: HCL_CASE_SY_WORKBOOK_ID, modelId: configurationId },
       eventTree: { workbookId: HCL_CASE_ES_WORKBOOK_ID, modelId: HCL_CASE_EVENT_TREE_IDS.LOOP },
     };
     const dependencyCutSets = { score: "FAILED_EVENTS", keep: 5, limitOrder: 3 };
@@ -5361,9 +5553,10 @@ describe("workbook-owned analysis-run APIs", () => {
   });
   it("pins each HCL workbook once and records the exact request and native build", async () => {
     const readSpy = jest.spyOn(syWorkbooks, "findOne");
+    const ownerReadSpy = jest.spyOn(api.get<Model<EsqWorkbookDocument>>(getModelToken(EsqWorkbook.name)), "findOne");
     const response = await request(api.getHttpServer())
       .post(
-        `/api/sy-workbooks/${HCL_CASE_SY_WORKBOOK_ID}/hcl-configurations/${HCL_CASE_BAYESIAN_IDS.hclConfiguration}/fault-tree-runs`,
+        `/api/esq-workbooks/${HCL_CASE_ESQ_WORKBOOK_ID}/hcl-configurations/${HCL_CASE_BAYESIAN_IDS.hclConfiguration}/fault-tree-runs`,
       )
       .send({
         schemaVersion: "1.0.0",
@@ -5379,6 +5572,9 @@ describe("workbook-owned analysis-run APIs", () => {
     expect(response.body.run.status).toBe("SUCCEEDED");
     expect(
       readSpy.mock.calls.filter(([query]) => (query as { workbookId?: string }).workbookId === HCL_CASE_SY_WORKBOOK_ID),
+    ).toHaveLength(1);
+    expect(
+      ownerReadSpy.mock.calls.filter(([query]) => (query as { workbookId?: string }).workbookId === HCL_CASE_ESQ_WORKBOOK_ID),
     ).toHaveLength(1);
     const saved = await runs.findOne({ id: response.body.run.id }).lean().exec();
     expect(saved!.nativeRequest).toMatchObject({

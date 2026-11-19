@@ -304,6 +304,51 @@ function exampleRpsReferences(systems: SystemsAnalysis): {
   };
 }
 
+interface DependencyRelink {
+  network: <T extends { workbookId: string; modelId: string }>(reference: T) => T;
+  faultTree: <T extends { workbookId: string; modelId: string }>(reference: T) => T;
+  basicEvent: <T extends { workbookId: string; entityId: string }>(reference: T) => T;
+}
+
+function unmoved<T>(reference: T): T {
+  return reference;
+}
+
+function ownedNetworks(analysis: EventSequenceQuantification, esqWorkbookId: string): DependencyRelink["network"] {
+  const networkIds = new Set(analysis.bayesianNetworks.map((network) => network.modelId));
+  return (reference) => (networkIds.has(reference.modelId) ? { ...reference, workbookId: esqWorkbookId } : reference);
+}
+
+function relinkedConfiguration(configuration: EsqHclConfiguration, relink: DependencyRelink): EsqHclConfiguration {
+  const uncertainty = HclUncertaintySettingsSchema.safeParse(configuration.solverSettings.uncertainty);
+  return {
+    ...configuration,
+    bayesianNetwork: relink.network(configuration.bayesianNetwork),
+    faultTrees: configuration.faultTrees.map((faultTree) => relink.faultTree(faultTree)),
+    bindings: configuration.bindings.map((binding) => ({
+      ...binding,
+      faultTreeBasicEvent: relink.basicEvent(binding.faultTreeBasicEvent),
+      bayesianNetworkNode: relink.network(binding.bayesianNetworkNode),
+    })),
+    solverSettings: uncertainty.success
+      ? {
+          ...configuration.solverSettings,
+          uncertainty: {
+            ...uncertainty.data,
+            basicEvents: uncertainty.data.basicEvents.map((entry) => ({ ...entry, faultTreeBasicEvent: relink.basicEvent(entry.faultTreeBasicEvent) })),
+            cptRows: uncertainty.data.cptRows.map((entry) => ({ ...entry, bayesianNetworkNode: relink.network(entry.bayesianNetworkNode) })),
+            cptGenerators: uncertainty.data.cptGenerators.map((entry) => ({ ...entry, bayesianNetworkNode: relink.network(entry.bayesianNetworkNode) })),
+          },
+        }
+      : configuration.solverSettings,
+  };
+}
+
+function reconcileExampleEsqNetworkOwnership(analysis: EventSequenceQuantification, esqWorkbookId: string): EventSequenceQuantification {
+  const relink: DependencyRelink = { network: ownedNetworks(analysis, esqWorkbookId), faultTree: unmoved, basicEvent: unmoved };
+  return { ...analysis, hclConfigurations: analysis.hclConfigurations.map((configuration) => relinkedConfiguration(configuration, relink)) };
+}
+
 function reconcileExampleEsqDependencyReferences(
   analysis: EventSequenceQuantification,
   esqWorkbookId: string,
@@ -313,16 +358,19 @@ function reconcileExampleEsqDependencyReferences(
   const references = analysis.hclConfigurations.some((configuration) => configuration.modelId === EXAMPLE_DEPENDENCY_IDS.hclConfiguration)
     ? exampleRpsReferences(systems)
     : null;
-  const localNetworkIds = new Set(analysis.bayesianNetworks.map((network) => network.modelId));
   const systemModelIds = new Set(systems.systemLogicModels.map((model) => model.uuid));
   const systemBasicEventIds = new Set(systems.systemBasicEvents.map((event) => event.uuid));
+  const relink: DependencyRelink = {
+    network: ownedNetworks(analysis, esqWorkbookId),
+    faultTree: (reference) => (systemModelIds.has(reference.modelId) ? { ...reference, workbookId: syWorkbookId } : reference),
+    basicEvent: (reference) => (systemBasicEventIds.has(reference.entityId) ? { ...reference, workbookId: syWorkbookId } : reference),
+  };
   return {
     ...analysis,
-    hclConfigurations: analysis.hclConfigurations.map((configuration) => {
-      const reconciled = configuration.modelId === EXAMPLE_DEPENDENCY_IDS.hclConfiguration && references !== null
+    hclConfigurations: analysis.hclConfigurations.map((configuration) => relinkedConfiguration(
+      configuration.modelId === EXAMPLE_DEPENDENCY_IDS.hclConfiguration && references !== null
         ? {
           ...configuration,
-          bayesianNetwork: { workbookId: esqWorkbookId, modelId: EXAMPLE_DEPENDENCY_IDS.network },
           faultTrees: [{ workbookId: syWorkbookId, modelId: references.modelId }],
           bindings: configuration.bindings.map((binding) => ({
             ...binding,
@@ -333,113 +381,11 @@ function reconcileExampleEsqDependencyReferences(
                 ? references.divisionAEventId
                 : references.divisionBEventId,
             },
-            bayesianNetworkNode: {
-              ...binding.bayesianNetworkNode,
-              workbookId: esqWorkbookId,
-              modelId: EXAMPLE_DEPENDENCY_IDS.network,
-            },
           })),
         }
-        : configuration;
-      return {
-        ...reconciled,
-        bayesianNetwork: localNetworkIds.has(reconciled.bayesianNetwork.modelId)
-          ? { ...reconciled.bayesianNetwork, workbookId: esqWorkbookId }
-          : reconciled.bayesianNetwork,
-        faultTrees: reconciled.faultTrees.map((faultTree) => systemModelIds.has(faultTree.modelId)
-          ? { ...faultTree, workbookId: syWorkbookId }
-          : faultTree),
-        bindings: reconciled.bindings.map((binding) => ({
-          ...binding,
-          faultTreeBasicEvent: systemBasicEventIds.has(binding.faultTreeBasicEvent.entityId)
-            ? { ...binding.faultTreeBasicEvent, workbookId: syWorkbookId }
-            : binding.faultTreeBasicEvent,
-          bayesianNetworkNode: localNetworkIds.has(binding.bayesianNetworkNode.modelId)
-            ? { ...binding.bayesianNetworkNode, workbookId: esqWorkbookId }
-            : binding.bayesianNetworkNode,
-        })),
-      };
-    }),
-  };
-}
-
-function relinkedSolverSettings(
-  settings: EsqHclConfiguration["solverSettings"],
-  syWorkbookId: string,
-  localNetworkIds: ReadonlySet<string>,
-  localBasicEventIds: ReadonlySet<string>,
-): EsqHclConfiguration["solverSettings"] {
-  const parsed = HclUncertaintySettingsSchema.safeParse(settings.uncertainty);
-  if (!parsed.success) return settings;
-  const node = <T extends { modelId: string; workbookId: string }>(reference: T): T => (localNetworkIds.has(reference.modelId) ? { ...reference, workbookId: syWorkbookId } : reference);
-  return {
-    ...settings,
-    uncertainty: {
-      ...parsed.data,
-      basicEvents: parsed.data.basicEvents.map((entry) => (localBasicEventIds.has(entry.faultTreeBasicEvent.entityId)
-        ? { ...entry, faultTreeBasicEvent: { ...entry.faultTreeBasicEvent, workbookId: syWorkbookId } }
-        : entry)),
-      cptRows: parsed.data.cptRows.map((entry) => ({ ...entry, bayesianNetworkNode: node(entry.bayesianNetworkNode) })),
-      cptGenerators: parsed.data.cptGenerators.map((entry) => ({ ...entry, bayesianNetworkNode: node(entry.bayesianNetworkNode) })),
-    },
-  };
-}
-
-function reconcileExampleSyDependencyOwnership(
-  analysis: SystemsAnalysis,
-  syWorkbookId: string,
-): SystemsAnalysis {
-  const exampleReferences = (analysis.dependencyHclConfigurations ?? []).some(
-    (configuration) => configuration.modelId === EXAMPLE_DEPENDENCY_IDS.hclConfiguration,
-  ) ? exampleRpsReferences(analysis) : null;
-  const localNetworkIds = new Set((analysis.dependencyBayesianNetworks ?? []).map((network) => network.modelId));
-  const localFaultTreeIds = new Set(analysis.systemLogicModels.map((model) => model.uuid));
-  const localBasicEventIds = new Set(analysis.systemBasicEvents.map((event) => event.uuid));
-  return {
-    ...analysis,
-    dependencyHclConfigurations: (analysis.dependencyHclConfigurations ?? []).map((configuration) => {
-      const owned = configuration.modelId === EXAMPLE_DEPENDENCY_IDS.hclConfiguration && exampleReferences !== null
-        ? {
-            ...configuration,
-            bayesianNetwork: { workbookId: syWorkbookId, modelId: EXAMPLE_DEPENDENCY_IDS.network },
-            faultTrees: [{ workbookId: syWorkbookId, modelId: exampleReferences.modelId }],
-            bindings: configuration.bindings.map((binding) => ({
-              ...binding,
-              faultTreeBasicEvent: {
-                ...binding.faultTreeBasicEvent,
-                workbookId: syWorkbookId,
-                entityId: binding.id === EXAMPLE_DEPENDENCY_IDS.bindingA
-                  ? exampleReferences.divisionAEventId
-                  : exampleReferences.divisionBEventId,
-              },
-              bayesianNetworkNode: {
-                ...binding.bayesianNetworkNode,
-                workbookId: syWorkbookId,
-                modelId: EXAMPLE_DEPENDENCY_IDS.network,
-              },
-            })),
-          }
-        : configuration;
-      return {
-        ...owned,
-        bayesianNetwork: localNetworkIds.has(owned.bayesianNetwork.modelId)
-          ? { ...owned.bayesianNetwork, workbookId: syWorkbookId }
-          : owned.bayesianNetwork,
-        faultTrees: owned.faultTrees.map((faultTree) => localFaultTreeIds.has(faultTree.modelId)
-          ? { ...faultTree, workbookId: syWorkbookId }
-          : faultTree),
-        bindings: owned.bindings.map((binding) => ({
-          ...binding,
-          faultTreeBasicEvent: localBasicEventIds.has(binding.faultTreeBasicEvent.entityId)
-            ? { ...binding.faultTreeBasicEvent, workbookId: syWorkbookId }
-            : binding.faultTreeBasicEvent,
-          bayesianNetworkNode: localNetworkIds.has(binding.bayesianNetworkNode.modelId)
-            ? { ...binding.bayesianNetworkNode, workbookId: syWorkbookId }
-            : binding.bayesianNetworkNode,
-        })),
-        solverSettings: relinkedSolverSettings(owned.solverSettings, syWorkbookId, localNetworkIds, localBasicEventIds),
-      };
-    }),
+        : configuration,
+      relink,
+    )),
   };
 }
 
@@ -452,7 +398,6 @@ function reconcileExampleEventTreeDependencyReferences(
     ? exampleRpsReferences(systems)
     : null;
   const systemModels = new Map(systems.systemLogicModels.map((model) => [model.uuid, model]));
-  const networkIds = new Set((systems.dependencyBayesianNetworks ?? []).map((network) => network.modelId));
   return {
     ...analysis,
     eventTrees: analysis.eventTrees?.map((tree) => {
@@ -477,12 +422,6 @@ function reconcileExampleEventTreeDependencyReferences(
       return {
         ...tree,
         functionalEvents: Object.fromEntries(Object.entries(functionalEvents).map(([eventId, functionalEvent]) => {
-          const node = functionalEvent.networkNode;
-          if (node !== undefined) {
-            return networkIds.has(node.bayesianNetworkNode.modelId)
-              ? [eventId, { ...functionalEvent, networkNode: { ...node, bayesianNetworkNode: { ...node.bayesianNetworkNode, workbookId: syWorkbookId } } }]
-              : [eventId, functionalEvent];
-          }
           const reference = functionalEvent.faultTreeTopEvent;
           const model = reference === undefined ? undefined : systemModels.get(reference.modelId);
           return model === undefined || model.topGate === null
@@ -886,7 +825,7 @@ function dataAnalysisHeldIds(source: ProjectDataAnalysisSource): HeldIds<DataAna
 function systemsHeldIds(source: ProjectSystemsSource): HeldIds<SystemsLinkKind> {
   const sy = source.sy;
   return {
-    MODEL: new Set([...sy.systemLogicModels.map((model) => model.uuid), ...(sy.dependencyBayesianNetworks ?? []).map((network) => network.modelId)]),
+    MODEL: new Set(sy.systemLogicModels.map((model) => model.uuid)),
     BASIC_EVENT: new Set(sy.systemBasicEvents.map((event) => event.uuid)),
   };
 }
@@ -1186,7 +1125,6 @@ function esqSystemsLinks(quantification: EventSequenceQuantification): ExampleLi
     ...workbookLinks<SystemsLinkKind>(linked),
     ...(model?.sources ?? []).flatMap((source) => (source.element === "SY" ? workbookLinks<SystemsLinkKind>(source.workbookId) : [])),
     ...(model?.functions ?? []).flatMap((record) => record.esLinks.flatMap((link) => topLinks(link.top))),
-    ...(model?.functions ?? []).flatMap((record) => (record.nodeLinks ?? []).map((link) => entityLink<SystemsLinkKind>(link.node.workbookId, "MODEL", link.node.modelId))),
     ...(model?.tops ?? []).flatMap((top) => held("MODEL", top.modelId)),
     ...(model?.events ?? []).flatMap((event) => held("BASIC_EVENT", event.id)),
     ...(quantification.modelDecisions?.functionLinks ?? []).flatMap((link) => [
@@ -1199,12 +1137,8 @@ function esqSystemsLinks(quantification: EventSequenceQuantification): ExampleLi
     ]),
     ...(quantification.logic?.exclusions ?? []).flatMap((exclusion) => exclusion.eventIds.flatMap((id) => held("BASIC_EVENT", id))),
     ...quantification.hclConfigurations.flatMap((configuration) => [
-      entityLink<SystemsLinkKind>(configuration.bayesianNetwork.workbookId, "MODEL", configuration.bayesianNetwork.modelId),
       ...configuration.faultTrees.map((faultTree) => entityLink<SystemsLinkKind>(faultTree.workbookId, "MODEL", faultTree.modelId)),
-      ...configuration.bindings.flatMap((binding) => [
-        entityLink<SystemsLinkKind>(binding.faultTreeBasicEvent.workbookId, "BASIC_EVENT", binding.faultTreeBasicEvent.entityId),
-        entityLink<SystemsLinkKind>(binding.bayesianNetworkNode.workbookId, "MODEL", binding.bayesianNetworkNode.modelId),
-      ]),
+      ...configuration.bindings.map((binding) => entityLink<SystemsLinkKind>(binding.faultTreeBasicEvent.workbookId, "BASIC_EVENT", binding.faultTreeBasicEvent.entityId)),
     ]),
   ];
 }
@@ -1227,7 +1161,6 @@ function reconcileExampleEsqSystemsLinks(quantification: EventSequenceQuantifica
         functions: model.functions.map((record) => ({
           ...record,
           esLinks: record.esLinks.map((link) => ({ ...link, top: { ...link.top, workbookId: moveId(link.top.workbookId) } })),
-          ...(record.nodeLinks === undefined ? {} : { nodeLinks: record.nodeLinks.map((link) => ({ ...link, node: { ...link.node, workbookId: moveId(link.node.workbookId) } })) }),
         })),
       },
     }),
@@ -1243,12 +1176,10 @@ function reconcileExampleEsqSystemsLinks(quantification: EventSequenceQuantifica
     }),
     hclConfigurations: quantification.hclConfigurations.map((configuration) => ({
       ...configuration,
-      bayesianNetwork: { ...configuration.bayesianNetwork, workbookId: moveId(configuration.bayesianNetwork.workbookId) },
       faultTrees: configuration.faultTrees.map((faultTree) => ({ ...faultTree, workbookId: moveId(faultTree.workbookId) })),
       bindings: configuration.bindings.map((binding) => ({
         ...binding,
         faultTreeBasicEvent: { ...binding.faultTreeBasicEvent, workbookId: moveId(binding.faultTreeBasicEvent.workbookId) },
-        bayesianNetworkNode: { ...binding.bayesianNetworkNode, workbookId: moveId(binding.bayesianNetworkNode.workbookId) },
       })),
     })),
   };
@@ -1543,7 +1474,7 @@ export {
   reconcileExampleSyHumanReliabilityReferences,
   reconcileExampleRiskResultReferences,
   reconcileExampleEsqDependencyReferences,
-  reconcileExampleSyDependencyOwnership,
+  reconcileExampleEsqNetworkOwnership,
   reconcileExampleEventTreeDependencyReferences,
   reconcileExampleDaMissionTimeReferences,
   reconcileExampleDaOwnReferences,

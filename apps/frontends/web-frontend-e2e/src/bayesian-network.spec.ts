@@ -207,10 +207,12 @@ test("creates, edits, validates, queries, links, and reloads the canonical Bayes
   const fileMenu = editor.getByRole("menu", { name: "Bayesian-network file actions" });
   await expect(fileMenu).toBeVisible();
   await expect(fileMenu.getByRole("menuitem")).toHaveText([
-    "Export XDSL",
-    "Export JSON",
     "Import XDSL",
     "Import JSON",
+    "Build from specification",
+    "Export XDSL",
+    "Export OpenPRA JSON",
+    "Export canonical JSON",
   ]);
   await editor.getByRole("button", { name: "File" }).click();
   await expect(fileMenu).toHaveCount(0);

@@ -223,7 +223,35 @@ function importHclEvidenceScenariosCsv(
   return fromPortableScenarios(portable, model);
 }
 
+function createEvidenceScenarioSamples(model: BayesianNetworkModel): HclEvidenceScenario[] {
+  const sampleNodes = model.nodes.filter((node) => node.states.length > 0).slice(0, 3);
+  if (sampleNodes.length === 0) return [];
+  return [0, 1].map((scenarioIndex) => ({
+    id: crypto.randomUUID(),
+    code: `SAMPLE-${String(scenarioIndex + 1).padStart(2, "0")}`,
+    name: `Sample evidence ${String(scenarioIndex + 1)}`,
+    enabled: true,
+    evidence: {
+      observations: sampleNodes.map((node) => ({
+        nodeId: node.id,
+        stateId: node.states[scenarioIndex % node.states.length]!.id,
+      })),
+    },
+  }));
+}
+
+function downloadText(filename: string, text: string, type: string): void {
+  const url = URL.createObjectURL(new Blob([text], { type }));
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
 export {
+  createEvidenceScenarioSamples,
+  downloadText,
   exportHclEvidenceScenariosCsv,
   exportHclEvidenceScenariosJson,
   importHclEvidenceScenariosCsv,

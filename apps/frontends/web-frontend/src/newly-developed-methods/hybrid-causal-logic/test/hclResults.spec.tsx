@@ -1,9 +1,14 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import type { EventTree } from "interfaces-mef-types/es/event-sequence-analysis";
 import { EndState } from "interfaces-mef-types/core/events";
+import type {
+  HclFaultTreeHazardConvolutionResult,
+  HclQuantificationResult,
+  HclUncertaintySummary,
+} from "interfaces-shared-types/newly-developed-methods/hybrid-causal-logic";
 import { HclResults } from "../hclResults";
 import { hclEventTreeResultMetadata, hclResultLabels } from "../hclResultLabels";
-import type { HclEditorBatchRunResult } from "../hclBindingTypes";
+import type { HclEditorBatchRunResult, HclEditorRunResult } from "../hclBindingTypes";
 import { downloadResultCsv } from "../../shared/resultCsv";
 import { eventBatch, eventHazard, eventOption, eventResult, endStateUq } from "./hclResultFixtures";
 
@@ -66,7 +71,7 @@ describe("HCL end-state presentation", () => {
     ]) {
       expect(state.getByTitle(`${String(value)}/yr`)).toBeInTheDocument();
     }
-    expect(state.getByText("100 PRAXIS samples · seed 42")).toBeInTheDocument();
+    expect(state.queryByText("100 PRAXIS samples · seed 42")).not.toBeInTheDocument();
     expect(state.queryByTitle("0.0025/yr")).not.toBeInTheDocument();
     expect(
       screen.getByRole("region", { name: "Plant / Pump failure conditional probability uncertainty results" }),
@@ -206,7 +211,9 @@ describe("HCL hazard presentation", () => {
     batch.hazardConvolution.endStateAggregates[1]!.integratedAnnualFrequency = 0.00123456789012345;
     render(batchView(batch));
     choose("release");
-    expect(screen.getByLabelText("Hazard convolution summary")).toHaveTextContent("Normalized");
+    const summary = screen.getByLabelText("Hazard convolution summary");
+    expect(summary).toHaveTextContent("Covered probability");
+    for (const echoed of ["Normalized", "Weights", "Annual scale", "Applied weight sum", "PGA grid"]) expect(summary).not.toHaveTextContent(echoed);
     expect(
       within(screen.getByRole("region", { name: "Integrated end-state results" })).getByTitle("0.00123456789012345"),
     ).toHaveTextContent("0.00123456789012");
@@ -411,5 +418,153 @@ describe("end-state and transferred sequence labels", () => {
       [eventResult()],
     );
     expect(conflicting.endStateName("same-id")).toBe("same-id");
+  });
+});
+
+describe("dependency fault tree presentation", () => {
+  const treeProps = { runResult: null, batchRunResult: null, eventTreeOptions: [], faultTreeOptions: [] };
+  const spread: HclUncertaintySummary = {
+    sampleCount: 1_000,
+    seed: 42,
+    mean: 0.25,
+    standardDeviation: 0.01,
+    minimum: 0.2,
+    percentile05: 0.23,
+    median: 0.25,
+    percentile95: 0.27,
+    maximum: 0.3,
+  };
+
+  function treeResult(suffix: string, uncertainty?: HclUncertaintySummary): HclQuantificationResult {
+    return {
+      schemaVersion: "1.0.0",
+      runId: `ft-run-${suffix}`,
+      owner: { workbookId: "esq", modelId: "configuration", workbookRevision: 2 },
+      faultTreeTopGate: { referenceType: "FAULT_TREE_TOP_EVENT", workbookId: "sy", modelId: "ft", entityId: "top" },
+      probability: 0.25,
+      ...(uncertainty === undefined ? {} : { uncertainty }),
+      bddNodes: 1,
+      bddVariables: 1,
+      variableOrder: ["basic-event"],
+      bridge: { quantifications: 1, bddContextCacheHits: 0, bddContextCacheMisses: 1, bnQueryCacheHits: 0, bnQueryCacheMisses: 1 },
+      junctionTree: { numCliques: 1, maxCliqueSize: 1, treewidth: 0, totalTableEntries: 2 },
+      validationIssues: [],
+      completedAt: "2026-08-31T12:00:00.000Z",
+    };
+  }
+
+  function treeBatch(uncertainty?: HclUncertaintySummary): HclEditorBatchRunResult {
+    return {
+      kind: "FAULT_TREE",
+      scenarios: ["1", "2"].map((suffix) => ({
+        scenarioId: `scenario-${suffix}`,
+        scenarioCode: `SCN-${suffix}`,
+        scenarioName: `Scenario ${suffix}`,
+        status: "SUCCEEDED",
+        failure: null,
+        result: { kind: "FAULT_TREE", result: treeResult(suffix, uncertainty) },
+      })),
+    };
+  }
+
+  function treeHazard(): HclFaultTreeHazardConvolutionResult {
+    return {
+      targetKind: "FAULT_TREE",
+      gridName: "Hazard grid",
+      annualFrequencyScale: { value: 1, unit: "PER_YEAR", annualization: { basis: "PLANT_YEAR", hoursPerYear: 8_760 } },
+      annualizedFrequencyScale: 1,
+      normalizeWeights: true,
+      rawWeightSum: 0.9944,
+      convolutionWeightSum: 1,
+      rows: ["1", "2"].map((suffix, index) => ({
+        scenarioId: `scenario-${suffix}`,
+        status: "ok",
+        rawWeight: index === 0 ? 0.75 : 0.2444,
+        normalizedWeight: index === 0 ? 0.7542 : 0.2458,
+        convolutionWeight: index === 0 ? 0.7542 : 0.2458,
+        annualFrequency: index === 0 ? 0.7542 : 0.2458,
+        conditionalProbability: 0.25,
+        probabilityContribution: index === 0 ? 0.18855 : 0.06145,
+        annualContribution: index === 0 ? 0.18855 : 0.06145,
+      })),
+      convolvedProbability: 0.25,
+      integratedAnnualFrequency: 0.25,
+    };
+  }
+
+  it("labels completed batches whose numerical result does not vary", () => {
+    const manual: HclEditorRunResult = { kind: "FAULT_TREE", result: treeResult("1") };
+    const view = render(<HclResults {...treeProps} runResult={manual} />);
+    const commonResult = screen.getByLabelText("Dependency fault tree result");
+    expect(commonResult).toHaveTextContent("Top event probability");
+    expect(commonResult).toHaveTextContent("2.50E-01");
+    expect(commonResult.querySelectorAll(".hcleditor__result-metric")).toHaveLength(1);
+    view.rerender(<HclResults {...treeProps} batchRunResult={treeBatch()} workflow="BATCH" />);
+    const scenarioResult = screen.getByLabelText("Dependency scenario batch result");
+    expect(scenarioResult).toHaveTextContent("2 of 2 completed · No variation across scenarios");
+    expect(scenarioResult.querySelectorAll(".hcleditor__batch-table .hcleditor__result-metric")).toHaveLength(2);
+  });
+
+  it("separates uncertainty statistics for manual and scenario results", () => {
+    const manual: HclEditorRunResult = { kind: "FAULT_TREE", result: treeResult("1", spread) };
+    const view = render(<HclResults {...treeProps} runResult={manual} calculationType="UNCERTAINTY" />);
+    const manualUncertainty = screen.getByLabelText("Uncertainty results");
+    expect(manualUncertainty.querySelectorAll(".hcleditor__uncertainty-metric")).toHaveLength(7);
+    expect(within(manualUncertainty).getByText("Standard deviation")).toBeInTheDocument();
+    view.rerender(<HclResults {...treeProps} batchRunResult={treeBatch(spread)} workflow="BATCH" calculationType="UNCERTAINTY" />);
+    const scenarioOne = screen.getByText("SCN-1").closest("details");
+    const scenarioTwo = screen.getByText("SCN-2").closest("details");
+    expect(scenarioOne).not.toHaveAttribute("open");
+    expect(scenarioTwo).not.toHaveAttribute("open");
+    expect(scenarioOne).toHaveTextContent("Mean 2.50E-01");
+    fireEvent.click(screen.getByText("SCN-1"));
+    fireEvent.click(screen.getByText("SCN-2"));
+    const [first, second] = screen.getAllByLabelText("Statistics uncertainty results");
+    expect(first).toHaveClass("hcleditor__uncertainty-result--inline");
+    expect(first?.querySelectorAll(".hcleditor__uncertainty-metric")).toHaveLength(7);
+    expect(second?.querySelectorAll(".hcleditor__uncertainty-metric")).toHaveLength(7);
+  });
+
+  it("presents hazard convolution as summary and weighted contribution metrics", () => {
+    render(<HclResults {...treeProps} batchRunResult={{ ...treeBatch(), hazardConvolution: treeHazard() }} workflow="BATCH" />);
+    const result = screen.getByLabelText("Dependency scenario batch result");
+    expect(within(result).getByLabelText("Hazard convolution summary")).toHaveTextContent("99.44%");
+    expect(result).toHaveTextContent("Convolved probability");
+    expect(result).toHaveTextContent("1.89E-01/yr");
+    expect(result).toHaveTextContent("75.42% weight");
+    expect(result).not.toHaveTextContent("w=");
+  });
+
+  it("shows each hazard value once and the frequency only when the annual scale is not 1", () => {
+    const view = render(<HclResults {...treeProps} batchRunResult={{ ...treeBatch(), hazardConvolution: treeHazard() }} workflow="BATCH" />);
+    const summary = (): HTMLElement => screen.getByLabelText("Hazard convolution summary");
+    expect(summary().querySelectorAll(".hcleditor__result-metric")).toHaveLength(2);
+    expect(summary()).toHaveTextContent("Convolved probability2.50E-01");
+    for (const echoed of ["Hazard grid", "Annual scale", "Weights", "Normalized", "Applied weight sum", "Integrated frequency"]) expect(summary()).not.toHaveTextContent(echoed);
+    view.rerender(<HclResults {...treeProps} batchRunResult={{ ...treeBatch(), hazardConvolution: { ...treeHazard(), annualizedFrequencyScale: 0.5, integratedAnnualFrequency: 0.125 } }} workflow="BATCH" />);
+    expect(summary().querySelectorAll(".hcleditor__result-metric")).toHaveLength(3);
+    expect(summary()).toHaveTextContent("Integrated frequency1.25E-01/yr");
+    expect(summary()).not.toHaveTextContent("Annual scale");
+  });
+
+  it("shows zero-weight hazard scenarios as skipped", () => {
+    const batch = treeBatch();
+    const hazard = treeHazard();
+    const [skipped] = batch.scenarios;
+    if (skipped === undefined) throw new Error("Expected a scenario");
+    batch.scenarios[0] = { ...skipped, status: "SKIPPED", failure: null, result: null };
+    hazard.rows[0] = {
+      scenarioId: skipped.scenarioId,
+      status: "skipped_zero_weight",
+      rawWeight: 0,
+      normalizedWeight: 0,
+      convolutionWeight: 0,
+      annualFrequency: 0,
+      conditionalProbability: null,
+      probabilityContribution: 0,
+      annualContribution: 0,
+    };
+    render(<HclResults {...treeProps} batchRunResult={{ ...batch, hazardConvolution: hazard }} workflow="BATCH" />);
+    expect(screen.getByLabelText("Dependency scenario batch result")).toHaveTextContent("Skipped: zero hazard weight");
   });
 });

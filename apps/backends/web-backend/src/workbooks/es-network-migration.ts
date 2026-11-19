@@ -145,5 +145,5 @@ function moveEsNetworks(es: JsonRecord, esId: string, sy: JsonRecord, syId: stri
   };
 }
 
-export { holdsNetworks, moveEsNetworks };
+export { CONFIGURATIONS, NETWORKS, holdsNetworks, modelIds, moveEsNetworks, records, texts };
 export type { EsNetworkMove };

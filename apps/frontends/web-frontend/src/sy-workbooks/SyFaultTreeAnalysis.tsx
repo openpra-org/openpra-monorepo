@@ -207,9 +207,7 @@ export function SyFaultTreeAnalysis({
   }
 
   function modelLabel(modelId: string): string | undefined {
-    const code = sy.systemLogicModels.find((model) => model.uuid === modelId)?.code
-      ?? (sy.dependencyBayesianNetworks ?? []).find((model) => model.modelId === modelId)?.code
-      ?? (sy.dependencyHclConfigurations ?? []).find((configuration) => configuration.modelId === modelId)?.code;
+    const code = sy.systemLogicModels.find((model) => model.uuid === modelId)?.code;
     return code === undefined || code.trim().length === 0 ? undefined : code;
   }
 

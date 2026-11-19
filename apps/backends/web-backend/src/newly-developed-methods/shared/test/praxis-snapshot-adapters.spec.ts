@@ -17,9 +17,8 @@ import {
   WorkbookPraxisAdapterError,
   adaptEsEventTreeSnapshot,
   adaptEsqBayesianNetworkSnapshot,
+  adaptHclConfigurationSnapshot,
   adaptLoadCapacitySnapshot,
-  adaptSyBayesianNetworkSnapshot,
-  adaptEsqHclSnapshot,
   adaptSyFaultTreeSnapshot,
   collectEsEventTreeReferences,
   collectHclUncertaintyReferences,
@@ -27,6 +26,7 @@ import {
   collectSyFaultTreeReferences,
   humanFailureEventKey,
   type PraxisModelSnapshot,
+  type UncertaintySources,
 } from "../praxis-snapshot-adapters";
 
 const probability = (value: number): UncertainExpression => ({
@@ -941,7 +941,7 @@ describe("workbook MEF to PRAXIS snapshot adapters", () => {
     expect(esqMef.bayesianNetworks[0]).toEqual(before);
   });
 
-  describe.each(["SY", "ESQ"])("%s Bayesian graph execution validation", (host) => {
+  describe("ESQ Bayesian graph execution validation", () => {
     const network = () => {
       const bn = structuredClone(esqMef.bayesianNetworks[0]);
       bn.nodes.push({ ...structuredClone(bn.nodes[0]), id: "node-2", code: "N2" });
@@ -955,9 +955,8 @@ describe("workbook MEF to PRAXIS snapshot adapters", () => {
       });
       return bn;
     };
-    const adapt = (bn: ReturnType<typeof network>) => host === "SY"
-      ? adaptSyBayesianNetworkSnapshot({ workbookId: "sy-1", workbookRevision: 1, mef: { ...syMef, dependencyBayesianNetworks: [bn] } }, "bn-1")
-      : adaptEsqBayesianNetworkSnapshot({ workbookId: "esq-1", workbookRevision: 1, mef: { ...esqMef, bayesianNetworks: [bn] } }, "bn-1");
+    const adapt = (bn: ReturnType<typeof network>) =>
+      adaptEsqBayesianNetworkSnapshot({ workbookId: "esq-1", workbookRevision: 1, mef: { ...esqMef, bayesianNetworks: [bn] } }, "bn-1");
 
     it("preserves a valid graph, parent order and probabilities", () => {
       const bn = network(), before = structuredClone(bn);
@@ -1077,19 +1076,20 @@ describe("workbook MEF to PRAXIS snapshot adapters", () => {
     settings.uncertainty = { sampleCount: 10, seed: 42, sampler: "MC", basicEvents: [], cptRows: [],
       cptGenerators: [{ generator: { kind: "UNREVIEWED" } }] };
     const before = structuredClone(mef);
-    const source = { workbookId: "esq-1", workbookRevision: 9, mef };
-    expect(adaptEsqHclSnapshot(source, "hcl-1")["solverSettings"]).not.toHaveProperty("uncertainty");
-    expect(adaptEsqHclSnapshot(source, "hcl-1", "PROBABILITY")["solverSettings"]).not.toHaveProperty("uncertainty");
-    expect(() => adaptEsqHclSnapshot(source, "hcl-1", "UNCERTAINTY")).toThrow("Invalid uncertainty settings");
+    const source = { workbookRevision: 9 };
+    const configuration = mef.hclConfigurations[0]!;
+    expect(adaptHclConfigurationSnapshot(source, configuration, "PROBABILITY")["solverSettings"]).not.toHaveProperty("uncertainty");
+    expect(() => adaptHclConfigurationSnapshot(source, configuration, "UNCERTAINTY")).toThrow("Invalid uncertainty settings");
     expect(mef).toEqual(before);
     delete settings.uncertainty;
-    expect(() => adaptEsqHclSnapshot(source, "hcl-1", "UNCERTAINTY")).toThrow("requires saved uncertainty settings");
+    expect(() => adaptHclConfigurationSnapshot(source, configuration, "UNCERTAINTY")).toThrow("requires saved uncertainty settings");
   });
 
   it("normalizes workbook-scoped HCL targets for each declared fault tree", () => {
-    const adapted = adaptEsqHclSnapshot(
-      { workbookId: "esq-1", workbookRevision: 9, mef: esqMef },
-      "hcl-1",
+    const adapted = adaptHclConfigurationSnapshot(
+      { workbookRevision: 9 },
+      esqMef.hclConfigurations[0]!,
+      "PROBABILITY",
     );
 
     expect(adapted).toMatchObject({
@@ -1115,9 +1115,9 @@ describe("workbook MEF to PRAXIS snapshot adapters", () => {
   });
 
   it("limits HCL bindings to fault trees that contain the mapped basic event", () => {
-    const adapted = adaptEsqHclSnapshot(
-      { workbookId: "esq-1", workbookRevision: 9, mef: esqMef },
-      "hcl-1",
+    const adapted = adaptHclConfigurationSnapshot(
+      { workbookRevision: 9 },
+      esqMef.hclConfigurations[0]!,
       "PROBABILITY",
       new Map([
         ["ft-1", new Set(["be-a"])],
@@ -1131,6 +1131,39 @@ describe("workbook MEF to PRAXIS snapshot adapters", () => {
         faultTreeBasicEvent: { modelId: "ft-1", entityId: "be-a" },
       }),
     ]);
+  });
+
+  it("honours the stand-in fault trees and bindings a run adds for linked network nodes", () => {
+    const saved = esqMef.hclConfigurations[0]!;
+    const standIn = { workbookId: "esq-1", modelId: "stand-in-1" };
+    const configuration = {
+      ...saved,
+      faultTrees: [...saved.faultTrees, standIn],
+      bindings: [...saved.bindings, {
+        id: "stand-in-event",
+        faultTreeBasicEvent: { referenceType: "FAULT_TREE_BASIC_EVENT" as const, workbookId: "esq-1", entityId: "stand-in-event" },
+        bayesianNetworkNode: { referenceType: "BAYESIAN_NETWORK_NODE" as const, workbookId: "esq-1", modelId: "bn-1", entityId: "node-1" },
+        trueStateIds: ["true"] as [string],
+      }],
+    };
+    const adapted = adaptHclConfigurationSnapshot(
+      { workbookRevision: 9 },
+      configuration,
+      "PROBABILITY",
+      new Map([
+        ["ft-1", new Set(["be-a"])],
+        ["stand-in-1", new Set(["stand-in-event"])],
+      ]),
+      { observations: [{ nodeId: "node-1", stateId: "true" }] },
+      [{ workbookId: "sy-1", modelId: "ft-1" }, standIn],
+    );
+
+    expect(adapted["faultTrees"]).toEqual([{ faultTree: { modelId: "ft-1" } }, { faultTree: { modelId: "stand-in-1" } }]);
+    expect(adapted["bindings"]).toEqual([
+      expect.objectContaining({ id: "binding-1:ft-1", faultTreeBasicEvent: { modelId: "ft-1", entityId: "be-a" } }),
+      { id: "stand-in-event:stand-in-1", faultTreeBasicEvent: { modelId: "stand-in-1", entityId: "stand-in-event" }, bayesianNetworkNode: { modelId: "bn-1", entityId: "node-1" }, trueStateIds: ["true"] },
+    ]);
+    expect(adapted["baseEvidence"]).toEqual({ observations: [{ nodeId: "node-1", stateId: "true" }] });
   });
 
   const ids: Record<string, string> = {
@@ -1160,16 +1193,18 @@ describe("workbook MEF to PRAXIS snapshot adapters", () => {
   const nativeNode = { modelId: ids["bn-1"]!, entityId: ids["node-1"]! };
   const adaptUncertainty = (
     settings: HclUncertaintySettings,
-    sources: Parameters<typeof adaptEsqHclSnapshot>[5] = {},
+    sources: UncertaintySources = {},
   ): PraxisModelSnapshot => {
     const mef = uncertaintyFixture();
-    mef.hclConfigurations[0]!.solverSettings.uncertainty = settings;
-    return adaptEsqHclSnapshot(
-      { workbookId: "esq-1", workbookRevision: 9, mef },
-      ids["hcl-1"]!,
+    const configuration = mef.hclConfigurations[0]!;
+    configuration.solverSettings.uncertainty = settings;
+    return adaptHclConfigurationSnapshot(
+      { workbookRevision: 9 },
+      configuration,
       "UNCERTAINTY",
       undefined,
       undefined,
+      configuration.faultTrees,
       sources,
     );
   };
@@ -1235,7 +1270,7 @@ describe("workbook MEF to PRAXIS snapshot adapters", () => {
     for (const draft of drafts) {
       const mef = uncertaintyFixture();
       Object.assign(mef.hclConfigurations[0]!.solverSettings, { uncertainty: draft });
-      expect(() => adaptEsqHclSnapshot({ workbookId: "esq-1", workbookRevision: 9, mef }, ids["hcl-1"]!, "UNCERTAINTY"))
+      expect(() => adaptHclConfigurationSnapshot({ workbookRevision: 9 }, mef.hclConfigurations[0]!, "UNCERTAINTY"))
         .toThrow("Invalid uncertainty settings");
     }
   });

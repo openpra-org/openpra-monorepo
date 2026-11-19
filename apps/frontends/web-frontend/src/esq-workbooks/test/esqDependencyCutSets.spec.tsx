@@ -51,24 +51,24 @@ function result(cutSets: HclDependencyCutSets | undefined): EventTreeAnalysisRes
   };
 }
 
-function show(study: DependencyStudy): void {
+function show(study: Omit<DependencyStudy, "inputs">): void {
   const esq: EventSequenceQuantification = withModelImported(linkedEsq(), modelUpstream(), NOW);
   const model = esq.model;
   if (model === undefined) throw new Error("fixture has no model");
   window.localStorage.clear();
   render(
     <EsqWorkbookProvider data={{ esq }} editable mutateEsq={() => undefined} upstream={modelUpstream()}>
-      <EsqDependencyResults study={study} model={model} />
+      <EsqDependencyResults study={{ ...study, inputs: "" }} model={model} />
     </EsqWorkbookProvider>,
   );
 }
 
 describe("ESQ Step 05 ranked cut sets of a dependency run", () => {
   it("opens the ranked cut sets of a sequence with event codes and no identifiers", () => {
-    show({ result: "PROBABILITY", evidence: "BASE", cutSets: "FAILED_EVENTS", trees: [{ treeId: "ET-A", runResult: { kind: "EVENT_TREE", result: result(ranked) }, batchRunResult: null, failure: null }] });
-    const buttons = screen.getAllByRole("button", { name: /^Cut sets of / });
-    expect(buttons).toHaveLength(1);
-    fireEvent.click(buttons[0]!);
+    show({ target: "EVENT_TREE", result: "PROBABILITY", evidence: "BASE", cutSets: "FAILED_EVENTS", trees: [{ treeId: "ET-A", runResult: { kind: "EVENT_TREE", result: result(ranked) }, batchRunResult: null, failure: null }] });
+    expect(screen.getAllByText("A-2", { selector: "button" })).toHaveLength(1);
+    expect(screen.queryByRole("button", { name: "Cut sets of A-1" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Cut sets of A-2" }));
     const dialog = screen.getByRole("dialog", { name: "Dependency cut sets" });
     expect(within(dialog).getByText("COOL-PMP-FS · SUP-HFE")).toBeTruthy();
     expect(within(dialog).getByText("SUP-FAN-FR")).toBeTruthy();
@@ -76,7 +76,7 @@ describe("ESQ Step 05 ranked cut sets of a dependency run", () => {
     expect(within(dialog).getByText("12")).toBeTruthy();
     expect(within(dialog).getByText("4E-3")).toBeTruthy();
     expect(within(dialog).getByText("1E-2")).toBeTruthy();
-    expect(within(dialog).queryByText(/E-1/)).toBeNull();
+    expect(within(dialog).queryByText("E-1", { exact: false })).toBeNull();
     expect(within(dialog).getByRole("columnheader", { name: "Probability" })).toBeTruthy();
   });
 
@@ -88,8 +88,8 @@ describe("ESQ Step 05 ranked cut sets of a dependency run", () => {
         { ...ranked.items[1]!, causes: [] },
       ],
     };
-    show({ result: "PROBABILITY", evidence: "BASE", cutSets: "FAILED_EVENTS", trees: [{ treeId: "ET-A", runResult: { kind: "EVENT_TREE", result: result(traced) }, batchRunResult: null, failure: null }] });
-    fireEvent.click(screen.getByRole("button", { name: /^Cut sets of / }));
+    show({ target: "EVENT_TREE", result: "PROBABILITY", evidence: "BASE", cutSets: "FAILED_EVENTS", trees: [{ treeId: "ET-A", runResult: { kind: "EVENT_TREE", result: result(traced) }, batchRunResult: null, failure: null }] });
+    fireEvent.click(screen.getByRole("button", { name: "Cut sets of A-2" }));
     const dialog = within(screen.getByRole("dialog", { name: "Dependency cut sets" }));
     expect(dialog.getByRole("columnheader", { name: "Causes" })).toBeTruthy();
     expect(dialog.getByText("None")).toBeTruthy();
@@ -98,7 +98,7 @@ describe("ESQ Step 05 ranked cut sets of a dependency run", () => {
     expect(causes.getByText("Missing node")).toBeTruthy();
     expect(causes.getByText("2E-3")).toBeTruthy();
     expect(causes.getByText("7.5E-1")).toBeTruthy();
-    expect(causes.queryByText(/node-not-in-the-fixture/)).toBeNull();
+    expect(causes.queryByText("node-not-in-the-fixture", { exact: false })).toBeNull();
     fireEvent.click(dialog.getByRole("button", { name: "Back to cut sets" }));
     expect(dialog.getByRole("table", { name: "Ranked cut sets" })).toBeTruthy();
   });
@@ -111,10 +111,9 @@ describe("ESQ Step 05 ranked cut sets of a dependency run", () => {
     const traced = result(undefined);
     traced.sequences[0] = { ...traced.sequences[0]!, dependencyImportance: importance };
     traced.endStateAggregates[0] = { ...traced.endStateAggregates[0]!, dependencyImportance: [importance[1]!] };
-    show({ result: "PROBABILITY", evidence: "BASE", cutSets: "NONE", trees: [{ treeId: "ET-A", runResult: { kind: "EVENT_TREE", result: traced }, batchRunResult: null, failure: null }] });
-    const buttons = screen.getAllByRole("button", { name: /^Importance of / });
-    expect(buttons).toHaveLength(2);
-    fireEvent.click(within(screen.getByRole("table", { name: "Sequences" })).getByRole("button", { name: /^Importance of / }));
+    show({ target: "EVENT_TREE", result: "PROBABILITY", evidence: "BASE", cutSets: "NONE", trees: [{ treeId: "ET-A", runResult: { kind: "EVENT_TREE", result: traced }, batchRunResult: null, failure: null }] });
+    expect(screen.getAllByText("Importance", { selector: "button" })).toHaveLength(2);
+    fireEvent.click(within(screen.getByRole("table", { name: "Sequences" })).getByRole("button", { name: "Importance of A-2" }));
     let dialog = within(screen.getByRole("dialog", { name: "Dependency importance" }));
     const rows = within(dialog.getByRole("table", { name: "Importance" })).getAllByRole("row").slice(1);
     expect(rows.map((row) => within(row).getAllByRole("cell")[0]?.textContent)).toEqual(["COOL-PMP-FS", "SUP-FAN-FR"]);
@@ -124,7 +123,7 @@ describe("ESQ Step 05 ranked cut sets of a dependency run", () => {
     expect(dialog.queryByText("E-1")).toBeNull();
     expect(dialog.queryByText("E-3")).toBeNull();
     fireEvent.click(dialog.getByRole("button", { name: "Close" }));
-    fireEvent.click(within(screen.getByRole("table", { name: "End states" })).getByRole("button", { name: /^Importance of / }));
+    fireEvent.click(within(screen.getByRole("table", { name: "End states" })).getByRole("button", { name: "Importance of Release" }));
     dialog = within(screen.getByRole("dialog", { name: "Dependency importance" }));
     expect(within(dialog.getByRole("table", { name: "Importance" })).getAllByRole("row")).toHaveLength(2);
   });
@@ -138,8 +137,8 @@ describe("ESQ Step 05 ranked cut sets of a dependency run", () => {
     ];
     const traced = result(undefined);
     traced.sequences[0] = { ...traced.sequences[0]!, dependencyImportance: importance };
-    show({ result: "UNCERTAINTY", evidence: "BASE", cutSets: "NONE", trees: [{ treeId: "ET-A", runResult: { kind: "EVENT_TREE", result: traced }, batchRunResult: null, failure: null }] });
-    fireEvent.click(within(screen.getByRole("table", { name: "Sequences" })).getByRole("button", { name: /^Importance of / }));
+    show({ target: "EVENT_TREE", result: "UNCERTAINTY", evidence: "BASE", cutSets: "NONE", trees: [{ treeId: "ET-A", runResult: { kind: "EVENT_TREE", result: traced }, batchRunResult: null, failure: null }] });
+    fireEvent.click(within(screen.getByRole("table", { name: "Sequences" })).getByRole("button", { name: "Importance of A-2" }));
     const dialog = within(screen.getByRole("dialog", { name: "Dependency importance" }));
     const sampled = within(dialog.getByRole("table", { name: "Importance uncertainty" }));
     expect(sampled.getAllByRole("row")).toHaveLength(2);
@@ -153,9 +152,9 @@ describe("ESQ Step 05 ranked cut sets of a dependency run", () => {
   });
 
   it("shows no cut set link when the run carries no ranked cut sets", () => {
-    show({ result: "PROBABILITY", evidence: "BASE", cutSets: "NONE", trees: [{ treeId: "ET-A", runResult: { kind: "EVENT_TREE", result: result(undefined) }, batchRunResult: null, failure: null }] });
-    expect(screen.queryAllByRole("button", { name: /^Cut sets of / })).toHaveLength(0);
-    expect(screen.queryAllByRole("button", { name: /^Importance of / })).toHaveLength(0);
+    show({ target: "EVENT_TREE", result: "PROBABILITY", evidence: "BASE", cutSets: "NONE", trees: [{ treeId: "ET-A", runResult: { kind: "EVENT_TREE", result: result(undefined) }, batchRunResult: null, failure: null }] });
+    expect(screen.queryByRole("button", { name: "Cut sets of A-2" })).toBeNull();
+    expect(screen.queryAllByText("Importance", { selector: "button" })).toHaveLength(0);
   });
 
   it("opens the hazard-weighted cut sets from the grid table", () => {
@@ -180,6 +179,7 @@ describe("ESQ Step 05 ranked cut sets of a dependency run", () => {
       endStateAggregates: [{ endStateId: RELEASE, convolvedProbability: 0.02, integratedAnnualFrequency: 0.05 }],
     };
     show({
+      target: "EVENT_TREE",
       result: "PROBABILITY",
       evidence: "HAZARD",
       cutSets: "FAILED_EVENTS_AND_SEQUENCE",
@@ -194,7 +194,7 @@ describe("ESQ Step 05 ranked cut sets of a dependency run", () => {
         failure: null,
       }],
     });
-    fireEvent.click(screen.getByRole("button", { name: /^Cut sets of / }));
+    fireEvent.click(screen.getByRole("button", { name: "Cut sets of A-2" }));
     const dialog = screen.getByRole("dialog", { name: "Dependency cut sets" });
     expect(within(dialog).getByText("Weighted over the hazard grid")).toBeTruthy();
     expect(within(dialog).getByText("Failed events and success branches")).toBeTruthy();

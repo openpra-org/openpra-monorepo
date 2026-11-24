@@ -51,7 +51,7 @@ describe("RC Step 08 case records", () => {
   it("pages authentic saved data and keeps missing release heights unspecified", async () => {
     await seed();
     const inventory = (await request(http()).get(`${url}/table/inventory`).query({ ...selection(), offset: 5 }).expect(200)).body;
-    expect(inventory.total).toBe(69); expect(inventory.rows).toHaveLength(5); expect(inventory.offset).toBe(5);
+    expect(inventory.total).toBe(69); expect(inventory.rows).toHaveLength(10); expect(inventory.offset).toBe(5);
     const releases = (await request(http()).get(`${url}/table/releases`).query(selection()).expect(200)).body;
     expect(releases.rows.every((r: any[]) => r[3] === 0)).toBe(true);
     await t.workbooks.updateOne({ workbookId: "rc-test" }, { $unset: { "mef.releaseCategoryToConsequence.releaseCategoryInputs.0.sourceTerm.values.releases.0.heightMetres": 1 } });

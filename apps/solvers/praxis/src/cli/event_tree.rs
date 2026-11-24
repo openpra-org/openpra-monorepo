@@ -1648,7 +1648,7 @@ fn write_end_state_products(
     }
     let node = aggregate.engine().node(root);
     write_end_state_products(writer, aggregate, node.low, path)?;
-    path.push(node.var);
+    path.push(node.var as usize);
     write_end_state_products(writer, aggregate, node.high, path)?;
     path.pop();
     Ok(())

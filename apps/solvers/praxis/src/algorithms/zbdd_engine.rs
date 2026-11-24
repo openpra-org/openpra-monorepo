@@ -49,18 +49,23 @@ impl std::fmt::Display for ZbddRef {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct ZbddNode {
-    pub var: usize,
+    pub var: u32,
     pub high: ZbddRef,
     pub low: ZbddRef,
 }
 
 impl ZbddNode {
     pub fn new(var: usize, high: ZbddRef, low: ZbddRef) -> Self {
-        Self { var, high, low }
+        debug_assert!(var < u32::MAX as usize);
+        Self {
+            var: var as u32,
+            high,
+            low,
+        }
     }
 
     pub fn is_sentinel(self) -> bool {
-        self.var == usize::MAX
+        self.var == u32::MAX
     }
 }
 
@@ -111,7 +116,7 @@ impl OpenUnique {
     }
 
     fn get(&self, node: &ZbddNode) -> Option<ZbddRef> {
-        let var = node.var as u32;
+        let var = node.var;
         let high = node.high.raw();
         let low = node.low.raw();
         let mut i = (hash_key(var as u64, high, low) as usize) & self.mask;
@@ -153,7 +158,7 @@ impl OpenUnique {
         if (self.len + 1) * 10 >= (self.mask + 1) * 7 {
             self.grow();
         }
-        self.place(node.var as u32, node.high.raw(), node.low.raw(), r.raw());
+        self.place(node.var, node.high.raw(), node.low.raw(), r.raw());
     }
 
     fn grow(&mut self) {
@@ -169,7 +174,7 @@ impl OpenUnique {
     }
 
     fn remove(&mut self, node: &ZbddNode) {
-        let var = node.var as u32;
+        let var = node.var;
         let high = node.high.raw();
         let low = node.low.raw();
         let mask = self.mask;
@@ -276,6 +281,8 @@ const CHILD_BASE: u32 = u32::MAX - 1;
 const CHILD_PENDING: u32 = u32::MAX - 2;
 const NO_PARENT: u32 = u32::MAX;
 const UNLIMITED: u32 = u32::MAX;
+const MINIMAL_BIT: u32 = 1 << 31;
+const EPOCH_MASK: u32 = !MINIMAL_BIT;
 
 #[derive(Clone, Copy)]
 struct ProductRequest {
@@ -346,16 +353,12 @@ pub struct ZbddEngine {
     scale: f64,
     maxprobs: Vec<f64>,
     minprobs: Vec<f64>,
-    maxprob_stamp: Vec<u64>,
-    maxprob_epoch: u64,
+    slot_states: Vec<u32>,
+    maxprob_epoch: u32,
     refcounts: Vec<u32>,
-    generations: Vec<u32>,
     free_list: Vec<u32>,
     gc_on: bool,
     use_computed: bool,
-    // Part A: per-node "known minimal" bit (parallel to nodes), plus a guaranteed
-    // non-evicting minimize memo for the GC-off throughput path.
-    minimal: Vec<bool>,
     minimize_memo: HashMap<ZbddRef, ZbddRef>,
     product_levels: Vec<Vec<ProductRequest>>,
     product_active: BinaryHeap<Reverse<usize>>,
@@ -364,7 +367,7 @@ pub struct ZbddEngine {
 }
 
 const ZBDD_SENTINEL: ZbddNode = ZbddNode {
-    var: usize::MAX,
+    var: u32::MAX,
     high: ZBDD_EMPTY,
     low: ZBDD_EMPTY,
 };
@@ -417,14 +420,12 @@ impl ZbddEngine {
             scale: 1.0,
             maxprobs: vec![0.0, 0.0],
             minprobs: vec![0.0, 0.0],
-            maxprob_stamp: vec![0, 0],
+            slot_states: vec![0, 0],
             maxprob_epoch: 1,
-            refcounts: vec![0, 0],
-            generations: vec![0, 0],
+            refcounts: if gc_on { vec![0, 0] } else { Vec::new() },
             free_list: Vec::new(),
             gc_on,
             use_computed,
-            minimal: vec![false, false],
             minimize_memo: HashMap::new(),
             product_levels: Vec::new(),
             product_active: BinaryHeap::new(),
@@ -447,11 +448,9 @@ impl ZbddEngine {
         self.maxprobs.truncate(2);
         self.minprobs.truncate(2);
         self.product_memo.clear();
-        self.maxprob_stamp.truncate(2);
-        self.maxprob_epoch += 1;
+        self.slot_states.truncate(2);
+        self.advance_epoch();
         self.refcounts.truncate(2);
-        self.generations.truncate(2);
-        self.minimal.truncate(2);
         self.minimize_memo.clear();
         self.free_list.clear();
         self.next_collection = 2 * self.nodes.len();
@@ -494,7 +493,7 @@ impl ZbddEngine {
         if f.is_terminal() {
             usize::MAX
         } else {
-            self.node(f).var
+            self.node(f).var as usize
         }
     }
 
@@ -530,7 +529,7 @@ impl ZbddEngine {
                 continue;
             }
             let node = self.node(f);
-            variables.insert(node.var);
+            variables.insert(node.var as usize);
             stack.push(node.high);
             stack.push(node.low);
         }
@@ -586,7 +585,7 @@ impl ZbddEngine {
             return;
         }
         let node = self.node(f);
-        current.push(node.var);
+        current.push(node.var as usize);
         self.visit_sets(node.high, current, visitor);
         current.pop();
         self.visit_sets(node.low, current, visitor);
@@ -629,18 +628,20 @@ impl ZbddEngine {
     pub(crate) fn alloc_node(&mut self, node: ZbddNode) -> ZbddRef {
         if let Some(idx) = self.free_list.pop() {
             self.nodes[idx as usize] = node;
-            self.refcounts[idx as usize] = 0;
-            self.minimal[idx as usize] = false;
+            if self.gc_on {
+                self.refcounts[idx as usize] = 0;
+            }
+            self.slot_states[idx as usize] = 0;
             return ZbddRef(idx);
         }
         let idx = self.nodes.len() as u32;
         self.nodes.push(node);
-        self.refcounts.push(0);
-        self.generations.push(0);
-        self.minimal.push(false);
+        if self.gc_on {
+            self.refcounts.push(0);
+        }
         self.maxprobs.push(0.0);
         self.minprobs.push(0.0);
-        self.maxprob_stamp.push(0);
+        self.slot_states.push(0);
         ZbddRef(idx)
     }
 
@@ -667,8 +668,7 @@ impl ZbddEngine {
         let node = self.nodes[i];
         self.unique.remove(&node);
         self.nodes[i] = ZBDD_SENTINEL;
-        self.generations[i] = self.generations[i].wrapping_add(1);
-        self.minimal[i] = false;
+        self.slot_states[i] = 0;
         self.free_list.push(i as u32);
         self.deref(node.high);
         self.deref(node.low);
@@ -720,8 +720,7 @@ impl ZbddEngine {
                 self.unique.insert(self.nodes[i], ZbddRef(i as u32));
             } else {
                 self.nodes[i] = ZBDD_SENTINEL;
-                self.generations[i] = self.generations[i].wrapping_add(1);
-                self.minimal[i] = false;
+                self.slot_states[i] = 0;
                 self.free_list.push(i as u32);
             }
         }
@@ -751,12 +750,23 @@ impl ZbddEngine {
     }
 
     fn is_minimal(&self, f: ZbddRef) -> bool {
-        f.is_terminal() || self.minimal[f.index()]
+        f.is_terminal() || self.slot_states[f.index()] & MINIMAL_BIT != 0
     }
 
     fn set_minimal(&mut self, f: ZbddRef) {
         if !f.is_terminal() {
-            self.minimal[f.index()] = true;
+            self.slot_states[f.index()] |= MINIMAL_BIT;
+        }
+    }
+
+    fn advance_epoch(&mut self) {
+        if self.maxprob_epoch == EPOCH_MASK {
+            for state in self.slot_states.iter_mut() {
+                *state &= MINIMAL_BIT;
+            }
+            self.maxprob_epoch = 1;
+        } else {
+            self.maxprob_epoch += 1;
         }
     }
 
@@ -1263,7 +1273,7 @@ impl ZbddEngine {
             return entry;
         }
         let node = *self.node(f);
-        let marked = exclusive.get(node.var).copied().unwrap_or(false);
+        let marked = exclusive.get(node.var as usize).copied().unwrap_or(false);
         let high = if marked && seen {
             ZBDD_EMPTY
         } else {
@@ -1274,7 +1284,7 @@ impl ZbddEngine {
             self.protect(f);
             f
         } else {
-            self.make_node(node.var, high, low)
+            self.make_node(node.var as usize, high, low)
         };
         self.deref(high);
         self.deref(low);
@@ -1440,7 +1450,7 @@ impl ZbddEngine {
 
         let hi = self.node(f).high;
         let lo = self.node(f).low;
-        let var = self.node(f).var;
+        let var = self.node(f).var as usize;
 
         let lo_min = self.minimize(lo);
         let hi_min = self.minimize(hi);
@@ -1597,6 +1607,7 @@ impl ZbddEngine {
             high: hi,
             low: lo,
         } = *self.node(f);
+        let var = var as usize;
         let hi_r = self.project_out_set(hi, flags, cache);
         let lo_r = self.project_out_set(lo, flags, cache);
         let result = if flags.contains(&var) {
@@ -1632,6 +1643,7 @@ impl ZbddEngine {
             high: hi,
             low: lo,
         } = *self.node(f);
+        let var = var as usize;
         let hi_r = self.expand_merged(hi, merged, cache);
         let lo_r = self.expand_merged(lo, merged, cache);
         let result = match merged.get(&var) {
@@ -1877,7 +1889,7 @@ impl ZbddEngine {
             m
         } else {
             let node = self.node(f);
-            let p_var = self.var_probs[node.var];
+            let p_var = self.var_probs[node.var as usize];
             let high_stats = self.stats_by_order_rec(node.high, cache);
             let low_stats = self.stats_by_order_rec(node.low, cache);
             let mut merged = low_stats;
@@ -1921,7 +1933,7 @@ impl ZbddEngine {
         } else {
             let node = self.node(f);
             let high = self.stats_rec(node.high, cache).map(|(count, min, max)| {
-                let probability = self.var_probs[node.var];
+                let probability = self.var_probs[node.var as usize];
                 (count, min * probability, max * probability)
             });
             let low = self.stats_rec(node.low, cache);
@@ -1944,7 +1956,7 @@ impl ZbddEngine {
     pub fn set_var_probs(&mut self, probs: Vec<f64>) {
         self.release_product_memo();
         self.var_probs = probs;
-        self.maxprob_epoch += 1;
+        self.advance_epoch();
     }
 
     /// Set the constant factor folded into every product's value: an
@@ -1972,7 +1984,7 @@ impl ZbddEngine {
             return p;
         }
         let node = self.node(f);
-        let p_var = self.var_probs[node.var];
+        let p_var = self.var_probs[node.var as usize];
         let p_hi = self.re_inner(node.high, cache);
         let p_lo = self.re_inner(node.low, cache);
         let p = p_var * p_hi + p_lo;
@@ -2020,6 +2032,7 @@ impl ZbddEngine {
             high: hi,
             low: lo,
         } = *self.node(f);
+        let var = var as usize;
         let result = if budget == 0 {
             self.limit_order_rec(lo, 0, cache)
         } else {
@@ -2084,17 +2097,16 @@ impl ZbddEngine {
             return;
         }
         let i = f.index();
-        let stamp = (self.maxprob_epoch << 32) | (self.generations[i] as u64);
-        if self.maxprob_stamp[i] == stamp {
+        if self.slot_states[i] & EPOCH_MASK == self.maxprob_epoch {
             return;
         }
         let ZbddNode { var, high, low } = *self.node(f);
         self.ensure_bounds(high);
         self.ensure_bounds(low);
-        let p = self.var_probs[var];
+        let p = self.var_probs[var as usize];
         self.maxprobs[i] = (p * self.maxprob_of(high)).max(self.maxprob_of(low));
         self.minprobs[i] = (p * self.minprob_of(high)).min(self.minprob_of(low));
-        self.maxprob_stamp[i] = stamp;
+        self.slot_states[i] = (self.slot_states[i] & MINIMAL_BIT) | self.maxprob_epoch;
     }
 
     fn maxprob_of(&self, f: ZbddRef) -> f64 {
@@ -2140,6 +2152,7 @@ impl ZbddEngine {
             high: hi,
             low: lo,
         } = *self.node(f);
+        let var = var as usize;
         let hi_threshold = Self::child_threshold(threshold, self.var_probs[var]);
         let hi_r = self.prune_below_rec(hi, hi_threshold, cache);
         let lo_r = self.prune_below_rec(lo, threshold, cache);
@@ -2168,7 +2181,7 @@ impl ZbddEngine {
             return v;
         }
         let node = self.node(f);
-        let p_var = self.var_probs[node.var];
+        let p_var = self.var_probs[node.var as usize];
         let hi = self.mcub_factor(node.high, p_acc * p_var, cache);
         let lo = self.mcub_factor(node.low, p_acc, cache);
         let result = hi * lo;

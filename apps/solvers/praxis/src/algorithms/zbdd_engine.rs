@@ -1174,7 +1174,7 @@ impl ZbddEngine {
     }
 
     fn release_product_memo(&mut self) {
-        let entries: Vec<((u32, u32, usize), (f64, ZbddRef))> = self.product_memo.drain().collect();
+        let entries: Vec<_> = self.product_memo.drain().collect();
         for ((f, g, _), (_, result)) in entries {
             self.deref(ZbddRef(f));
             self.deref(ZbddRef(g));
@@ -1293,11 +1293,11 @@ impl ZbddEngine {
         kept
     }
 
-    pub(crate) fn from_sorted_sets(&mut self, sets: &[Vec<usize>]) -> ZbddRef {
-        self.from_sorted_sets_at(sets, 0)
+    pub(crate) fn family_from_sorted_sets(&mut self, sets: &[Vec<usize>]) -> ZbddRef {
+        self.family_from_sorted_sets_at(sets, 0)
     }
 
-    fn from_sorted_sets_at(&mut self, sets: &[Vec<usize>], depth: usize) -> ZbddRef {
+    fn family_from_sorted_sets_at(&mut self, sets: &[Vec<usize>], depth: usize) -> ZbddRef {
         let ended = sets.iter().take_while(|set| set.len() == depth).count();
         let rest = &sets[ended..];
         let mut groups: Vec<(usize, usize, usize)> = Vec::new();
@@ -1313,7 +1313,7 @@ impl ZbddEngine {
         }
         let mut family = if ended > 0 { ZBDD_BASE } else { ZBDD_EMPTY };
         for &(var, start, end) in groups.iter().rev() {
-            let high = self.from_sorted_sets_at(&rest[start..end], depth + 1);
+            let high = self.family_from_sorted_sets_at(&rest[start..end], depth + 1);
             let node = self.make_node(var, high, family);
             self.deref(high);
             self.deref(family);

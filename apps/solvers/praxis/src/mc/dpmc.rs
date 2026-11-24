@@ -1543,11 +1543,11 @@ impl<'a> DpMonteCarloAnalysis<'a> {
         let mut total_trials_done: usize = 0;
 
         let mut pilot_successes = vec![0u64; num_strata];
-        for stratum in 0..num_strata {
+        for (stratum, pilot) in pilot_successes.iter_mut().enumerate() {
             let trials = design.pilot_trials(stratum);
             if trials > 0 {
-                pilot_successes[stratum] = run_stratum(stratum, stratum, trials)?;
-                total_successes = total_successes.saturating_add(pilot_successes[stratum]);
+                *pilot = run_stratum(stratum, stratum, trials)?;
+                total_successes = total_successes.saturating_add(*pilot);
                 total_trials_done = total_trials_done.saturating_add(trials);
             }
             if let Some(pb) = progress.as_ref() {

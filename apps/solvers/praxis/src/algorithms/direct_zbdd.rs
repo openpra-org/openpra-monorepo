@@ -357,6 +357,7 @@ impl Builder {
         )
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn new_with_probability_source<F>(
         pdag: &Pdag,
         cut_off: Option<f64>,
@@ -2136,7 +2137,7 @@ impl Builder {
             set.sort_unstable();
         }
         valid.sort_unstable();
-        Ok(self.zbdd.from_sorted_sets(&valid))
+        Ok(self.zbdd.family_from_sorted_sets(&valid))
     }
 
     fn filter_valid_cut_sets(&mut self, root: ZbddRef, eff: NodeIndex) -> Result<ZbddRef> {
@@ -2204,7 +2205,7 @@ impl Builder {
             set.sort_unstable();
         }
         valid.sort_unstable();
-        Ok(self.zbdd.from_sorted_sets(&valid))
+        Ok(self.zbdd.family_from_sorted_sets(&valid))
     }
 }
 
@@ -3065,8 +3066,8 @@ mod tests {
             for round in 0..300 {
                 let left_sets = sample_family(&mut state, &variables, 1 + round % 14);
                 let right_sets = sample_family(&mut state, &variables, 1 + (round / 3) % 17);
-                let left = builder.zbdd.from_sorted_sets(&left_sets);
-                let right = builder.zbdd.from_sorted_sets(&right_sets);
+                let left = builder.zbdd.family_from_sorted_sets(&left_sets);
+                let right = builder.zbdd.family_from_sorted_sets(&right_sets);
                 for budget in [0.0, 1e-4, 1e-3, 1e-2, 5e-2, 2e-1] {
                     let plain = builder.join_within(left, right, budget);
                     let plain = builder.zbdd.minimize(plain);

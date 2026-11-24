@@ -123,8 +123,9 @@ impl GateLogic {
                                 monotone = false;
                             }
                             let start = child as usize * self.words;
-                            for word in 0..self.words {
-                                support[word] |= self.supports[start + word];
+                            let child_support = &self.supports[start..start + self.words];
+                            for (word, &bits) in support.iter_mut().zip(child_support) {
+                                *word |= bits;
                             }
                         }
                         None => {

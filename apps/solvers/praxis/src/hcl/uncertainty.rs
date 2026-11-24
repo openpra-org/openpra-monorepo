@@ -173,6 +173,7 @@ impl PreparedHclUncertainty {
         })
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn conditionals(
         &self,
         bdd: &Bdd,

@@ -1,4 +1,4 @@
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException, Optional } from "@nestjs/common";
+import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException, Optional } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
 import { Model, isValidObjectId } from "mongoose";
 import {
@@ -212,6 +212,8 @@ export class WorkbooksService {
   async createProjectWorkbooks(projectId: string, payload: CreateProjectWorkbooksRequest, acting: ActingUser): Promise<ProjectWorkbooksResult> {
     const { role, doc: project } = await this.projectsService.resolveAccess(projectId, acting);
     if (role === "viewer") throw new ForbiddenException("You cannot create workbooks in this project");
+    const taken = await this.workbookModel.findOne({ projectId, name: payload.name }).exec();
+    if (taken !== null) throw new ConflictException(`A workbook named "${payload.name}" already exists in this project`);
     const workbooks: WorkbookDto[] = [];
     const failed: ProjectWorkbookFailure[] = [];
     for (const element of elementsForMode(project.mode)) {

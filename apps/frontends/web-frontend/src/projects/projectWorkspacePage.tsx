@@ -1,6 +1,6 @@
 import { JSX, useEffect, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
-import { type Project, type Workbook } from "interfaces-shared-types";
+import { type Project, type ProjectWorkbooksResult, type Workbook } from "interfaces-shared-types";
 import { useToast } from "../toast/toastProvider";
 import { getProject, updateProject, duplicateProject, deleteProject } from "./projectApi";
 import { ProjectHeader } from "./projectHeader";
@@ -11,10 +11,11 @@ import { ProjectSettingsDrawer } from "./projectSettingsDrawer";
 import { RenameModal } from "./renameModal";
 import { ConfirmDeleteModal } from "./confirmDeleteModal";
 import { ShareProjectModal } from "./shareProjectModal";
+import { LinkedWorkbooksModal } from "./linkedWorkbooksModal";
 import { WorkbooksPanel } from "../workbooks/workbooksPanel";
 import { LoadExampleModal } from "../workbooks/exampleWorkbookModal";
 import { getProjectExampleInfo, generateProjectExamples, type ProjectExampleInfo, type ProjectExampleOption } from "../workbooks/workbookApi";
-import { CreationNoticeSchema, creationNoticeText } from "./projectCreation";
+import { CreationNoticeSchema, creationNoticeText, type CreationNotice } from "./projectCreation";
 import "./css/projectWorkspace.css";
 
 function generationIntro(option: ProjectExampleOption): string {
@@ -42,6 +43,7 @@ function ProjectWorkspacePage(): JSX.Element {
   const [mutating, setMutating] = useState(false);
   const [exampleInfo, setExampleInfo] = useState<ProjectExampleInfo | null>(null);
   const [generateOpen, setGenerateOpen] = useState(false);
+  const [workbooksOpen, setWorkbooksOpen] = useState(false);
   const [generation, setGeneration] = useState(0);
 
   useEffect(() => {
@@ -193,6 +195,19 @@ function ProjectWorkspacePage(): JSX.Element {
       .catch((err: unknown) => { flashError((err as { message?: string }).message ?? "Could not update project"); });
   }
 
+  function handleWorkbooksCreated(workbookName: string, result: ProjectWorkbooksResult): void {
+    setWorkbooksOpen(false);
+    setGeneration((count) => count + 1);
+    const created = result.workbooks.length;
+    if (created > 0) flashSuccess(`Created "${workbookName}" in ${String(created)} technical element${created === 1 ? "" : "s"}`);
+    const notice: CreationNotice = {
+      workbookName,
+      failed: result.failed.map((entry) => entry.elementCode),
+      unlinked: result.unlinked.map((entry) => entry.elementCode),
+    };
+    if (creationNoticeText(notice) !== undefined) navigate(location.pathname, { replace: true, state: notice });
+  }
+
   const isLegacy = project !== null && project.pageLayout === "legacy";
 
   return (
@@ -220,6 +235,7 @@ function ProjectWorkspacePage(): JSX.Element {
             onShare={() => { setShareOpen(true); }}
             onToggleArchive={toggleArchive}
             onDelete={() => { setDeleteOpen(true); }}
+            onNewLinkedWorkbooks={project.myRole !== "viewer" ? () => { setWorkbooksOpen(true); } : undefined}
             onGenerateExamples={project.myRole !== "viewer" && exampleInfo !== null && exampleInfo.elements.length > 0 ? () => { setGenerateOpen(true); } : undefined}
             generation={generation}
           />
@@ -241,6 +257,7 @@ function ProjectWorkspacePage(): JSX.Element {
               <ElementsSection
                 project={project}
                 onOpenElement={(element) => { setWbElement(element); }}
+                onNewLinkedWorkbooks={project.myRole !== "viewer" ? () => { setWorkbooksOpen(true); } : undefined}
                 onGenerateExamples={project.myRole !== "viewer" && exampleInfo !== null && exampleInfo.elements.length > 0 ? () => { setGenerateOpen(true); } : undefined}
               />
             </div>
@@ -280,6 +297,14 @@ function ProjectWorkspacePage(): JSX.Element {
             setGeneration((count) => count + 1);
             setGenerateOpen(false);
           }}
+        />
+      )}
+
+      {workbooksOpen && project !== null && (
+        <LinkedWorkbooksModal
+          projectId={project.id}
+          onCancel={() => { setWorkbooksOpen(false); }}
+          onCreated={handleWorkbooksCreated}
         />
       )}
 

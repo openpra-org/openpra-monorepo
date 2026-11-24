@@ -1,0 +1,27 @@
+.rc-quantification table.rc-family-consequences__table th {
+  overflow-wrap: normal;
+  word-break: normal;
+}
+
+.rc-quantification table.rc-family-consequences__table th:first-child {
+  width: 18%;
+}
+
+.rc-quantification table.rc-family-consequences__table th:nth-child(2) {
+  width: 13%;
+}
+
+.rc-quantification table.rc-family-consequences__table th:last-child {
+  width: 16%;
+}
+
+.rc-quantification .rc-family-consequences__family {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  color: var(--color-primary);
+  font: inherit;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}

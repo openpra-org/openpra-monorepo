@@ -147,10 +147,11 @@ export function caseSummaryRows(c: RcCaseData): [string, string][] {
     [`${c.health?.healthInput?.records.length ?? 0} health parameter cards`, `${c.health?.earlyHealthEffects.length ?? 0} early effects · ${c.health?.latentHealthEffects.length ?? 0} latent effects · ${c.health?.riskFactorSources.length ?? 0} risk-factor ${c.health?.riskFactorSources.length === 1 ? "source" : "sources"}`],
     [`${c.economy?.siteEconomyInput?.regions.length ?? 0} of ${c.economy?.siteEconomyInput?.expectedRegions ?? 0} economic regions`, c.economy ? `${c.economy.siteEconomyInput?.crops.length ?? 0} crops · ${rcEconomicCostCoverage(c.economy).supplied} of ${rcEconomicCostCoverage(c.economy).required} cost values` : "No economic inputs"]];
 }
+export const caseTablePageSize = 10;
 export function caseTable(c: RcCaseData, kind: RcCaseDataset, offset: number, weatherTrials: RcWeatherTrial[] = []): RcCaseTable {
   const s = c.source?.values, out: RcCaseTable = { columns: [], rows: [], units: "", offset, total: 0 };
   const fill = (columns: string[], units: string, total: number, row: (i: number) => (string | number | null)[]) => {
-    Object.assign(out, { columns, units, total, rows: Array.from({ length: Math.max(0, Math.min(5, total - offset)) }, (_, i) => row(offset + i)) });
+    Object.assign(out, { columns, units, total, rows: Array.from({ length: Math.max(0, Math.min(caseTablePageSize, total - offset)) }, (_, i) => row(offset + i)) });
   };
   switch (kind) {
     case "inventory": fill(["Radionuclide", "Inventory (Bq)", "Group"], "Activity: Bq. Group IDs link inventory to release fractions.", s?.inventory.length ?? 0, i => { const n = s!.inventory[i]; return [n.name, n.activityBq, n.group]; }); break;

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import type { RadiologicalConsequenceAnalysis } from "interfaces-mef-types/rc/radiological-consequence-analysis";
 import type { EventSequenceAnalysis } from "interfaces-mef-types/es/event-sequence-analysis";
 import { withRcFamilyConsequences } from "interfaces-shared-types/rc-workbooks/family-consequences";
@@ -46,21 +46,28 @@ function setup() {
   return { current: () => latest };
 }
 
-describe("Step 08 event-sequence consequences", () => {
-  it("copies the category result to every family in it and shows families still waiting", () => {
+describe("Step 08 event sequence consequences", () => {
+  it("lists every family with the result of its category for the picked metric", () => {
     setup();
     fireEvent.click(screen.getByRole("tab", { name: "Consequences" }));
-    expect(screen.getByText("ESF-EARLY · in RC-1")).toBeInTheDocument();
-    expect(screen.getByText("ESF-ATWS · in RC-1")).toBeInTheDocument();
-    expect(screen.getAllByText("3.3E-3 to 3.0E-2")).toHaveLength(2);
-    expect(screen.getByText("ESF-LATE · in RC-2")).toBeInTheDocument();
-    expect(screen.getByText("Waiting for the RC-2 result")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Event sequence consequences" })).toBeInTheDocument();
+    expect(screen.queryByText("Calculation codes")).not.toBeInTheDocument();
+    const metric = screen.getByLabelText<HTMLSelectElement>("Family consequence metric");
+    expect(Array.from(metric.options).map((option) => option.textContent)).toEqual(["Individual dose at boundary (Sv)"]);
+    const table = screen.getByRole("table", { name: "Event sequence consequences" });
+    expect(within(table).getAllByRole("columnheader").map((header) => header.textContent)).toEqual(["Family", "Release category", "Mean", "5th percentile", "95th percentile", "Risk significance"]);
+    expect(within(table).getAllByRole("row").slice(1).map((row) => within(row).getAllByRole("cell").map((cell) => cell.textContent))).toEqual([
+      ["ESF-EARLYEarly release", "RC-1", "0.0125", "0.0033", "0.03", "Not assessed"],
+      ["ESF-ATWSFailure to trip", "RC-1", "0.0125", "0.0033", "0.03", "Not assessed"],
+      ["ESF-LATELate release", "RC-2", "—", "—", "—", "Not assessed"],
+    ]);
+    expect(screen.queryByRole("navigation", { name: "Event sequence consequences pagination" })).not.toBeInTheDocument();
   });
 
   it("keeps hand-typed family values only with a stated reason and can return to the category result", () => {
     const { current } = setup();
     fireEvent.click(screen.getByRole("tab", { name: "Consequences" }));
-    fireEvent.click(screen.getByText("ESF-ATWS · in RC-1"));
+    fireEvent.click(screen.getByRole("button", { name: "ESF-ATWS" }));
     fireEvent.click(screen.getByRole("button", { name: "Enter hand-typed values" }));
     const entry = () => current().consequenceQuantification.eventSequenceConsequences.find((row) => row.eventSequenceFamily === "ESF-ATWS")!;
     expect(entry()).toMatchObject({ uuid: "RCQ-ESF-ATWS", origin: "OVERRIDE", overrideReason: "", consequenceResults: [{ metric: "Individual dose at boundary", meanValue: 0.0125, unit: "Sv" }] });
@@ -69,7 +76,7 @@ describe("Step 08 event-sequence consequences", () => {
     fireEvent.change(reason, { target: { value: "Separate run for the failure-to-trip family." } });
     fireEvent.blur(reason);
     expect(entry().overrideReason).toBe("Separate run for the failure-to-trip family.");
-    expect(screen.getByText("Failure to trip · hand-typed values")).toBeInTheDocument();
+    expect(within(screen.getByRole("table", { name: "Event sequence consequences" })).getByText("Hand-typed values")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Use the category result" }));
     expect(entry()).toMatchObject({ uuid: "RCQ-ESF-ATWS", origin: "CATEGORY_RESULT" });
   });

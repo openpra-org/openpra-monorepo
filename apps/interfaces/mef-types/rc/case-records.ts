@@ -81,5 +81,6 @@ export interface RcCaseRecords { revision: number; snapshots: RcCaseSnapshot[]; 
 export type RcCaseDataset = "inventory" | "releases" | "fractions" | "receptors" | "response" | "weather" | "deposition" | "decay" | "dose" | "health" | "healthModel" | "riskSources" | "regions" | "crops" | "costs" | "economySettings";
 export interface RcCaseTable { columns: string[]; rows: (string | number | null)[][]; units: string; offset: number; total: number }
 export interface RcCaseTextPage { text: string; offset: number; total: number }
+export interface RcCaseOutputFile { filename: string; text: string }
 export interface RcCaseSelection { categoryId: string; versions: string; snapshotId?: string }
 export interface RcCaseReview { schemaVersion: 1 | 2 | 3; files: RcCaseFile[]; embedded: { id: "health-original" | "economy-original"; filename: string; purpose: string }[]; excludedSteps: RcCaseStep[]; checks: RcCaseCheck[] }

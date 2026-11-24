@@ -160,9 +160,10 @@ gives the receptor distances and the receptor height of its site. `POST` starts
 a run from `{ snapshotId, metricId, distancesMetres, heightMetres }`. `GET`
 lists the runs. `GET :runId` gives one run with its statistics.
 `GET :runId/trials` pages the dose of each weather trial, ten at a time.
-`GET :runId/files/input` and `GET :runId/files/output` page the text sent to
-the engine and the text it returned. `POST :runId/cancel`, `POST :runId/remove`
-and `POST :runId/record` cancel a run, remove it, and record it.
+`GET :runId/files/input` and `GET :runId/files/output` give the text sent to
+the engine and the text it returned, each as one file with its name.
+`POST :runId/cancel`, `POST :runId/remove` and `POST :runId/record` cancel a
+run, remove it, and record it.
 
 A recorded run is a category result with `valueSource: "calculated"`. It names
 the run, the fingerprint of every engine build that served its jobs, the
@@ -178,9 +179,11 @@ analyst picks an input snapshot and a metric that OpenRC can run. The receptor
 distance is linked to the site boundary distance or to the Step 02 distances,
 or it is typed. The receptor height is linked to the Step 02 receptor height,
 or it is typed. The job status on the card shows the running jobs and cancels
-them. A finished run shows the statistics the metric asks for, the dose of
-each weather trial, and the text sent to the engine and returned by it. A run
-of one weather trial also shows the dose of each nuclide. Record as category
+them. A finished run of several weather trials shows the statistics the metric
+asks for and the dose of each weather trial. A run of one weather trial shows
+its dose once, the weather of that trial and the dose of each nuclide. Every
+run gives the text sent to the engine as a file to download, and a finished
+run gives the text the engine returned the same way. Record as category
 result makes the run the result of its release category, and the mean goes to
 every event sequence family of that category.
 

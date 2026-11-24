@@ -1,16 +1,16 @@
 import { useEffect, useId, useMemo, useRef, useState, type JSX } from "react";
 import type { RcCaseDataset, RcCaseSelection, RcCaseSnapshotMetric, RcCaseTextPage } from "interfaces-mef-types/rc/case-records";
 import { RcCategoryResultValuesSchema } from "interfaces-mef-types/zod/rc/case-records";
-import { caseChecks, caseDatasets, caseEmbeddedFiles, caseFiles, caseStepNames, caseSteps, caseSummaryRows, caseVersions, currentRcCase } from "interfaces-shared-types/rc-workbooks/case-records";
+import { caseChecks, caseDatasets, caseEmbeddedFiles, caseFiles, caseStepNames, caseSteps, caseSummaryRows, caseTablePageSize, caseVersions, currentRcCase } from "interfaces-shared-types/rc-workbooks/case-records";
 import { rcMetricDurationText, rcMetricThresholdText, rcOrdinal } from "interfaces-shared-types/rc-workbooks/metrics";
-import { rcResultStatisticsText } from "interfaces-shared-types/rc-workbooks/family-consequences";
+import { rcResultStatisticsColumns } from "interfaces-shared-types/rc-workbooks/family-consequences";
 import { decodeRcText } from "interfaces-shared-types/rc-workbooks/source-term-parser";
 import { WorkbookSectionHeading } from "../workbooks/workbookSectionHeading";
 import { useRcWorkbook, type RcResultDraft } from "./rcWorkbookContext";
 import { RCIcon } from "./rcIcons";
 import { z } from "zod";
 import { TEXT_VIEW, jsonView, useWorkbookView } from "../workbooks/workbookViewMemory";
-import { RcConsequenceRunsTab, RcResultProfile, RcRunJobs, useRcConsequenceRuns } from "./rcConsequenceRuns";
+import { RcConsequenceRunsTab, RcResultProfile, RcRunJobs, useRcConsequenceRuns, useRcRunSnapshotPick } from "./rcConsequenceRuns";
 import "./css/rcQuantification.css";
 
 const steps = { source: "scope", site: "protective", weather: "weather", transport: "dispersion", dose: "dose", health: "health", economy: "economics" };
@@ -31,17 +31,16 @@ const readable = (name: string) => name.includes(".") && outputExtensions.includ
 const numberFrom = (text: string | undefined) => text === undefined || text.trim() === "" ? NaN : Number(text);
 const metricLabel = (metric: RcCaseSnapshotMetric) => `${metric.name.trim() || metric.id}${metric.windowSeconds === undefined ? "" : ` · ${rcMetricDurationText(metric.windowSeconds)}`}`;
 
-function useRemote<T>(key: string, load: () => Promise<T>) {
+function useRemote<T>(key: string, load: () => Promise<T>, group = key) {
   const fn = useRef(load); fn.current = load;
-  const [retry, setRetry] = useState(0), [state, setState] = useState<{ key: string; data?: T; error?: string }>({ key: "" });
+  const [retry, setRetry] = useState(0), [state, setState] = useState<{ key: string; group: string; data?: T; error?: string }>({ key: "", group: "" });
   useEffect(() => {
     let cancelled = false;
-    setState({ key });
-    if (key) void fn.current().then(data => { if (!cancelled) setState({ key, data }); }).catch(e => { if (!cancelled) setState({ key, error: message(e) }); });
+    if (key) void fn.current().then(data => { if (!cancelled) setState({ key, group, data }); }).catch(e => { if (!cancelled) setState({ key, group, error: message(e) }); });
     return () => { cancelled = true; };
-  }, [key, retry]);
-  const current = state.key === key ? state : undefined;
-  return { data: current?.data, error: current?.error, loading: Boolean(key && !current?.data && !current?.error), retry: () => setRetry(n => n + 1) };
+  }, [key, group, retry]);
+  const current = state.key === key ? state : undefined, shown = current ?? (key && state.group === group ? state : undefined);
+  return { data: shown?.data, error: current?.error, loading: Boolean(key && shown?.data === undefined && !current?.error), retry: () => { setState({ key: "", group: "" }); setRetry(n => n + 1); } };
 }
 function Pager({ total, offset, size, onChange, label = "Records" }: { total: number; offset: number; size: number; onChange: (value: number) => void; label?: string }): JSX.Element {
   return <div className="q-pagination"><span>{label} {total ? `${Math.min(offset + 1, total)} to ${Math.min(offset + size, total)} of ${total}` : "0"}</span><button className="posnav__btn posnav__btn--sm" type="button" disabled={offset === 0} onClick={() => onChange(Math.max(0, offset - size))}>Previous</button><button className="posnav__btn posnav__btn--sm" type="button" disabled={offset + size >= total} onClick={() => onChange(offset + size)}>Next</button></div>;
@@ -64,6 +63,7 @@ export function RcQuantificationPanel({ onOpenStep, initialTab }: { onOpenStep?:
   useEffect(() => { if (initialTab !== undefined) setTab(initialTab); }, [initialTab, setTab]);
   const runFeed = useRcConsequenceRuns(consequenceRuns);
   const categoryKey = categories.find(c => c.releaseCategory === categoryId)?.releaseCategory ?? categories[0]?.releaseCategory ?? "";
+  const pickRunSnapshot = useRcRunSnapshotPick(categoryKey);
   const current = useMemo(() => currentRcCase(rc, categoryKey), [rc, categoryKey]), versions = caseVersions(current);
   const checks = useMemo(() => caseChecks(current), [current]), summaries = useMemo(() => caseSummaryRows(current), [current]);
   const includedSteps = caseSteps.filter(key => !current.excludedSteps?.includes(key));
@@ -72,9 +72,9 @@ export function RcQuantificationPanel({ onOpenStep, initialTab }: { onOpenStep?:
   const inspected = records?.snapshots.find(s => s.id === inspectId);
   const selection: RcCaseSelection = { categoryId: inspected?.categoryId ?? categoryKey, versions, ...(inspected ? { snapshotId: inspected.id } : {}) };
   const selectionKey = `${categoryKey}/${versions}/${inspected?.id ?? ""}`;
-  const [fileId, setFileId] = useState(""), [textOffset, setTextOffset] = useState(0), [outputId, setOutputId] = useState(""), [outputOffset, setOutputOffset] = useState(0);
+  const [fileId, setFileId] = useState(""), [textOffset, setTextOffset] = useState(0);
   const [busy, setBusy] = useState(false), [error, setError] = useState(""), [notice, setNotice] = useState(""), [selectedSnapshot, setSelectedSnapshot] = useState("");
-  const id = useId(), tablist = useRef<HTMLDivElement>(null), upload = useRef<HTMLInputElement>(null);
+  const id = useId(), tablist = useRef<HTMLDivElement>(null), upload = useRef<HTMLInputElement>(null), saving = useRef(false);
   const enabled = Boolean(actions && (categoryKey || inspected));
   const review = useRemote(enabled && inspected && tab === "prepared" ? selectionKey : "", () => actions!.readReview(selection));
   const files = inspected ? review.data?.files ?? [] : caseFiles(current), embedded = inspected ? review.data?.embedded ?? [] : caseEmbeddedFiles(current), preparedChecks = inspected ? review.data?.checks ?? [] : checks;
@@ -82,9 +82,8 @@ export function RcQuantificationPanel({ onOpenStep, initialTab }: { onOpenStep?:
   const availableDatasets = useMemo(() => Object.entries(caseDatasets).filter(([, value]) => !excludedDatasets.includes(value.step)
     && !(inspected && review.data?.schemaVersion === 1 && (value.step === "health" || value.step === "economy"))), [excludedDatasets, inspected, review.data?.schemaVersion]);
   const reviewCount = inspected?.reviewItems ?? preparedChecks.reduce((n, c) => n + c.items.length, 0);
-  const table = useRemote(enabled && tab === "prepared" ? `${selectionKey}/${dataset}/${offset}` : "", () => actions!.readTable(selection, dataset, offset));
-  const text = useRemote(enabled && fileId && tab === "prepared" ? `${selectionKey}/${fileId}/${textOffset}` : "", () => actions!.readText(selection, fileId, textOffset));
-  const output = useRemote(actions && outputId && tab === "results" ? `${outputId}/${outputOffset}` : "", () => actions!.readOutput(outputId, outputOffset));
+  const table = useRemote(enabled && tab === "prepared" ? `${selectionKey}/${dataset}/${offset}` : "", () => actions!.readTable(selection, dataset, offset), `${selectionKey}/${dataset}`);
+  const text = useRemote(enabled && fileId && tab === "prepared" ? `${selectionKey}/${fileId}/${textOffset}` : "", () => actions!.readText(selection, fileId, textOffset), `${selectionKey}/${fileId}`);
   const categorySnapshots = records?.snapshots.filter(s => s.categoryId === categoryKey) ?? [], categoryResults = records?.results.filter(r => r.categoryId === categoryKey) ?? [];
   const snapshotId = resultDraft?.snapshotId ?? (records?.snapshots.some(s => s.id === selectedSnapshot) ? selectedSnapshot : categorySnapshots.at(-1)?.id ?? records?.snapshots.at(-1)?.id ?? "");
   const snapshot = records?.snapshots.find(s => s.id === snapshotId), draft = resultDraft ?? emptyDraft(snapshotId);
@@ -102,6 +101,11 @@ export function RcQuantificationPanel({ onOpenStep, initialTab }: { onOpenStep?:
   useEffect(() => { if (!availableDatasets.some(([kind]) => kind === dataset)) setDataset("inventory"); }, [dataset, availableDatasets]);
   const updateDraft = (patch: Partial<RcResultDraft>) => { setResultDraft({ ...draft, ...patch }); setError(""); setNotice(""); };
   const work = async (fn: () => Promise<void>) => { if (busy) return; setBusy(true); setError(""); setNotice(""); try { await fn(); } catch (e) { setError(message(e)); } finally { setBusy(false); } };
+  const download = async (resultId: string) => {
+    if (!actions || saving.current) return; saving.current = true; setError("");
+    try { const file = await actions.readOutput(resultId), url = URL.createObjectURL(new Blob([file.text], { type: "text/plain;charset=utf-8" })), link = document.createElement("a"); link.href = url; link.download = file.filename; link.click(); window.setTimeout(() => URL.revokeObjectURL(url), 1000); }
+    catch (e) { setError(message(e)); } finally { saving.current = false; }
+  };
   const openStep = (key: typeof caseSteps[number]) => onOpenStep?.(steps[key]);
   const showFile = (next: string) => { setFileId(fileId === next ? "" : next); setTextOffset(0); };
   const inspect = (next: string) => { setInspectId(next); setFileId(""); setOffset(0); setTab("prepared"); };
@@ -133,17 +137,21 @@ export function RcQuantificationPanel({ onOpenStep, initialTab }: { onOpenStep?:
           <div className="q-topline"><h3>{inspected ? `${inspected.label} · Saved input snapshot` : "Saved workbook values"}</h3><button className="posnav__btn posnav__btn--sm" type="button" disabled={!onOpenStep} onClick={() => openStep(caseDatasets[dataset].step)}>{editable ? "Edit" : "View"} Step {caseDatasets[dataset].label.slice(0, 2)}</button></div>
           {!!records?.snapshots.length && <div className="q-inspect"><SnapshotChoice label="Inputs to inspect" value={inspected?.id ?? ""} onChange={inspect} includeCurrent /></div>}
           <label className="q-input-group">Input group<select className="posfield__select" aria-label="Input group" value={dataset} onChange={e => { setDataset(e.target.value as RcCaseDataset); setOffset(0); }}>{availableDatasets.map(([key, value]) => <option key={key} value={key}>{value.label}</option>)}</select></label>
-          <RemoteStatus remote={table} />{table.data && <>{table.data.total ? <><div className="q-table-wrap"><table aria-label="Prepared input records"><thead><tr>{table.data.columns.map(c => <th key={c}>{c}</th>)}</tr></thead><tbody>{table.data.rows.map((r, i) => <tr key={offset + i}>{r.map((v, j) => <td key={j}>{show(v, dataset === "receptors")}</td>)}</tr>)}</tbody></table></div><Pager offset={table.data.offset} size={5} total={table.data.total} onChange={setOffset} /></> : <p className="q-empty">No records.</p>}</>}
+          <RemoteStatus remote={table} />{table.data && <>{table.data.total ? <><div className="q-table-wrap"><table aria-label="Prepared input records"><thead><tr>{table.data.columns.map(c => <th key={c}>{c}</th>)}</tr></thead><tbody>{table.data.rows.map((r, i) => <tr key={offset + i}>{r.map((v, j) => <td key={j}>{show(v, dataset === "receptors")}</td>)}</tr>)}</tbody></table></div><Pager offset={table.data.offset} size={caseTablePageSize} total={table.data.total} onChange={setOffset} /></> : <p className="q-empty">No records.</p>}</>}
           <RemoteStatus remote={review} />
           <div className="q-original-files"><button className="posnav__btn posnav__btn--sm" type="button" onClick={() => showFile("structured")}>{fileId === "structured" ? "Hide complete case data" : "View complete case data"}</button>
             <details className="q-check"><summary>Original files · {files.length + embedded.length}</summary><ul className="q-file-list">{files.map(f => <li key={f.file.documentId}><span>{f.file.filename}<small>{f.purpose}</small></span><button className="posnav__btn posnav__btn--sm" type="button" aria-label={`View ${f.file.filename}`} aria-expanded={fileId === f.file.documentId} disabled={!actions} onClick={() => showFile(f.file.documentId)}>{fileId === f.file.documentId ? "Hide" : "View"}</button></li>)}{embedded.map(f => <li key={f.id}><span>{f.filename}<small>{f.purpose}</small></span><button className="posnav__btn posnav__btn--sm" type="button" aria-label={`View ${f.filename}`} aria-expanded={fileId === f.id} disabled={!actions} onClick={() => showFile(f.id)}>{fileId === f.id ? "Hide" : "View"}</button></li>)}</ul>{!files.length && !embedded.length && <p className="q-note">No original files saved for this case.</p>}</details></div>
           {fileId && <div className="q-file-view"><h3>{fileId === "structured" ? "Workbook case data" : files.find(f => f.file.documentId === fileId)?.file.filename ?? embedded.find(f => f.id === fileId)?.filename}</h3><RemoteStatus remote={text} />{text.data && <TextPage page={text.data} onChange={setTextOffset} label="Case file content" />}</div>}
           <div className="q-snapshot"><strong>{reviewCount} {reviewCount === 1 ? "item" : "items"} to review</strong>{inspected && `Saved by ${inspected.createdBy} · ${new Date(inspected.file.uploadedAt).toLocaleString()}`}</div>
-          <div className="q-footer"><button className="posnav__btn posnav__btn--sm" type="button" onClick={() => { setTab("checks"); setChecked(true); }}>Review current checks</button>{inspected ? <button className="posnav__btn posnav__btn--sm" type="button" onClick={() => inspect("")}>Review current inputs</button> : editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" disabled={busy || !enabled || dirty} onClick={() => void work(async () => { const saved = await actions!.saveSnapshot(records?.revision ?? 0, selection); setSelectedSnapshot(saved.snapshotId); setTab("results"); setNotice("Input snapshot saved."); })}>{busy ? "Saving…" : "Save input snapshot"}</button>}</div>
+          <div className="q-footer"><button className="posnav__btn posnav__btn--sm" type="button" onClick={() => { setTab("checks"); setChecked(true); }}>Review current checks</button>{inspected ? <button className="posnav__btn posnav__btn--sm" type="button" onClick={() => inspect("")}>Review current inputs</button> : editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" disabled={busy || !enabled || dirty} onClick={() => void work(async () => { const saved = await actions!.saveSnapshot(records?.revision ?? 0, selection); setSelectedSnapshot(saved.snapshotId); pickRunSnapshot(saved.snapshotId); setTab("runs"); setNotice("Input snapshot saved."); })}>{busy ? "Saving…" : "Save input snapshot"}</button>}</div>
         </>}
         {tab === "runs" && <RcConsequenceRunsTab categoryId={categoryKey} feed={runFeed} />}
         {tab === "results" && <><div className="q-topline"><h3>{categoryKey ? `${categoryKey} results` : "Category results"}</h3><span className="q-note">{categoryResults.length} result {categoryResults.length === 1 ? "record" : "records"}</span></div>
-          {records && categoryResults.length ? categoryResults.map(r => { const s = records.snapshots.find(v => v.id === r.snapshotId)!, resultMetric = s.metrics?.find(m => m.id === r.metricId); return <article className="q-record" key={r.id}><strong>{r.categoryId} · {resultMetric?.name.trim() || r.metricId}</strong><p>{rcResultStatisticsText(r.statistics, r.unit, r.calculation?.trialCount === 1)}</p><small>{s.label} · {r.calculation ? `OpenRC ${r.reference}, receptor at ${show(r.calculation.distanceMetres, true)} m, ${r.calculation.trialCount} weather ${r.calculation.trialCount === 1 ? "trial" : "trials"}` : r.reference}</small><details><summary>Output and linked inputs</summary><p className="q-note">{r.file.filename} · {r.version}</p><RcResultProfile result={r} /><p className="q-note">{s.categoryId}: {s.inventoryCount} nuclides · {s.receptorCount} receptors · {s.trialCount} weather records · {s.reviewItems} review items retained</p><div className="q-actions"><button className="posnav__btn posnav__btn--sm" type="button" disabled={!actions} onClick={() => { setOutputId(outputId === r.id ? "" : r.id); setOutputOffset(0); }}>View original output</button><button className="posnav__btn posnav__btn--sm" type="button" onClick={() => inspect(s.id)}>View linked inputs</button>{editable && <button className="posnav__btn posnav__btn--sm" type="button" disabled={busy || !actions} onClick={() => void work(async () => { await actions!.removeResult(records.revision, r.id); if (outputId === r.id) setOutputId(""); setNotice("Result removed."); })}>Remove result</button>}</div></details>{outputId === r.id && <><RemoteStatus remote={output} />{output.data && <TextPage page={output.data} onChange={setOutputOffset} label="Original returned output" />}</>}</article>; }) : <p className="q-empty">No results recorded for this release category.</p>}
+          {records && categoryResults.length ? categoryResults.map(r => { const s = records.snapshots.find(v => v.id === r.snapshotId)!, columns = rcResultStatisticsColumns(r.statistics, r.unit, r.calculation?.trialCount === 1); return <article className="q-record" key={r.id}><strong>{s.metrics?.find(m => m.id === r.metricId)?.name.trim() || r.metricId}</strong>
+            <div className="q-table-wrap"><table aria-label={`Statistics of ${r.reference}`}><thead><tr>{columns.map(c => <th key={c.label} scope="col">{c.label}</th>)}</tr></thead><tbody><tr>{columns.map(c => <td key={c.label}>{c.value}</td>)}</tr></tbody></table></div>
+            <small>{s.label} · {r.calculation ? `OpenRC ${r.reference} · receptor at ${show(r.calculation.distanceMetres, true)} m · ${r.calculation.trialCount} weather ${r.calculation.trialCount === 1 ? "trial" : "trials"}` : `${r.version} · ${r.reference}`}</small>
+            {!!r.profile?.length && <details><summary>Dose by distance</summary><RcResultProfile result={r} /></details>}
+            <div className="q-actions"><button className="posnav__btn posnav__btn--sm" type="button" disabled={!actions} onClick={() => void download(r.id)}>Download output</button><button className="posnav__btn posnav__btn--sm" type="button" onClick={() => inspect(s.id)}>View linked inputs</button>{editable && <button className="posnav__btn posnav__btn--sm" type="button" disabled={busy || !actions} onClick={() => void work(async () => { await actions!.removeResult(records.revision, r.id); setNotice("Result removed."); })}>Remove result</button>}</div></article>; }) : <p className="q-empty">No results recorded for this release category.</p>}
           {!snapshotCount ? <button className="posnav__btn posnav__btn--sm" type="button" onClick={() => inspect("")}>Review prepared inputs</button> : editable ? <form className="q-result-form" onSubmit={e => { e.preventDefault(); if (!canSaveResult || !resultValid.success) return; void work(async () => { await actions!.saveResult(records!.revision, resultValid.data, draft.file!); setResultDraft(undefined); if (upload.current) upload.current.value = ""; setNotice("Result saved."); }); }}>
             <h3>Record a category result</h3><SnapshotChoice label="Calculation input snapshot" value={snapshotId} disabled={busy} onChange={next => { setSelectedSnapshot(next); updateDraft({ snapshotId: next, metricId: "", mean: "", percentiles: {}, exceedances: {}, confirmed: false }); }} />
             {snapshot && !snapshot.metrics ? <p className="q-note">This snapshot predates consequence metrics. Save a new input snapshot to record results.</p>

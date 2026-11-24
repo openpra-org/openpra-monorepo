@@ -220,12 +220,11 @@ export class RcCaseRecordsService {
     if (!entry) throw new NotFoundException("File is not part of the selected case");
     return this.textPage(decodeRcText(await this.originalBytes(id, entry.kind, fileId, actor)), offset);
   }
-  async output(id: string, resultId: string, offset: number, actor: Actor) {
-    this.offset(offset);
+  async output(id: string, resultId: string, actor: Actor) {
     const loaded = await this.load(id, actor), result = loaded.records?.results.find(r => r.id === resultId);
     if (!result) throw new NotFoundException("Linked result not found");
     const bytes = await this.documents.readCaseArtifact(id, result.file.documentId, actor);
     if (hash(bytes) !== result.file.sha256) throw new BadRequestException("The output failed its file integrity check");
-    return this.textPage(decodeRcText(bytes), offset);
+    return { filename: result.file.filename, text: decodeRcText(bytes) };
   }
 }

@@ -102,11 +102,9 @@ export interface RcConsequenceRunTrialPage {
   rows: RcConsequenceRunTrialRow[];
 }
 
-export interface RcConsequenceRunTextPage {
+export interface RcConsequenceRunFile {
+  filename: string;
   text: string;
-  offset: number;
-  total: number;
-  size: number;
 }
 
 export interface RcConsequenceRunSetupMetric {

@@ -498,11 +498,6 @@ const COST_PARAM_ICONS: Record<string, string> = {
   "Depreciation and discount rate": "Dollar",
 };
 
-const RC_CODE_ICONS: Record<string, string> = {
-  "Consequence pipeline code": "Cpu",
-  "Weather-sampling driver": "Curve",
-};
-
 interface UncertaintySourceSpec {
   se: RcSubElement;
   tone: SubElementTone;
@@ -624,7 +619,6 @@ export {
   DOSE_SPLITS,
   COST_CATEGORY_ICONS,
   COST_PARAM_ICONS,
-  RC_CODE_ICONS,
   UNCERTAINTY_SOURCES,
   RISK_SIGNIFICANCE_LABELS,
   MU_SR,

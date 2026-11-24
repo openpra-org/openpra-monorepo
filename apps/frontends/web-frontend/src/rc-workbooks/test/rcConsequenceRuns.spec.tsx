@@ -3,14 +3,15 @@ import type { RcCaseRecords } from "interfaces-mef-types/rc/case-records";
 import type {
   RcConsequenceRun,
   RcConsequenceRunDetails,
+  RcConsequenceRunFile,
   RcConsequenceRunFileKind,
   RcConsequenceRunRequest,
   RcConsequenceRunSetup,
-  RcConsequenceRunTextPage,
   RcConsequenceRunTrialOrder,
   RcConsequenceRunTrialPage,
   RcConsequenceRunTrialRow,
 } from "interfaces-mef-types/rc/consequence-runs";
+import { WorkbookViewMemory } from "../../workbooks/workbookViewMemory";
 import { RcConsequenceRunsTab, RcRunJobs, useRcConsequenceRuns } from "../rcConsequenceRuns";
 import { RcQuantificationPanel } from "../rcQuantification";
 import { RcWorkbookProvider, type RcCaseActions, type RcConsequenceRunActions, type RcWorkbookData } from "../rcWorkbookContext";
@@ -158,11 +159,9 @@ function actionsOf(runs: RcConsequenceRun[]): jest.Mocked<RcConsequenceRunAction
     start: jest.fn<Promise<RcConsequenceRun>, [RcConsequenceRunRequest]>(async () => runOf({ id: RUN_C, label: "Run 03", status: "QUEUED", startedAt: null, completedAt: null, engineVersion: null, progress: { completed: 0, total: 2, queuedJobs: null, workers: null } })),
     read: jest.fn<Promise<RcConsequenceRunDetails>, [string]>(async (runId) => detailsOf(runs.find((run) => run.id === runId) ?? runOf())),
     readTrials: jest.fn<Promise<RcConsequenceRunTrialPage>, [string, number, number, RcConsequenceRunTrialOrder]>(async (_runId, _distanceIndex, offset) => trialPageOf(24, offset)),
-    readFile: jest.fn<Promise<RcConsequenceRunTextPage>, [string, RcConsequenceRunFileKind, number]>(async (_runId, kind, offset) => ({
-      text: Array.from({ length: 20 }, (_line, index) => `${kind} line ${String(offset + index + 1)}`).join("\n"),
-      offset,
-      total: 45,
-      size: 20,
+    readFile: jest.fn<Promise<RcConsequenceRunFile>, [string, RcConsequenceRunFileKind]>(async (_runId, kind) => ({
+      filename: `OpenRC Run 01 ${kind}.txt`,
+      text: `${kind} line 1\n${kind} line 2\n`,
     })),
     cancel: jest.fn<Promise<RcConsequenceRun>, [string]>(async () => runOf({ status: "CANCELLED" })),
     remove: jest.fn<Promise<void>, [string]>(async () => undefined),
@@ -230,6 +229,20 @@ const cells = (table: HTMLElement): string[][] =>
     .map((row) => within(row).queryAllByRole("cell").map((cell) => cell.textContent ?? ""))
     .filter((row) => row.length > 0);
 
+function savedFiles(): { names: string[]; blobs: Blob[]; restore: () => void } {
+  const names: string[] = [];
+  const blobs: Blob[] = [];
+  const createObjectURL = jest.fn((blob: Blob) => {
+    blobs.push(blob);
+    return "blob:run-file";
+  });
+  Object.assign(URL, { createObjectURL, revokeObjectURL: jest.fn() });
+  const click = jest.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(function (this: HTMLAnchorElement) {
+    names.push(this.download);
+  });
+  return { names, blobs, restore: () => click.mockRestore() };
+}
+
 describe("OpenRC runs in Step 08", () => {
   afterEach(settle);
 
@@ -262,7 +275,7 @@ describe("OpenRC runs in Step 08", () => {
     const list = await screen.findByRole("table", { name: "OpenRC runs" });
     expect(cells(list)[0].slice(0, 4)).toEqual(["Run 03", "30-day dose at the EAB", "425 m", "24"]);
     expect(cells(list)[0][5]).toBe("Queued");
-    expect(screen.getByRole("heading", { name: "Run 03 · 30-day dose at the EAB" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Run 03 · Case 01" })).toBeInTheDocument();
     expect(screen.getByText("Waiting for a PRAETOR worker")).toBeInTheDocument();
   });
 
@@ -330,31 +343,33 @@ describe("OpenRC runs in Step 08", () => {
     expect(cells(list)[0][5]).toBe("Finished");
     await screen.findByLabelText("Run statistics");
     expect(actions.read).toHaveBeenCalledWith(RUN_A);
-    expect(valueOf("Receptor distance")).toBe("425 m");
-    expect(valueOf("Receptor height")).toBe("1.5 m");
-    expect(valueOf("Exposure window")).toBe("30 days");
-    expect(valueOf("Weather trials")).toBe("24");
+    expect(screen.getByRole("heading", { name: "Run 01 · Case 01" })).toBeInTheDocument();
+    for (const label of ["Receptor distance", "Receptor height", "Exposure window", "Weather trials", "Dose"]) expect(within(screen.getByLabelText("Run statistics")).queryByText(label)).not.toBeInTheDocument();
     expect(valueOf("Mean")).toBe("0.0123 Sv");
     expect(valueOf("5th percentile")).toBe("0.002 Sv");
     expect(valueOf("50th percentile")).toBe("0.01 Sv");
     expect(valueOf("95th percentile")).toBe("0.03 Sv");
-    expect(valueOf("Chance of exceeding 0.001 Sv (100 mrem)")).toBe("1");
+    expect(valueOf("Chance of exceeding 0.001 Sv (100 mrem)")).toBe("100%");
     expect(valueOf("Lowest and highest dose")).toBe("0.0015 to 0.035 Sv");
     expect(screen.queryByRole("table", { name: "Dose by distance" })).not.toBeInTheDocument();
     expect(screen.queryByRole("table", { name: "Dose by nuclide" })).not.toBeInTheDocument();
-    expect(screen.getByText("OpenRC has no chemical group for H-3 and leaves it out of the dose.")).toBeInTheDocument();
-    expect(screen.getByText(startsWith("Case 01 · RC-1 · 425 m at 1.5 m height · 2 jobs · started by analyst"))).toHaveTextContent("OpenRC 0123456789ab");
+    expect(screen.queryByText("OpenRC has no chemical group for H-3 and leaves it out of the dose.")).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "How OpenRC treats this case" })).not.toBeInTheDocument();
 
     const trials = await screen.findByRole("table", { name: "Dose by weather trial" });
     expect(actions.readTrials).toHaveBeenCalledWith(RUN_A, 0, 0, "trial");
     expect(cells(trials)).toHaveLength(10);
     expect(cells(trials)[0]).toEqual(["D001P01", "D", "3", "90", "1000", "0.001", "2e-5"]);
     const pager = screen.getByRole("navigation", { name: "Weather trials pagination" });
-    expect(within(pager).getByText("1 to 10 of 24")).toBeInTheDocument();
-    expect(within(pager).getByRole("button", { name: "First" })).toBeDisabled();
-    fireEvent.click(within(pager).getByRole("button", { name: "Last" }));
+    expect(within(pager).getByText("Weather trials 1 to 10 of 24")).toBeInTheDocument();
+    expect(within(pager).getByRole("button", { name: "Previous" })).toBeDisabled();
+    fireEvent.click(within(pager).getByRole("button", { name: "Next" }));
+    await waitFor(() => expect(actions.readTrials).toHaveBeenLastCalledWith(RUN_A, 0, 10, "trial"));
+    await screen.findByText("Weather trials 11 to 20 of 24");
+    fireEvent.click(within(screen.getByRole("navigation", { name: "Weather trials pagination" })).getByRole("button", { name: "Next" }));
     await waitFor(() => expect(actions.readTrials).toHaveBeenLastCalledWith(RUN_A, 0, 20, "trial"));
-    await screen.findByText("21 to 24 of 24");
+    await screen.findByText("Weather trials 21 to 24 of 24");
+    expect(within(screen.getByRole("navigation", { name: "Weather trials pagination" })).getByRole("button", { name: "Next" })).toBeDisabled();
     expect(cells(screen.getByRole("table", { name: "Dose by weather trial" }))).toHaveLength(4);
     fireEvent.change(screen.getByLabelText("Trial order"), { target: { value: "dose" } });
     await waitFor(() => expect(actions.readTrials).toHaveBeenLastCalledWith(RUN_A, 0, 0, "dose"));
@@ -362,12 +377,6 @@ describe("OpenRC runs in Step 08", () => {
     fireEvent.click(screen.getByRole("button", { name: "Record as category result" }));
     await waitFor(() => expect(actions.record).toHaveBeenCalledWith(1, RUN_A, 0));
     expect(await screen.findByText("Run 01 is recorded as the category result.")).toBeInTheDocument();
-  });
-
-  it("names every engine build that served a run", async () => {
-    const mixed = runOf({ engineVersion: `${ENGINE}, sha256:${"ab".repeat(32)}` });
-    await show(actionsOf([mixed]));
-    expect(await screen.findByText(startsWith("Case 01 · RC-1 · 425 m at 1.5 m height · 2 jobs · started by analyst"))).toHaveTextContent("OpenRC 0123456789ab, abababababab");
   });
 
   it("shows a newly started run in place of the run that was picked before", async () => {
@@ -380,10 +389,10 @@ describe("OpenRC runs in Step 08", () => {
     });
     await show(actions);
     fireEvent.click(within(await screen.findByRole("table", { name: "OpenRC runs" })).getByRole("button", { name: "Run 01" }));
-    expect(await screen.findByRole("heading", { name: "Run 01 · 30-day dose at the EAB" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Run 01 · Case 01" })).toBeInTheDocument();
     await screen.findByRole("option", { name: "30-day dose at the EAB" });
     fireEvent.click(screen.getByRole("button", { name: "Run OpenRC" }));
-    expect(await screen.findByRole("heading", { name: "Run 03 · 30-day dose at the EAB" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Run 03 · Case 01" })).toBeInTheDocument();
     expect(within(screen.getByRole("table", { name: "OpenRC runs" })).getByRole("button", { name: "Run 03" })).toHaveAttribute("aria-pressed", "true");
     expect(within(screen.getByRole("table", { name: "OpenRC runs" })).getByRole("button", { name: "Run 01" })).toHaveAttribute("aria-pressed", "false");
   });
@@ -399,7 +408,7 @@ describe("OpenRC runs in Step 08", () => {
     expect(await screen.findByRole("button", { name: "Recorded as category result" })).toBeDisabled();
   });
 
-  it("shows one weather trial as a point, with its nuclides and the nuclides without dose coefficients", async () => {
+  it("shows one weather trial as a point with its nuclides", async () => {
     const single = runOf({ trialCount: 1 });
     const actions = actionsOf([single]);
     actions.read.mockResolvedValue({
@@ -419,18 +428,17 @@ describe("OpenRC runs in Step 08", () => {
     actions.readTrials.mockResolvedValue(trialPageOf(1, 0));
     await show(actions);
     await screen.findByLabelText("Run statistics");
-    expect(valueOf("Mean")).toBe("0.02 Sv");
-    expect(valueOf("5th percentile")).toBe("—");
-    expect(valueOf("50th percentile")).toBe("0.02 Sv");
-    expect(valueOf("95th percentile")).toBe("—");
+    expect(valueOf("Dose")).toBe("0.02 Sv");
     expect(valueOf("Ground deposition")).toBe("123500 Bq/m²");
-    expect(valueOf("No dose coefficients for")).toBe("Nb-97m");
-    expect(screen.queryByText("Lowest and highest dose")).not.toBeInTheDocument();
+    for (const label of ["Mean", "5th percentile", "50th percentile", "95th percentile", "Chance of exceeding 0.001 Sv (100 mrem)", "Lowest and highest dose", "No dose coefficients for", "Nb-97m"]) expect(screen.queryByText(label)).not.toBeInTheDocument();
+    expect(within(screen.getByLabelText("Run statistics")).queryByText("Receptor height")).not.toBeInTheDocument();
     expect(cells(screen.getByRole("table", { name: "Dose by nuclide" }))).toEqual([
       ["I-131", "0.015", "75"],
       ["Cs-137", "0.005", "25"],
     ]);
-    await screen.findByRole("table", { name: "Dose by weather trial" });
+    const trial = await screen.findByRole("table", { name: "Weather trial" });
+    expect(within(trial).getAllByRole("columnheader").map((header) => header.textContent)).toEqual(["Trial", "Stability", "Wind (m/s)", "Toward (°)", "Mixing height (m)", "χ/Q (s/m³)"]);
+    expect(cells(trial)).toEqual([["D001P01", "D", "3", "90", "1000", "2e-5"]]);
     expect(screen.queryByLabelText("Trial order")).not.toBeInTheDocument();
     expect(screen.queryByRole("navigation", { name: "Weather trials pagination" })).not.toBeInTheDocument();
     expect(screen.queryByRole("navigation", { name: "Nuclides pagination" })).not.toBeInTheDocument();
@@ -457,7 +465,7 @@ describe("OpenRC runs in Step 08", () => {
     const table = await screen.findByRole("table", { name: "Dose by nuclide" });
     expect(cells(table).map((row) => row[0])).toEqual(nuclideDoses.slice(0, 10).map((entry) => entry.nuclide));
     const pager = screen.getByRole("navigation", { name: "Nuclides pagination" });
-    expect(within(pager).getByText("1 to 10 of 12")).toBeInTheDocument();
+    expect(within(pager).getByText("Nuclides 1 to 10 of 12")).toBeInTheDocument();
     fireEvent.click(within(pager).getByRole("button", { name: "Next" }));
     expect(cells(screen.getByRole("table", { name: "Dose by nuclide" }))).toEqual([
       ["N-11", "2", "2.564"],
@@ -481,20 +489,17 @@ describe("OpenRC runs in Step 08", () => {
     const table = await screen.findByRole("table", { name: "Dose by distance" });
     expect(within(table).getAllByRole("columnheader").map((header) => header.textContent)).toEqual(["Distance", "Mean (Sv)", "50th percentile (Sv)", "95th percentile (Sv)", "Chance of exceeding 0.01 Sv"]);
     expect(cells(table)).toEqual([
-      ["2000 m", "0.5", "0.4", "0.9", "1"],
-      ["8046.7 m", "0.02", "0.015", "0.04", "0.75"],
+      ["2000 m", "0.5", "0.4", "0.9", "100%"],
+      ["8046.7 m", "0.02", "0.015", "0.04", "75%"],
     ]);
-    expect(valueOf("Receptor distance")).toBe("2000 m");
-    expect(valueOf("Exposure window")).toBe("96 hours");
-    expect(valueOf("Chance of exceeding 0.01 Sv (1 rem)")).toBe("1");
+    expect(valueOf("Lowest and highest dose")).toBe("0.1 to 1 Sv");
+    for (const label of ["Receptor distance", "Receptor height", "Exposure window", "Mean", "50th percentile", "Chance of exceeding 0.01 Sv (1 rem)"]) expect(within(screen.getByLabelText("Run statistics")).queryByText(label)).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Record as category result at 2000 m" })).toBeEnabled();
     await waitFor(() => expect(actions.readTrials).toHaveBeenCalledWith(RUN_A, 0, 0, "trial"));
 
     fireEvent.change(screen.getByLabelText("Receptor distance of the run"), { target: { value: "1" } });
     await waitFor(() => expect(actions.readTrials).toHaveBeenLastCalledWith(RUN_A, 1, 0, "trial"));
-    expect(valueOf("Receptor distance")).toBe("8046.7 m");
-    expect(valueOf("Mean")).toBe("0.02 Sv");
-    expect(valueOf("Chance of exceeding 0.01 Sv (1 rem)")).toBe("0.75");
+    expect(valueOf("Lowest and highest dose")).toBe("0.004 to 0.05 Sv");
     fireEvent.click(screen.getByRole("button", { name: "Record as category result at 8046.7 m" }));
     await waitFor(() => expect(actions.record).toHaveBeenCalledWith(1, RUN_A, 1));
     expect(screen.queryByRole("navigation", { name: "Dose by distance pagination" })).not.toBeInTheDocument();
@@ -519,15 +524,15 @@ describe("OpenRC runs in Step 08", () => {
     const table = await screen.findByRole("table", { name: "Dose by distance" });
     expect(cells(table).map((row) => row[0])).toEqual(distancesMetres.slice(0, 10).map((distance) => `${String(distance)} m`));
     const pager = screen.getByRole("navigation", { name: "Dose by distance pagination" });
-    expect(within(pager).getByText("1 to 10 of 12")).toBeInTheDocument();
-    expect(within(pager).getByText("Page 1 of 2")).toBeInTheDocument();
+    expect(within(pager).getByText("Distances 1 to 10 of 12")).toBeInTheDocument();
+    expect(within(pager).getByRole("button", { name: "Previous" })).toBeDisabled();
     fireEvent.click(within(pager).getByRole("button", { name: "Next" }));
     expect(cells(screen.getByRole("table", { name: "Dose by distance" }))).toEqual([
-      ["11000 m", "2", "1", "3", "1"],
-      ["12000 m", "1", "0", "2", "1"],
+      ["11000 m", "2", "1", "3", "100%"],
+      ["12000 m", "1", "0", "2", "100%"],
     ]);
-    expect(within(screen.getByRole("navigation", { name: "Dose by distance pagination" })).getByText("11 to 12 of 12")).toBeInTheDocument();
-    fireEvent.click(within(screen.getByRole("navigation", { name: "Dose by distance pagination" })).getByRole("button", { name: "First" }));
+    expect(within(screen.getByRole("navigation", { name: "Dose by distance pagination" })).getByText("Distances 11 to 12 of 12")).toBeInTheDocument();
+    fireEvent.click(within(screen.getByRole("navigation", { name: "Dose by distance pagination" })).getByRole("button", { name: "Previous" }));
     expect(cells(screen.getByRole("table", { name: "Dose by distance" })).map((row) => row[0])).toEqual(distancesMetres.slice(0, 10).map((distance) => `${String(distance)} m`));
     expect(within(screen.getByLabelText("Receptor distance of the run")).getAllByRole("option")).toHaveLength(12);
   });
@@ -540,18 +545,23 @@ describe("OpenRC runs in Step 08", () => {
       result: {
         distances: [
           { distanceMetres: 2000, statistics: { mean: 0.5, percentiles: [{ percentile: 50, value: 0.5 }, { percentile: 95, value: 0.5 }], exceedances: [{ threshold: 0.01, probability: 1 }] }, minimumSv: 0.5, maximumSv: 0.5 },
-          { distanceMetres: 8046.7, statistics: { mean: 0.002, percentiles: [{ percentile: 50, value: 0.002 }, { percentile: 95, value: 0.002 }], exceedances: [{ threshold: 0.01, probability: 0 }] }, minimumSv: 0.002, maximumSv: 0.002 },
+          { distanceMetres: 8046.7, statistics: { mean: 0.002, percentiles: [{ percentile: 50, value: 0.002 }, { percentile: 95, value: 0.002 }], exceedances: [{ threshold: 0.01, probability: 0 }] }, minimumSv: 0.002, maximumSv: 0.002, groundDepositionBqPerSquareMetre: 4200 },
         ],
       },
     });
     actions.readTrials.mockResolvedValue(trialPageOf(1, 0));
     await show(actions);
-    expect(cells(await screen.findByRole("table", { name: "Dose by distance" }))).toEqual([
-      ["2000 m", "0.5", "0.5", "—", "1"],
-      ["8046.7 m", "0.002", "0.002", "—", "0"],
+    const table = await screen.findByRole("table", { name: "Dose by distance" });
+    expect(within(table).getAllByRole("columnheader").map((header) => header.textContent)).toEqual(["Distance", "Dose (Sv)"]);
+    expect(cells(table)).toEqual([
+      ["2000 m", "0.5"],
+      ["8046.7 m", "0.002"],
     ]);
-    expect(valueOf("50th percentile")).toBe("0.5 Sv");
-    expect(valueOf("95th percentile")).toBe("—");
+    expect(screen.queryByLabelText("Run statistics")).not.toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Receptor distance of the run"), { target: { value: "1" } });
+    await waitFor(() => expect(actions.readTrials).toHaveBeenLastCalledWith(RUN_A, 1, 0, "trial"));
+    expect(valueOf("Ground deposition")).toBe("4200 Bq/m²");
+    for (const label of ["Dose", "Mean", "50th percentile", "95th percentile", "Receptor height"]) expect(within(screen.getByLabelText("Run statistics")).queryByText(label)).not.toBeInTheDocument();
   });
 
   it("reports a running job on the status button and cancels it after a confirmation", async () => {
@@ -561,7 +571,7 @@ describe("OpenRC runs in Step 08", () => {
     const button = await screen.findByRole("button", { name: "1 running" });
     expect(screen.getByText("Running · 1 of 3 jobs done · 2 workers")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: recordName })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "View engine output" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Download engine output" })).not.toBeInTheDocument();
     fireEvent.click(button);
     const panel = screen.getByRole("dialog", { name: "Running jobs" });
     expect(within(panel).getByText("Run 02 · RC-1 · 96-hour dose by distance")).toBeInTheDocument();
@@ -588,7 +598,7 @@ describe("OpenRC runs in Step 08", () => {
     expect(within(screen.getByRole("dialog", { name: "Running jobs" })).getByText(startsWith("Waiting for a PRAETOR worker · 3 jobs in the queue · 1 worker · "))).toBeInTheDocument();
   });
 
-  it("shows why a run failed, pages its engine input and removes it", async () => {
+  it("shows why a run failed, downloads its engine input and removes it", async () => {
     const failed = runOf({ status: "FAILED", engineVersion: null, failure: { kind: "SOLVER_ERROR", code: "OPENRC_INVALID_VALUE", message: "[meteorology] wind_speed_m_s must be > 0" } });
     const actions = actionsOf([failed]);
     await show(actions);
@@ -597,18 +607,14 @@ describe("OpenRC runs in Step 08", () => {
     expect(actions.read).not.toHaveBeenCalled();
     expect(screen.queryByLabelText("Run statistics")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: recordName })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "View engine output" })).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "View engine input" }));
-    const input = await screen.findByLabelText("Engine input");
-    expect(actions.readFile).toHaveBeenCalledWith(RUN_A, "input", 0);
-    expect(input).toHaveTextContent("input line 1");
-    const pager = screen.getByRole("navigation", { name: "Engine input pagination" });
-    expect(within(pager).getByText("1 to 20 of 45")).toBeInTheDocument();
-    fireEvent.click(within(pager).getByRole("button", { name: "Next" }));
-    await waitFor(() => expect(actions.readFile).toHaveBeenLastCalledWith(RUN_A, "input", 20));
-    await waitFor(() => expect(screen.getByLabelText("Engine input")).toHaveTextContent("input line 21"));
-    fireEvent.click(screen.getByRole("button", { name: "Hide engine input" }));
-    expect(screen.queryByLabelText("Engine input")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Download engine output" })).not.toBeInTheDocument();
+    const saved = savedFiles();
+    fireEvent.click(screen.getByRole("button", { name: "Download engine input" }));
+    await waitFor(() => expect(saved.names).toEqual(["OpenRC Run 01 input.txt"]));
+    expect(actions.readFile).toHaveBeenCalledWith(RUN_A, "input");
+    expect(saved.blobs.map((blob) => [blob.type, blob.size])).toEqual([["text/plain;charset=utf-8", 26]]);
+    expect(screen.queryByText("input line 1")).not.toBeInTheDocument();
+    saved.restore();
     fireEvent.click(screen.getByRole("button", { name: "Remove run" }));
     await waitFor(() => expect(actions.remove).toHaveBeenCalledWith(RUN_A));
   });
@@ -628,8 +634,8 @@ describe("OpenRC runs in Step 08", () => {
     const list = await screen.findByRole("table", { name: "OpenRC runs" });
     expect(cells(list).map((row) => row[0])).toEqual(runs.slice(0, 10).map((run) => run.label));
     const pager = screen.getByRole("navigation", { name: "OpenRC runs pagination" });
-    expect(within(pager).getByText("1 to 10 of 11")).toBeInTheDocument();
-    fireEvent.click(within(pager).getByRole("button", { name: "Last" }));
+    expect(within(pager).getByText("Runs 1 to 10 of 11")).toBeInTheDocument();
+    fireEvent.click(within(pager).getByRole("button", { name: "Next" }));
     expect(cells(screen.getByRole("table", { name: "OpenRC runs" })).map((row) => row[0])).toEqual(["Run 01"]);
     fireEvent.click(screen.getByRole("button", { name: "Run 01" }));
     actions.list.mockResolvedValue(runs.slice(0, 10));
@@ -639,16 +645,22 @@ describe("OpenRC runs in Step 08", () => {
     expect(screen.queryByRole("navigation", { name: "OpenRC runs pagination" })).not.toBeInTheDocument();
   });
 
-  it("shows the engine output of a finished run and the message of a refused start", async () => {
+  it("downloads the engine output of a finished run and shows the message of a refused start", async () => {
     const actions = actionsOf([runOf()]);
     actions.start.mockRejectedValue(new Error("Release category 'RC-1' has no saved deposition velocities and decay mode"));
     await show(actions);
-    fireEvent.click(await screen.findByRole("button", { name: "View engine output" }));
-    expect(await screen.findByLabelText("Engine output")).toHaveTextContent("output line 1");
-    expect(actions.readFile).toHaveBeenCalledWith(RUN_A, "output", 0);
+    const saved = savedFiles();
+    fireEvent.click(await screen.findByRole("button", { name: "Download engine output" }));
+    await waitFor(() => expect(saved.names).toEqual(["OpenRC Run 01 output.txt"]));
+    expect(actions.readFile).toHaveBeenCalledWith(RUN_A, "output");
+    expect(saved.blobs.map((blob) => [blob.type, blob.size])).toEqual([["text/plain;charset=utf-8", 28]]);
+    fireEvent.click(screen.getByRole("button", { name: "Download engine input" }));
+    await waitFor(() => expect(saved.names).toEqual(["OpenRC Run 01 output.txt", "OpenRC Run 01 input.txt"]));
+    saved.restore();
     await screen.findByRole("option", { name: "30-day dose at the EAB" });
     fireEvent.click(screen.getByRole("button", { name: "Run OpenRC" }));
-    expect(await screen.findByText("Release category 'RC-1' has no saved deposition velocities and decay mode")).toBeInTheDocument();
+    const refusal = await screen.findByText("Release category 'RC-1' has no saved deposition velocities and decay mode");
+    expect(screen.getByRole("form", { name: "OpenRC run" }).nextElementSibling).toBe(refusal);
   });
 
   it("lets a reader see runs without the controls that change them", async () => {
@@ -663,7 +675,16 @@ describe("OpenRC runs in Step 08", () => {
     await screen.findByLabelText("Run statistics");
     expect(screen.queryByRole("button", { name: recordName })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Remove run" })).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "View engine output" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Download engine input" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Download engine output" })).toBeInTheDocument();
+  });
+
+  it("says why when an engine file cannot be downloaded", async () => {
+    const actions = actionsOf([runOf()]);
+    actions.readFile.mockRejectedValue(new Error("OpenRC run not found"));
+    await show(actions);
+    fireEvent.click(await screen.findByRole("button", { name: "Download engine input" }));
+    expect(await screen.findByText("OpenRC run not found")).toBeInTheDocument();
   });
 
   it("asks for the runs again every two seconds while one is active and slows down when none is", async () => {
@@ -706,7 +727,7 @@ describe("Step 08 panel with OpenRC", () => {
     readTable: jest.fn(async () => ({ columns: ["Name"], rows: [], total: 0, offset: 0, units: "" })),
     readReview: jest.fn(async () => ({ schemaVersion: 3 as const, files: [], embedded: [], excludedSteps: [], checks: [] })),
     readText: jest.fn(async () => ({ text: "", offset: 0, total: 0 })),
-    readOutput: jest.fn(async () => ({ text: "", offset: 0, total: 0 })),
+    readOutput: jest.fn(async () => ({ filename: "OpenRC-Run-01-output.txt", text: "OpenRC input for Run 01\n" })),
   });
 
   it("has an OpenRC runs tab between the prepared inputs and the results, and the job status on the card", async () => {
@@ -727,6 +748,31 @@ describe("Step 08 panel with OpenRC", () => {
     expect(within(screen.getByLabelText("Run input snapshot")).getAllByRole("option").map((option) => option.textContent)).toEqual(["Case 02 · 2 metrics · 2 review items"]);
   });
 
+  it("opens the OpenRC runs tab with the new snapshot picked after an input snapshot is saved", async () => {
+    const third = "00000000-0000-4000-8000-000000000004";
+    const records = recordsOf();
+    records.snapshots.push(JSON.parse(JSON.stringify(snapshotOf(third, "Case 03", "RC-1"))));
+    const cases = caseActions();
+    jest.mocked(cases.saveSnapshot).mockResolvedValue({ records, snapshotId: third });
+    render(
+      <WorkbookViewMemory scope={null}>
+        <RcWorkbookProvider data={workbook(records)} editable mutateRc={jest.fn()} caseRecords={cases} consequenceRuns={actionsOf([])}>
+          <RcQuantificationPanel />
+        </RcWorkbookProvider>
+      </WorkbookViewMemory>,
+    );
+    await settle();
+    fireEvent.click(screen.getByRole("tab", { name: "OpenRC runs" }));
+    fireEvent.change(screen.getByLabelText("Run input snapshot"), { target: { value: SNAPSHOT_ID } });
+    expect(screen.getByLabelText("Run input snapshot")).toHaveValue(SNAPSHOT_ID);
+    fireEvent.click(screen.getByRole("tab", { name: "Prepared inputs" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Save input snapshot" }));
+    await waitFor(() => expect(screen.getByRole("tab", { name: "OpenRC runs" })).toHaveAttribute("aria-selected", "true"));
+    expect(cases.saveSnapshot).toHaveBeenCalledTimes(1);
+    expect(screen.getByLabelText("Run input snapshot")).toHaveValue(third);
+    expect(screen.getByText("Input snapshot saved.")).toBeInTheDocument();
+  });
+
   it("lists a calculated result with its run, receptor and dose by distance", async () => {
     const calculated = { id: "00000000-0000-4000-8000-000000000009", snapshotId: SNAPSHOT_ID, categoryId: "RC-1", metricId: "RCM-02", unit: "Sv", version: "OpenRC 0123456789ab", reference: "Run 01", confirmed: true,
       statistics: { mean: 0.02, percentiles: [{ percentile: 50, value: 0.015 }, { percentile: 95, value: 0.04 }], exceedances: [{ threshold: 0.01, probability: 0.75 }] },
@@ -743,14 +789,25 @@ describe("Step 08 panel with OpenRC", () => {
     );
     await settle();
     fireEvent.click(screen.getByRole("tab", { name: "Results" }));
-    expect(screen.getByText("RC-1 · 96-hour dose by distance")).toBeInTheDocument();
-    expect(screen.getByText("Case 01 · OpenRC Run 01, receptor at 8046.7 m, 24 weather trials")).toBeInTheDocument();
-    expect(screen.getByText("OpenRC-Run-01-output.txt · OpenRC 0123456789ab")).toBeInTheDocument();
-    expect(cells(screen.getByRole("table", { name: "Dose by distance of Run 01", hidden: true }))).toEqual([
-      ["2000", "Mean 0.5 Sv · 50th percentile 0.4 Sv · 95th percentile 0.9 Sv · Chance of exceeding 0.01 Sv: 1"],
-      ["8046.7", "Mean 0.02 Sv · 50th percentile 0.015 Sv · 95th percentile 0.04 Sv · Chance of exceeding 0.01 Sv: 0.75"],
+    expect(screen.getByText("96-hour dose by distance")).toBeInTheDocument();
+    const statistics = screen.getByRole("table", { name: "Statistics of Run 01" });
+    expect(within(statistics).getAllByRole("columnheader").map((header) => header.textContent)).toEqual(["Mean (Sv)", "50th percentile (Sv)", "95th percentile (Sv)", "Chance of exceeding 0.01 Sv"]);
+    expect(cells(statistics)).toEqual([["0.02", "0.015", "0.04", "75%"]]);
+    expect(screen.getByText("Case 01 · OpenRC Run 01 · receptor at 8046.7 m · 24 weather trials")).toBeInTheDocument();
+    for (const gone of ["RC-1 · 96-hour dose by distance", "Output and linked inputs", "OpenRC-Run-01-output.txt · OpenRC 0123456789ab", "View original output"]) expect(screen.queryByText(gone)).not.toBeInTheDocument();
+    expect(screen.queryByText(startsWith("RC-1: "))).not.toBeInTheDocument();
+    const profile = screen.getByRole("table", { name: "Dose by distance of Run 01", hidden: true });
+    expect(Array.from(profile.querySelectorAll("th")).map((header) => header.textContent)).toEqual(["Distance (m)", "Mean (Sv)", "50th percentile (Sv)", "95th percentile (Sv)", "Chance of exceeding 0.01 Sv"]);
+    expect(cells(profile)).toEqual([
+      ["2000", "0.5", "0.4", "0.9", "100%"],
+      ["8046.7", "0.02", "0.015", "0.04", "75%"],
     ]);
     expect(screen.queryByRole("navigation", { name: "Dose by distance of Run 01 pagination", hidden: true })).not.toBeInTheDocument();
+    const saved = savedFiles();
+    fireEvent.click(screen.getByRole("button", { name: "Download output" }));
+    await waitFor(() => expect(saved.names).toEqual(["OpenRC-Run-01-output.txt"]));
+    expect(saved.blobs.map((blob) => [blob.type, blob.size])).toEqual([["text/plain;charset=utf-8", 24]]);
+    saved.restore();
   });
 
   it("pages the dose by distance of a calculated result ten distances at a time", async () => {
@@ -773,11 +830,11 @@ describe("Step 08 panel with OpenRC", () => {
     const name = "Dose by distance of Run 01";
     expect(cells(screen.getByRole("table", { name, hidden: true })).map((row) => row[0])).toEqual(distancesMetres.slice(0, 10).map(String));
     const pager = screen.getByRole("navigation", { name: `${name} pagination`, hidden: true });
-    expect(within(pager).getByText("1 to 10 of 12")).toBeInTheDocument();
-    fireEvent.click(within(pager).getByRole("button", { name: "Last", hidden: true }));
+    expect(within(pager).getByText("Distances 1 to 10 of 12")).toBeInTheDocument();
+    fireEvent.click(within(pager).getByRole("button", { name: "Next", hidden: true }));
     expect(cells(screen.getByRole("table", { name, hidden: true }))).toEqual([
-      ["11000", "Mean 2 Sv · 50th percentile 2 Sv · 95th percentile — · Chance of exceeding 0.01 Sv: 1"],
-      ["12000", "Mean 1 Sv · 50th percentile 1 Sv · 95th percentile — · Chance of exceeding 0.01 Sv: 1"],
+      ["11000", "2", "2", "—", "100%"],
+      ["12000", "1", "1", "—", "100%"],
     ]);
     fireEvent.click(within(screen.getByRole("navigation", { name: `${name} pagination`, hidden: true })).getByRole("button", { name: "Previous", hidden: true }));
     expect(cells(screen.getByRole("table", { name, hidden: true })).map((row) => row[0])).toEqual(distancesMetres.slice(0, 10).map(String));

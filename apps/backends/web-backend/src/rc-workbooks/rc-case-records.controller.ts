@@ -35,5 +35,5 @@ export class RcCaseRecordsController {
     return this.cases.text(id, selection, fileId, Number(offset), { username: req.user!.username });
   }
   @Get("results/:resultId/output")
-  output(@Param("id") id: string, @Param("resultId") resultId: string, @Query("offset") offset = "0", @Req() req: AuthenticatedRequest) { return this.cases.output(id, resultId, Number(offset), { username: req.user!.username }); }
+  output(@Param("id") id: string, @Param("resultId") resultId: string, @Req() req: AuthenticatedRequest) { return this.cases.output(id, resultId, { username: req.user!.username }); }
 }

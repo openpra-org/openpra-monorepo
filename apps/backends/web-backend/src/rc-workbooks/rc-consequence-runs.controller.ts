@@ -39,14 +39,8 @@ class RcConsequenceRunsController {
   }
 
   @Get(":runId/files/:kind")
-  file(
-    @Param("id") id: string,
-    @Param("runId") runId: string,
-    @Param("kind") kind: string,
-    @Query("offset") offset = "0",
-    @Req() request: AuthenticatedRequest,
-  ) {
-    return this.runs.file(id, runId, kind, offset, actorOf(request));
+  file(@Param("id") id: string, @Param("runId") runId: string, @Param("kind") kind: string, @Req() request: AuthenticatedRequest) {
+    return this.runs.file(id, runId, kind, actorOf(request));
   }
 
   @Post(":runId/cancel")

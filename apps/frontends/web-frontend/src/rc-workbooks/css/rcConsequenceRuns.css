@@ -137,54 +137,70 @@
   display: flex;
   flex-wrap: wrap;
   align-items: flex-end;
-  gap: 14px 18px;
+  gap: 20px 8px;
 }
 
 .rc-quantification .rc-runs__composer label {
+  position: relative;
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  flex: 1 1 134px;
   gap: 5px;
-  max-width: 100%;
+  min-width: 0;
+  max-width: max-content;
+  white-space: nowrap;
 }
 
 .rc-quantification .rc-runs__composer label select,
 .rc-quantification .rc-runs__composer label input {
-  justify-self: start;
-  width: auto;
-  max-width: 100%;
+  width: 100%;
+  min-width: 0;
   margin-top: 0;
 }
 
-.rc-quantification .rc-runs__composer label input {
-  width: 220px;
+.rc-quantification .rc-runs__composer .rc-runs__snapshot {
+  flex-basis: 142px;
+}
+
+.rc-quantification .rc-runs__composer .rc-runs__metric {
+  flex-basis: 190px;
+}
+
+.rc-quantification .rc-runs__composer .rc-runs__source {
+  flex-grow: 6;
+}
+
+.rc-quantification .rc-runs__composer .rc-runs__typed {
+  flex: 0 0 auto;
+  width: 84px;
+  max-width: 100%;
+}
+
+.rc-quantification .rc-runs__composer .rc-runs__typed--many {
+  width: max-content;
+}
+
+.rc-quantification .rc-runs__composer .rc-runs__typed--height {
+  width: 64px;
 }
 
 .rc-quantification .rc-runs__composer .posnav__btn {
+  flex: 0 0 auto;
   margin-left: auto;
 }
 
 .rc-quantification .rc-runs__flag {
+  position: absolute;
+  top: calc(100% + 3px);
+  left: 0;
   color: var(--color-error);
   font-size: 12px;
-}
-
-.rc-quantification table.rc-runs__table {
-  font-size: 15px;
+  line-height: 1.2;
 }
 
 .rc-quantification table.rc-runs__table th {
-  color: var(--color-text-muted);
-  font-size: 15px;
-  font-weight: 600;
-  letter-spacing: normal;
-  text-transform: none;
   overflow-wrap: normal;
   word-break: normal;
-}
-
-.rc-quantification table.rc-runs__table td {
-  font-size: 15px;
-  font-weight: 400;
-  font-variant-numeric: tabular-nums;
 }
 
 .rc-quantification table.rc-runs__list tbody tr {
@@ -250,15 +266,21 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
+  justify-content: space-between;
+  gap: 6px 12px;
   margin-top: 12px;
-  font-size: 15px;
+  color: var(--color-text-muted);
+  font-size: 12px;
   font-variant-numeric: tabular-nums;
 }
 
-.rc-quantification .q-record .rc-runs__pager {
-  margin-top: 8px;
-  font-size: 13px;
+.rc-quantification .rc-runs__pager div {
+  display: flex;
+  gap: 6px;
+}
+
+.rc-quantification .rc-runs__block .rc-runs__pager {
+  margin-top: 4px;
 }
 
 .rc-quantification .rc-runs__run {
@@ -279,18 +301,10 @@
 
 .rc-quantification .rc-runs__head h3 {
   margin: 0;
-  font-size: 15px;
 }
 
-.rc-quantification .rc-runs__meta,
 .rc-quantification .rc-runs__status {
   margin: 0;
-  color: var(--color-text-muted);
-  font-size: 15px;
-}
-
-.rc-quantification .rc-runs__status {
-  color: var(--color-text);
 }
 
 .rc-quantification .rc-runs__block {
@@ -309,7 +323,7 @@
 
 .rc-quantification .rc-runs__bar h4 {
   margin: 0;
-  font-size: 15px;
+  font-size: 13px;
   font-weight: 600;
 }
 
@@ -317,7 +331,6 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 15px;
 }
 
 .rc-quantification .rc-runs__inline select {
@@ -328,39 +341,30 @@
 
 .rc-quantification .rc-runs__values {
   display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(236px, 1fr));
+  gap: 12px;
   margin: 0;
-  border-top: 1px solid var(--color-border);
-  font-size: 15px;
 }
 
 .rc-quantification .rc-runs__values > div {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: 12px;
-  border-bottom: 1px solid var(--color-border);
-  padding: 8px;
+  grid-row: span 2;
+  grid-template-rows: subgrid;
+  row-gap: 3px;
+  min-width: 0;
 }
 
 .rc-quantification .rc-runs__values dt {
   color: var(--color-text-muted);
+  font-size: 12px;
 }
 
 .rc-quantification .rc-runs__values dd {
   margin: 0;
+  font-size: 13px;
   font-variant-numeric: tabular-nums;
-}
-
-.rc-quantification .rc-runs__notes {
-  margin: 0;
-  padding-left: 20px;
-  font-size: 15px;
-  line-height: 1.5;
 }
 
 .rc-quantification .rc-runs__files {
   margin-top: 2px;
-}
-
-.rc-quantification .rc-runs__file .q-file-content {
-  margin: 0;
 }

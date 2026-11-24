@@ -1,4 +1,4 @@
-import type { RcCaseRecords, RcCaseSelection, RcCaseTable, RcCaseTextPage, RcCaseDataset, RcCaseReview, RcCategoryResultValues } from "interfaces-mef-types/rc/case-records";
+import type { RcCaseRecords, RcCaseSelection, RcCaseTable, RcCaseTextPage, RcCaseOutputFile, RcCaseDataset, RcCaseReview, RcCategoryResultValues } from "interfaces-mef-types/rc/case-records";
 import { createWorkbookPatch } from "interfaces-shared-types/workbooks";
 import { fetchJson, patchJson, postJson, postMultipart, deleteJson } from "../api/client";
 import { type RadiologicalConsequenceAnalysis } from "interfaces-mef-types/rc/radiological-consequence-analysis";
@@ -9,7 +9,7 @@ import type { RcEarlyResponseModel } from "interfaces-mef-types/rc/early-respons
 import type { RcWeatherInputs, RcWeatherModel, RcWeatherPage, RcWeatherSettings, RcWeatherTrialPage } from "interfaces-mef-types/rc/weather";
 import type { RcTransportInputs, RcTransportSettings, RcLinkedDeposition, RcDecayDetail } from "interfaces-mef-types/rc/transport";
 import type { RcDoseInputs, RcDosePathway, RcDoseFilePage, RcDoseRecord } from "interfaces-mef-types/rc/dose-inputs";
-import type { RcConsequenceRun, RcConsequenceRunDetails, RcConsequenceRunFileKind, RcConsequenceRunRequest, RcConsequenceRunSetup, RcConsequenceRunTextPage, RcConsequenceRunTrialOrder, RcConsequenceRunTrialPage } from "interfaces-mef-types/rc/consequence-runs";
+import type { RcConsequenceRun, RcConsequenceRunDetails, RcConsequenceRunFile, RcConsequenceRunFileKind, RcConsequenceRunRequest, RcConsequenceRunSetup, RcConsequenceRunTrialOrder, RcConsequenceRunTrialPage } from "interfaces-mef-types/rc/consequence-runs";
 
 export async function importRcDoseInput(id: string, kind: "exposure" | RcDosePathway, baseRevision: number, file: File, categoryId?: string, sourceRevision?: number): Promise<RcDoseInputs> {
   const form = new FormData(); form.append("baseRevision", String(baseRevision)); form.append("file", file);
@@ -64,11 +64,11 @@ export async function prepareRcWeatherCollection(id: string, baseRevision: numbe
 export async function readRcWeatherOriginal(id: string, documentId: string): Promise<string> {
   return (await fetchJson<{ text: string }>(`/api/rc-workbooks/${encodeURIComponent(id)}/weather/files/${encodeURIComponent(documentId)}`)).text;
 }
-export async function readRcWeatherRecords(id: string, offset: number): Promise<RcWeatherPage> {
-  return fetchJson(`/api/rc-workbooks/${encodeURIComponent(id)}/weather/records?offset=${offset}&limit=6`);
+export async function readRcWeatherRecords(id: string, offset: number, limit: number): Promise<RcWeatherPage> {
+  return fetchJson(`/api/rc-workbooks/${encodeURIComponent(id)}/weather/records?offset=${offset}&limit=${limit}`);
 }
-export async function readRcWeatherTrials(id: string, offset: number): Promise<RcWeatherTrialPage> {
-  return fetchJson(`/api/rc-workbooks/${encodeURIComponent(id)}/weather/trials?offset=${offset}&limit=6`);
+export async function readRcWeatherTrials(id: string, offset: number, limit: number): Promise<RcWeatherTrialPage> {
+  return fetchJson(`/api/rc-workbooks/${encodeURIComponent(id)}/weather/trials?offset=${offset}&limit=${limit}`);
 }
 
 export async function importRcSiteInput(id: string, kind: "location" | "geometry", baseRevision: number, file: File): Promise<RcSiteReceptors> {
@@ -200,7 +200,7 @@ export function removeRcCategoryResult(id: string, baseRevision: number, resultI
 export function readRcCaseTable(id: string, selection: RcCaseSelection, kind: RcCaseDataset, offset: number): Promise<RcCaseTable> { return fetchJson(`${caseUrl(id)}/table/${kind}?${caseQuery(selection, offset)}`); }
 export function readRcCaseText(id: string, selection: RcCaseSelection, fileId: string, offset: number): Promise<RcCaseTextPage> { return fetchJson(`${caseUrl(id)}/text/${encodeURIComponent(fileId)}?${caseQuery(selection, offset)}`); }
 export function readRcCaseReview(id: string, selection: RcCaseSelection): Promise<RcCaseReview> { return fetchJson(`${caseUrl(id)}/review?${caseQuery(selection)}`); }
-export function readRcCaseOutput(id: string, resultId: string, offset: number): Promise<RcCaseTextPage> { return fetchJson(`${caseUrl(id)}/results/${encodeURIComponent(resultId)}/output?offset=${offset}`); }
+export function readRcCaseOutput(id: string, resultId: string): Promise<RcCaseOutputFile> { return fetchJson(`${caseUrl(id)}/results/${encodeURIComponent(resultId)}/output`); }
 
 const runUrl = (id: string) => `/api/rc-workbooks/${encodeURIComponent(id)}/consequence-runs`;
 export async function listRcConsequenceRuns(id: string): Promise<RcConsequenceRun[]> { return (await fetchJson<{ runs: RcConsequenceRun[] }>(runUrl(id))).runs; }
@@ -210,8 +210,8 @@ export function readRcConsequenceRun(id: string, runId: string): Promise<RcConse
 export function readRcConsequenceRunTrials(id: string, runId: string, distanceIndex: number, offset: number, order: RcConsequenceRunTrialOrder): Promise<RcConsequenceRunTrialPage> {
   return fetchJson(`${runUrl(id)}/${encodeURIComponent(runId)}/trials?${new URLSearchParams({ distance: String(distanceIndex), offset: String(offset), order }).toString()}`);
 }
-export function readRcConsequenceRunFile(id: string, runId: string, kind: RcConsequenceRunFileKind, offset: number): Promise<RcConsequenceRunTextPage> {
-  return fetchJson(`${runUrl(id)}/${encodeURIComponent(runId)}/files/${kind}?offset=${offset}`);
+export function readRcConsequenceRunFile(id: string, runId: string, kind: RcConsequenceRunFileKind): Promise<RcConsequenceRunFile> {
+  return fetchJson(`${runUrl(id)}/${encodeURIComponent(runId)}/files/${kind}`);
 }
 export function cancelRcConsequenceRun(id: string, runId: string): Promise<RcConsequenceRun> { return postJson(`${runUrl(id)}/${encodeURIComponent(runId)}/cancel`, {}); }
 export async function removeRcConsequenceRun(id: string, runId: string): Promise<void> { await postJson<{ removed: string }>(`${runUrl(id)}/${encodeURIComponent(runId)}/remove`, {}); }

@@ -241,7 +241,7 @@ function RcWorkbookPage(): JSX.Element {
     return { importFile: (kind, revision, file) => enqueue(async () => accept(await importRcWeatherInput(id, kind, revision, file))),
       saveSettings: (revision, settings, model, confirm) => enqueue(async () => accept(await saveRcWeatherSettings(id, revision, settings, model, confirm))),
       prepareCollection: (revision, siteRevision, dates) => enqueue(async () => accept(await prepareRcWeatherCollection(id, revision, siteRevision, dates))),
-      readOriginal: documentId => readRcWeatherOriginal(id, documentId), readRecords: offset => readRcWeatherRecords(id, offset), readTrials: offset => readRcWeatherTrials(id, offset) };
+      readOriginal: documentId => readRcWeatherOriginal(id, documentId), readRecords: (offset, limit) => readRcWeatherRecords(id, offset, limit), readTrials: (offset, limit) => readRcWeatherTrials(id, offset, limit) };
   }, [id, enqueue]);
 
   const acceptCaseRecords = useCallback((records: RcCaseRecords): RcCaseRecords => {
@@ -257,7 +257,7 @@ function RcWorkbookPage(): JSX.Element {
       start: request => startRcConsequenceRun(id, request),
       read: runId => readRcConsequenceRun(id, runId),
       readTrials: (runId, distanceIndex, offset, order) => readRcConsequenceRunTrials(id, runId, distanceIndex, offset, order),
-      readFile: (runId, kind, offset) => readRcConsequenceRunFile(id, runId, kind, offset),
+      readFile: (runId, kind) => readRcConsequenceRunFile(id, runId, kind),
       cancel: runId => cancelRcConsequenceRun(id, runId),
       remove: runId => removeRcConsequenceRun(id, runId),
       record: (revision, runId, distanceIndex) => enqueue(async () => acceptCaseRecords(await recordRcConsequenceRun(id, runId, revision, distanceIndex))),
@@ -271,7 +271,7 @@ function RcWorkbookPage(): JSX.Element {
       saveResult: (revision, values, file) => enqueue(async () => accept(await saveRcCategoryResult(id, revision, values, file))),
       removeResult: (revision, resultId) => enqueue(async () => accept(await removeRcCategoryResult(id, revision, resultId))),
       readTable: (selection, kind, offset) => readRcCaseTable(id, selection, kind, offset), readText: (selection, fileId, offset) => readRcCaseText(id, selection, fileId, offset),
-      readReview: selection => readRcCaseReview(id, selection), readOutput: (resultId, offset) => readRcCaseOutput(id, resultId, offset) };
+      readReview: selection => readRcCaseReview(id, selection), readOutput: resultId => readRcCaseOutput(id, resultId) };
   }, [id, enqueue, acceptCaseRecords]);
 
   const doseInputs = useMemo<RcDoseActions | undefined>(() => {

@@ -18,6 +18,7 @@ import type {
   RcConsequenceRunDetails,
   RcConsequenceRunDistance,
   RcConsequenceRunFailure,
+  RcConsequenceRunFile,
   RcConsequenceRunNuclideDose,
   RcConsequenceRunProgress,
   RcConsequenceRunReceptorKind,
@@ -26,7 +27,6 @@ import type {
   RcConsequenceRunResult,
   RcConsequenceRunSetup,
   RcConsequenceRunStatus,
-  RcConsequenceRunTextPage,
   RcConsequenceRunTrialPage,
 } from "interfaces-mef-types/rc/consequence-runs";
 import type { RcConsequenceMetric, RcMetricStatistics } from "interfaces-mef-types/rc/metrics";
@@ -123,7 +123,6 @@ const ORPHAN_AFTER_MS = 120_000;
 const RUN_LIMIT = 200;
 const DISTANCE_LIMIT = 100;
 const TRIAL_PAGE = 10;
-const TEXT_PAGE = 20;
 const SEQUENCE_ATTEMPTS = 5;
 const DUPLICATE_KEY = 11000;
 const FINGERPRINT_PREFIX = "sha256:";
@@ -781,16 +780,14 @@ class RcConsequenceRunsService implements OnModuleInit, OnModuleDestroy {
     };
   }
 
-  async file(workbookId: string, runId: string, kind: string, offsetText: string, actor: Actor): Promise<RcConsequenceRunTextPage> {
+  async file(workbookId: string, runId: string, kind: string, actor: Actor): Promise<RcConsequenceRunFile> {
     await this.authorize(workbookId, actor, false);
-    const offset = Number(offsetText);
-    if (!Number.isSafeInteger(offset) || offset < 0) throw new BadRequestException("Use a nonnegative page offset");
     if (kind !== "input" && kind !== "output") throw new BadRequestException("Choose the input or the output of the run");
     const run = await this.runs.findOne({ id: runId, workbookId }).select(FILE_FIELDS).lean().exec();
     if (run === null) throw new NotFoundException("OpenRC run not found");
     if (kind === "output" && run.status !== "SUCCEEDED") throw new ConflictException("This run has no output");
     const rows = kind === "input" ? inputLines(run) : outputLines(run);
-    return { text: rows.slice(offset, offset + TEXT_PAGE).join("\n"), offset, total: rows.length, size: TEXT_PAGE };
+    return { filename: `OpenRC ${runLabel(run.sequence)} ${kind}.txt`, text: `${rows.join("\n")}\n` };
   }
 
   async record(workbookId: string, runId: string, body: RcConsequenceRunRecordRequest, actor: Actor): Promise<RcCaseRecords> {

@@ -8,8 +8,8 @@ import type { RcCaseRecords } from "interfaces-mef-types/rc/case-records";
 import type {
   RcConsequenceRun,
   RcConsequenceRunDetails,
+  RcConsequenceRunFile,
   RcConsequenceRunSetup,
-  RcConsequenceRunTextPage,
   RcConsequenceRunTrialPage,
 } from "interfaces-mef-types/rc/consequence-runs";
 import type { RadiologicalConsequenceAnalysis } from "interfaces-mef-types/rc/radiological-consequence-analysis";
@@ -165,8 +165,10 @@ describe("OpenRC runs of an RC case", () => {
   const trialPage = async (runId: string, query: object): Promise<RcConsequenceRunTrialPage> =>
     (await request(http()).get(`${RUNS}/${runId}/trials`).query(query).expect(200)).body;
 
-  const filePage = async (runId: string, kind: string, offset = 0): Promise<RcConsequenceRunTextPage> =>
-    (await request(http()).get(`${RUNS}/${runId}/files/${kind}`).query({ offset }).expect(200)).body;
+  const fileOf = async (runId: string, kind: string): Promise<RcConsequenceRunFile> =>
+    (await request(http()).get(`${RUNS}/${runId}/files/${kind}`).expect(200)).body;
+
+  const fileLines = async (runId: string, kind: string): Promise<string[]> => (await fileOf(runId, kind)).text.split("\n").slice(0, -1);
 
   const ghostRun = (sequence: number, status: RcConsequenceRun["status"], trackedAt: Date) => ({
     id: `00000000-0000-4000-8000-${String(sequence).padStart(12, "0")}`,
@@ -333,9 +335,7 @@ describe("OpenRC runs of an RC case", () => {
     expect(page.rows[0].dispersionSecondsPerCubicMetre).toBeGreaterThan(0);
     expect(hour.requests[0].metFileText.split("\n")[1].split(",")[0]).toBe(page.rows[0].stabilityClass);
 
-    const head = await filePage(run.id, "output");
-    const output: string[] = [];
-    for (let offset = 0; offset < head.total; offset += head.size) output.push(...(await filePage(run.id, "output", offset)).text.split("\n"));
+    const output = await fileLines(run.id, "output");
     const returned = (key: string): number[] => {
       const prefix = `  "${key}": `;
       return output.filter((line) => line.startsWith(prefix)).map((line) => Number(line.slice(prefix.length).split(",")[0]));
@@ -378,9 +378,7 @@ describe("OpenRC runs of an RC case", () => {
     expect(rows.every((entry, index) => closeTo(entry.doseSv, python[index]))).toBe(true);
     expect(rows.map((entry) => entry.trialId)).toEqual(publishedCase().hourly.map((trial) => trial.id));
     expect(rows.every((entry) => entry.dispersionSecondsPerCubicMetre !== null && entry.dispersionSecondsPerCubicMetre > 0)).toBe(true);
-    const head = await filePage(run.id, "output");
-    const output: string[] = [];
-    for (let offset = 0; offset < head.total; offset += head.size) output.push(...(await filePage(run.id, "output", offset)).text.split("\n"));
+    const output = await fileLines(run.id, "output");
     const returned: { chi_over_q_s_m3: number; stability_class: string }[] = output
       .filter((line) => line.startsWith('    {"index":'))
       .slice(0, 24)
@@ -444,6 +442,7 @@ describe("OpenRC runs of an RC case", () => {
     expect(await recordsNow()).toEqual(records);
 
     const output = (await request(http()).get(`${CASES}/results/${recorded.id}/output`).expect(200)).body;
+    expect(output.filename).toBe("OpenRC-Run-01-output.txt");
     expect(output.text.split("\n").slice(0, 3)).toEqual(["OpenRC input for Run 01", `Release category: ${RC_PUBLISHED_CATEGORY}`, "Consequence metric: 96-hour dose by distance"]);
     const artifact = [...t.storage.values()].map((bytes) => bytes.toString("utf8")).find((text) => text.startsWith("OpenRC input for Run 01"));
     if (artifact === undefined) throw new Error("The recorded output was not stored");
@@ -572,9 +571,7 @@ describe("OpenRC runs of an RC case", () => {
     const { run } = await finished({ snapshotId, metricId: "RCM-02", distancesMetres: [8046.7], heightMetres: 0 });
     expect(run.status).toBe("SUCCEEDED");
     expect(run.engineVersion).toBe(`${STAND_IN_ENGINE}, ${linux}`);
-    const head = await filePage(run.id, "output");
-    const output: string[] = [];
-    for (let offset = 0; offset < head.total; offset += head.size) output.push(...(await filePage(run.id, "output", offset)).text.split("\n"));
+    const output = await fileLines(run.id, "output");
     expect(output.filter((line) => line.startsWith("Engine: "))).toEqual([
       `Engine: ${STAND_IN_ENGINE}, ${linux}`,
       `Engine: ${linux}`,
@@ -653,7 +650,7 @@ describe("OpenRC runs of an RC case", () => {
     expect(result).toBeNull();
     expect([...praetor.cancelled].sort()).toEqual([`${run.id}-2`, `${run.id}-3`]);
     await request(http()).post(`${RUNS}/${run.id}/record`).send({ baseRevision: (await recordsNow()).revision, distanceIndex: 0 }).expect(409);
-    expect((await filePage(run.id, "input")).text.split("\n")[0]).toBe("OpenRC input for Run 01");
+    expect((await fileLines(run.id, "input"))[0]).toBe("OpenRC input for Run 01");
     await request(http()).get(`${RUNS}/${run.id}/files/output`).expect(409);
   });
 
@@ -677,14 +674,15 @@ describe("OpenRC runs of an RC case", () => {
     ]);
   });
 
-  it("pages the input sent to the engine and the output it returned", async () => {
+  it("gives the input sent to the engine and the output it returned, each as one file", async () => {
     const snapshotId = await hourlySnapshot();
     const { run } = await finished({ snapshotId, metricId: "RCM-01", distancesMetres: [746], heightMetres: 0 });
     const day = reference.cases[4];
-    const first = await filePage(run.id, "input");
-    expect(first).toMatchObject({ offset: 0, size: 20 });
-    expect(first.text.split("\n")).toHaveLength(20);
-    expect(first.text.split("\n").slice(0, 9)).toEqual([
+    const sent = await fileOf(run.id, "input");
+    expect(sent.filename).toBe("OpenRC Run 01 input.txt");
+    expect(sent.text.endsWith("\n")).toBe(true);
+    const input = sent.text.split("\n").slice(0, -1);
+    expect(input.slice(0, 9)).toEqual([
       "OpenRC input for Run 01",
       `Release category: ${RC_PUBLISHED_CATEGORY}`,
       "Consequence metric: 30-day dose at the EAB",
@@ -695,16 +693,13 @@ describe("OpenRC runs of an RC case", () => {
       "===== Request 1 of 3: receptor at 746 m, part 1 of 3 =====",
       "[run]",
     ]);
-    const input: string[] = [];
-    for (let offset = 0; offset < first.total; offset += first.size) input.push(...(await filePage(run.id, "input", offset)).text.split("\n"));
-    expect(input).toHaveLength(first.total);
     const text = input.join("\n");
     day.requests.forEach((entry) => expect(text).toContain(entry.configText.trimEnd()));
     expect(text.endsWith(`===== Weather file of every request =====\n${day.requests[0].metFileText.trimEnd()}`)).toBe(true);
 
-    const head = await filePage(run.id, "output");
-    const output: string[] = [];
-    for (let offset = 0; offset < head.total; offset += head.size) output.push(...(await filePage(run.id, "output", offset)).text.split("\n"));
+    const returnedFile = await fileOf(run.id, "output");
+    expect(returnedFile.filename).toBe("OpenRC Run 01 output.txt");
+    const output = returnedFile.text.split("\n").slice(0, -1);
     expect(output.slice(0, 7)).toEqual([
       "OpenRC output for Run 01",
       `Release category: ${RC_PUBLISHED_CATEGORY}`,
@@ -723,9 +718,7 @@ describe("OpenRC runs of an RC case", () => {
     expect(parsed.n_realizations).toBe(24);
     expect(parsed.realizations.map((entry: { tede_msv: number }) => entry.tede_msv).every((dose: number, index: number) => closeTo(dose, day.doses[0].tede_msv?.[index] ?? Number.NaN))).toBe(true);
     await request(http()).get(`${RUNS}/${run.id}/files/other`).expect(400);
-    await request(http()).get(`${RUNS}/${run.id}/files/input`).query({ offset: -5 }).expect(400);
     await request(http()).get(`${RUNS}/${run.id}/files/input`).set("x-test-user", "outsider").expect(403);
-    expect((await filePage(run.id, "input", first.total + 40)).text).toBe("");
   });
 
   it("lets only preparers of a draft workbook run, and lets every project member read", async () => {

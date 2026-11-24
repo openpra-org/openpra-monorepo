@@ -64,7 +64,6 @@ export function rcQuantificationChecks(rc: RadiologicalConsequenceAnalysis): str
   const items: string[] = [];
   const q = rc.consequenceQuantification, records = q.caseRecords;
   const categories = rc.releaseCategoryToConsequence.releaseCategoryInputs, metrics = rc.scope.metrics ?? [];
-  if (!q.consequenceCodesUsed.some((code) => code.code.trim())) items.push("Record the calculation code and its demonstration basis.");
   for (const category of categories) {
     const id = category.releaseCategory;
     if (!records?.snapshots.some((snapshot) => snapshot.categoryId === id)) items.push(`${id}: save an input snapshot.`);

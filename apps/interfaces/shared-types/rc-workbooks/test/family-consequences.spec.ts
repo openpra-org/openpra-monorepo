@@ -1,7 +1,7 @@
 import type { RadiologicalConsequenceAnalysis } from "interfaces-mef-types/rc/radiological-consequence-analysis";
 import type { RcCategoryResult } from "interfaces-mef-types/rc/case-records";
 import { ImportanceLevel } from "interfaces-mef-types/core/shared-patterns";
-import { rcFamilyConsequences, rcResultStatisticsText, withRcFamilyConsequences } from "../family-consequences";
+import { rcFamilyConsequences, rcResultStatisticsColumns, rcResultStatisticsText, withRcFamilyConsequences } from "../family-consequences";
 import { rcMetricPresets } from "../metrics";
 
 const file = { documentId: "00000000-0000-4000-8000-000000000009", filename: "run.out", sha256: "a".repeat(64), size: 10, uploadedAt: "2026-09-01T00:00:00.000Z" };
@@ -27,8 +27,8 @@ describe("Family consequences from category results", () => {
       ["RCQ-ESF-ATWS", "ESF-ATWS", "RC-1", "ST-3", "CATEGORY_RESULT"],
     ]);
     expect(rows[0].consequenceResults).toEqual([
-      { metric: "30-day dose at the EAB", meanValue: 0.0125, unit: "Sv", uncertaintyDescription: "Mean 0.0125 Sv · 5th percentile 0.004167 Sv · 95th percentile 0.0375 Sv · Chance of exceeding 0.001 Sv: 0.5" },
-      { metric: "RCM-02", meanValue: 0.02, unit: "Sv", uncertaintyDescription: "Mean 0.02 Sv · 5th percentile 0.006667 Sv · 95th percentile 0.06 Sv · Chance of exceeding 0.001 Sv: 0.5" },
+      { metric: "30-day dose at the EAB", meanValue: 0.0125, unit: "Sv", uncertaintyDescription: "Mean 0.0125 Sv · 5th percentile 0.004167 Sv · 95th percentile 0.0375 Sv · Chance of exceeding 0.001 Sv: 50%" },
+      { metric: "RCM-02", meanValue: 0.02, unit: "Sv", uncertaintyDescription: "Mean 0.02 Sv · 5th percentile 0.006667 Sv · 95th percentile 0.06 Sv · Chance of exceeding 0.001 Sv: 50%" },
     ]);
     expect(rows[1].consequenceResults).toEqual(rows[0].consequenceResults);
   });
@@ -54,7 +54,21 @@ describe("Family consequences from category results", () => {
   });
   it("describes percentiles in order and states each threshold chance", () => {
     expect(rcResultStatisticsText({ mean: 2, percentiles: [{ percentile: 95, value: 2 }, { percentile: 5, value: 2 }, { percentile: 50, value: 2 }], exceedances: [{ threshold: 1, probability: 1 }] }, "Sv", true))
-      .toBe("Mean 2 Sv · 5th percentile — · 50th percentile 2 Sv · 95th percentile — · Chance of exceeding 1 Sv: 1");
+      .toBe("Mean 2 Sv · 5th percentile — · 50th percentile 2 Sv · 95th percentile — · Chance of exceeding 1 Sv: 100%");
     expect(rcResultStatisticsText({ percentiles: [{ percentile: 95, value: 2 }, { percentile: 50, value: 1 }], exceedances: [] }, "person-Sv")).toBe("50th percentile 1 person-Sv · 95th percentile 2 person-Sv");
+  });
+  it("gives one column for each statistic, with the unit in its label", () => {
+    expect(rcResultStatisticsColumns({ mean: 2, percentiles: [{ percentile: 95, value: 2 }, { percentile: 5, value: 2 }, { percentile: 50, value: 2 }], exceedances: [{ threshold: 1, probability: 1 }] }, "Sv", true)).toEqual([
+      { label: "Mean (Sv)", value: "2" },
+      { label: "5th percentile (Sv)", value: "—" },
+      { label: "50th percentile (Sv)", value: "2" },
+      { label: "95th percentile (Sv)", value: "—" },
+      { label: "Chance of exceeding 1 Sv", value: "100%" },
+    ]);
+    expect(rcResultStatisticsColumns({ percentiles: [{ percentile: 95, value: 0.03 }, { percentile: 50, value: 0.0125 }], exceedances: [{ threshold: 0.5, probability: 0.25 }] }, "")).toEqual([
+      { label: "50th percentile", value: "0.0125" },
+      { label: "95th percentile", value: "0.03" },
+      { label: "Chance of exceeding 0.5", value: "25%" },
+    ]);
   });
 });

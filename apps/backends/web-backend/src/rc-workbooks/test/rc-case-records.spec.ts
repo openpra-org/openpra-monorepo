@@ -93,7 +93,7 @@ describe("RC Step 08 case records", () => {
     const saved = (await result(a.records.revision, values(a.snapshotId)).expect(200)).body, r = saved.results[0];
     expect(r).toMatchObject({ categoryId: "RC-1", metricId: "RCM-01", unit: "Sv", statistics: values(a.snapshotId).statistics, valueSource: "transcribed", recordedBy: "preparer" });
     expect([...t.storage.values()].some(b => b.equals(output))).toBe(true);
-    expect((await request(http()).get(`${url}/results/${r.id}/output`).expect(200)).body.text).toContain("TEST FIXTURE ONLY");
+    expect((await request(http()).get(`${url}/results/${r.id}/output`).expect(200)).body).toEqual({ filename: "test-only.out", text: output.toString("utf8") });
     await request(http()).delete(`${root}/documents/${r.file.documentId}`).expect(403);
     const mef = (await request(http()).get(root).expect(200)).body.mef;
     expect(mef.consequenceQuantification.caseRecords).toEqual(saved);

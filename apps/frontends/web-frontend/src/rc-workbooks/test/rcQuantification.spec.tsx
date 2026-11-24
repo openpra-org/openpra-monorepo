@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, within } from "@testing-library/react";
 import { RcQuantificationPanel } from "../rcQuantification";
 import { RcWorkbookProvider, useRcWorkbook, type RcWorkbookData, type RcCaseActions } from "../rcWorkbookContext";
 
@@ -10,7 +10,7 @@ function setup(caseRecords?: object) {
   const actions: RcCaseActions = {
     saveSnapshot: jest.fn(), saveResult: jest.fn(async () => ({ revision: 2, snapshots: [], results: [] })), removeResult: jest.fn(async () => ({ revision: 2, snapshots: [], results: [] })),
     readTable: jest.fn(async () => ({ columns: ["Name"], rows: [], total: 0, offset: 0, units: "" })),
-    readReview: jest.fn(async () => ({ schemaVersion: 2 as const, files: [], embedded: [], excludedSteps: [], checks: [] })), readText: jest.fn(async () => ({ text: "", offset: 0, total: 0 })), readOutput: jest.fn(async () => ({ text: "", offset: 0, total: 0 })),
+    readReview: jest.fn(async () => ({ schemaVersion: 2 as const, files: [], embedded: [], excludedSteps: [], checks: [] })), readText: jest.fn(async () => ({ text: "", offset: 0, total: 0 })), readOutput: jest.fn(async () => ({ filename: "run.out", text: "TEST FIXTURE ONLY\n" })),
   };
   const open = jest.fn();
   function TestControls() {
@@ -81,14 +81,27 @@ describe("Step 08 local input handling", () => {
     await waitFor(() => expect(actions.saveResult).toHaveBeenCalledWith(1, { snapshotId, metricId: "RCM-01", version: "code 1.0", reference: "Run 7", confirmed: true,
       statistics: { mean: 0.01, percentiles: [{ percentile: 5, value: 0.003 }, { percentile: 95, value: 0.03 }], exceedances: [{ threshold: 0.001, probability: 0.9 }] } }, file));
   });
-  it("lists saved results with their statistics and removes one", async () => {
+  it("lists a saved result as one table of its statistics, downloads its output and removes it", async () => {
     const result = { id: "00000000-0000-4000-8000-000000000009", snapshotId, categoryId: "RC-1", metricId: "RCM-01", unit: "Sv", version: "code 1.0", reference: "Run 7", confirmed: true,
       statistics: { mean: 0.01, percentiles: [{ percentile: 5, value: 0.003 }, { percentile: 95, value: 0.03 }], exceedances: [{ threshold: 0.001, probability: 0.9 }] },
       file: { ...snapshotFile, documentId: "00000000-0000-4000-8000-000000000008", filename: "run.out" }, recordedBy: "analyst", valueSource: "transcribed" };
     const { actions } = setup(withSnapshot([result]));
     fireEvent.click(screen.getByRole("tab", { name: "Results" }));
-    expect(screen.getByText("RC-1 · 30-day dose at the EAB")).toBeInTheDocument();
-    expect(screen.getByText("Mean 0.01 Sv · 5th percentile 0.003 Sv · 95th percentile 0.03 Sv · Chance of exceeding 0.001 Sv: 0.9")).toBeInTheDocument();
+    expect(screen.getByText("30-day dose at the EAB")).toBeInTheDocument();
+    const table = screen.getByRole("table", { name: "Statistics of Run 7" });
+    expect(within(table).getAllByRole("columnheader").map(cell => cell.textContent)).toEqual(["Mean (Sv)", "5th percentile (Sv)", "95th percentile (Sv)", "Chance of exceeding 0.001 Sv"]);
+    expect(within(table).getAllByRole("cell").map(cell => cell.textContent)).toEqual(["0.01", "0.003", "0.03", "90%"]);
+    expect(screen.getByText("Case 01 · code 1.0 · Run 7")).toBeInTheDocument();
+    for (const gone of ["Output and linked inputs", "View original output", "Dose by distance"]) expect(screen.queryByText(gone)).not.toBeInTheDocument();
+    expect(screen.queryByText(/review items retained/)).not.toBeInTheDocument();
+    const names: string[] = [], blobs: Blob[] = [];
+    Object.assign(URL, { createObjectURL: jest.fn((blob: Blob) => { blobs.push(blob); return "blob:result-output"; }), revokeObjectURL: jest.fn() });
+    const click = jest.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(function (this: HTMLAnchorElement) { names.push(this.download); });
+    fireEvent.click(screen.getByRole("button", { name: "Download output" }));
+    await waitFor(() => expect(names).toEqual(["run.out"]));
+    expect(actions.readOutput).toHaveBeenCalledWith(result.id);
+    expect(blobs.map(blob => [blob.type, blob.size])).toEqual([["text/plain;charset=utf-8", 18]]);
+    click.mockRestore();
     fireEvent.click(screen.getByRole("button", { name: "Remove result" }));
     await waitFor(() => expect(actions.removeResult).toHaveBeenCalledWith(1, result.id));
   });

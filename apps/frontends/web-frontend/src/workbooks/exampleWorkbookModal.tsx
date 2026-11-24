@@ -41,6 +41,7 @@ function LoadExampleModal({ exampleName, exampleOptions, title, intro, exampleIn
   const hasChoice = options.length > 1;
   const [selected, setSelected] = useState<string>(options[0]?.id ?? "");
   const selectedLabel = options.find((o) => o.id === selected)?.label;
+  const namedExample = hasChoice && selectedLabel !== undefined && selectedLabel.endsWith(" example");
   const groups = options.reduce<string[]>((found, option) => (option.group === undefined || found.includes(option.group) ? found : [...found, option.group]), []);
   const shownIntro = exampleIntros?.[selected] ?? intro;
 
@@ -81,7 +82,7 @@ function LoadExampleModal({ exampleName, exampleOptions, title, intro, exampleIn
             <p>{shownIntro}</p>
           ) : (
             <p>
-              This will replace the current workbook contents with the <strong>{hasChoice ? (selectedLabel ?? "selected") : "Generic-1"}</strong> {exampleName} example. Any data
+              This will replace the current workbook contents with the <strong>{hasChoice ? (selectedLabel ?? "selected") : "Generic-1"}</strong>{namedExample ? "" : ` ${exampleName} example`}. Any data
               you have entered will be lost. Uploaded documents, comments, and review signoffs will also be cleared.
             </p>
           )}

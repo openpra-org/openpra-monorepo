@@ -1,6 +1,6 @@
-PUBLISHED RC INPUTS — EXPERT REVIEW
+RC EXAMPLE
 
-OpenPRA > Radiological Consequences workbook > Load example > Published RC inputs expert review.
+OpenPRA > Radiological Consequences workbook > Load example > RC example.
 This seed is registered only for RC. Loading it does not create or change another workbook.
 
 PURPOSE

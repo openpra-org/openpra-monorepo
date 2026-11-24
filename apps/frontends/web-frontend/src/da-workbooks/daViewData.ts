@@ -188,7 +188,7 @@ const DA_LINK_TILES: DaLinkTile[] = [
 const EXAMPLE_VARIANT_LABELS: Record<string, string> = {
   htgr: "Generic HTGR",
   sfr: "Generic SFR",
-  hcl: "HCL case study",
+  hcl: "HCL",
 };
 
 function exampleLinkVariant(id: string): string | undefined {

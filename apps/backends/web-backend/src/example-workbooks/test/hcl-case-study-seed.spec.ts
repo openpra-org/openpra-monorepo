@@ -27,7 +27,7 @@ import {
 } from "../seeds/dependency-model-seed";
 import { DA_EXAMPLES, ES_EXAMPLES, ESQ_EXAMPLES, HR_EXAMPLES, IE_EXAMPLES, RC_EXAMPLES, RI_EXAMPLES, SY_EXAMPLES } from "../seeds";
 
-describe("HCL dissertation case-study example", () => {
+describe("HCL example", () => {
   it("provides schema-complete IE, SY, HRA, DA, ES, ESQ, RC, and RI workbooks", () => {
     expect(() => InitiatingEventsAnalysisSchema.parse(IE_ANALYSIS_HCL)).not.toThrow();
     expect(() => SystemsAnalysisSchema.parse(SY_ANALYSIS_HCL)).not.toThrow();

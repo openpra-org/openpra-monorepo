@@ -112,7 +112,7 @@ export class EsIeLinkService {
         ? "Generic HTGR IE Workbook"
         : variant === "sfr"
           ? "Generic SFR IE Workbook"
-          : "HCL dissertation case study — Initiating Events";
+          : "HCL example — Initiating Events";
       return { linkedIeWorkbookId: EXAMPLE_SENTINEL, linkedName, groups: this.collectImported(bundle.ie.mef as IeMefShape) };
     }
     const ie = await this.ieWorkbookModel.findOne({ workbookId: linkedId }).exec();

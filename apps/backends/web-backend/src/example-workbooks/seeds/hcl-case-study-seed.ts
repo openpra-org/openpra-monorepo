@@ -50,7 +50,6 @@ import type { UncertainExpression } from "interfaces-mef-types/core/uncertainty"
 import { ImportanceLevel, ScreeningStatus } from "interfaces-mef-types/core/shared-patterns";
 
 const NOW = "2026-08-24T12:00:00.000Z";
-const OWNER = "hcl-case-study";
 const LOOP_FREQUENCY = 0.837;
 
 const HCL_CASE_IE_UUID = "ie-hcl-case-study";
@@ -62,7 +61,8 @@ const HCL_CASE_ESQ_UUID = "esq-hcl-case-study";
 const HCL_CASE_RC_UUID = "rc-hcl-case-study";
 const HCL_CASE_RI_UUID = "ri-hcl-case-study";
 const HCL_CASE_ID = "hcl";
-const HCL_CASE_LABEL = "HCL dissertation case study";
+const HCL_CASE_LABEL = "HCL example";
+const OWNER = HCL_CASE_LABEL;
 
 const PLACEHOLDER_SY_WORKBOOK_ID = "example-sy-hcl-case-study";
 const PLACEHOLDER_ESQ_WORKBOOK_ID = "example-esq-hcl-case-study";
@@ -382,13 +382,13 @@ const systemDefinitions: SystemDefinition[] = MODEL_KEYS.map((key) => ({
   applicablePlantOperatingStates: ["POS-FULL-POWER"],
   modeledComponentsAndFailures: Object.fromEntries(MODEL_EVENTS[key].map((eventKey) => [
     BASIC_EVENT_IDS[eventKey],
-    { failureModes: [BASIC_EVENT_META[eventKey].name], justificationForInclusion: "Used by the HCL case-study logic." },
+    { failureModes: [BASIC_EVENT_META[eventKey].name], justificationForInclusion: "Used by the HCL example logic." },
   ])),
   informationBasis: "as-built-as-operated",
   implementsSrs: [],
 }));
 
-const ieBase = createBlankIe("HCL dissertation case study — IE", OWNER);
+const ieBase = createBlankIe("HCL example — IE", OWNER);
 
 const loopInitiator: InitiatorDefinition = {
   uuid: "IE-LOOP-HCL",
@@ -448,7 +448,7 @@ const loopQuantification: InitiatingEventFrequencyQuantification = {
 const IE_ANALYSIS_HCL = {
   ...ieBase,
   uuid: HCL_CASE_IE_UUID,
-  name: "HCL dissertation case study — Initiating Events",
+  name: "HCL example — Initiating Events",
   created: NOW,
   modified: NOW,
   metadata: {
@@ -461,7 +461,7 @@ const IE_ANALYSIS_HCL = {
     lastModifiedDate: NOW,
     lastModifiedBy: OWNER,
   },
-  praScope: "One full-power LOOP initiating event feeding the connected HCL case-study sequence.",
+  praScope: "One full-power LOOP initiating event feeding the connected HCL example sequence.",
   applicablePlantOperatingStates: ["POS-FULL-POWER"],
   initiators: [loopInitiator],
   initiatingEventGroups: [loopGroup],
@@ -478,7 +478,7 @@ const IE_ANALYSIS_HCL = {
     highConfidenceAreas: ["Initiating-event identity", "Published baseline target"],
     lowerConfidenceAreas: ["Unpublished source-model details"],
   },
-  modelUncertainty: { ...ieBase.modelUncertainty, uuid: id(1, 1), name: "HCL case-study IE model uncertainty" },
+  modelUncertainty: { ...ieBase.modelUncertainty, uuid: id(1, 1), name: "HCL example IE model uncertainty" },
   documentation: {
     ...ieBase.documentation,
     processDescription: "Defines the LOOP entry condition used by the connected LOOP, SBO, and FLEX event trees.",
@@ -533,7 +533,7 @@ const SY_ANALYSIS_HCL: SystemsAnalysis = {
     reference: "Dissertation Chapters 6 and 9",
     systemsAnalyzed: systemDefinitions.map((system) => system.uuid),
   },
-  modelUncertainty: { ...syBase.modelUncertainty, uuid: id(2, 2), name: "HCL case-study fault-tree model uncertainty" },
+  modelUncertainty: { ...syBase.modelUncertainty, uuid: id(2, 2), name: "HCL example fault-tree model uncertainty" },
   documentation: {
     ...syBase.documentation,
     processDescription: "Builds the 22 event-tree top events as executable fault trees with selected transfer structures for EPS and AFW.",
@@ -547,12 +547,12 @@ const SY_ANALYSIS_HCL: SystemsAnalysis = {
   },
 };
 
-const daBase = createBlankDa("HCL dissertation case study — DA", OWNER);
+const daBase = createBlankDa("HCL example — DA", OWNER);
 
 const DA_ANALYSIS_HCL: DataAnalysis = {
   ...daBase,
   uuid: HCL_CASE_DA_UUID,
-  name: "HCL dissertation case study — Data Analysis",
+  name: "HCL example — Data Analysis",
   created: NOW,
   modified: NOW,
   metadata: {
@@ -560,7 +560,7 @@ const DA_ANALYSIS_HCL: DataAnalysis = {
     versionInfo: { ...daBase.metadata.versionInfo, lastUpdated: NOW },
     analysisDate: NOW,
     analysts: [OWNER],
-    scope: "Probability inputs for the non-human fault-tree basic events in the connected HCL case study.",
+    scope: "Probability inputs for the non-human fault-tree basic events in the connected HCL example.",
     limitations: ["Values reconstructed from the executable dissertation-source example remain provisional until the original source-model package is available."],
     lastModifiedDate: NOW,
     lastModifiedBy: OWNER,
@@ -581,14 +581,14 @@ const DA_ANALYSIS_HCL: DataAnalysis = {
   },
   sources: [{
     id: "SRC-01",
-    name: "HCL case-study inputs, reconstructed",
+    name: "HCL example inputs, reconstructed",
     kind: "GENERIC_NUCLEAR",
     origin: "SAME_TECHNOLOGY",
-    covers: "Point probabilities for every non-human basic event in the HCL case-study fault trees.",
+    covers: "Point probabilities for every non-human basic event in the HCL example fault trees.",
     boundaryConvention: "Each value belongs to one basic event of the compact case-study fault trees and takes that event's definition.",
     failureCounting: "No failures are counted. Each value is the input of the executable example.",
     quality: "Reconstructed from the executable dissertation-source example. The original data package and its years are not public, so the values stay provisional.",
-    reference: "Dissertation-source HCL case study, executable example inputs",
+    reference: "Dissertation-source HCL example, executable inputs",
     entries: COMPONENT_EVENT_KEYS.map((key) => ({
       id: BASIC_EVENT_IDS[key],
       component: BASIC_EVENT_META[key].code,
@@ -647,14 +647,14 @@ const DA_ANALYSIS_HCL: DataAnalysis = {
   },
 };
 
-const hrBase = createBlankHr("HCL dissertation case study — HRA", OWNER);
+const hrBase = createBlankHr("HCL example — HRA", OWNER);
 
 const HEP_UNCERTAINTY_METHOD = "Constrained noninformative distribution with the dissertation-source mean, as SPAR-H recommends (NUREG/CR-6883, Section 2.7.6).";
 
 const HR_ANALYSIS_HCL: HumanReliabilityAnalysis = {
   ...hrBase,
   uuid: HCL_CASE_HR_UUID,
-  name: "HCL dissertation case study — Human Reliability",
+  name: "HCL example — Human Reliability",
   created: NOW,
   modified: NOW,
   metadata: {
@@ -1018,12 +1018,12 @@ const eventSequenceFamilies: EventSequenceFamily[] = [
   },
 ];
 
-const esBase = createBlankEs("HCL dissertation case study — ES", OWNER);
+const esBase = createBlankEs("HCL example — ES", OWNER);
 
 const ES_ANALYSIS_HCL: EventSequenceAnalysis = {
   ...esBase,
   uuid: HCL_CASE_ES_UUID,
-  name: "HCL dissertation case study — Event Trees",
+  name: "HCL example — Event Trees",
   created: NOW,
   modified: NOW,
   metadata: {
@@ -1064,7 +1064,7 @@ const ES_ANALYSIS_HCL: EventSequenceAnalysis = {
     highConfidenceAreas: ["Functional-event order", "Sequence counts", "Transfer structure", "End-state classification"],
     lowerConfidenceAreas: ["Unpublished branch labels and numerical source inputs"],
   },
-  modelUncertainty: { ...esBase.modelUncertainty, uuid: id(3, 1), name: "HCL case-study event-tree model uncertainty" },
+  modelUncertainty: { ...esBase.modelUncertainty, uuid: id(3, 1), name: "HCL example event-tree model uncertainty" },
   documentation: {
     ...esBase.documentation,
     processDescription: "Transcribes the published LOOP, SBO, and FLEX event trees into editable branch graphs.",
@@ -1431,7 +1431,7 @@ const ESQ_ANALYSIS_HCL: EventSequenceQuantification = {
       handlingDescription: "Shared BN context",
     },
   },
-  modelUncertainty: { ...esqBase.modelUncertainty, uuid: id(4, 2), name: "HCL dissertation reproduction model uncertainty" },
+  modelUncertainty: { ...esqBase.modelUncertainty, uuid: id(4, 2), name: "HCL example model uncertainty" },
   documentation: {
     ...esqBase.documentation,
     processDescription: "Runs the exact HCL bridge from BN evidence through mapped FT basic events and connected event-tree paths.",
@@ -1452,11 +1452,11 @@ const hclConsequenceByFamily = [
   { familyId: "ESF-HCL-ATWS", resultId: "RCQ-HCL-ATWS", releaseCategory: "RC-ATWS", consequence: 0.4 },
 ] as const;
 
-const rcBase = createBlankRc("HCL dissertation case study — RC", OWNER);
+const rcBase = createBlankRc("HCL example — RC", OWNER);
 const RC_ANALYSIS_HCL: RadiologicalConsequenceAnalysis = {
   ...rcBase,
   uuid: HCL_CASE_RC_UUID,
-  name: "HCL dissertation case study — Consequences",
+  name: "HCL example — Consequences",
   created: NOW,
   modified: NOW,
   metadata: {
@@ -1481,7 +1481,7 @@ const RC_ANALYSIS_HCL: RadiologicalConsequenceAnalysis = {
       protectiveActionsCredited: false,
       statistics: { mean: true, percentiles: [], exceedanceThresholds: [] },
       criterion: "No acceptance criterion. The index only verifies the connected HCL quantification through Risk Integration.",
-      basis: "Temporary verification measure of the HCL dissertation case study, not an offsite-consequence model.",
+      basis: "Temporary verification measure of the HCL example, not an offsite-consequence model.",
     }],
     metricSelectionApplicationBasis: "A dimensionless verification measure keeps the temporary example focused on the connected quantification workflow.",
   },
@@ -1536,7 +1536,7 @@ const RC_ANALYSIS_HCL: RadiologicalConsequenceAnalysis = {
   },
 };
 
-const riBase = createBlankRi("HCL dissertation case study — RI", OWNER);
+const riBase = createBlankRi("HCL example — RI", OWNER);
 const hclCompiledInputs: RiskIntegration["compiledRiskInputs"] = hclFamilyQuantifications.map((quantification) => {
   const consequence = hclConsequenceByFamily.find((entry) => entry.familyId === quantification.eventSequenceFamilyRef)!;
   return {
@@ -1575,7 +1575,7 @@ const hclIntegratedRisk = hclCompiledInputs.reduce(
 const RI_ANALYSIS_HCL: RiskIntegration = {
   ...riBase,
   uuid: HCL_CASE_RI_UUID,
-  name: "HCL dissertation case study — Integrated Risk",
+  name: "HCL example — Integrated Risk",
   created: NOW,
   modified: NOW,
   metadata: {

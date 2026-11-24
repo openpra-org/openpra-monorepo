@@ -1,7 +1,7 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { LoadExampleModal } from "../../workbooks/exampleWorkbookModal";
 it("shows the published-data notice only for the published RC example", () => {
-  render(<LoadExampleModal exampleName="RC" exampleOptions={[{ id: "generic", label: "Generic" }, { id: "published-rc-inputs", label: "Published RC inputs" }]} choiceLabel="Example" exampleNotices={{ "published-rc-inputs": "Numerical values are from cited published files." }} onCancel={jest.fn()} onConfirm={jest.fn()} />);
+  render(<LoadExampleModal exampleName="RC" exampleOptions={[{ id: "generic", label: "Generic" }, { id: "published-rc-inputs", label: "RC example" }]} choiceLabel="Example" exampleNotices={{ "published-rc-inputs": "Numerical values are from cited published files." }} onCancel={jest.fn()} onConfirm={jest.fn()} />);
   expect(screen.getByText("LLM-generated example. Not real plant or PRA data.")).toBeInTheDocument();
   fireEvent.change(screen.getByRole("combobox"), { target: { value: "published-rc-inputs" } });
   expect(screen.queryByText("LLM-generated example. Not real plant or PRA data.")).not.toBeInTheDocument();

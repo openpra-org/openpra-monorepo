@@ -49,7 +49,7 @@ jest.mock("../esqWorkbench", () => ({
   },
 }));
 jest.mock("../../workbooks/exampleWorkbookModal", () => ({
-  LoadExampleModal: ({ onConfirm }: { onConfirm: (id: string) => Promise<void> }) => <button onClick={() => { void onConfirm("hcl"); }}>Load dissertation</button>,
+  LoadExampleModal: ({ onConfirm }: { onConfirm: (id: string) => Promise<void> }) => <button onClick={() => { void onConfirm("hcl"); }}>Load HCL example</button>,
   UnloadExampleModal: ({ onConfirm }: { onConfirm: () => Promise<void> }) => <button onClick={() => { void onConfirm(); }}>Confirm unload</button>,
 }));
 
@@ -62,18 +62,18 @@ function response(uuid: string, linkedWorkbooks?: EsqLinkedWorkbooks): EsqWorkbo
   };
 }
 
-const DISSERTATION_ES = { name: "Dissertation ES" } as EventSequenceAnalysis;
+const HCL_EXAMPLE_ES = { name: "HCL example ES" } as EventSequenceAnalysis;
 
 describe("ESQ linked workbooks", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockWorkbookId = "new-esq";
     jest.mocked(getEsqWorkbook).mockResolvedValue(response("blank"));
-    jest.mocked(getEsqExampleOptions).mockResolvedValue([{ id: "hcl", label: "Dissertation" }]);
+    jest.mocked(getEsqExampleOptions).mockResolvedValue([{ id: "hcl", label: "HCL example" }]);
     jest.mocked(loadEsqExample).mockResolvedValue(response("esq-hcl-case-study", { ES: "example-es-hcl" }));
     jest.mocked(unloadEsqExample).mockResolvedValue(response("blank"));
     jest.mocked(listEsqLinkOptions).mockResolvedValue(NO_LINK_OPTIONS);
-    jest.mocked(loadLinkedEs).mockResolvedValue(DISSERTATION_ES);
+    jest.mocked(loadLinkedEs).mockResolvedValue(HCL_EXAMPLE_ES);
   });
 
   it("lists the project's workbooks and loads no linked workbook for a blank workbook", async () => {
@@ -88,8 +88,8 @@ describe("ESQ linked workbooks", () => {
     render(<EsqWorkbookPage />);
     fireEvent.click(await screen.findByRole("button", { name: "Load example" }));
     expect(loadEsqExample).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByRole("button", { name: "Load dissertation" }));
-    await waitFor(() => expect(screen.getByTestId("linked-es")).toHaveTextContent("Dissertation ES"));
+    fireEvent.click(screen.getByRole("button", { name: "Load HCL example" }));
+    await waitFor(() => expect(screen.getByTestId("linked-es")).toHaveTextContent("HCL example ES"));
     expect(loadEsqExample).toHaveBeenCalledWith("new-esq", "hcl");
     expect(loadLinkedEs).toHaveBeenCalledWith("example-es-hcl");
     fireEvent.click(screen.getByRole("button", { name: "Unload example" }));
@@ -101,7 +101,7 @@ describe("ESQ linked workbooks", () => {
   it("does not show the previous workbook while another loads", async () => {
     jest.mocked(getEsqWorkbook).mockResolvedValueOnce(response("esq-hcl-case-study", { ES: "example-es-hcl" }));
     const { rerender } = render(<EsqWorkbookPage />);
-    await waitFor(() => expect(screen.getByTestId("linked-es")).toHaveTextContent("Dissertation ES"));
+    await waitFor(() => expect(screen.getByTestId("linked-es")).toHaveTextContent("HCL example ES"));
     let finish!: (value: EsqWorkbookResponse) => void;
     jest.mocked(getEsqWorkbook).mockReturnValueOnce(new Promise((resolve) => { finish = resolve; }));
     mockWorkbookId = "another-esq";
@@ -121,7 +121,7 @@ describe("ESQ linked workbooks", () => {
     fireEvent.click(await screen.findByRole("button", { name: "Unload example" }));
     fireEvent.click(screen.getByRole("button", { name: "Confirm unload" }));
     await waitFor(() => expect(screen.getByTestId("workbook")).toHaveTextContent("blank"));
-    await act(async () => { finish(DISSERTATION_ES); });
+    await act(async () => { finish(HCL_EXAMPLE_ES); });
     expect(screen.getByTestId("linked-es")).toHaveTextContent("No ES");
   });
 });

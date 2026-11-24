@@ -136,7 +136,7 @@ const RI_LINK_CODES: RiLinkCode[] = ["POS", "ES", "ESQ", "MS", "RC"];
 const EXAMPLE_VARIANT_LABELS: Record<string, string> = {
   htgr: "Generic HTGR",
   sfr: "Generic SFR",
-  hcl: "HCL case study",
+  hcl: "HCL",
 };
 
 function exampleLinkVariant(id: string): string | undefined {

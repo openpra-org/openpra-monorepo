@@ -203,7 +203,7 @@ jobs:
           DOCS_IMAGE: openpra-apps-web-backend-docs:${{ steps.docs.outputs.docs_hash }}
         run: |
           docker network create smoke
-          docker run -d --name mongodb --network smoke "$MONGO_IMAGE"
+          docker run -d --name mongodb --network smoke -e GLIBC_TUNABLES=glibc.pthread.rseq=1 "$MONGO_IMAGE"
           docker run -d --name minio --network smoke -e MINIO_ROOT_USER=minioadmin -e MINIO_ROOT_PASSWORD=minioadmin "$MINIO_IMAGE" server /data
           docker volume create smoke-documents
           docker run --rm -v smoke-documents:/dest "$DOCS_IMAGE" sh -c 'tar -C /example-documents -cf - . | tar -C /dest -xf -'
@@ -236,6 +236,7 @@ jobs:
             sleep 2
           done
           if ! curl -s http://localhost:8000/api/ | grep -qF '"statusCode":404'; then
+            docker logs mongodb
             docker logs backend
             echo "::error::The backend image did not answer on /api"
             exit 1

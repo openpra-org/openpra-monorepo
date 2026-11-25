@@ -1,0 +1,26 @@
+Loading config: input/PolarDecay.txt
+  case_name : polar_decay
+  mode      : lmp
+  geometry  : polar
+  nuclides  : 23
+  segments  : 2
+  met file  : data\single.met  (1 realizations)
+  sectors   : 36
+  rings     : 2  (756-2500 m)
+  wind shift: disabled
+
+Total released activity : 9.517e+15 Bq  (46 nuclide-segment pairs)
+
+
+======================================================================
+  Wind direction   : 270.0°  (downwind sector 9, centre 90.0°)
+  χ/Q reference    : first-segment downwind sector 9
+
+   Distance(m)     χ/Q(s/m³)   DW TEDE(mSv)   Max TEDE(mSv)   GrdDep(Bq/m²)
+  ------------------------------------------------------------------------
+           756    5.8558e-05       840.2650        840.2650       1.539e+09
+          2500    8.3046e-06       117.6561        117.6561       2.151e+08
+======================================================================
+  Missing DCFs: 137Cs, Cs-999
+
+Results written to: outputs\polar_decay\polar_decay_results.json

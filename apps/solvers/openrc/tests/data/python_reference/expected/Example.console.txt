@@ -1,0 +1,24 @@
+Loading config: input/Example.txt
+  case_name : test_case_001
+  mode      : lmp
+  geometry  : centerline
+  nuclides  : 3
+  segments  : 1
+  met       : single trial  (class D, 3.0 m/s)
+
+Total released activity : 3.000e+12 Bq  (3 nuclide-segment pairs)
+
+
+============================================================
+  TEDE             : 0.8077 mSv  (8.0769e-04 Sv)
+  chi/Q            : 4.1302e-05 s/m³
+  Ground dep total : 2.4781e+05 Bq/m²
+  LMP TEDE (756 m) : 1.2573 mSv  (30-day at EAB)
+============================================================
+
+Top 10 nuclide contributors to TEDE:
+  Cs-137       0.5343 mSv  (66.2%)
+  I-131        0.2733 mSv  (33.8%)
+  Xe-133       0.0001 mSv  (0.0%)
+
+Results written to: outputs\test_case_001_results.json

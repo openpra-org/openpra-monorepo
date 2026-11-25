@@ -25,19 +25,24 @@ import { RcTransportController } from "./rc-transport.controller";
 import { RcDoseInputsService } from "./rc-dose-inputs.service";
 import { RcDoseInputsController } from "./rc-dose-inputs.controller";
 import { RcTransportService } from "./rc-transport.service";
+import { PraetorConsequenceClient } from "./praetor-consequence.client";
+import { RcConsequenceRunRecord, RcConsequenceRunSchema } from "./rc-consequence-run.schema";
+import { RcConsequenceRunsController } from "./rc-consequence-runs.controller";
+import { RcConsequenceRunsService } from "./rc-consequence-runs.service";
 
 @Module({
   imports: [
     MongooseModule.forFeature([
       { name: RcWorkbook.name, schema: RcWorkbookSchema },
       { name: RcWorkbookFile.name, schema: RcWorkbookFileSchema },
+      { name: RcConsequenceRunRecord.name, schema: RcConsequenceRunSchema },
     ]),
     ProjectsModule,
     ExampleWorkbooksModule,
     WorkbooksModule,
   ],
-  controllers: [RcCaseRecordsController, RcWorkbooksController, RcDocumentsController, RcSourceTermController, RcSiteReceptorsController, RcEarlyResponseController, RcWeatherController, RcTransportController, RcDoseInputsController],
-  providers: [RcPublishedExampleService, RcCaseRecordsService, RcWorkbooksService, RcMefAdapter, RcDocumentsService, RcSourceTermService, RcSiteReceptorsService, RcEarlyResponseService, RcWeatherService, RcTransportService, RcDoseInputsService],
-  exports: [RcWorkbooksService, RcDocumentsService],
+  controllers: [RcCaseRecordsController, RcConsequenceRunsController, RcWorkbooksController, RcDocumentsController, RcSourceTermController, RcSiteReceptorsController, RcEarlyResponseController, RcWeatherController, RcTransportController, RcDoseInputsController],
+  providers: [RcPublishedExampleService, RcCaseRecordsService, RcWorkbooksService, RcMefAdapter, RcDocumentsService, RcSourceTermService, RcSiteReceptorsService, RcEarlyResponseService, RcWeatherService, RcTransportService, RcDoseInputsService, PraetorConsequenceClient, RcConsequenceRunsService],
+  exports: [RcWorkbooksService, RcDocumentsService, PraetorConsequenceClient],
 })
 export class RcWorkbooksModule {}

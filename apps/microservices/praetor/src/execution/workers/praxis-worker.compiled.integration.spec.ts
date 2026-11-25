@@ -118,3 +118,23 @@ it("loads the compiled HTTP controller and PRAXIS job services", () => {
   expect(typeof PraxisJobsService).toBe("function");
   expect(typeof PraxisJobConsumerService).toBe("function");
 });
+it("copies the OpenRC worker unchanged and loads the compiled OpenRC job services", async () => {
+  const openRcWorkerPath = join(compiled, "workers/openrc.worker.js");
+  expect(readFileSync(openRcWorkerPath, "utf8")).toBe(readFileSync(join(__dirname, "openrc.worker.js"), "utf8"));
+  const { OpenRcJobsService } = require(join(compiled, "services/openrc-jobs.service.js"));
+  const { OpenRcJobConsumerService } = require(join(compiled, "services/openrc-job-consumer.service.js"));
+  const { OpenRcJobStore } = require(join(compiled, "openrc-job-store.js"));
+  const { runOpenRcProcess } = require(join(compiled, "workers/openrc-worker-runner.js"));
+  expect(typeof OpenRcJobsService).toBe("function");
+  expect(typeof OpenRcJobConsumerService).toBe("function");
+  expect(typeof OpenRcJobStore).toBe("function");
+
+  const response = await runOpenRcProcess(
+    { operation: "validate", requestJson: JSON.stringify({ schemaVersion: "1.0.0", request: { methodType: "UNKNOWN" } }) },
+    { timeoutMs: praetorJobTimeout() },
+  );
+  const output = JSON.parse(response.resultJson);
+  expect(output.error.code).toBe("UNSUPPORTED_METHOD_TYPE");
+  expect(output.engine.name).toBe("OPENRC");
+  expect(response.workerProcessId).not.toBe(process.pid);
+});

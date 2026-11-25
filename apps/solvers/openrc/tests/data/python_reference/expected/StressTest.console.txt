@@ -1,0 +1,31 @@
+Loading config: input/StressTest.txt
+  case_name : stress_test_001
+  mode      : lmp
+  geometry  : centerline
+  nuclides  : 20
+  segments  : 2
+  met       : single trial  (class F, 1.5 m/s)
+
+Total released activity : 9.166e+15 Bq  (40 nuclide-segment pairs)
+
+
+============================================================
+  TEDE             : 3278.2003 mSv  (3.2782e+00 Sv)
+  chi/Q            : 2.9392e-04 s/m³
+  Ground dep total : 5.1077e+09 Bq/m²
+  LMP TEDE (756 m) : 4613.2405 mSv  (30-day at EAB)
+============================================================
+
+Top 10 nuclide contributors to TEDE:
+  I-131        1568.6202 mSv  (47.9%)
+  Cs-137       570.3537 mSv  (17.4%)
+  I-133        229.9945 mSv  (7.0%)
+  Sr-90        228.2759 mSv  (7.0%)
+  Cs-134       154.5286 mSv  (4.7%)
+  La-140       120.3698 mSv  (3.7%)
+  I-132        116.2510 mSv  (3.5%)
+  Te-132       75.9503 mSv  (2.3%)
+  Pu-239       69.3698 mSv  (2.1%)
+  Ru-106       48.0264 mSv  (1.5%)
+
+Results written to: outputs\stress_test_001\stress_test_001_results.json

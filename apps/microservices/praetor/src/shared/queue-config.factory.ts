@@ -76,6 +76,40 @@ export class QueueConfigFactory {
         return this.text(EnvVarKeys.PRAXIS_CANCEL_EXCHANGE_ID, 'praxis_job_cancel');
     }
 
+    public createOpenRcJobQueueConfig(): QueueConfig {
+        const routingKey = this.text(EnvVarKeys.OPENRC_JOB_ROUTING_KEY, 'openrc_jobs_key');
+        const deadRoutingKey = this.text(EnvVarKeys.OPENRC_JOB_DEAD_LETTER_ROUTING_KEY, 'openrc_jobs_dead_queue_key');
+        return {
+            name: this.text(EnvVarKeys.OPENRC_JOB_QUEUE, 'openrc_jobs'),
+            exchange: {
+                name: this.text(EnvVarKeys.OPENRC_JOB_EXCHANGE_ID, 'openrc_jobs_exchange'),
+                type: 'direct',
+                durable: true,
+                bindingKey: routingKey,
+                routingKey,
+            },
+            durable: true,
+            messageTtl: this.count(EnvVarKeys.OPENRC_JOB_MSG_TTL, 172800000),
+            maxLength: this.count(EnvVarKeys.OPENRC_JOB_QUEUE_MAXLENGTH, 100000),
+            prefetch: 1,
+            deadLetter: {
+                name: this.text(EnvVarKeys.OPENRC_JOB_DEAD_LETTER_QUEUE, 'openrc_jobs_dead_queue'),
+                exchange: {
+                    name: this.text(EnvVarKeys.OPENRC_JOB_DEAD_LETTER_EXCHANGE_ID, 'global_exchange'),
+                    type: 'direct',
+                    durable: true,
+                    bindingKey: deadRoutingKey,
+                    routingKey: deadRoutingKey,
+                },
+                durable: true,
+            },
+        };
+    }
+
+    public openRcCancelExchange(): string {
+        return this.text(EnvVarKeys.OPENRC_CANCEL_EXCHANGE_ID, 'openrc_job_cancel');
+    }
+
     public createExecuteTaskQueueConfig(): QueueConfig {
         return {
             name: this.configSvc.getOrThrow<string>(EnvVarKeys.EXEC_TASK_QUEUE),

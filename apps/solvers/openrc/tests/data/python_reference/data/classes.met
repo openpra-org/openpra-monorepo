@@ -1,0 +1,12 @@
+# every class, then rows that fall back to the default table
+stability_class,wind_speed_m_s,wind_dir_deg
+A,2.0,10
+B,2.0,20
+C,2.0,30
+D,2.0,40
+E,2.0,50
+F,2.0,60
+G,2.0,70
+,2.0,80
+e,2.0,90
+ d ,2.0

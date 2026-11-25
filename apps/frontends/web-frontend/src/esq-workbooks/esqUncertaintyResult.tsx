@@ -112,7 +112,7 @@ function DistributionChart({ distribution, view, width }: { distribution: EsqUnc
   );
 }
 
-function EsqUncertaintyCard({ distribution, details }: { distribution: EsqUncertaintyDistribution; details: string }): JSX.Element {
+function EsqUncertaintyCard({ distribution, details = "" }: { distribution: EsqUncertaintyDistribution; details?: string }): JSX.Element {
   const [view, setView] = useWorkbookView<ChartView>("uncertainty.chart", "DISTRIBUTION", CHART_VIEW);
   const [frameRef, width] = useElementWidth(DEFAULT_WIDTH);
   const zeros = distribution.histogram?.zeros ?? 0;
@@ -126,10 +126,13 @@ function EsqUncertaintyCard({ distribution, details }: { distribution: EsqUncert
   ];
   return (
     <article className="esq-unc-result" aria-label={`Uncertainty result for ${distribution.label}`}>
-      <div className="esq-unc-result__views" role="group" aria-label="Chart view">
-        {CHART_VIEWS.map(([option, text]) => (
-          <button key={option} type="button" className="esq-unc-result__view" aria-pressed={view === option} onClick={() => setView(option)}>{text}</button>
-        ))}
+      <div className="esq-unc-result__head">
+        <div className="esq-unc-result__views" role="group" aria-label="Chart view">
+          {CHART_VIEWS.map(([option, text]) => (
+            <button key={option} type="button" className="esq-unc-result__view" aria-pressed={view === option} onClick={() => setView(option)}>{text}</button>
+          ))}
+        </div>
+        {values.length > 0 && <ResultCsvButton filename={`${distribution.label} trials.csv`} records={() => values.map((value, index) => ({ trial: index + 1, frequency_per_year: value }))} />}
       </div>
       <div className="esq-unc-chart">
         <div ref={frameRef} className="esq-unc-chart__frame">
@@ -147,11 +150,7 @@ function EsqUncertaintyCard({ distribution, details }: { distribution: EsqUncert
         <thead><tr>{summary.map(({ name }) => <th key={name} scope="col">{name}</th>)}</tr></thead>
         <tbody><tr>{summary.map(({ name, value }) => <td key={name}>{sciText(value)}</td>)}</tr></tbody>
       </table>
-      <p className="esq-unc-result__note">{`The point estimate uses every input at its point value, the mean averages all ${distribution.trials.toLocaleString()} trials, and nine in ten trials fall between the 5th and 95th percentiles.`}</p>
-      <div className="esq-unc-result__details">
-        <span>{details}</span>
-        {values.length > 0 && <ResultCsvButton filename={`${distribution.label} trials.csv`} records={() => values.map((value, index) => ({ trial: index + 1, frequency_per_year: value }))} />}
-      </div>
+      {details.length > 0 && <p className="esq-unc-result__details">{details}</p>}
     </article>
   );
 }

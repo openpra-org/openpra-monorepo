@@ -1,5 +1,4 @@
 import { JSX, useEffect, useMemo, useState } from "react";
-import type { FunctionalEventNetworkNode } from "interfaces-mef-types/es/event-sequence-analysis";
 import type { FaultTreeTopEventReference, MethodEntityReference } from "interfaces-mef-types/modeling";
 import type { SystemLogicModel } from "interfaces-mef-types/sy/systems-analysis";
 import { systemBasicEventToFaultTreeBasicEvent } from "interfaces-mef-types/sy/system-models";
@@ -16,21 +15,15 @@ import { ESIcon } from "./esIcons";
 import type { EsFaultTreeSource } from "./esWorkbookContext";
 import "./css/esLinkModal.css";
 
-type LinkKind = "FAULT_TREE" | "NETWORK_NODE";
-
 interface EsFaultTreeReferencePickerProps {
   projectId?: string;
   embeddedSource?: EsFaultTreeSource;
   linkedWorkbookId?: string;
   functionalEventName: string;
   currentReference?: FaultTreeTopEventReference;
-  currentNetworkNode?: FunctionalEventNetworkNode;
   onClose: () => void;
   onConfirm: (reference: FaultTreeTopEventReference) => void;
-  onConfirmNetworkNode: (link: FunctionalEventNetworkNode) => void;
 }
-
-const LINK_KINDS: readonly (readonly [LinkKind, string])[] = [["FAULT_TREE", "Fault tree"], ["NETWORK_NODE", "Network node"]];
 
 const REFERENCE_SELECTION_CAPABILITIES = {
   mode: "REFERENCE_SELECTION" as const,
@@ -67,12 +60,9 @@ function EsFaultTreeReferencePicker({
   linkedWorkbookId,
   functionalEventName,
   currentReference,
-  currentNetworkNode,
   onClose,
   onConfirm,
-  onConfirmNetworkNode,
 }: EsFaultTreeReferencePickerProps): JSX.Element {
-  const [kind, setKind] = useState<LinkKind>(currentNetworkNode === undefined ? "FAULT_TREE" : "NETWORK_NODE");
   const [workbooks, setWorkbooks] = useState<Array<{ id: string; name: string }> | null>(null);
   const [selectedWorkbookId, setSelectedWorkbookId] = useState("");
   const [source, setSource] = useState<Pick<SyWorkbookResponse, "workbookId" | "mef"> | null>(null);
@@ -82,9 +72,6 @@ function EsFaultTreeReferencePicker({
   const [selectedTarget, setSelectedTarget] = useState<MethodEntityReference | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [selectionHint, setSelectionHint] = useState<string | null>(null);
-  const [networkId, setNetworkId] = useState(currentNetworkNode?.bayesianNetworkNode.modelId ?? "");
-  const [nodeId, setNodeId] = useState(currentNetworkNode?.bayesianNetworkNode.entityId ?? "");
-  const [failingStateIds, setFailingStateIds] = useState<readonly string[]>(currentNetworkNode?.trueStateIds ?? []);
 
   useEffect(() => {
     let cancelled = false;
@@ -208,13 +195,6 @@ function EsFaultTreeReferencePicker({
         faultTreeModels: availableModels.map(toEditorModel),
       });
 
-  const networks = source?.mef.dependencyBayesianNetworks ?? [];
-  const network = networks.find((candidate) => candidate.modelId === networkId) ?? networks[0];
-  const nodes = network?.nodes ?? [];
-  const node = nodes.find((candidate) => candidate.id === nodeId) ?? nodes[0];
-  const failing = node === undefined ? [] : failingStateIds.filter((stateId) => node.states.some((state) => state.id === stateId));
-  const nodeReady = network !== undefined && node !== undefined && failing.length > 0 && failing.length < node.states.length;
-
   function selectModel(modelId: string): void {
     const nextModel = availableModels.find((model) => model.uuid === modelId);
     setSelectedModelId(modelId);
@@ -237,21 +217,6 @@ function EsFaultTreeReferencePicker({
     setSelectionHint(null);
   }
 
-  function selectNetwork(modelId: string): void {
-    setNetworkId(modelId);
-    setNodeId("");
-    setFailingStateIds([]);
-  }
-
-  function selectNode(id: string): void {
-    setNodeId(id);
-    setFailingStateIds([]);
-  }
-
-  function toggleState(stateId: string): void {
-    setFailingStateIds((current) => (current.includes(stateId) ? current.filter((id) => id !== stateId) : [...current, stateId]));
-  }
-
   function confirm(): void {
     if (selectedTarget === null || selectedWorkbookId.length === 0) return;
     onConfirm({
@@ -259,19 +224,6 @@ function EsFaultTreeReferencePicker({
       workbookId: selectedWorkbookId,
       modelId: selectedTarget.modelId,
       entityId: selectedTarget.entityId,
-    });
-  }
-
-  function confirmNode(): void {
-    if (!nodeReady || network === undefined || node === undefined || selectedWorkbookId.length === 0) return;
-    onConfirmNetworkNode({
-      bayesianNetworkNode: {
-        referenceType: "BAYESIAN_NETWORK_NODE",
-        workbookId: selectedWorkbookId,
-        modelId: network.modelId,
-        entityId: node.id,
-      },
-      trueStateIds: node.states.filter((state) => failing.includes(state.id)).map((state) => state.id),
     });
   }
 
@@ -294,16 +246,6 @@ function EsFaultTreeReferencePicker({
           <div className="eslink__ft-toolbar">
             <div className="eslink__ft-selectors">
               <label className="posfield">
-                <span className="posfield__label">Link to</span>
-                <select
-                  className="posfield__select"
-                  value={kind}
-                  onChange={(event) => setKind(LINK_KINDS.find(([option]) => option === event.target.value)?.[0] ?? "FAULT_TREE")}
-                >
-                  {LINK_KINDS.map(([option, label]) => <option key={option} value={option}>{label}</option>)}
-                </select>
-              </label>
-              <label className="posfield">
                 <span className="posfield__label">Systems workbook</span>
                 <select
                   className="posfield__select"
@@ -314,82 +256,42 @@ function EsFaultTreeReferencePicker({
                   {(workbooks ?? []).map((workbook) => <option key={workbook.id} value={workbook.id}>{workbook.name}</option>)}
                 </select>
               </label>
-              {kind === "FAULT_TREE" ? (
-                <>
-                  <label className="posfield">
-                    <span className="posfield__label">Search fault trees</span>
-                    <input
-                      className="posfield__input"
-                      type="search"
-                      value={modelQuery}
-                      placeholder="Tree code, name, top gate, or system"
-                      onChange={(event) => setModelQuery(event.target.value)}
-                    />
-                  </label>
-                  <label className="posfield">
-                    <span className="posfield__label">Fault tree</span>
-                    <select
-                      className="posfield__select"
-                      value={selectedModelId}
-                      disabled={source === null || availableModels.length === 0}
-                      onChange={(event) => selectModel(event.target.value)}
-                    >
-                      {filteredModels.length === 0 && <option value="">No matching fault tree</option>}
-                      {filteredModels.map((model) => {
-                        const topGate = model.topGate === null ? undefined : model.gates.find((gate) => gate.id === model.topGate?.gateId);
-                        return <option key={model.uuid} value={model.uuid}>{model.code} · {model.name}{topGate?.code === undefined ? "" : ` · ${topGate.code}`}</option>;
-                      })}
-                    </select>
-                  </label>
-                </>
-              ) : (
-                <>
-                  <label className="posfield">
-                    <span className="posfield__label">Network</span>
-                    <select
-                      className="posfield__select"
-                      value={network?.modelId ?? ""}
-                      disabled={networks.length === 0}
-                      onChange={(event) => selectNetwork(event.target.value)}
-                    >
-                      {networks.map((candidate) => <option key={candidate.modelId} value={candidate.modelId}>{candidate.code} · {candidate.name}</option>)}
-                    </select>
-                  </label>
-                  <label className="posfield">
-                    <span className="posfield__label">Node</span>
-                    <select
-                      className="posfield__select"
-                      value={node?.id ?? ""}
-                      disabled={nodes.length === 0}
-                      onChange={(event) => selectNode(event.target.value)}
-                    >
-                      {nodes.map((candidate) => <option key={candidate.id} value={candidate.id}>{candidate.code} · {candidate.name}</option>)}
-                    </select>
-                  </label>
-                </>
-              )}
+              <label className="posfield">
+                <span className="posfield__label">Search fault trees</span>
+                <input
+                  className="posfield__input"
+                  type="search"
+                  value={modelQuery}
+                  placeholder="Tree code, name, top gate, or system"
+                  onChange={(event) => setModelQuery(event.target.value)}
+                />
+              </label>
+              <label className="posfield">
+                <span className="posfield__label">Fault tree</span>
+                <select
+                  className="posfield__select"
+                  value={selectedModelId}
+                  disabled={source === null || availableModels.length === 0}
+                  onChange={(event) => selectModel(event.target.value)}
+                >
+                  {filteredModels.length === 0 && <option value="">No matching fault tree</option>}
+                  {filteredModels.map((model) => {
+                    const topGate = model.topGate === null ? undefined : model.gates.find((gate) => gate.id === model.topGate?.gateId);
+                    return <option key={model.uuid} value={model.uuid}>{model.code} · {model.name}{topGate?.code === undefined ? "" : ` · ${topGate.code}`}</option>;
+                  })}
+                </select>
+              </label>
             </div>
             <div className="eslink__ft-actions">
-              {kind === "FAULT_TREE" && selectedTargetCode !== null && <span className="eslink__selection-summary">{selectedTargetCode}</span>}
-              {kind === "FAULT_TREE" ? (
-                <button
-                  type="button"
-                  className="posnav__btn posnav__btn--primary"
-                  disabled={selectedTarget === null}
-                  onClick={confirm}
-                >
-                  <ESIcon.Link /> Link selected top event
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  className="posnav__btn posnav__btn--primary"
-                  disabled={!nodeReady}
-                  onClick={confirmNode}
-                >
-                  <ESIcon.Link /> Link selected node
-                </button>
-              )}
+              {selectedTargetCode !== null && <span className="eslink__selection-summary">{selectedTargetCode}</span>}
+              <button
+                type="button"
+                className="posnav__btn posnav__btn--primary"
+                disabled={selectedTarget === null}
+                onClick={confirm}
+              >
+                <ESIcon.Link /> Link selected top event
+              </button>
               <button type="button" className="eslink__close" onClick={onClose} aria-label="Close"><ESIcon.Close /></button>
             </div>
           </div>
@@ -399,17 +301,14 @@ function EsFaultTreeReferencePicker({
             <p className="pws-status">No Systems Analysis workbook is available in this project.</p>
           )}
           {selectedWorkbookId.length > 0 && source === null && error === null && (
-            <p className="pws-status">{kind === "FAULT_TREE" ? "Loading fault trees…" : "Loading dependency networks…"}</p>
+            <p className="pws-status">Loading fault trees…</p>
           )}
-          {kind === "FAULT_TREE" && source !== null && availableModels.length === 0 && (
+          {source !== null && availableModels.length === 0 && (
             <p className="pws-status">This Systems Analysis workbook has no fault tree with a top gate.</p>
-          )}
-          {kind === "NETWORK_NODE" && source !== null && networks.length === 0 && (
-            <p className="pws-status">This Systems Analysis workbook has no dependency network.</p>
           )}
           {error !== null && <p className="eslink__error" role="alert">{error}</p>}
 
-          {kind === "FAULT_TREE" && editorModel !== null && (
+          {editorModel !== null && (
             <div className="eslink__ft-editor">
               {selectionHint !== null && <p className="eslink__error" role="alert">{selectionHint}</p>}
               <FaultTreeEditor
@@ -435,18 +334,6 @@ function EsFaultTreeReferencePicker({
                 onRun={() => undefined}
               />
             </div>
-          )}
-
-          {kind === "NETWORK_NODE" && node !== undefined && (
-            <fieldset className="eslink__states">
-              <legend>{`States of ${node.code} in which ${functionalEventName} fails`}</legend>
-              {node.states.map((state) => (
-                <label key={state.id}>
-                  <input type="checkbox" checked={failing.includes(state.id)} onChange={() => toggleState(state.id)} />
-                  <span>{`${state.code} · ${state.name}`}</span>
-                </label>
-              ))}
-            </fieldset>
           )}
         </div>
 

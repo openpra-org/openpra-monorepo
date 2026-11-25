@@ -1,0 +1,20 @@
+{
+  "case_name": "infinite_activity",
+  "geometry": "centerline",
+  "mode": "lmp",
+  "receptor_x_m": 1000.0,
+  "stability_class": "D",
+  "wind_speed_m_s": 3.0,
+  "tede_sv": Infinity,
+  "tede_msv": Infinity,
+  "chi_over_q_s_m3": 4.130185771102728e-05,
+  "ground_deposition_bq_m2": Infinity,
+  "lmp_tede_sv": Infinity,
+  "epz_distance_m": 0.0,
+  "missing_dcfs": [],
+  "breakdown_msv": {
+    "Cs-137": Infinity,
+    "I-131": 0.2733157950965334,
+    "Xe-133": 5.457367161255855e-05
+  }
+}

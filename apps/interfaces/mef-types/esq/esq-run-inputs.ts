@@ -2,7 +2,6 @@ import {
   ESQ_PLAN_DEFAULTS,
   type EsqFlag,
   type EsqFunctionLink,
-  type EsqFunctionNodeLink,
   type EsqFunctionRecord,
   type EsqFunctionRule,
   type EsqFunctionTarget,
@@ -24,7 +23,6 @@ type EsqLinkOrigin = "RULE" | "ESQ" | "ES" | "NONE";
 
 interface EsqResolvedLink {
   target?: EsqFunctionTarget;
-  node?: EsqFunctionNodeLink;
   origin: EsqLinkOrigin;
   ruleId?: string;
 }
@@ -252,8 +250,6 @@ function resolveLink(record: EsqFunctionRecord, link: EsqFunctionLink | undefine
   if (link?.target !== undefined) return { target: link.target, origin: "ESQ" };
   const es = record.esLinks.find((entry) => entry.treeId === tree.id);
   if (es !== undefined) return { target: { kind: "FAULT_TREE", top: es.top }, origin: "ES" };
-  const node = record.nodeLinks?.find((entry) => entry.treeId === tree.id);
-  if (node !== undefined) return { node, origin: "ES" };
   return { origin: "NONE" };
 }
 

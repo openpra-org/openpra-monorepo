@@ -1,7 +1,7 @@
 use quick_xml::events::{BytesStart, Event};
 use quick_xml::name::QName;
 use quick_xml::Reader;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::io::BufRead;
 
 use crate::core::ccf::{alphas_key, fixed_components, phis_key, CcfGroup, CcfModel, RaspCcfEvent};
@@ -558,7 +558,15 @@ fn read_expr_children<R: BufRead>(reader: &mut Reader<R>, parent: &str) -> Resul
 }
 
 fn parse_named_expression<R: BufRead>(reader: &mut Reader<R>, closing: &str) -> Result<Expr> {
+    parse_described_expression(reader, closing).map(|(value, _)| value)
+}
+
+fn parse_described_expression<R: BufRead>(
+    reader: &mut Reader<R>,
+    closing: &str,
+) -> Result<(Expr, Vec<(String, String)>)> {
     let mut value: Option<Expr> = None;
+    let mut attributes = Vec::new();
     let mut buf = Vec::new();
     loop {
         match reader.read_event_into(&mut buf) {
@@ -571,7 +579,9 @@ fn parse_named_expression<R: BufRead>(reader: &mut Reader<R>, closing: &str) -> 
             }
             Ok(Event::Start(e)) => {
                 let name = qname_string(e.name())?;
-                if is_metadata(&name) {
+                if name == "attributes" {
+                    attributes.extend(read_attributes(reader)?);
+                } else if is_metadata(&name) {
                     skip_subtree(reader, &name)?;
                 } else if value.is_none() {
                     let attrs = owned_attrs(&e)?;
@@ -602,9 +612,67 @@ fn parse_named_expression<R: BufRead>(reader: &mut Reader<R>, closing: &str) -> 
         }
         buf.clear();
     }
-    value.ok_or_else(|| {
+    value.map(|value| (value, attributes)).ok_or_else(|| {
         MefError::Validity(format!("<{}> does not contain a value expression", closing)).into()
     })
+}
+
+fn read_attributes<R: BufRead>(reader: &mut Reader<R>) -> Result<Vec<(String, String)>> {
+    let mut found = Vec::new();
+    let mut buf = Vec::new();
+    loop {
+        match reader.read_event_into(&mut buf) {
+            Ok(Event::Empty(e)) => {
+                if e.name().as_ref() == b"attribute" {
+                    found.extend(named_value(&owned_attrs(&e)?));
+                }
+            }
+            Ok(Event::Start(e)) => {
+                let name = qname_string(e.name())?;
+                if name == "attribute" {
+                    found.extend(named_value(&owned_attrs(&e)?));
+                }
+                skip_subtree(reader, &name)?;
+            }
+            Ok(Event::End(e)) if e.name().as_ref() == b"attributes" => break,
+            Ok(Event::Eof) => {
+                return Err(MefError::Validity(
+                    "unexpected EOF while parsing <attributes>".to_string(),
+                )
+                .into());
+            }
+            Err(e) => {
+                return Err(
+                    MefError::Validity(format!("XML parse error in <attributes>: {}", e)).into(),
+                );
+            }
+            _ => {}
+        }
+        buf.clear();
+    }
+    Ok(found)
+}
+
+fn named_value(attrs: &[(String, String)]) -> Option<(String, String)> {
+    Some((
+        find_attr(attrs, "name")?.to_string(),
+        find_attr(attrs, "value")?.to_string(),
+    ))
+}
+
+fn initiator_flag(attributes: &[(String, String)]) -> Result<bool> {
+    let Some(raw) = find_attr(attributes, "initiator") else {
+        return Ok(false);
+    };
+    match raw.trim().to_ascii_lowercase().as_str() {
+        "true" | "1" => Ok(true),
+        "false" | "0" => Ok(false),
+        _ => Err(MefError::Validity(format!(
+            "attribute 'initiator' has invalid Boolean value '{}'",
+            raw
+        ))
+        .into()),
+    }
 }
 
 fn parse_house_state(attrs: &[(String, String)], element: &str) -> Result<bool> {
@@ -701,7 +769,7 @@ fn formula_from_tag(tag: &[u8], e: &BytesStart, gate: &str) -> Result<Option<For
 
 fn operand_name(e: &BytesStart) -> Result<Option<String>> {
     match e.name().as_ref() {
-        b"basic-event" | b"gate" | b"house-event" => {
+        b"basic-event" | b"event" | b"gate" | b"house-event" => {
             for attr in e.attributes() {
                 let attr =
                     attr.map_err(|err| MefError::Validity(format!("Invalid attribute: {}", err)))?;
@@ -772,6 +840,9 @@ fn read_formula<R: BufRead>(
                     synthetic.push(child);
                     gate.add_operand(child_name);
                 } else {
+                    if let Some(name) = operand_name(&e)? {
+                        gate.add_operand(name);
+                    }
                     let target = e.name().as_ref().to_vec();
                     skip_to_end(reader, target)?;
                 }
@@ -1079,14 +1150,29 @@ pub fn parse_ccf_group<R: BufRead>(
     CcfGroup::new(name, members, model, Some(Expr::Constant(total)))
 }
 
+/// The gates no other gate references, in file order. A model does not name its
+/// top event and a file may define it anywhere, so only the structure can identify it.
+/// A name defined twice counts once, which leaves the duplicate for `add_gate` to report.
+pub(crate) fn root_gates(gates: &[Gate]) -> Vec<&str> {
+    let referenced: HashSet<&str> = gates
+        .iter()
+        .flat_map(|gate| gate.operands().iter().map(String::as_str))
+        .collect();
+    let mut seen = HashSet::new();
+    gates
+        .iter()
+        .map(|gate| gate.element().id())
+        .filter(|id| !referenced.contains(id) && seen.insert(*id))
+        .collect()
+}
+
 pub fn parse_fault_tree(xml_content: &str) -> Result<FaultTree> {
     let mut reader = Reader::from_str(xml_content);
     reader.trim_text(true);
 
     let mut ft_name = None;
-    let mut top_gate = None;
     let mut gates = Vec::new();
-    let mut basic_event_values: Vec<(String, Expr)> = Vec::new();
+    let mut basic_event_values: Vec<(String, Expr, bool)> = Vec::new();
     let mut house_event_values: Vec<(String, bool)> = Vec::new();
     let mut parameters: Vec<(String, Expr)> = Vec::new();
     let mut ccf_groups = Vec::new();
@@ -1135,9 +1221,6 @@ pub fn parse_fault_tree(xml_content: &str) -> Result<FaultTree> {
                         }
 
                         if let Some(name) = gate_name {
-                            if top_gate.is_none() {
-                                top_gate = Some(name.clone());
-                            }
                             let parsed = parse_gate(&mut reader, &name)?;
                             gates.extend(parsed);
                         }
@@ -1163,8 +1246,9 @@ pub fn parse_fault_tree(xml_content: &str) -> Result<FaultTree> {
                         }
 
                         if let Some(name) = event_name {
-                            let value = parse_named_expression(&mut reader, "define-basic-event")?;
-                            basic_event_values.push((name, value));
+                            let (value, attributes) =
+                                parse_described_expression(&mut reader, "define-basic-event")?;
+                            basic_event_values.push((name, value, initiator_flag(&attributes)?));
                         }
                     }
                     b"define-house-event" => {
@@ -1280,10 +1364,23 @@ pub fn parse_fault_tree(xml_content: &str) -> Result<FaultTree> {
     let ft_name = ft_name
         .ok_or_else(|| MefError::Validity("Missing fault tree name attribute".to_string()))?;
 
-    let top_gate = top_gate
-        .ok_or_else(|| MefError::Validity(format!("No gates defined in fault tree {}", ft_name)))?;
+    if gates.is_empty() {
+        return Err(
+            MefError::Validity(format!("No gates defined in fault tree {}", ft_name)).into(),
+        );
+    }
+    let roots = root_gates(&gates);
+    let [top_gate] = roots.as_slice() else {
+        return Err(MefError::Validity(format!(
+            "Expected one top gate in fault tree {}, found {}: {}",
+            ft_name,
+            roots.len(),
+            roots.join(", ")
+        ))
+        .into());
+    };
 
-    let mut ft = FaultTree::new(&ft_name, &top_gate)?;
+    let mut ft = FaultTree::new(&ft_name, *top_gate)?;
 
     for gate in gates {
         ft.add_gate(gate)?;
@@ -1298,9 +1395,11 @@ pub fn parse_fault_tree(xml_content: &str) -> Result<FaultTree> {
     let mut built_events = Vec::with_capacity(basic_event_values.len());
     {
         let ctx = EvalContext::constant(&parameter_map, mission_time);
-        for (name, value) in basic_event_values {
+        for (name, value, initiator) in basic_event_values {
             let nominal = value.evaluate(&ctx)?;
-            built_events.push(build_basic_event(&name, nominal, value)?);
+            let mut event = build_basic_event(&name, nominal, value)?;
+            event.set_initiator(initiator);
+            built_events.push(event);
         }
     }
 
@@ -1327,6 +1426,131 @@ pub fn parse_fault_tree(xml_content: &str) -> Result<FaultTree> {
 #[allow(clippy::items_after_test_module)]
 mod tests {
     use super::*;
+    use crate::analysis::quantify::{quantify, Settings};
+
+    fn fault_tree_with(gates: &str) -> String {
+        format!(
+            r#"<opsa-mef><define-fault-tree name="FT">{gates}</define-fault-tree><model-data>
+              <define-basic-event name="E1"><float value="0.01"/></define-basic-event>
+              <define-basic-event name="E2"><float value="0.02"/></define-basic-event>
+              <define-basic-event name="E3"><float value="0.03"/></define-basic-event>
+            </model-data></opsa-mef>"#
+        )
+    }
+
+    #[test]
+    fn top_event_is_the_gate_no_other_gate_references() {
+        let ft = parse_fault_tree(&fault_tree_with(
+            r#"<define-gate name="G1"><and><basic-event name="E1"/><basic-event name="E2"/></and></define-gate>
+               <define-gate name="TOP"><or><gate name="G1"/><basic-event name="E3"/></or></define-gate>"#,
+        ))
+        .unwrap();
+        assert_eq!(ft.top_event(), "TOP");
+
+        let probability = quantify(&ft, &Settings::default())
+            .unwrap()
+            .probability
+            .unwrap()
+            .value;
+        assert!((probability - 0.030194).abs() < 1e-12, "{probability}");
+    }
+
+    #[test]
+    fn several_top_gates_are_refused() {
+        let error = parse_fault_tree(&fault_tree_with(
+            r#"<define-gate name="A"><or><basic-event name="E1"/><basic-event name="E2"/></or></define-gate>
+               <define-gate name="B"><or><basic-event name="E2"/><basic-event name="E3"/></or></define-gate>"#,
+        ))
+        .unwrap_err()
+        .to_string();
+        assert!(error.contains("found 2: A, B"), "{error}");
+    }
+
+    #[test]
+    fn a_gate_defined_twice_is_reported_as_a_duplicate() {
+        let error = parse_fault_tree(&fault_tree_with(
+            r#"<define-gate name="A"><or><basic-event name="E1"/><basic-event name="E2"/></or></define-gate>
+               <define-gate name="A"><or><basic-event name="E2"/><basic-event name="E3"/></or></define-gate>"#,
+        ))
+        .unwrap_err()
+        .to_string();
+        assert!(error.contains("already exists"), "{error}");
+    }
+
+    #[test]
+    fn a_tree_with_no_unreferenced_gate_is_refused() {
+        let error = parse_fault_tree(&fault_tree_with(
+            r#"<define-gate name="A"><or><gate name="B"/><basic-event name="E1"/></or></define-gate>
+               <define-gate name="B"><or><gate name="A"/><basic-event name="E2"/></or></define-gate>"#,
+        ))
+        .unwrap_err()
+        .to_string();
+        assert!(error.contains("found 0"), "{error}");
+    }
+
+    #[test]
+    fn a_gate_reached_through_an_event_element_is_not_a_top() {
+        let ft = parse_fault_tree(&fault_tree_with(
+            r#"<define-gate name="G1"><and><basic-event name="E1"/><basic-event name="E2"/></and></define-gate>
+               <define-gate name="TOP"><or><event name="G1"/><event name="E3"/></or></define-gate>"#,
+        ))
+        .unwrap();
+        assert_eq!(ft.top_event(), "TOP");
+        assert_eq!(ft.get_gate("TOP").unwrap().operands(), ["G1", "E3"]);
+    }
+
+    #[test]
+    fn operands_with_a_closing_tag_are_kept() {
+        let ft = parse_fault_tree(&fault_tree_with(
+            r#"<define-gate name="G1"><and><basic-event name="E1"></basic-event><basic-event name="E2"></basic-event></and></define-gate>
+               <define-gate name="TOP"><or><gate name="G1"></gate><basic-event name="E3"></basic-event></or></define-gate>"#,
+        ))
+        .unwrap();
+        assert_eq!(ft.top_event(), "TOP");
+        assert_eq!(ft.get_gate("TOP").unwrap().operands(), ["G1", "E3"]);
+        assert_eq!(ft.get_gate("G1").unwrap().operands(), ["E1", "E2"]);
+    }
+
+    #[test]
+    fn an_initiator_attribute_marks_the_basic_event() {
+        let ft = parse_fault_tree(
+            r#"<opsa-mef><define-fault-tree name="FT">
+              <define-gate name="TOP"><and><basic-event name="IE"/><basic-event name="E1"/></and></define-gate>
+            </define-fault-tree><model-data>
+              <define-basic-event name="IE">
+                <attributes><attribute name="initiator" value="true"/></attributes>
+                <float value="0.1"/>
+              </define-basic-event>
+              <define-basic-event name="E1">
+                <attributes><attribute name="original-name" value="%E1"/></attributes>
+                <float value="0.01"/>
+              </define-basic-event>
+            </model-data></opsa-mef>"#,
+        )
+        .unwrap();
+        let initiator = ft.get_basic_event("IE").unwrap();
+        assert!(initiator.is_initiator());
+        assert_eq!(initiator.probability(), 0.1);
+        assert!(!ft.get_basic_event("E1").unwrap().is_initiator());
+    }
+
+    #[test]
+    fn an_initiator_attribute_must_be_boolean() {
+        let error = parse_fault_tree(
+            r#"<opsa-mef><define-fault-tree name="FT">
+              <define-gate name="TOP"><or><basic-event name="IE"/><basic-event name="E1"/></or></define-gate>
+            </define-fault-tree><model-data>
+              <define-basic-event name="IE">
+                <attributes><attribute name="initiator" value="maybe"/></attributes>
+                <float value="0.1"/>
+              </define-basic-event>
+              <define-basic-event name="E1"><float value="0.01"/></define-basic-event>
+            </model-data></opsa-mef>"#,
+        )
+        .unwrap_err()
+        .to_string();
+        assert!(error.contains("invalid Boolean value 'maybe'"), "{error}");
+    }
 
     #[test]
     fn test_parse_element_basic() {

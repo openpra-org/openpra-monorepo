@@ -1,0 +1,32 @@
+Loading config: input/DecaySimple.txt
+  case_name : decay_simple
+  mode      : lmp
+  geometry  : centerline
+  nuclides  : 24
+  segments  : 2
+  met       : single trial  (class D, 3.0 m/s)
+
+Total released activity : 1.552e+16 Bq  (48 nuclide-segment pairs)
+
+
+============================================================
+  TEDE             : 680.7537 mSv  (6.8075e-01 Sv)
+  chi/Q            : 4.1302e-05 s/m³
+  Ground dep total : 1.2626e+09 Bq/m²
+  LMP TEDE (756 m) : 1021.6045 mSv  (30-day at EAB)
+  Missing DCFs     : 131I, 133Xe, 137Cs, 90Sr
+============================================================
+
+Top 10 nuclide contributors to TEDE:
+  I-131        403.8158 mSv  (59.3%)
+  Cs-137       80.1466 mSv  (11.8%)
+  I-133        59.2525 mSv  (8.7%)
+  Sr-90        32.0775 mSv  (4.7%)
+  I-132        30.0409 mSv  (4.4%)
+  Cs-134       21.7175 mSv  (3.2%)
+  La-140       13.0496 mSv  (1.9%)
+  Te-132       10.6734 mSv  (1.6%)
+  Pu-239       9.7479 mSv  (1.4%)
+  Ru-106       6.7487 mSv  (1.0%)
+
+Results written to: outputs\decay_simple\decay_simple_results.json

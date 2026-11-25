@@ -85,8 +85,10 @@ class PraxisJobsService implements OnApplicationBootstrap, OnApplicationShutdown
   }
 
   async onApplicationShutdown(): Promise<void> {
-    await this.channel?.close().catch(() => undefined);
-    await this.channelModel?.close().catch(() => undefined);
+    const channel = this.channel;
+    const channelModel = this.channelModel;
+    await channel?.close().catch(() => undefined);
+    await channelModel?.close().catch(() => undefined);
   }
 
   private async ensureChannel(): Promise<Channel> {

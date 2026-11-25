@@ -201,7 +201,6 @@ export function SavedAnalysisResult({ details, host }: { details: AnalysisRunDet
         analysisHost={host}
         batchRunResult={{
           kind: details.run.methodType === "EVENT_TREE" ? "EVENT_TREE" : "FAULT_TREE",
-          compilationReuse: batch.compilationReuse,
           hazardConvolution: batch.hazardConvolution,
           scenarios: batch.runs.map((row) => ({
             scenarioId: row.scenarioId,
@@ -256,7 +255,7 @@ export function SavedAnalysisResult({ details, host }: { details: AnalysisRunDet
     const result = BayesianNetworkStoredResultSchema.parse(details.result);
     const candidate = details.workbookSnapshots
       .flatMap((source) => {
-        const models = source.mef["dependencyBayesianNetworks"] ?? source.mef["bayesianNetworks"];
+        const models = source.mef["bayesianNetworks"];
         return Array.isArray(models) ? models : [];
       })
       .find((model: { modelId?: string }) => model.modelId === details.run.owner.modelId);

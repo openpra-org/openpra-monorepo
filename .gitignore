@@ -92,6 +92,9 @@ __pycache__/
 .codex/
 .mcp.json
 
+# Hook shims that each worktree creates locally
+/.husky/_/
+
 # Local root-level planning and contributor instruction files
 /*TODO*
 /GUIDELINES.md
@@ -178,3 +181,7 @@ apps/solvers/xfta/XFTA.pdf
 !/apps/frontends/web-frontend/src/newly-developed-methods/bayesian-network/test/fixtures/hclMhSource.json
 !/apps/frontends/web-frontend/src/newly-developed-methods/bayesian-network/test/fixtures/hclMhSource.py
 !/apps/frontends/web-frontend/src/newly-developed-methods/bayesian-network/test/fixtures/grouping-demo.xdsl
+!/apps/frontends/web-frontend/src/newly-developed-methods/bayesian-network/test/fixtures/builtNetworks/
+!/apps/frontends/web-frontend/src/newly-developed-methods/bayesian-network/test/fixtures/builtNetworks/**
+!/apps/backends/web-backend/src/newly-developed-methods/bayesian-network/network-builder/test/fixtures/
+!/apps/backends/web-backend/src/newly-developed-methods/bayesian-network/network-builder/test/fixtures/**

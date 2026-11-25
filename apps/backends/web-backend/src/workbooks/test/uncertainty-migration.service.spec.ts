@@ -42,11 +42,14 @@ import { SeismicPraWorkbook, SeismicPraWorkbookSchema, type SeismicPraWorkbookDo
 import { INLINE_PAYLOAD_BYTES, modelPayloadStore } from "../../storage/model-payload-store";
 import { SyWorkbook, SyWorkbookSchema, type SyWorkbookDocument } from "../../sy-workbooks/sy-workbook.schema";
 import { DA_ANALYSIS_HTGR } from "../../example-workbooks/seeds/da-seed-htgr";
+import { createExampleDependencyEventTree, EXAMPLE_DEPENDENCY_IDS } from "../../example-workbooks/seeds/dependency-model-seed";
 import { ESQ_ANALYSIS_HTGR } from "../../example-workbooks/seeds/esq-seed-htgr";
 import { SY_ANALYSIS_HTGR } from "../../example-workbooks/seeds/sy-seed-htgr";
+import { receiveSyNetworks } from "../sy-network-migration";
 import {
   ConversionScope,
   PraxisAnswers,
+  convertEsqMef,
   convertSyMef,
   daIssue,
   esIssue,
@@ -153,6 +156,18 @@ function withHclSettings(sy: JsonRecord): JsonRecord {
 
 function syHclMef(): JsonRecord {
   return withHclSettings(fixture("sy-hcl"));
+}
+
+function esqHclMef(workbookId: string): JsonRecord {
+  return receiveSyNetworks(without(fixture("esq-hcl"), ["bayesianNetworks", "hclConfigurations"]), workbookId, syHclMef(), "example-sy-hcl-case-study");
+}
+
+function linkedEsMef(): JsonRecord {
+  const tree = asJson(createExampleDependencyEventTree());
+  const events = record(field(tree, "functionalEvents"));
+  const event = without(record(field(events, EXAMPLE_DEPENDENCY_IDS.functionalEvent)), ["faultTreeTopEvent"]);
+  const networkNode = { bayesianNetworkNode: { referenceType: "BAYESIAN_NETWORK_NODE", workbookId: "sy-wb", modelId: EXAMPLE_DEPENDENCY_IDS.network, entityId: EXAMPLE_DEPENDENCY_IDS.divisionANode }, trueStateIds: [EXAMPLE_DEPENDENCY_IDS.divisionAFailed] };
+  return { ...asJson(createBlankEs("ES Workbook", OWNER)), eventTrees: [{ ...tree, functionalEvents: { ...events, [EXAMPLE_DEPENDENCY_IDS.functionalEvent]: { ...event, networkNode } } }] };
 }
 
 function issuesOf(outcome: { success: boolean; error?: { issues: readonly { path: readonly PropertyKey[]; message: string }[] } }): string[] {
@@ -591,6 +606,7 @@ describe("UncertaintyMigrationService", () => {
     await daModel.create({ workbookId: "da-wb", projectId: PROJECT_ID, ownerUsername: OWNER, revision: 4, mef: fixture("da-htgr") });
     await daModel.create({ workbookId: "da-fit", projectId: PROJECT_ID, ownerUsername: OWNER, mef: { ...fixture("da-hcl"), sources: [...records(field(fixture("da-hcl"), "sources")), CUSTOM_SOURCE] } });
     await syModel.create({ workbookId: "sy-wb", projectId: PROJECT_ID, ownerUsername: OWNER, revision: 5, mef: withHclSettings(fixture("sy-htgr")) });
+    await esqModel.create({ workbookId: "esq-wb", projectId: PROJECT_ID, ownerUsername: OWNER, mef: esqHclMef("esq-wb") });
     await ieModel.create({ workbookId: "ie-wb", projectId: PROJECT_ID, ownerUsername: OWNER, mef: ieMef() });
     praxis.mode = "HANG";
     const started = Date.now();
@@ -603,12 +619,13 @@ describe("UncertaintyMigrationService", () => {
     const left = leftLines().sort();
     expect(left).toHaveLength(3);
     expect(left[0]).toBe("da_workbooks da-fit was left as stored. mef: PRAXIS could not form the lognormal law of DA source entry V-FIT. PRAXIS did not answer. No answer came within 0.2 seconds.");
-    expect(left[1]).toBe("ie_workbooks ie-wb was left as stored. mef: PRAXIS could not form the lognormal law of IE data source DS-1. PRAXIS did not answer. No answer came within 0.2 seconds.");
-    expect(left[2]?.startsWith("sy_workbooks sy-wb was left as stored. mef: PRAXIS could not form the lognormal law of SY HCL configuration ")).toBe(true);
+    expect(left[1]?.startsWith("esq_workbooks esq-wb was left as stored. mef: PRAXIS could not form the lognormal law of ESQ dependency configuration ")).toBe(true);
+    expect(left[2]).toBe("ie_workbooks ie-wb was left as stored. mef: PRAXIS could not form the lognormal law of IE data source DS-1. PRAXIS did not answer. No answer came within 0.2 seconds.");
     expect(tallyOf(first, "da_workbooks")).toMatchObject({ converted: 1, left: 1 });
     expect(tallyOf(first, "sc_workbooks")).toMatchObject({ converted: 1, left: 0 });
+    expect(tallyOf(first, "sy_workbooks")).toMatchObject({ converted: 1, left: 0 });
     expect(daIssue(await storedMef<DaWorkbookDocument>(daModel, "da-wb"))).toBeUndefined();
-    expect(await connection.collection(BACKUP_COLLECTION).countDocuments({ workbookId: { $in: ["da-fit", "sy-wb", "ie-wb"] } })).toBe(0);
+    expect(await connection.collection(BACKUP_COLLECTION).countDocuments({ workbookId: { $in: ["da-fit", "esq-wb", "ie-wb"] } })).toBe(0);
 
     praxis.mode = "LIVE";
     warnings.mockClear();
@@ -616,10 +633,14 @@ describe("UncertaintyMigrationService", () => {
 
     expect(leftLines()).toEqual([]);
     expect(tallyOf(second, "da_workbooks")).toMatchObject({ current: 1, converted: 1, left: 0 });
-    expect(tallyOf(second, "sy_workbooks")).toMatchObject({ converted: 1, left: 0 });
+    expect(tallyOf(second, "sy_workbooks")).toMatchObject({ current: 1, converted: 0, left: 0 });
+    expect(tallyOf(second, "esq_workbooks")).toMatchObject({ converted: 1, left: 0 });
     expect(tallyOf(second, "ie_workbooks")).toMatchObject({ converted: 1, left: 0 });
+    expect(esqIssue(await storedMef<EsqWorkbookDocument>(esqModel, "esq-wb"))).toBeUndefined();
     const sy = await storedMef<SyWorkbookDocument>(syModel, "sy-wb");
     expect(syIssue(sy)).toBeUndefined();
+    const leftover = records(field(sy, "dependencyHclConfigurations"))[0] ?? {};
+    expect(field(record(field(leftover, "solverSettings")), "uncertainty")).toEqual(fixture("hcl-sy-uncertainty"));
     expect(field(byId(field(sy, "commonCauseFailureGroups"), "uuid", "CCF-RPS-DIV"), "factors")).toEqual({ model: "ALPHA_FACTOR", testing: "STAGGERED", alphas: { node: "PARAMETER", reference: { referenceType: "WORKBOOK_PARAMETER", workbookId: "da-wb", entityId: "ccfv/SRC-06/CCF-DEM/ALPHA_DIRICHLET/C2" } } });
 
     praxis.mode = "DOWN";
@@ -639,20 +660,25 @@ describe("UncertaintyMigrationService", () => {
     const scenario = randomUUID();
     const tree = randomUUID();
     const hcl = randomUUID();
+    const legacy = randomUUID();
+    const linked = randomUUID();
     await runModel.create(storedRun("sy-wb", current, "SINGLE", kept, null));
     await runModel.create(storedRun("sy-wb", old, "SINGLE", stale, null));
     await runModel.create(storedRun("sy-wb", current, "BATCH", batch, null));
     await runModel.create(storedRun("sy-wb", old, "SCENARIO", scenario, batch));
     await runModel.create(storedRun("es-wb", esMef(), "SINGLE", tree, null, "ES"));
-    const configuration = records(field(current, "dependencyHclConfigurations"))[0] ?? {};
-    const staleSettings = { ...current, dependencyHclConfigurations: [{ ...configuration, solverSettings: { ...record(field(configuration, "solverSettings")), uncertainty: fixture("hcl-sy-uncertainty") } }] };
-    await runModel.create(storedRun("sy-hcl-wb", staleSettings, "SINGLE", hcl, null));
+    const currentEsq = convertEsqMef(fixture("esq-hcl"), { daParameters: new Map(), daCcf: new Map(), syCcf: new Map(), scMissionTimes: new Map(), scProjects: new Map(), daHeld: new Map(), daProjects: new Map(), hrErrorFactors: new Map() }, new ConversionScope(new PraxisAnswers(), "test"), PROJECT_ID);
+    const staleSettings = { ...currentEsq, bayesianNetworks: field(esqHclMef("esq-hcl-wb"), "bayesianNetworks") ?? [], hclConfigurations: field(esqHclMef("esq-hcl-wb"), "hclConfigurations") ?? [] };
+    await runModel.create(storedRun("esq-hcl-wb", staleSettings, "SINGLE", hcl, null, "ESQ"));
+    await runModel.create(storedRun("sy-hcl-wb", withHclSettings(current), "SINGLE", legacy, null));
+    await runModel.create(storedRun("es-linked", linkedEsMef(), "SINGLE", linked, null, "ES"));
 
     const summary = await service.run();
 
-    expect(summary.runs).toMatchObject({ read: 6, kept: 1, moved: 5 });
+    expect(summary.runs).toMatchObject({ read: 8, kept: 3, moved: 5 });
     const live = await connection.collection("method_analysis_runs").find({}).toArray();
-    expect(live.map((run) => run["id"])).toEqual([kept]);
+    expect(live.map((run) => run["id"])).toEqual([kept, legacy, linked]);
+    expect(esIssue(linkedEsMef())).toBeDefined();
     const moved = await connection.collection(BACKUP_COLLECTION).find({ collection: "method_analysis_runs" }).toArray();
     expect(moved.map((backup) => backup["runId"]).sort()).toEqual([stale, batch, scenario, tree, hcl].sort());
     expect(moved.every((backup) => typeof backup["workbookId"] === "string" && typeof backup["reason"] === "string")).toBe(true);
@@ -818,7 +844,7 @@ describe("UncertaintyMigrationService", () => {
 
     expect(leftLines()).toEqual([]);
     expect(tallyOf(summary, "da_workbooks")).toMatchObject({ converted: 1, left: 0 });
-    expect(tallyOf(summary, "sy_workbooks")).toMatchObject({ converted: 2, current: 0, left: 0 });
+    expect(tallyOf(summary, "sy_workbooks")).toMatchObject({ converted: 1, current: 1, left: 0 });
     expect(tallyOf(summary, "esq_workbooks")).toMatchObject({ converted: 1, left: 0 });
     const da = await storedMef<DaWorkbookDocument>(daModel, "da-proj");
     const sy = await storedMef<SyWorkbookDocument>(syModel, "sy-proj");

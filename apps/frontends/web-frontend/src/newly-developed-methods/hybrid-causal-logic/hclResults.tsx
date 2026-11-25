@@ -1,7 +1,7 @@
-import { HclFaultTreeDiagnostics, HclCompilationDiagnostics } from "./hclDiagnostics";
 import { useEffect, useId, useState } from "react";
 import type { HclUncertaintySummary } from "interfaces-shared-types/newly-developed-methods/hybrid-causal-logic";
-import type { HclBindingEditorProps, HclEditorBatchRunResult } from "./hclBindingTypes";
+import type { HclCalculationType, HclEditorBatchRunResult, HclEditorRunResult, HclEventTreeOption, HclFaultTreeOption, QuantificationWorkflow } from "./hclBindingTypes";
+import type { AnalysisHost } from "../shared/analysisRunWait";
 import { PagedResults, ResultCsvButton, ResultWarnings } from "../shared/resultPresentation";
 import { hclResultRecords, hclBatchResultRecords } from "../shared/probabilityResultExport";
 import { HclResultMetric, HclUncertaintyResults, formatScientific, formatPercentage } from "./hclResultMetrics";
@@ -15,6 +15,7 @@ import {
   type HazardSequenceLookup,
 } from "./hclHazardResults";
 import { hclResultLabels, sequenceEndState } from "./hclResultLabels";
+import { HclCutSetsButton, HclImportanceButton, type HclCauseNode } from "./hclFaultTreeCutSets";
 
 function summaryValues(summary?: HclUncertaintySummary): number[] {
   return summary === undefined ?
@@ -63,6 +64,17 @@ function batchHasNoNumericVariation(batch: HclEditorBatchRunResult, uncertainty:
   );
 }
 
+interface HclResultsProps {
+  runResult: HclEditorRunResult | null;
+  batchRunResult: HclEditorBatchRunResult | null;
+  workflow?: QuantificationWorkflow;
+  calculationType?: HclCalculationType;
+  eventTreeOptions: HclEventTreeOption[];
+  faultTreeOptions: HclFaultTreeOption[];
+  analysisHost?: AnalysisHost;
+  networkNodes?: readonly HclCauseNode[];
+}
+
 export function HclResults({
   runResult,
   batchRunResult,
@@ -71,10 +83,8 @@ export function HclResults({
   eventTreeOptions,
   faultTreeOptions,
   analysisHost,
-}: Pick<
-  HclBindingEditorProps,
-  "runResult" | "batchRunResult" | "workflow" | "calculationType" | "eventTreeOptions" | "faultTreeOptions" | "analysisHost"
->) {
+  networkNodes = [],
+}: HclResultsProps) {
   const [selectedEndState, setSelectedEndState] = useState("");
   const selectionId = useId();
   const batchKey =
@@ -94,7 +104,7 @@ export function HclResults({
       ) ?? []);
   const labels = hclResultLabels(eventTreeOptions, eventResults);
   const hazard =
-    workflow === "BATCH" && calculationType === "PROBABILITY" ? batchRunResult?.hazardConvolution : undefined;
+    workflow === "BATCH" ? batchRunResult?.hazardConvolution : undefined;
   const endStateIds = [
     ...new Set([
       ...eventResults.flatMap((result) => [
@@ -118,6 +128,16 @@ export function HclResults({
     hazard === undefined &&
     batchHasNoNumericVariation(batchRunResult, calculationType === "UNCERTAINTY");
   const outcomeLabel = selected === "" ? "All outcomes" : labels.endStateName(selected);
+  const firstTree = workflow === "MANUAL" ? runResult : batchRunResult?.scenarios.find((scenario) => scenario.result?.kind === "FAULT_TREE")?.result;
+  const rankedTree =
+    firstTree?.kind === "FAULT_TREE" ?
+      faultTreeOptions.find(
+        (option) =>
+          option.modelId === firstTree.result.faultTreeTopGate.modelId &&
+          option.workbookId === firstTree.result.faultTreeTopGate.workbookId,
+      )
+    : undefined;
+  const rankedTitle = rankedTree === undefined ? "Fault tree" : `${rankedTree.modelCode} · ${rankedTree.modelName}`;
   return (
     <>
       {endStateIds.length > 0 && (
@@ -169,6 +189,8 @@ export function HclResults({
                 columnName={() => "Top event probability"}
               />
             )}
+            <HclCutSetsButton cutSets={runResult.result.dependencyCutSets} faultTree={rankedTree} title={rankedTitle} nodes={networkNodes} />
+            <HclImportanceButton rows={runResult.result.dependencyImportance} faultTree={rankedTree} title={rankedTitle} />
           </div>
           <ResultWarnings issues={runResult.result.validationIssues} />
           {calculationType === "PROBABILITY" ?
@@ -181,8 +203,6 @@ export function HclResults({
               />
             </div>
           : <HclUncertaintyResults summary={runResult.result.uncertainty} />}
-          <HclFaultTreeDiagnostics result={runResult.result} />
-          {runResult.result.compilationReuse !== undefined && <HclCompilationDiagnostics stats={runResult.result.compilationReuse} />}
         </div>
       )}
       {workflow === "MANUAL" && runResult?.kind === "EVENT_TREE" && (
@@ -208,7 +228,6 @@ export function HclResults({
             <span>{runResult.result.sequences.length} sequences calculated</span>
           </div>
           <ResultWarnings issues={runResult.result.validationIssues} />
-          {runResult.result.compilationReuse !== undefined && <HclCompilationDiagnostics stats={runResult.result.compilationReuse} />}
           <HclEventTreeResults
             result={runResult.result}
             calculationType={calculationType}
@@ -232,8 +251,13 @@ export function HclResults({
               {batchRunResult.scenarios.filter((scenario) => scenario.status === "SUCCEEDED").length} of{" "}
               {batchRunResult.scenarios.length} completed{noVariation ? " · No variation across scenarios" : ""}
             </span>
+            {hazard?.targetKind === "FAULT_TREE" && (
+              <HclCutSetsButton cutSets={hazard.dependencyCutSets} faultTree={rankedTree} title={rankedTitle} evidence="Weighted over the hazard grid" weighted />
+            )}
+            {hazard?.targetKind === "FAULT_TREE" && (
+              <HclImportanceButton rows={hazard.dependencyImportance} faultTree={rankedTree} title={rankedTitle} evidence="Weighted over the hazard grid" />
+            )}
           </div>
-          <HclCompilationDiagnostics key={batchKey} stats={batchRunResult.compilationReuse} />
           {hazard !== undefined && <HclHazardSummary hazard={hazard} />}
           {hazard?.targetKind === "EVENT_TREE" && (
             <HclEventTreeHazardResults
@@ -296,7 +320,23 @@ export function HclResults({
                           }
                         />
                         {result !== null && <ResultWarnings issues={result.result.validationIssues} />}
-                        {ft !== undefined && <HclFaultTreeDiagnostics result={ft} />}
+                        {ft !== undefined && (
+                          <HclCutSetsButton
+                            cutSets={ft.dependencyCutSets}
+                            faultTree={rankedTree}
+                            title={rankedTitle}
+                            nodes={networkNodes}
+                            evidence={scenario.scenarioName === scenario.scenarioCode ? scenario.scenarioCode : `${scenario.scenarioCode} · ${scenario.scenarioName}`}
+                          />
+                        )}
+                        {ft !== undefined && (
+                          <HclImportanceButton
+                            rows={ft.dependencyImportance}
+                            faultTree={rankedTree}
+                            title={rankedTitle}
+                            evidence={scenario.scenarioName === scenario.scenarioCode ? scenario.scenarioCode : `${scenario.scenarioCode} · ${scenario.scenarioName}`}
+                          />
+                        )}
                       </div>
                     );
                   }
@@ -349,7 +389,14 @@ export function HclResults({
                             inline
                           />
                         )}
-                        {result?.kind === "FAULT_TREE" && <HclFaultTreeDiagnostics result={result.result} />}
+                        {result?.kind === "FAULT_TREE" && (
+                          <HclImportanceButton
+                            rows={result.result.dependencyImportance}
+                            faultTree={rankedTree}
+                            title={rankedTitle}
+                            evidence={scenario.scenarioName === scenario.scenarioCode ? scenario.scenarioCode : `${scenario.scenarioCode} · ${scenario.scenarioName}`}
+                          />
+                        )}
                         {eventHazardRow !== undefined && (
                           <HclHazardBinResults
                             row={eventHazardRow}

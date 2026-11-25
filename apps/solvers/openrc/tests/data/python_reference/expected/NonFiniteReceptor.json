@@ -1,0 +1,20 @@
+{
+  "case_name": "non_finite_receptor",
+  "geometry": "centerline",
+  "mode": "lmp",
+  "receptor_x_m": NaN,
+  "stability_class": "D",
+  "wind_speed_m_s": 3.0,
+  "tede_sv": NaN,
+  "tede_msv": NaN,
+  "chi_over_q_s_m3": NaN,
+  "ground_deposition_bq_m2": NaN,
+  "lmp_tede_sv": 0.001257340586429549,
+  "epz_distance_m": 0.0,
+  "missing_dcfs": [],
+  "breakdown_msv": {
+    "Cs-137": NaN,
+    "I-131": NaN,
+    "Xe-133": NaN
+  }
+}

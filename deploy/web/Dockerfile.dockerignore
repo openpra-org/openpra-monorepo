@@ -16,6 +16,12 @@
 !apps/microservices/praetor/project.json
 !apps/site/package.json
 !apps/site/project.json
+!apps/solvers/openrc-node/package.json
+!apps/solvers/openrc-node/project.json
+!apps/solvers/openrc-node/index.js
+!apps/solvers/openrc-node/index.d.ts
+!apps/solvers/openrc-node/protocol.js
+!apps/solvers/openrc-node/protocol.d.ts
 !apps/solvers/praxis-node/package.json
 !apps/solvers/praxis-node/project.json
 !apps/solvers/praxis-node/index.js

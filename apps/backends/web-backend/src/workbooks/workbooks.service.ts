@@ -1,4 +1,4 @@
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException, Optional } from "@nestjs/common";
+import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException, Optional } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
 import { Model, isValidObjectId } from "mongoose";
 import {
@@ -37,7 +37,6 @@ import {
   reconcileExampleSyMissionTimeReferences,
   reconcileExampleSyHumanReliabilityReferences,
   reconcileExampleRiskResultReferences,
-  reconcileExampleSyDependencyOwnership,
   esqDataAnalysisLinks,
   relinkExampleDataAnalysis,
 } from "../example-workbooks/seeds/dependency-model-seed";
@@ -213,6 +212,8 @@ export class WorkbooksService {
   async createProjectWorkbooks(projectId: string, payload: CreateProjectWorkbooksRequest, acting: ActingUser): Promise<ProjectWorkbooksResult> {
     const { role, doc: project } = await this.projectsService.resolveAccess(projectId, acting);
     if (role === "viewer") throw new ForbiddenException("You cannot create workbooks in this project");
+    const taken = await this.workbookModel.findOne({ projectId, name: payload.name }).exec();
+    if (taken !== null) throw new ConflictException(`A workbook named "${payload.name}" already exists in this project`);
     const workbooks: WorkbookDto[] = [];
     const failed: ProjectWorkbookFailure[] = [];
     for (const element of elementsForMode(project.mode)) {
@@ -414,13 +415,11 @@ export class WorkbooksService {
       let systems = await syAdapter.load(syEntry.workbookId);
       if (systems === null || systems.revision === undefined) continue;
 
-      const ownedSystems = reconcileExampleSyDependencyOwnership(
-        missionTimes === undefined ? systems.mef as SystemsAnalysis : reconcileExampleSyMissionTimeReferences(systems.mef as SystemsAnalysis, missionTimes.sc, missionTimes.workbookId),
-        syEntry.workbookId,
-      );
-      await syAdapter.save(syEntry.workbookId, ownedSystems, systems.revision);
-      systems = await syAdapter.load(syEntry.workbookId);
-      if (systems === null || systems.revision === undefined) continue;
+      if (missionTimes !== undefined) {
+        await syAdapter.save(syEntry.workbookId, reconcileExampleSyMissionTimeReferences(systems.mef as SystemsAnalysis, missionTimes.sc, missionTimes.workbookId), systems.revision);
+        systems = await syAdapter.load(syEntry.workbookId);
+        if (systems === null || systems.revision === undefined) continue;
+      }
 
       if (daAdapter !== undefined && daEntry?.workbookId !== null && daEntry?.workbookId !== undefined) {
         const dataAnalysis = await daAdapter.load(daEntry.workbookId);

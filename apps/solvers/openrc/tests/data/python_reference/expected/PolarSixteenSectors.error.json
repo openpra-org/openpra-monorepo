@@ -1,0 +1,4 @@
+{
+  "type": "ValueError",
+  "message": "[polar_grid] sector_count must evenly divide 360, got 16"
+}

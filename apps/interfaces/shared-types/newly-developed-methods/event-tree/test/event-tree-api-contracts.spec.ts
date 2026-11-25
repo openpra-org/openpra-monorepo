@@ -254,6 +254,15 @@ describe("Event-tree execution and analysis-result contracts", () => {
     expect(EventTreeAnalysisResultSchema.safeParse(analysisResult).success).toBe(true);
   });
 
+  it("accepts ranked cut sets on a dependency sequence and rejects malformed ones", () => {
+    const dependencyCutSets = { score: "FAILED_EVENTS_AND_SEQUENCE", count: 3, items: [{ order: 1, probability: 0.02, annualFrequency: 0.00002, basicEventIds: ["BE-1"] }] };
+    const withCutSets = (value: object) => ({ ...analysisResult, mode: "HYBRID_CAUSAL_LOGIC", sequences: [{ ...analysisResult.sequences[0], dependencyCutSets: value }] });
+    expect(EventTreeAnalysisResultSchema.safeParse(withCutSets(dependencyCutSets)).success).toBe(true);
+    expect(EventTreeAnalysisResultSchema.safeParse(withCutSets({ ...dependencyCutSets, items: [] })).success).toBe(true);
+    expect(EventTreeAnalysisResultSchema.safeParse(withCutSets({ count: 3, items: [] })).success).toBe(false);
+    expect(EventTreeAnalysisResultSchema.safeParse(withCutSets({ ...dependencyCutSets, failedCount: 3 })).success).toBe(false);
+  });
+
   it("accepts the expanded common cause events in the decision diagram order", () => {
     const diagnostics = { bdd: { nodes: 12, variables: 3, variableOrder: [SEQUENCE_ID, "CCF-RPS-DIV-mgl-1-1", "CCF-RPS-DIV-mgl-2-1"] }, bridge: null, junctionTree: null };
     expect(EventTreeAnalysisResultSchema.safeParse({ ...analysisResult, sequences: [{ ...analysisResult.sequences[0], diagnostics }] }).success).toBe(true);

@@ -126,7 +126,6 @@ describe("ES fault-tree references", () => {
         functionalEventName="Cooling succeeds"
         onClose={jest.fn()}
         onConfirm={onConfirm}
-        onConfirmNetworkNode={jest.fn()}
       />,
     );
 
@@ -134,6 +133,8 @@ describe("ES fault-tree references", () => {
     expect(screen.queryByText(TOP_GATE_ID)).not.toBeInTheDocument();
     expect(screen.queryByText("Stable workbook reference")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Link selected top event" })).toBeEnabled();
+    const selectors = screen.getByRole("combobox", { name: "Systems workbook" }).closest(".eslink__ft-selectors");
+    expect(Array.from(selectors?.querySelectorAll(".posfield__label") ?? []).map((label) => label.textContent)).toEqual(["Systems workbook", "Search fault trees", "Fault tree"]);
 
     await user.click(screen.getByRole("button", { name: "Link selected top event" }));
 
@@ -161,7 +162,6 @@ describe("ES fault-tree references", () => {
         functionalEventName="Cooling succeeds"
         onClose={jest.fn()}
         onConfirm={onConfirm}
-        onConfirmNetworkNode={jest.fn()}
       />,
     );
 
@@ -239,7 +239,6 @@ describe("ES fault-tree references", () => {
         functionalEventName="Cooling succeeds"
         onClose={jest.fn()}
         onConfirm={jest.fn()}
-        onConfirmNetworkNode={jest.fn()}
       />,
     );
 
@@ -298,7 +297,6 @@ describe("ES fault-tree references", () => {
         functionalEventName="Cooling succeeds"
         onClose={jest.fn()}
         onConfirm={jest.fn()}
-        onConfirmNetworkNode={jest.fn()}
       />,
     );
 

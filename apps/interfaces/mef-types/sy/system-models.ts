@@ -277,14 +277,7 @@ function flattenLegacyFaultTree(
 }
 
 function hasNormalizedFaultTree(model: UnknownRecord): boolean {
-  return (
-    model.topGate !== undefined &&
-    model.gates !== undefined &&
-    model.leafNodes !== undefined &&
-    model.gateInputs !== undefined &&
-    model.nodePositions !== undefined &&
-    model.layout !== undefined
-  );
+  return model.gates !== undefined || model.leafNodes !== undefined || model.gateInputs !== undefined;
 }
 
 function emptyFaultTreeDefinition(): FaultTreeDefinition {
@@ -298,6 +291,15 @@ function emptyFaultTreeDefinition(): FaultTreeDefinition {
       ...AUTOMATIC_FAULT_TREE_LAYOUT,
       viewport: { ...AUTOMATIC_FAULT_TREE_LAYOUT.viewport },
     },
+  };
+}
+
+function missingFaultTreeFields(model: UnknownRecord): Partial<FaultTreeDefinition> {
+  const empty = emptyFaultTreeDefinition();
+  return {
+    ...(model.topGate === undefined ? { topGate: empty.topGate } : {}),
+    ...(model.nodePositions === undefined ? { nodePositions: empty.nodePositions } : {}),
+    ...(model.layout === undefined ? { layout: empty.layout } : {}),
   };
 }
 
@@ -328,7 +330,7 @@ function normalizeSystemLogicModelWithTargets(
     ...withoutLegacyTree,
     ...(code === undefined ? {} : { code }),
     ...(name === undefined ? {} : { name }),
-    ...(definition ?? {}),
+    ...(definition ?? missingFaultTreeFields(model)),
   };
 }
 

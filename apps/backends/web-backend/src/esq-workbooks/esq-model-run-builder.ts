@@ -2,9 +2,9 @@ import type {
   EsqExclusion,
   EsqFlag,
   EsqLoopBreak,
-  EsqFunctionNodeLink,
   EsqModel,
   EsqNetworkNodeReference,
+  EsqNetworkNodeTarget,
   EsqSplitFractionTarget,
   EsqTreeRecord,
   EventSequenceQuantification,
@@ -656,21 +656,28 @@ function buildEsqEventTreeRun(input: EsqRunBuildInput): EsqRunBuild {
   const splitCodes = new Map<string, string>();
   const standIns = new Map<string, EsqRunStandIn>();
 
-  const standInFor = (functionId: string, name: string, label: string, link: EsqFunctionNodeLink): FunctionTopLink => {
+  const nodeLabelOf = (node: EsqNetworkNodeReference): string | undefined => {
+    const held = node.workbookId === input.esqWorkbookId ? esq.bayesianNetworks.find((candidate) => candidate.modelId === node.modelId) : undefined;
+    const found = held?.nodes.find((candidate) => candidate.id === node.nodeId);
+    return held === undefined || found === undefined ? undefined : `${found.code} · ${found.name} · ${held.code}`;
+  };
+
+  const standInFor = (functionId: string, name: string, label: string, target: EsqNetworkNodeTarget): FunctionTopLink => {
     const network = input.network;
-    if (link.label.length === 0) throw new EsqRunBuildError(`${label} links to a network node that the linked SY workbook does not have. Link it again where its tree is drawn.`);
-    if (network === undefined || network.workbookId !== link.node.workbookId || network.modelId !== link.node.modelId) {
-      throw new EsqRunBuildError(`${label} links to the network node ${link.label}, which only a dependency run on that network quantifies.`);
+    const node = nodeLabelOf(target.node);
+    if (node === undefined) throw new EsqRunBuildError(`${label} links to a node that the dependency networks of this workbook do not have. Link it again in Step 02.`);
+    if (network === undefined || network.workbookId !== target.node.workbookId || network.modelId !== target.node.modelId) {
+      throw new EsqRunBuildError(`${label} links to the network node ${node}, which only a dependency run on that network quantifies.`);
     }
-    const states = [...link.trueStateIds].sort();
-    if (states.length === 0) throw new EsqRunBuildError(`${label} links to the network node ${link.label} with no failing state. Pick its failing states where its tree is drawn.`);
-    const seed = `node:${functionId}:${link.node.workbookId}:${link.node.modelId}:${link.node.nodeId}:${states.join(",")}`;
+    const states = [...target.trueStateIds].sort();
+    if (states.length === 0) throw new EsqRunBuildError(`${label} links to the network node ${node} with no failing state. Pick its failing states in Step 02.`);
+    const seed = `node:${functionId}:${target.node.workbookId}:${target.node.modelId}:${target.node.nodeId}:${states.join(",")}`;
     const modelId = esqStableId(`${seed}:model`);
     const gateId = esqStableId(`${seed}:gate`);
     if (!standIns.has(modelId)) {
       const leafId = esqStableId(`${seed}:leaf`);
       const eventId = esqStableId(`${seed}:event`);
-      standIns.set(modelId, { modelId, eventId, node: { ...link.node }, trueStateIds: [states[0], ...states.slice(1)] });
+      standIns.set(modelId, { modelId, eventId, node: { ...target.node }, trueStateIds: [states[0], ...states.slice(1)] });
       splitCodes.set(eventId, `BN-${functionId}`);
       splitModels.set(modelId, {
         modelSnapshot: {
@@ -704,10 +711,9 @@ function buildEsqEventTreeRun(input: EsqRunBuildInput): EsqRunBuild {
     if (!asked) return undefined;
     const record = model.functions.find((entry) => entry.id === functionId);
     const label = `${record?.name ?? functionId} in ${tree.code}`;
-    const resolved = record === undefined ? undefined : resolveLink(record, functionLinkOf(esq, functionId), tree);
-    if (resolved?.node !== undefined) return standInFor(functionId, record?.name ?? functionId, label, resolved.node);
-    const target = resolved?.target;
+    const target = record === undefined ? undefined : resolveLink(record, functionLinkOf(esq, functionId), tree).target;
     if (target === undefined) throw new EsqRunBuildError(`${label} is not linked. Link it in Step 02.`);
+    if (target.kind === "NETWORK_NODE") return standInFor(functionId, record?.name ?? functionId, label, target);
     if (target.kind === "FAULT_TREE") {
       const syModel = input.sy.systemLogicModels.find((entry) => entry.uuid === target.top.modelId);
       const topGateId = syModel?.topGate?.gateId;

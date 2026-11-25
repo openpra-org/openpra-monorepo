@@ -334,7 +334,7 @@ export class EsqWorkbooksController {
     @Body() body: unknown,
     @Req() req: AuthenticatedRequest,
   ): Promise<HclGenerateScenariosResult> {
-    return this.analysisRunsService.generateHclScenarios(id, modelId, body, { username: req.user!.username }, "ESQ");
+    return this.analysisRunsService.generateHclScenarios(id, modelId, body, { username: req.user!.username });
   }
 
   @Post(":id/hcl-configurations/:modelId/fault-tree-runs")

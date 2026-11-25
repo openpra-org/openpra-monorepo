@@ -23,6 +23,7 @@ function WorkspaceLegacy({
   onShare,
   onToggleArchive,
   onDelete,
+  onNewLinkedWorkbooks,
   onGenerateExamples,
   generation,
 }: {
@@ -38,6 +39,7 @@ function WorkspaceLegacy({
   onShare: () => void;
   onToggleArchive: () => void;
   onDelete: () => void;
+  onNewLinkedWorkbooks?: () => void;
   onGenerateExamples?: () => void;
   generation: number;
 }): JSX.Element {
@@ -92,6 +94,9 @@ function WorkspaceLegacy({
               </div>
             </div>
             <div className="phead__actions">
+              {onNewLinkedWorkbooks !== undefined && (
+                <button type="button" className="wfilters__gen" onClick={onNewLinkedWorkbooks}>New workbook</button>
+              )}
               {onGenerateExamples !== undefined && (
                 <button type="button" className="wfilters__gen" onClick={onGenerateExamples}>Generate example</button>
               )}

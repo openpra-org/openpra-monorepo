@@ -1,4 +1,3 @@
-import type { HclBindingEditorProps } from "../hybrid-causal-logic/hclBindingTypes";
 import type {
   BayesianNetworkEvidenceConfiguration,
   HclEvidenceScenario,
@@ -10,13 +9,7 @@ import type {
   BayesianNetworkModel,
 } from "interfaces-shared-types/newly-developed-methods/bayesian-network";
 import type { ValidationIssue } from "interfaces-shared-types/newly-developed-methods/shared";
-import type {
-  HclEditorBatchRunResult,
-  HclEditorRunResult,
-  HclEventTreeOption,
-  HclFaultTreeOption,
-  HclCalculationType,
-} from "../hybrid-causal-logic";
+import type { HclFaultTreeOption } from "../hybrid-causal-logic";
 
 type BayesianNetworkFaultTreeOption = HclFaultTreeOption;
 
@@ -30,13 +23,6 @@ interface BayesianNetworkQueryBatchResult {
 interface BayesianNetworkEditorProps {
   model: BayesianNetworkModel;
   editable: boolean;
-  readOnlyNotice?: { message: string; sourceHref?: string; sourceLabel?: string };
-  workbookNotice?: { message: string; sourceHref?: string; sourceLabel?: string };
-  showAnalysis?: boolean;
-  showQueryAnalysis?: boolean;
-  showHclAnalysis?: boolean;
-  hclScope?: "BOTH" | "FAULT_TREE" | "EVENT_TREE";
-  analysisHost?: HclBindingEditorProps["analysisHost"];
   evidence: BayesianNetworkEvidenceConfiguration;
   queryNodeId: string | null;
   validation: ValidationIssue[];
@@ -44,27 +30,20 @@ interface BayesianNetworkEditorProps {
   queryBatchResult?: BayesianNetworkQueryBatchResult | null;
   running: boolean;
   saveBlockedReason?: string | null;
+  saving?: boolean;
   onAnalysisInputChange?: () => void;
   runError: string | null;
   workbookId: string | null;
   hclConfigurations: WorkbookHclConfiguration[];
   faultTreeOptions: BayesianNetworkFaultTreeOption[];
-  eventTreeOptions: HclEventTreeOption[];
-  hclRunning: boolean;
-  hclRunError: string | null;
-  hclRunResult: HclEditorRunResult | null;
-  hclBatchRunResult: HclEditorBatchRunResult | null;
   onModelChange: (model: BayesianNetworkModel) => void;
+  onModelImport: (model: BayesianNetworkModel) => void;
   onEvidenceChange: (evidence: BayesianNetworkEvidenceConfiguration) => void;
   onQueryNodeChange: (nodeId: string | null) => void;
   onHclConfigurationsChange: (configurations: WorkbookHclConfiguration[]) => void;
-  onGenerateHclScenarios?: HclBindingEditorProps["onGenerateScenarios"];
-  onRunHclFaultTree: (configuration: WorkbookHclConfiguration, faultTree: HclFaultTreeOption, calculationType: HclCalculationType) => void;
-  onRunHclEventTree: (configuration: WorkbookHclConfiguration, eventTree: HclEventTreeOption, calculationType: HclCalculationType) => void;
-  onRunHclFaultTreeBatch: (configuration: WorkbookHclConfiguration, faultTree: HclFaultTreeOption, scenarioIds: string[], integrateHazardGrid: boolean, calculationType: HclCalculationType) => void;
-  onRunHclEventTreeBatch: (configuration: WorkbookHclConfiguration, eventTree: HclEventTreeOption, scenarioIds: string[], integrateHazardGrid: boolean, calculationType: HclCalculationType) => void;
   onRun: () => void;
   onRunBatch?: (scenarios: HclEvidenceScenario[]) => void;
+  onBuildFromSpecification?: (format: "JSON" | "YAML", source: string) => Promise<string>;
 }
 
 export type {

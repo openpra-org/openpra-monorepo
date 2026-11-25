@@ -19,7 +19,7 @@ import { createBlankRc } from "../../rc-workbooks/blank-rc";
 
 export const RC_PUBLISHED_ID = "published-rc-inputs";
 export const RC_PUBLISHED_SLUG = "rc-published-inputs";
-export const RC_PUBLISHED_LABEL = "Published RC inputs expert review";
+export const RC_PUBLISHED_LABEL = "RC example";
 export const RC_PUBLISHED_CATEGORY = "MELMACCS-APP-C";
 export const RC_PUBLISHED_DATE = "2026-09-12T00:00:00.000Z";
 const PUBLISHED_METRICS: RcConsequenceMetric[] = [
@@ -142,10 +142,10 @@ export function publishedRcReferenceLibraries(): ReturnType<typeof readReference
 }
 export function createPublishedRcSeed() {
   const text = (name: string) => decodeRcText(readRcPublishedFile(name)), file = publishedRcFileMetadata;
-  const rc = createBlankRc(RC_PUBLISHED_LABEL, "Published-source review example");
+  const rc = createBlankRc(RC_PUBLISHED_LABEL, RC_PUBLISHED_LABEL);
   rc.uuid = RC_PUBLISHED_SLUG; rc.created = RC_PUBLISHED_DATE; rc.modified = RC_PUBLISHED_DATE;
   rc.metadata.analysisDate = RC_PUBLISHED_DATE; rc.metadata.lastModifiedDate = RC_PUBLISHED_DATE; rc.metadata.versionInfo.lastUpdated = RC_PUBLISHED_DATE;
-  rc.workflowHistory = [{ state: "DRAFT", enteredAt: RC_PUBLISHED_DATE, actor: "Published-source review example" }];
+  rc.workflowHistory = [{ state: "DRAFT", enteredAt: RC_PUBLISHED_DATE, actor: RC_PUBLISHED_LABEL }];
   rc.modelUncertainty.uuid = "rc-published-input-uncertainty";
   const scope = "RC interface review using published input examples. The source term, site/weather examples and reference libraries have separate origins; together they are not a validated accident calculation for one plant. Numeric inputs are traced to the files and sources below. No solver has been run for this example.";
   rc.metadata.scope = scope; rc.praScope = scope;
@@ -217,6 +217,6 @@ export function createPublishedRcSeed() {
   rc.documentation = { ...rc.documentation, processDescription: scope, inputsDescription: RC_PUBLISHED_FILES.map(f => `${f.filename} — ${f.location}\n${f.source}\n${f.method}`).join("\n\n"), appliedMethods: "Existing file parsers preserve published quantities and original files. Activity: Bq; release timing: s; height: m; native coefficient units remain in EPA headers.", resultsSummary: "Published numerical inputs and an input snapshot are supplied for interface review. Calculated-result records remain empty.",
     rcreProcess: "69 nuclides, 10 chemical groups, 8 release segments from MelMACCS Appendix C; all original numeric cards retained.", rcpaProcess: "896 cells from 14 published radial bands and 64 sectors. Three published cohort result weights and the 90th-percentile response timeline are shown; population shares and compliance are not inferred. Receptor height and within-cell evaluation choice remain unset.", rcmeProcess: rc.meteorologicalData.periodSelection.periodDescription,
     rcadProcess: rc.atmosphericTransportAndDispersion.parameterUncertaintyCharacterization!, rcdoProcess: "Published 30-day duration and complete EPA coefficient files. Coverage is checked against the actual source inventory.", rcheProcess: "Published MACCS health-effect input parameters are shown for reference; no health-effects solver is connected.", rcecProcess: "Only published SecPop header and excerpt information is supplied; no missing populations or regional costs were reconstructed.", rcqProcess: "Inspect inputs and original files, review unresolved choices, and inspect the immutable input snapshot. No synthetic returned output is seeded.", praTaskInterfaces: "This example is registered only for the Radiological Consequences workbook. No linked ES, MS, RI or other workbook is created." };
-  rc.exampleDocuments = [{ id: "rc-published-input-sources", name: "Published RC inputs sources and expert review guide", kind: "doc", sizeLabel: "Source guide", uploadedLabel: "Bundled published example", extracted: scope, linked: 13, url: "/api/example-documents/rc/rc-published-input-sources" }, { id: "rc-published-response-records", name: "Published MACCS cohort and response records", kind: "doc", sizeLabel: "Selected input records", uploadedLabel: "Etter thesis, pp. 46, 110–115", extracted: "Three cohort weights and response records; no population or compliance percentages inferred.", linked: 1, url: "/api/example-documents/rc/rc-published-response-records" }, { id: "rc-published-health-records", name: "Published MACCS health-effect parameter records", kind: "doc", sizeLabel: "18 input records", uploadedLabel: "Etter thesis, pp. 99–100", extracted: "Published parameter values for inspecting the existing Health Effects section. Not calculated outcomes.", linked: 1, url: "/api/example-documents/rc/rc-published-health-records" }];
+  rc.exampleDocuments = [{ id: "rc-published-input-sources", name: "RC example sources and expert review guide", kind: "doc", sizeLabel: "Source guide", uploadedLabel: "Bundled published example", extracted: scope, linked: 13, url: "/api/example-documents/rc/rc-published-input-sources" }, { id: "rc-published-response-records", name: "Published MACCS cohort and response records", kind: "doc", sizeLabel: "Selected input records", uploadedLabel: "Etter thesis, pp. 46, 110–115", extracted: "Three cohort weights and response records; no population or compliance percentages inferred.", linked: 1, url: "/api/example-documents/rc/rc-published-response-records" }, { id: "rc-published-health-records", name: "Published MACCS health-effect parameter records", kind: "doc", sizeLabel: "18 input records", uploadedLabel: "Etter thesis, pp. 99–100", extracted: "Published parameter values for inspecting the existing Health Effects section. Not calculated outcomes.", linked: 1, url: "/api/example-documents/rc/rc-published-health-records" }];
   return RadiologicalConsequenceAnalysisSchema.parse(JSON.parse(JSON.stringify(rc)));
 }

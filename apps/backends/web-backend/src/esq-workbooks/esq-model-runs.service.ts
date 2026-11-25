@@ -78,6 +78,9 @@ import { summarizeEsqPostRun, type EsqPostTreeInfo } from "./esq-post-run-summar
 import { caseOverridesFor, importanceGroupsFor, importanceSpecFor, sampledBuild, type EsqSampling, type EsqSamplingTally } from "./esq-measure-run-builder";
 import { summarizeEsqImportanceRun, summarizeEsqUncertaintyRun } from "./esq-measure-run-summary";
 import { storedWorkbookRejection } from "../workbooks/stored-workbook-format";
+import { withoutNetworkNodes } from "../workbooks/sy-network-migration";
+import { jsonRecordOf } from "../workbooks/uncertainty-migration-json";
+import { stringifyJson } from "interfaces-shared-types/json";
 
 const UPPER_PERCENTILE = 0.95;
 
@@ -677,10 +680,10 @@ export class EsqModelRunsService {
     };
   }
 
-  private hclResult(hcl: EsqModelHcl | undefined, covered: readonly string[]): { hcl?: EsqModelRunHclResult } {
+  private hclResult(hcl: EsqModelHcl | undefined, workbookId: string, covered: readonly string[]): { hcl?: EsqModelRunHclResult } {
     if (hcl === undefined) return {};
     if (covered.length === 0) throw new BadRequestException("The dependency configuration covers no event tree in scope. Pick a configuration whose fault trees or network nodes these event trees use.");
-    return { hcl: { workbookId: hcl.configurationWorkbookId, modelId: hcl.configurationId, treeIds: [...covered] } };
+    return { hcl: { workbookId, modelId: hcl.configurationId, treeIds: [...covered] } };
   }
 
   async runModel(workbookId: string, body: object, acting: ActingUser): Promise<AnalysisRunMetadata> {
@@ -716,7 +719,7 @@ export class EsqModelRunsService {
         ...(request.monteCarlo === undefined ? {} : { monteCarlo: { ...request.monteCarlo } }),
       }),
     });
-    const quantified = this.hclResult(hcl, covered);
+    const quantified = this.hclResult(hcl, workbookId, covered);
     const modelOwner = { workbookId, modelId: esqModelRunId(), workbookRevision: owner.workbookRevision };
     const inputs = solveInputsKey(owner.mef);
     return this.analysisRunsService.executeEsqBatch({
@@ -1081,7 +1084,8 @@ export class EsqModelRunsService {
   }
 
   async getRunWorkbook(workbookId: string, runId: string, acting: ActingUser): Promise<EventSequenceQuantification> {
-    const parsed = EventSequenceQuantificationSchema.safeParse(normalizeEsqMef(await this.analysisRunsService.getOwnerSnapshot("ESQ", workbookId, runId, acting)));
+    const snapshot = jsonRecordOf(stringifyJson(await this.analysisRunsService.getOwnerSnapshot("ESQ", workbookId, runId, acting)));
+    const parsed = EventSequenceQuantificationSchema.safeParse(normalizeEsqMef(snapshot === undefined ? snapshot : withoutNetworkNodes(snapshot)));
     if (!parsed.success) throw storedWorkbookRejection("ESQ", workbookId, parsed.error.message);
     return parsed.data;
   }

@@ -51,7 +51,7 @@ describe("RC Step 08 case records", () => {
   it("pages authentic saved data and keeps missing release heights unspecified", async () => {
     await seed();
     const inventory = (await request(http()).get(`${url}/table/inventory`).query({ ...selection(), offset: 5 }).expect(200)).body;
-    expect(inventory.total).toBe(69); expect(inventory.rows).toHaveLength(5); expect(inventory.offset).toBe(5);
+    expect(inventory.total).toBe(69); expect(inventory.rows).toHaveLength(10); expect(inventory.offset).toBe(5);
     const releases = (await request(http()).get(`${url}/table/releases`).query(selection()).expect(200)).body;
     expect(releases.rows.every((r: any[]) => r[3] === 0)).toBe(true);
     await t.workbooks.updateOne({ workbookId: "rc-test" }, { $unset: { "mef.releaseCategoryToConsequence.releaseCategoryInputs.0.sourceTerm.values.releases.0.heightMetres": 1 } });
@@ -93,7 +93,7 @@ describe("RC Step 08 case records", () => {
     const saved = (await result(a.records.revision, values(a.snapshotId)).expect(200)).body, r = saved.results[0];
     expect(r).toMatchObject({ categoryId: "RC-1", metricId: "RCM-01", unit: "Sv", statistics: values(a.snapshotId).statistics, valueSource: "transcribed", recordedBy: "preparer" });
     expect([...t.storage.values()].some(b => b.equals(output))).toBe(true);
-    expect((await request(http()).get(`${url}/results/${r.id}/output`).expect(200)).body.text).toContain("TEST FIXTURE ONLY");
+    expect((await request(http()).get(`${url}/results/${r.id}/output`).expect(200)).body).toEqual({ filename: "test-only.out", text: output.toString("utf8") });
     await request(http()).delete(`${root}/documents/${r.file.documentId}`).expect(403);
     const mef = (await request(http()).get(root).expect(200)).body.mef;
     expect(mef.consequenceQuantification.caseRecords).toEqual(saved);

@@ -2,7 +2,8 @@ use std::collections::HashMap;
 use std::time::Duration;
 
 use crate::algorithms::build::{
-    build_bdd_with_variable_order, enumerate_event_names, BuildOptions, VariableOrder,
+    build_bdd_with_variable_order, build_merged_bdd_with_variable_order, enumerate_event_names,
+    BuildOptions, VariableOrder,
 };
 use crate::algorithms::direct_zbdd::{
     build_zbdd_delterm_named_with_order, build_zbdd_direct_from_pdag_with_order,
@@ -204,14 +205,16 @@ pub fn quantify(fault_tree: &FaultTree, settings: &Settings) -> Result<QuantResu
                 reorder_budget: settings.reorder_budget,
                 ..Default::default()
             };
-            let built = build_bdd_with_variable_order(ft, options, settings.variable_order)?;
             let value = if settings.limit_order.is_some() || settings.cut_off.is_some() {
+                let built = build_bdd_with_variable_order(ft, options, settings.variable_order)?;
                 built.bdd.probability_with_limits(
                     built.root,
                     settings.limit_order,
                     settings.cut_off,
                 )
             } else {
+                let built =
+                    build_merged_bdd_with_variable_order(ft, options, settings.variable_order)?;
                 built.bdd.probability(built.root)
             };
             result.probability = Some(ProbabilityOut {
@@ -330,13 +333,13 @@ pub fn quantify(fault_tree: &FaultTree, settings: &Settings) -> Result<QuantResu
             let mut per = Vec::with_capacity(named.len());
             let mut max_order = 0;
             let mut list = Vec::with_capacity(named.len());
-            for cs in &named {
+            for cs in named {
                 let mut literals: Vec<(String, bool)> = Vec::with_capacity(cs.len());
                 let mut p = 1.0;
                 for lit in cs {
                     let (name, negated) = match lit.strip_prefix('~') {
                         Some(rest) => (rest.to_string(), true),
-                        None => (lit.clone(), false),
+                        None => (lit, false),
                     };
                     let pe = probs.get(&name).copied().unwrap_or(0.0);
                     p *= if negated { 1.0 - pe } else { pe };

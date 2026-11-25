@@ -14,6 +14,7 @@ const show = (n: number | undefined) => n === undefined || !Number.isFinite(n) ?
 const inputValue = (n: number | undefined) => n === undefined ? "" : scientific(n) ? n.toExponential() : n;
 const failureMessage = (e: unknown) => e instanceof Error ? e.message : "Could not save site inputs";
 type Tab = "location" | "receptors";
+const pageSize = 10;
 export function RcSiteReceptorsPanel({ initialTab = "receptors" }: { initialTab?: "location" | "receptors" }): JSX.Element {
   const { rc, editable, siteReceptors: actions, siteReceptorDraft, setSiteReceptorDraft } = useRcWorkbook();
   const draft = editable ? siteReceptorDraft : undefined;
@@ -33,7 +34,7 @@ export function RcSiteReceptorsPanel({ initialTab = "receptors" }: { initialTab?
   const currentBand = geometry?.kind === "cells" ? Math.min(band, geometry.radiiKm.length - 1) : 0;
   const currentSector = geometry?.kind === "cells" ? Math.min(sector, geometry.sectors - 1) : 0;
   const totalRows = geometry?.kind === "cells" ? geometry.radiiKm.length : geometry?.points.length ?? 0;
-  const currentPage = Math.min(page, Math.max(0, Math.ceil(totalRows / 6) - 1)), offset = currentPage * 6;
+  const currentPage = Math.min(page, Math.max(0, Math.ceil(totalRows / pageSize) - 1)), offset = currentPage * pageSize;
   useEffect(() => { setPage(0); setBand(0); setSector(0); setRaw(undefined); }, [site?.geometryFile?.documentId]);
   const edit = (patch: Partial<RcSiteSettings>) => { setSiteReceptorDraft({ baseRevision, settings: { ...settings, ...patch } }); setError(""); setSaved(false); };
   const field = (label: string, key: Exclude<keyof RcSiteSettings, "cellPoint">, min?: number, max?: number) => <label>{label}
@@ -88,26 +89,26 @@ export function RcSiteReceptorsPanel({ initialTab = "receptors" }: { initialTab?
           </div>
           {geometry.kind === "cells" ? <>
             {sitePopulation(geometry) !== undefined && <p className="sr-population-total">Population across all cells: <strong>{sitePopulation(geometry)!.toLocaleString()}</strong></p>}
-            <RcReceptorCellGrid geometry={geometry} settings={settings} band={currentBand} sector={currentSector} onSelect={(b, s) => { setBand(b); setSector(s); setPage(Math.floor(b / 6)); }} />
+            <RcReceptorCellGrid geometry={geometry} settings={settings} band={currentBand} sector={currentSector} onSelect={(b, s) => { setBand(b); setSector(s); setPage(Math.floor(b / pageSize)); }} />
             <div className="sr-settings"><label>Dose-evaluation point in each cell<select className="posfield__select" aria-label="Dose-evaluation point in each cell" disabled={disabled} value={settings.cellPoint ?? ""} onChange={e => edit({ cellPoint: e.target.value ? e.target.value as "mid" | "outer" : undefined })}>
               <option value="">Choose a position</option><option value="mid">Mid-radius, sector center</option><option value="outer">Outer edge, sector center</option>
             </select></label>{height()}</div>
             <div className="sr-section-title"><h3>Distance bands</h3></div>
             <table className="sr-bands" aria-label="Distance bands"><thead><tr><th>Band</th><th>Inner (km)</th><th>Outer (km)</th><th>Dose point (m)</th></tr></thead>
-              <tbody>{geometry.radiiKm.slice(offset, offset + 6).map((outer, j) => <tr key={offset + j}><td>{offset + j + 1}</td><td>{show(offset + j ? geometry.radiiKm[offset + j - 1] : 0)}</td><td>{show(outer)}</td><td>{show(cellDoseDistance(geometry, settings, offset + j))}</td></tr>)}</tbody></table>
+              <tbody>{geometry.radiiKm.slice(offset, offset + pageSize).map((outer, j) => <tr key={offset + j}><td>{offset + j + 1}</td><td>{show(offset + j ? geometry.radiiKm[offset + j - 1] : 0)}</td><td>{show(outer)}</td><td>{show(cellDoseDistance(geometry, settings, offset + j))}</td></tr>)}</tbody></table>
           </> : <>
             <div className="sr-meta">{geometry.kind === "grid" ? `Origin X/Y: ${show(geometry.originX)}, ${show(geometry.originY)} m · first bearing ${show(geometry.bearingsDegrees[0])}° from grid north` : coordinateReference(geometry.anchor)}</div>
             <div className="sr-single-height">{height()}</div>
             <table className="sr-points" aria-label="Receptor points"><thead><tr><th>Point</th><th>{geometry.kind === "grid" ? "Radius (m)" : "X (m)"}</th><th>{geometry.kind === "grid" ? "Bearing (°)" : "Y (m)"}</th><th>Height (m)</th></tr></thead>
-              <tbody>{geometry.points.slice(offset, offset + 6).map(p => <tr key={p.id}><td>{p.id}</td><td>{show(geometry.kind === "grid" ? p.radiusMetres : p.x)}</td><td>{show(geometry.kind === "grid" ? p.bearingDegrees : p.y)}</td><td>{show(p.heightMetres ?? settings.receptorHeightMetres)}</td></tr>)}</tbody></table>
+              <tbody>{geometry.points.slice(offset, offset + pageSize).map(p => <tr key={p.id}><td>{p.id}</td><td>{show(geometry.kind === "grid" ? p.radiusMetres : p.x)}</td><td>{show(geometry.kind === "grid" ? p.bearingDegrees : p.y)}</td><td>{show(p.heightMetres ?? settings.receptorHeightMetres)}</td></tr>)}</tbody></table>
           </>}
-          <div className="sr-pagination"><span>{offset + 1}–{Math.min(offset + 6, totalRows)} of {totalRows} {geometry.kind === "cells" ? "bands" : "points"}</span><div>
-            <button type="button" className="posnav__btn posnav__btn--sm" disabled={!currentPage} onClick={() => setPage(currentPage - 1)}>Previous</button><button type="button" className="posnav__btn posnav__btn--sm" disabled={offset + 6 >= totalRows} onClick={() => setPage(currentPage + 1)}>Next</button>
+          <div className="sr-pagination"><span>{offset + 1} to {Math.min(offset + pageSize, totalRows)} of {totalRows} {geometry.kind === "cells" ? "bands" : "points"}</span><div>
+            <button type="button" className="posnav__btn posnav__btn--sm" disabled={!currentPage} onClick={() => setPage(currentPage - 1)}>Previous</button><button type="button" className="posnav__btn posnav__btn--sm" disabled={offset + pageSize >= totalRows} onClick={() => setPage(currentPage + 1)}>Next</button>
           </div></div>
           {geometry.kind !== "cells" && <>
             <details><summary>Coordinate reference</summary><p className="sr-note">{coordinateReference(geometry.anchor)}</p><p className="sr-note">Local anchor: {show(geometry.anchor.localX)}, {show(geometry.anchor.localY)} m → UTM: {show(geometry.anchor.utmEasting)}, {show(geometry.anchor.utmNorthing)} m</p></details>
             {geometry.points.some(p => p.elevationMetres !== undefined || p.hillHeightMetres !== undefined) && <details><summary>Imported terrain data</summary>
-              <table aria-label="Imported terrain data"><thead><tr><th>Point</th><th>Ground elevation (m)</th><th>Hill-height scale (m)</th></tr></thead><tbody>{geometry.points.slice(offset, offset + 6).map(p => <tr key={p.id}><td>{p.id}</td><td>{show(p.elevationMetres)}</td><td>{show(p.hillHeightMetres)}</td></tr>)}</tbody></table>
+              <table aria-label="Imported terrain data"><thead><tr><th>Point</th><th>Ground elevation (m)</th><th>Hill-height scale (m)</th></tr></thead><tbody>{geometry.points.slice(offset, offset + pageSize).map(p => <tr key={p.id}><td>{p.id}</td><td>{show(p.elevationMetres)}</td><td>{show(p.hillHeightMetres)}</td></tr>)}</tbody></table>
             </details>}
           </>}
         </>}</>}

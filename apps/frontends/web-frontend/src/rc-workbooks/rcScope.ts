@@ -96,7 +96,7 @@ export function rcScopeTreatment(rc: RadiologicalConsequenceAnalysis, aspect: Rc
       const results = quantification.caseRecords?.results.length ?? 0;
       if (snapshots) parts.push(count(snapshots, "input snapshot"));
       if (results) parts.push(count(results, "linked result"));
-      if (quantification.eventSequenceConsequences.length) parts.push(count(quantification.eventSequenceConsequences.length, "event-sequence family", "event-sequence families"));
+      if (quantification.eventSequenceConsequences.length) parts.push(count(quantification.eventSequenceConsequences.length, "event sequence family", "event sequence families"));
       break;
     }
   }

@@ -118,11 +118,34 @@ the web frontend, backend and Node addon do not expose them for FT or ET runs.
 HCL FT and ET probability runs use main's original HCL+TensorBayes quantifier.
 The addon supplies HCL_MH's BN depth order followed by BFS FT-only events,
 unless the request supplies an explicit order. Sequences keep separate BDDs.
-HCL cut sets and importance are disabled pending methodological review
-(tasks 10–11 deferred). Their result fields and exports have been removed.
+An HCL ET probability request may carry `dependencyCutSets`
+(`score`: `FAILED_EVENTS` or `FAILED_EVENTS_AND_SEQUENCE`, `keep`, optional
+`limitOrder`, optional `cutOff`). Each sequence result then holds
+`dependencyCutSets` with the number found and the kept items ranked by their
+probability under the network. A hazard grid also returns the weighted ranking
+on `hazardConvolution.sequences`. An HCL FT probability request may carry
+`dependencyCutSets` (`keep`, optional `limitOrder`, optional `cutOff`). The
+result, each scenario result and `hazardConvolution` then hold
+`dependencyCutSets` with `count` and `items` (`order`, `basicEventIds`,
+`probability`). `cutOff` keeps the cut sets whose probability under the network
+reaches it. `causes` (1 to 100) adds `causes` to each item of a scenario list:
+the network nodes the cut set shifts most, with `nodeId`, `stateId`,
+`baseline`, `withCutSet` and `shift`. The option is refused for independent runs and for uncertainty
+runs. `dependencyImportance: true` on an HCL FT or ET probability request adds
+`dependencyImportance` to the result, to each sequence and end state, to each
+scenario result and to the hazard convolution. Each row holds `basicEventId`,
+`probability`, `occurred`, `notOccurred`, `birnbaum`, `riskAchievementWorth`,
+`riskReductionWorth`, `fussellVesely` and `criticality`, with `null` where a
+value is undefined. It is refused for independent runs. On an uncertainty run
+it also needs `dependencyImportanceEvents` (1 to 100), and the leading events
+then carry `uncertainty` with a summary (`sampleCount`, `mean`, `percentile05`,
+`median`, `percentile95`) per measure. It is not combined with a hazard grid
+under uncertainty.
 FT/CPT uncertainty, summary statistics and point hazard convolution follow
-their reviewed sources. Sampled hazard convolution is disabled; its dedicated
-calculation and result fields were removed in task 23.
+their reviewed sources. An uncertainty batch with a hazard grid adds
+`uncertainty` (`convolvedProbability` and `integratedAnnualFrequency`
+summaries) to the hazard convolution of a fault tree and to each sequence and
+end state of an event tree.
 The PRAXIS cut-set algorithms and shared ZBDD cache fix remain in place.
 
 ## HCL FT and CPT uncertainty

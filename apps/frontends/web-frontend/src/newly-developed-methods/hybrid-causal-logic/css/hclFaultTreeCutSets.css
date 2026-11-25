@@ -1,0 +1,29 @@
+.modal.hcl-cut-sets {
+  width: max-content;
+  max-width: calc(100vw - 48px);
+}
+
+.postable.hcl-cut-sets__facts {
+  align-self: flex-start;
+  width: auto;
+  max-width: 100%;
+}
+
+.hcl-cut-sets__facts th {
+  padding-right: 10px;
+  text-align: left;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.hcl-cut-sets__table th,
+.hcl-cut-sets__table td {
+  padding: 6px 16px 6px 0;
+  text-align: left;
+  vertical-align: middle;
+}
+
+.hcl-cut-sets__table .hcl-cut-sets__number {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}

@@ -2,7 +2,7 @@ import { Fragment, JSX, useCallback, useEffect, useId, useMemo, useRef, useState
 import { z } from "zod";
 import type { EsqFamilySolve, EsqModel, EventSequenceQuantification } from "interfaces-mef-types/esq/event-sequence-quantification";
 import { esqSequenceRunId, esqTreeRunId, treesInScope } from "interfaces-mef-types/esq/esq-run-inputs";
-import { esqModelRunId, solveInputsChange } from "interfaces-mef-types/esq/esq-solve-inputs";
+import { solveInputsChange } from "interfaces-mef-types/esq/esq-solve-inputs";
 import { esqEventReader } from "interfaces-mef-types/esq/esq-post-inputs";
 import type { AnalysisRunMetadata } from "interfaces-shared-types/newly-developed-methods";
 import {
@@ -10,7 +10,6 @@ import {
   EventTreeCutOffBasisSchema,
   EventTreeCutSetQuantifierSchema,
   EventTreeSuccessTreatmentSchema,
-  type EsqModelRunHcl,
   type EsqModelRunResult,
   type EsqModelRunSequence,
   type EsqModelRunTree,
@@ -21,9 +20,6 @@ import {
   type EventTreeMonteCarloSettings,
   type EventTreeSuccessTreatment,
 } from "interfaces-shared-types/newly-developed-methods/event-tree";
-import { HclCalculationTypeSchema, type HclBatchInput, type HclCalculationType, type HclRunSampling } from "interfaces-shared-types/newly-developed-methods/hybrid-causal-logic";
-import type { HclParameterDraws, HclSampler, HclZeroProbabilityContexts, WorkbookHclConfiguration } from "interfaces-mef-types/modeling";
-import { HclCptClipEpsilonSchema, HclUncertaintySampleCountSchema, HclUncertaintySeedSchema, HclUncertaintySettingsSchema } from "interfaces-mef-types/zod/modeling";
 import { analysisSaveBlock } from "../newly-developed-methods/shared/useAnalysisScope";
 import { cancelAnalysisRun } from "../newly-developed-methods/shared/analysisRunWait";
 import { AnalysisJobs } from "../newly-developed-methods/shared/analysisJobs";
@@ -31,7 +27,7 @@ import { PagedResults } from "../newly-developed-methods/shared/resultPresentati
 import { jsonView, useWorkbookView } from "../workbooks/workbookViewMemory";
 import { DialogHead, DialogShell } from "../es-workbooks/EsScope";
 import { PAGE, Pager, TabBar, paged } from "../es-workbooks/EsTiming";
-import { AreaField, ChecksPanel, NumberField, networkLabel, networkOptionsOf, sciText, treeLabel, type EsqWindowContext, type NetworkOption } from "./esqShared";
+import { AreaField, ChecksPanel, NumberField, WORKFLOWS, countOf, decadeText, esqJobLabel, optionOf, sciText, treeLabel, type EsqWindowContext, type RunWorkflow } from "./esqShared";
 import { useEsqWorkbook } from "./esqWorkbookContext";
 import { MODEL_AS_SET, runLogicText } from "./esqLogic";
 import { END_STATE_LABELS } from "./esqViewData";
@@ -59,21 +55,18 @@ import {
   type EsqSolveWindowKind,
 } from "./esqSolve";
 import { getEsqModelRunResult, getEsqRunDetails, getEsqRunWorkbook, listEsqModelRuns, runEsqModel, type EsqModelRunEntry } from "./esqWorkbookApi";
-import { EsqDependencies, dependencyEvidenceProblem, studyConfiguration, studyTree, type DependencyEvidence, type DependencyStudy, type DependencyStudyTree } from "./EsqDependencies";
-import { EsqDependencyResults } from "./EsqDependencyResults";
+import { EsqDependencies, IDLE_DEPENDENCY_SESSION, type DependencyModelRuns, type DependencySession } from "./EsqDependencies";
 import "../es-workbooks/css/esSequences.css";
 import "../sy-workbooks/css/syFaultTreeAnalysis.css";
 import "./css/esqSolveTabs.css";
 
-type SolveTab = "runs" | "families" | "convergence" | "dynamic" | "checks";
+type SolveTab = "runs" | "dependencies" | "families" | "convergence" | "dynamic" | "checks";
 
 type ResultOrder = "TREE" | "HIGH" | "LOW";
 
 type ResultGroup = "NONE" | "FAMILY" | "RELEASE";
 
-type RunChoice = "EXACT" | "CUT_SETS" | "HCL";
-
-type RunWorkflow = "MANUAL" | "BATCH";
+type RunChoice = "EXACT" | "CUT_SETS";
 
 type ProbabilityAlgorithm = "BDD" | "MONTE_CARLO";
 
@@ -92,7 +85,6 @@ interface ComposerSettings {
   workflow: RunWorkflow;
   treeId: string;
   batchTreeIds: string[] | null;
-  network: string;
   algorithm: ProbabilityAlgorithm;
   treatment: EventTreeSuccessTreatment;
   cutSetTreatment: EventTreeSuccessTreatment;
@@ -109,19 +101,6 @@ interface ComposerSettings {
   convergenceDelta: number;
   confidenceLevel: number;
   burnInTrials: number;
-  dependencyResult: HclCalculationType;
-  dependencyEvidence: DependencyEvidence;
-}
-
-interface DependencySettings {
-  sampler: HclSampler;
-  cptSampler: HclSampler | "SAME";
-  sampleCount: number;
-  seed: number | null;
-  correlation: HclParameterDraws;
-  clipProbabilities: boolean;
-  zeroProbabilityContexts: HclZeroProbabilityContexts;
-  cptClipEpsilon: number;
 }
 
 interface TreeOption {
@@ -133,7 +112,6 @@ interface Composer {
   settings: ComposerSettings;
   set: (patch: Partial<ComposerSettings>) => void;
   clearLimit: () => void;
-  networks: NetworkOption[];
   roots: TreeOption[];
   manualTreeId: string | undefined;
   treeIds: string[];
@@ -145,13 +123,6 @@ interface Composer {
   ready: boolean;
   run: () => void;
   stop: (runId: string) => void;
-  network: NetworkOption | undefined;
-  dependency: DependencySettings;
-  setDependency: (patch: Partial<DependencySettings>) => void;
-  batchInput: HclBatchInput | null;
-  setBatchInput: (input: HclBatchInput | null) => void;
-  study: DependencyStudy | null;
-  studyTotal: number;
 }
 
 interface ShownRun {
@@ -173,6 +144,7 @@ interface TreeFailure {
 
 const SOLVE_TABS: { id: SolveTab; label: string; disabled?: boolean }[] = [
   { id: "runs", label: "Runs" },
+  { id: "dependencies", label: "Dependencies" },
   { id: "families", label: "Family values" },
   { id: "convergence", label: "Convergence" },
   { id: "dynamic", label: "Dynamic", disabled: true },
@@ -183,33 +155,9 @@ const SOLVE_WINDOW_KINDS: ReadonlySet<string> = new Set<EsqSolveWindowKind>(["es
 
 const SOLVE_WINDOW_LABELS: Record<EsqSolveWindowKind, string> = { esqSolveFamily: "Family value", esqSolveRun: "Run of record" };
 
-const RUN_CHOICES: readonly (readonly [RunChoice, string])[] = [["EXACT", "Probability"], ["CUT_SETS", "Cut sets"], ["HCL", "Dependencies"]];
+const RUN_CHOICES: readonly (readonly [RunChoice, string])[] = [["EXACT", "Probability"], ["CUT_SETS", "Cut sets"]];
 
-const RUN_WORDS: Record<RunChoice, string> = { EXACT: "probability", CUT_SETS: "cut sets", HCL: "dependencies" };
-
-const DEPENDENCY_RESULTS: readonly (readonly [HclCalculationType, string])[] = [["PROBABILITY", "Probability"], ["UNCERTAINTY", "Uncertainty"]];
-
-const DEPENDENCY_EVIDENCE: readonly (readonly [DependencyEvidence, string])[] = [["BASE", "Base evidence"], ["SCENARIOS", "Evidence scenarios"], ["HAZARD", "Hazard convolution"]];
-
-const SAMPLERS: readonly (readonly [HclSampler, string])[] = [["MC", "Monte Carlo (MC)"], ["LHS", "Latin hypercube (LHS)"]];
-
-const BN_SAMPLERS: readonly (readonly [HclSampler | "SAME", string])[] = [["SAME", "Same as inputs"], ...SAMPLERS];
-
-const PARAMETER_DRAWS: readonly (readonly [HclParameterDraws, string])[] = [["SHARED", "Shared across uses"], ["INDEPENDENT", "Independent per use"]];
-
-const OUT_OF_RANGE: readonly (readonly ["FAIL" | "CLIP", string])[] = [["FAIL", "Fail the run"], ["CLIP", "Clip to 0 and 1"]];
-
-const ZERO_CONTEXTS: readonly (readonly [HclZeroProbabilityContexts, string])[] = [["ZERO", "Count as 0"], ["FAIL", "Fail the run"]];
-
-const SEED_SOURCES: readonly (readonly ["FIXED" | "RUN", string])[] = [["FIXED", "Fixed"], ["RUN", "New each run"]];
-
-const START_SAMPLES = 1_000;
-
-const START_SEED = 42;
-
-const START_SAMPLER: HclSampler = "LHS";
-
-const WORKFLOWS: readonly (readonly [RunWorkflow, string])[] = [["MANUAL", "Manual"], ["BATCH", "Batch"]];
+const RUN_WORDS: Record<RunChoice, string> = { EXACT: "probability", CUT_SETS: "cut sets" };
 
 const ALGORITHM_OPTIONS: readonly (readonly [ProbabilityAlgorithm, string])[] = [["BDD", "Direct BDD"], ["MONTE_CARLO", "Direct Monte Carlo"]];
 
@@ -230,7 +178,6 @@ const START_SETTINGS: ComposerSettings = {
   workflow: "BATCH",
   treeId: "",
   batchTreeIds: null,
-  network: "",
   algorithm: "BDD",
   treatment: "COMPLEMENT",
   cutSetTreatment: "DELETE_TERM",
@@ -246,16 +193,13 @@ const START_SETTINGS: ComposerSettings = {
   convergenceDelta: 0.1,
   confidenceLevel: 0.95,
   burnInTrials: 0,
-  dependencyResult: "PROBABILITY",
-  dependencyEvidence: "BASE",
 };
 
 const COMPOSER_VIEW = jsonView<ComposerSettings>(z.object({
-  choice: z.enum(["EXACT", "CUT_SETS", "HCL"]),
+  choice: z.enum(["EXACT", "CUT_SETS"]),
   workflow: z.enum(["MANUAL", "BATCH"]),
   treeId: z.string(),
   batchTreeIds: z.array(z.string()).nullable(),
-  network: z.string(),
   algorithm: z.enum(["BDD", "MONTE_CARLO"]).default(START_SETTINGS.algorithm),
   treatment: EventTreeSuccessTreatmentSchema.default(START_SETTINGS.treatment),
   cutSetTreatment: EventTreeSuccessTreatmentSchema.default(START_SETTINGS.cutSetTreatment),
@@ -272,61 +216,11 @@ const COMPOSER_VIEW = jsonView<ComposerSettings>(z.object({
   convergenceDelta: z.number().default(START_SETTINGS.convergenceDelta),
   confidenceLevel: z.number().default(START_SETTINGS.confidenceLevel),
   burnInTrials: z.number().default(START_SETTINGS.burnInTrials),
-  dependencyResult: HclCalculationTypeSchema.default(START_SETTINGS.dependencyResult),
-  dependencyEvidence: z.enum(["BASE", "SCENARIOS", "HAZARD"]).default(START_SETTINGS.dependencyEvidence),
 }));
 
-const DEPENDENCY_VIEW = jsonView<DependencySettings>(z.object({
-  sampler: z.enum(["MC", "LHS"]),
-  cptSampler: z.enum(["SAME", "MC", "LHS"]),
-  sampleCount: z.number(),
-  seed: z.number().nullable(),
-  correlation: z.enum(["SHARED", "INDEPENDENT"]),
-  clipProbabilities: z.boolean(),
-  zeroProbabilityContexts: z.enum(["ZERO", "FAIL"]),
-  cptClipEpsilon: z.number(),
-}));
+const SOLVE_TAB_VIEW = jsonView<SolveTab>(z.enum(["runs", "dependencies", "families", "convergence", "dynamic", "checks"]));
 
-function dependencySettingsOf(configuration: WorkbookHclConfiguration | undefined): DependencySettings {
-  const parsed = HclUncertaintySettingsSchema.safeParse(configuration?.solverSettings.uncertainty);
-  const sampling = parsed.success ? parsed.data : undefined;
-  return {
-    sampler: sampling?.sampler ?? START_SAMPLER,
-    cptSampler: sampling?.cptSampler ?? "SAME",
-    sampleCount: sampling?.sampleCount ?? START_SAMPLES,
-    seed: sampling === undefined ? START_SEED : sampling.seed ?? null,
-    correlation: sampling?.correlation ?? "SHARED",
-    clipProbabilities: sampling?.clipProbabilities ?? false,
-    zeroProbabilityContexts: sampling?.zeroProbabilityContexts ?? "ZERO",
-    cptClipEpsilon: sampling?.cptClipEpsilon ?? 0,
-  };
-}
-
-function samplingOf(settings: DependencySettings): HclRunSampling {
-  return {
-    sampleCount: settings.sampleCount,
-    sampler: settings.sampler,
-    ...(settings.seed === null ? {} : { seed: settings.seed }),
-    ...(settings.cptSampler === "SAME" ? {} : { cptSampler: settings.cptSampler }),
-    ...(settings.correlation === "SHARED" ? {} : { correlation: settings.correlation }),
-    ...(settings.clipProbabilities ? { clipProbabilities: true } : {}),
-    ...(settings.cptClipEpsilon === 0 ? {} : { cptClipEpsilon: settings.cptClipEpsilon }),
-    ...(settings.zeroProbabilityContexts === "ZERO" ? {} : { zeroProbabilityContexts: settings.zeroProbabilityContexts }),
-  };
-}
-
-function samplingProblem(settings: DependencySettings, configuration: WorkbookHclConfiguration): string | undefined {
-  const stored = configuration.solverSettings.uncertainty;
-  if (stored !== undefined && !HclUncertaintySettingsSchema.safeParse(stored).success) return "The uncertainty laws of this dependency configuration need review in the linked SY workbook.";
-  if (!HclUncertaintySampleCountSchema.safeParse(settings.sampleCount).success) return "Uncertainty samples must be a whole number of at least 2.";
-  if (settings.seed !== null && !HclUncertaintySeedSchema.safeParse(settings.seed).success) return `The seed must be a whole number from 0 to ${String(Number.MAX_SAFE_INTEGER)}.`;
-  if (!HclCptClipEpsilonSchema.safeParse(settings.cptClipEpsilon).success) return "The CPT floor must be at least 0 and below 0.5.";
-  return undefined;
-}
-
-const SOLVE_TAB_VIEW = jsonView<SolveTab>(z.enum(["runs", "families", "convergence", "dynamic", "checks"]));
-
-const RUN_TABS: ReadonlySet<SolveTab> = new Set<SolveTab>(["runs", "families", "convergence"]);
+const RUN_TABS: ReadonlySet<SolveTab> = new Set<SolveTab>(["runs", "dependencies", "families", "convergence"]);
 
 interface ResultSettings {
   treeId: string;
@@ -373,14 +267,6 @@ function Flag({ children }: { children: string }): JSX.Element {
 
 function Muted({ children }: { children: string }): JSX.Element {
   return <span className="posmuted">{children}</span>;
-}
-
-function storedLink(id: string | undefined): string | undefined {
-  return id === undefined || id.length === 0 || id.startsWith("example") ? undefined : id;
-}
-
-function decadeText(exponent: number): string {
-  return `1E${exponent}`;
 }
 
 function difference(compared: number, base: number | undefined): string {
@@ -470,10 +356,6 @@ function isCutSetDialog(dialog: SolveDialog): dialog is CutSetDialog {
   return dialog.kind === "sequenceCutSets" || dialog.kind === "familyCutSets";
 }
 
-function plural(count: number, one: string, many: string): string {
-  return `${String(count)} ${count === 1 ? one : many}`;
-}
-
 function useShownRun(workbookId: string | null, recordId: string | undefined): ShownRun {
   const [listed, setListed] = useState<EsqModelRunEntry[]>([]);
   const [chosenId, setChosenId] = useState("");
@@ -528,38 +410,16 @@ function useShownRun(workbookId: string | null, recordId: string | undefined): S
   return out;
 }
 
-function useComposer(model: EsqModel | undefined, shownRun: ShownRun, initialNetworkId: string | null, initialSourceWorkbookId: string | null): Composer {
-  const { esq, upstream, runtime } = useEsqWorkbook();
-  const networks = useMemo(() => networkOptionsOf(esq, upstream.sy), [esq, upstream.sy]);
+function useComposer(model: EsqModel | undefined, shownRun: ShownRun): Composer {
+  const { esq, runtime } = useEsqWorkbook();
   const roots = useMemo(() => (model === undefined ? [] : treesInScope(esq, model)
     .filter((tree) => !tree.transferEntry)
     .map((tree) => ({ id: tree.id, label: treeLabel(model, tree.id) }))), [esq, model]);
   const [settings, setSettings] = useWorkbookView<ComposerSettings>("solve.composer", START_SETTINGS, COMPOSER_VIEW);
-  const [linked, setLinked] = useState(initialNetworkId === null);
   const [running, setRunning] = useState(false);
   const [live, setLive] = useState<AnalysisRunMetadata | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [batchInput, setBatchInput] = useState<HclBatchInput | null>(null);
-  const [study, setStudy] = useState<DependencyStudy | null>(null);
-  const [studyTotal, setStudyTotal] = useState(0);
   const { show, reload } = shownRun;
-
-  useEffect(() => {
-    if (linked) return;
-    const match = networks.find((option) => option.configuration.bayesianNetwork.modelId === initialNetworkId && (initialSourceWorkbookId === null || option.workbookId === initialSourceWorkbookId));
-    if (match === undefined) return;
-    setSettings((current) => ({ ...current, choice: "HCL", network: match.key, expandCcf: false }));
-    setLinked(true);
-  }, [initialNetworkId, initialSourceWorkbookId, linked, networks, setSettings]);
-
-  const network = networks.find((option) => option.key === settings.network) ?? networks[0];
-  const networkKey = network?.key;
-  const networkConfiguration = network?.configuration;
-  const dependencyStart = useMemo(() => dependencySettingsOf(networkConfiguration), [networkConfiguration]);
-  const [dependency, setDependencySettings] = useWorkbookView<DependencySettings>(`solve.dependency.${networkKey ?? ""}`, dependencyStart, DEPENDENCY_VIEW);
-  useEffect(() => {
-    setBatchInput(null);
-  }, [networkKey]);
   const rootIds = roots.map((tree) => tree.id);
   const manualTreeId = roots.find((tree) => tree.id === settings.treeId)?.id ?? roots[0]?.id;
   const chosen = settings.batchTreeIds;
@@ -567,16 +427,7 @@ function useComposer(model: EsqModel | undefined, shownRun: ShownRun, initialNet
   const treeIds = settings.workflow === "MANUAL" ? (manualTreeId === undefined ? [] : [manualTreeId]) : batchTreeIds;
   const everyTree = treeIds.length === rootIds.length;
   const monteCarloRun = settings.choice === "EXACT" && settings.algorithm === "MONTE_CARLO";
-  const dependencyStudy = settings.choice === "HCL" && (settings.dependencyResult === "UNCERTAINTY" || settings.dependencyEvidence !== "BASE");
-  const studied = network === undefined ? undefined : studyConfiguration(network.configuration, batchInput);
-  const scenarioIds = (studied?.evidenceScenarios ?? []).filter((scenario) => scenario.enabled).map((scenario) => scenario.id);
-  const sampling = network !== undefined && settings.dependencyResult === "UNCERTAINTY" ? samplingProblem(dependency, network.configuration) : undefined;
-  const problem = settings.choice === "HCL"
-    ? studied === undefined ? "The linked SY workbook has no dependency configuration."
-      : sampling !== undefined ? sampling
-      : settings.dependencyEvidence === "HAZARD" && settings.dependencyResult === "UNCERTAINTY" ? "Hazard convolution gives a probability only."
-      : dependencyEvidenceProblem(studied, settings.dependencyEvidence)
-    : settings.choice === "CUT_SETS"
+  const problem = settings.choice === "CUT_SETS"
       ? settings.lowest >= settings.highest ? "The lowest cutoff must be below the highest."
         : !(settings.keep >= 1 && settings.keep <= 1000) ? "Keep between 1 and 1000 cut sets."
         : undefined
@@ -590,45 +441,10 @@ function useComposer(model: EsqModel | undefined, shownRun: ShownRun, initialNet
     : undefined;
   const ready = problem === undefined && treeIds.length > 0;
 
-  function runStudy(): void {
-    const workbookId = runtime.workbookId;
-    const revision = runtime.revision;
-    if (workbookId === null || revision === null || network === undefined || !ready || running) return;
-    const option = network;
-    const result = settings.dependencyResult;
-    const evidence = settings.dependencyEvidence;
-    const trees = [...treeIds];
-    const order = new Map(trees.map((treeId, index) => [treeId, index]));
-    setRunning(true);
-    setError(null);
-    setStudy({ result, evidence, trees: [] });
-    setStudyTotal(trees.length);
-    const draws = result === "UNCERTAINTY" ? { sampling: samplingOf(dependency) } : {};
-    Promise.all(trees.map((treeId) => studyTree({ workbookId, revision, option, treeId, result, evidence, scenarioIds: [...scenarioIds], batchInput, ...draws })
-      .catch((caught: Error): DependencyStudyTree => ({ treeId, runResult: null, batchRunResult: null, failure: caught.message }))
-      .then((outcome) => {
-        setStudy((current) => (current === null ? current : {
-          ...current,
-          trees: [...current.trees, outcome].sort((left, right) => (order.get(left.treeId) ?? 0) - (order.get(right.treeId) ?? 0)),
-        }));
-      })))
-      .finally(() => {
-        setRunning(false);
-        setStudyTotal(0);
-      });
-  }
-
   function run(): void {
-    if (dependencyStudy) {
-      runStudy();
-      return;
-    }
     const workbookId = runtime.workbookId;
     const revision = runtime.revision;
     if (workbookId === null || revision === null || !ready || running) return;
-    const hcl: EsqModelRunHcl | undefined = settings.choice === "HCL" && network !== undefined
-      ? { workbookId: network.workbookId, modelId: network.configuration.modelId }
-      : undefined;
     const cutSets: EventTreeCutSetSettings | undefined = settings.choice === "CUT_SETS"
       ? { basis: settings.basis, cutOffs: cutOffsFrom(settings.highest, settings.lowest), quantifier: settings.quantifier, keep: settings.keep, ...(settings.limitOrder === undefined ? {} : { limitOrder: settings.limitOrder }) }
       : undefined;
@@ -642,14 +458,14 @@ function useComposer(model: EsqModel | undefined, shownRun: ShownRun, initialNet
         burnInTrials: settings.burnInTrials,
       }
       : undefined;
-    const successTreatment: EventTreeSuccessTreatment | undefined = settings.choice === "HCL" || monteCarloRun ? undefined
+    const successTreatment: EventTreeSuccessTreatment | undefined = monteCarloRun ? undefined
       : settings.choice === "CUT_SETS" ? settings.cutSetTreatment
       : settings.treatment;
     setRunning(true);
     setLive(null);
     setError(null);
     let announced = false;
-    runEsqModel(workbookId, revision, { ...MODEL_AS_SET, expandCcf: settings.choice === "HCL" ? false : settings.expandCcf }, settings.choice === "CUT_SETS" ? "CUT_SETS" : "EXACT", cutSets, hcl, (progress) => {
+    runEsqModel(workbookId, revision, { ...MODEL_AS_SET, expandCcf: settings.expandCcf }, settings.choice, cutSets, undefined, (progress) => {
       setLive(progress);
       if (announced) return;
       announced = true;
@@ -688,7 +504,6 @@ function useComposer(model: EsqModel | undefined, shownRun: ShownRun, initialNet
       const { limitOrder: _old, ...rest } = current;
       return rest;
     }),
-    networks,
     roots,
     manualTreeId,
     treeIds,
@@ -702,13 +517,6 @@ function useComposer(model: EsqModel | undefined, shownRun: ShownRun, initialNet
     ready,
     run,
     stop,
-    network,
-    dependency,
-    setDependency: (patch) => setDependencySettings((current) => ({ ...current, ...patch })),
-    batchInput,
-    setBatchInput,
-    study,
-    studyTotal,
   };
   if (problem !== undefined) out.problem = problem;
   return out;
@@ -748,19 +556,11 @@ function useRunWorkbooks(workbookId: string | null, runIds: readonly (string | u
   return saved;
 }
 
-function optionOf<T extends string>(options: readonly (readonly [T, string])[], value: string): T | undefined {
-  return options.find(([option]) => option === value)?.[0];
-}
-
 function RunHead({ view, shownRun, onRecord }: { view: EsqSolveView; shownRun: ShownRun; onRecord: () => void }): JSX.Element | null {
-  const { esq, editable, mutateEsq } = useEsqWorkbook();
   const id = useId();
-  const { runs, shown, summary } = shownRun;
+  const { runs, shown } = shownRun;
   const recordId = view.run?.runId;
   if (shown === undefined && view.run === undefined) return null;
-  const recorded = summary !== undefined && recordId === summary.runId;
-  const coverage = summary === undefined ? undefined : treesCovered(summary, esq);
-  const partial = coverage !== undefined && coverage.covered < coverage.total;
   return (
     <div className="poscard__head es-seq-card__head">
       <div className="es-seq-card__picker">
@@ -772,12 +572,21 @@ function RunHead({ view, shownRun, onRecord }: { view: EsqSolveView; shownRun: S
             </select>
           )}
           {view.run !== undefined && <button type="button" className="posnav__btn posnav__btn--sm" onClick={onRecord}>Run of record</button>}
-          {editable && summary !== undefined && (
-            <button type="button" className="posnav__btn posnav__btn--sm" disabled={recorded || shownRun.blocked === true || partial} title={shownRun.problem} onClick={() => mutateEsq((draft) => withRunOfRecord(draft, summary))}>{recorded ? "Values of record" : "Use as values of record"}</button>
-          )}
         </div>
       </div>
     </div>
+  );
+}
+
+function RecordRunButton({ view, shownRun }: { view: EsqSolveView; shownRun: ShownRun }): JSX.Element | null {
+  const { esq, editable, mutateEsq } = useEsqWorkbook();
+  const summary = shownRun.summary;
+  if (!editable || summary === undefined) return null;
+  const recorded = view.run?.runId === summary.runId;
+  const coverage = treesCovered(summary, esq);
+  const partial = coverage.covered < coverage.total;
+  return (
+    <button type="button" className="posnav__btn posnav__btn--sm" disabled={recorded || shownRun.blocked === true || partial} title={shownRun.problem} onClick={() => mutateEsq((draft) => withRunOfRecord(draft, summary))}>{recorded ? "Values of record" : "Use as values of record"}</button>
   );
 }
 
@@ -845,100 +654,18 @@ function ShownCaption({ shownRun, model }: { shownRun: ShownRun; model: EsqModel
   return shownRun.summary === undefined ? <ShownRunState shownRun={shownRun} model={model} /> : null;
 }
 
-function DependencySampling({ dependency, onChange }: { dependency: DependencySettings; onChange: (patch: Partial<DependencySettings>) => void }): JSX.Element {
-  return (
-    <>
-      <label>
-        <span>Sampling method</span>
-        <select aria-label="Dependency sampling method" value={dependency.sampler} onChange={(event) => {
-          const sampler = optionOf(SAMPLERS, event.target.value);
-          if (sampler !== undefined) onChange({ sampler });
-        }}>
-          {SAMPLERS.map(([option, text]) => <option key={option} value={option}>{text}</option>)}
-        </select>
-      </label>
-      <label>
-        <span>BN sampling method</span>
-        <select aria-label="Dependency BN sampling method" value={dependency.cptSampler} onChange={(event) => {
-          const cptSampler = optionOf(BN_SAMPLERS, event.target.value);
-          if (cptSampler !== undefined) onChange({ cptSampler });
-        }}>
-          {BN_SAMPLERS.map(([option, text]) => <option key={option} value={option}>{text}</option>)}
-        </select>
-      </label>
-      <label>
-        <span>Samples</span>
-        <input aria-label="Dependency samples" type="number" min={2} step={1} aria-invalid={!HclUncertaintySampleCountSchema.safeParse(dependency.sampleCount).success} value={dependency.sampleCount} onChange={(event) => onChange({ sampleCount: Number(event.target.value) })} />
-      </label>
-      <label>
-        <span>Seed</span>
-        <select aria-label="Dependency seed source" value={dependency.seed === null ? "RUN" : "FIXED"} onChange={(event) => onChange({ seed: event.target.value === "FIXED" ? START_SEED : null })}>
-          {SEED_SOURCES.map(([option, text]) => <option key={option} value={option}>{text}</option>)}
-        </select>
-      </label>
-      {dependency.seed !== null && (
-        <label>
-          <span>Seed value</span>
-          <input aria-label="Dependency seed" type="number" min={0} step={1} aria-invalid={!HclUncertaintySeedSchema.safeParse(dependency.seed).success} value={dependency.seed} onChange={(event) => onChange({ seed: Number(event.target.value) })} />
-        </label>
-      )}
-      <label>
-        <span>Parameter draws</span>
-        <select aria-label="Dependency parameter draws" value={dependency.correlation} onChange={(event) => {
-          const correlation = optionOf(PARAMETER_DRAWS, event.target.value);
-          if (correlation !== undefined) onChange({ correlation });
-        }}>
-          {PARAMETER_DRAWS.map(([option, text]) => <option key={option} value={option}>{text}</option>)}
-        </select>
-      </label>
-      <label>
-        <span>Out-of-range probabilities</span>
-        <select aria-label="Dependency out-of-range probabilities" value={dependency.clipProbabilities ? "CLIP" : "FAIL"} onChange={(event) => onChange({ clipProbabilities: event.target.value === "CLIP" })}>
-          {OUT_OF_RANGE.map(([option, text]) => <option key={option} value={option}>{text}</option>)}
-        </select>
-      </label>
-      <label>
-        <span>Zero-probability contexts</span>
-        <select aria-label="Dependency zero-probability contexts" value={dependency.zeroProbabilityContexts} onChange={(event) => {
-          const zeroProbabilityContexts = optionOf(ZERO_CONTEXTS, event.target.value);
-          if (zeroProbabilityContexts !== undefined) onChange({ zeroProbabilityContexts });
-        }}>
-          {ZERO_CONTEXTS.map(([option, text]) => <option key={option} value={option}>{text}</option>)}
-        </select>
-      </label>
-      <label>
-        <span>CPT floor</span>
-        <input aria-label="Dependency CPT floor" type="number" min={0} max={0.5} step="any" aria-invalid={!HclCptClipEpsilonSchema.safeParse(dependency.cptClipEpsilon).success} value={dependency.cptClipEpsilon} onChange={(event) => onChange({ cptClipEpsilon: Number(event.target.value) })} />
-      </label>
-    </>
-  );
-}
-
 function RunsPanel({ view, shownRun, composer, onCutSets }: { view: EsqSolveView; shownRun: ShownRun; composer: Composer; onCutSets: (dialog: CutSetDialog) => void }): JSX.Element {
   const { editable, runtime } = useEsqWorkbook();
   const fieldId = useId();
-  const { settings, set, dependency } = composer;
+  const { esq } = useEsqWorkbook();
+  const { settings, set } = composer;
   const blocked = analysisSaveBlock(runtime);
   const batch = settings.workflow === "BATCH";
-  const network = composer.network;
-  const dependencies = settings.choice === "HCL";
-  const uncertainty = dependencies && settings.dependencyResult === "UNCERTAINTY";
-  const studyMode = dependencies && (uncertainty || settings.dependencyEvidence !== "BASE");
-  const study = composer.study;
-  const shownStudy = studyMode && study !== null && study.result === settings.dependencyResult && study.evidence === settings.dependencyEvidence ? study : null;
-  const hasSettings = !dependencies || uncertainty;
+  const jobLabel = useMemo(() => esqJobLabel(esq, view.model), [esq, view.model]);
   const shown = shownRun.shown;
   const activeId = composer.live !== null && (composer.live.status === "QUEUED" || composer.live.status === "RUNNING") ? composer.live.id
     : shown !== undefined && (shown.status === "QUEUED" || shown.status === "RUNNING") ? shown.id
     : undefined;
-
-  function jobLabel(modelId: string): string | undefined {
-    if (modelId === esqModelRunId()) return "Event trees";
-    const configuration = composer.networks.find((option) => option.configuration.modelId === modelId);
-    if (configuration !== undefined) return `Dependencies · ${networkLabel(configuration)}`;
-    const tree = view.model.trees.find((candidate) => esqTreeRunId(candidate.id) === modelId);
-    return tree === undefined ? undefined : treeLabel(view.model, tree.id);
-  }
 
   function pillClass(selected: boolean, disabled: boolean): string {
     return [selected ? "is-selected" : "", disabled ? "is-disabled" : ""].filter((name) => name.length > 0).join(" ");
@@ -975,45 +702,11 @@ function RunsPanel({ view, shownRun, composer, onCutSets }: { view: EsqSolveView
           </div>
         </fieldset>
 
-        {dependencies && (
-          <>
-            <fieldset className="syft-analysis__calculation-picker">
-              <legend>Result</legend>
-              <div role="radiogroup" aria-label="Dependency result">
-                {DEPENDENCY_RESULTS.map(([value, label]) => {
-                  const disabled = value === "UNCERTAINTY" && settings.dependencyEvidence === "HAZARD";
-                  return (
-                    <label key={value} className={pillClass(settings.dependencyResult === value, disabled)}>
-                      <input type="radio" name={`${fieldId}-result`} value={value} checked={settings.dependencyResult === value} disabled={disabled} onChange={() => set({ dependencyResult: value })} />
-                      <span>{label}</span>
-                    </label>
-                  );
-                })}
-              </div>
-            </fieldset>
-
-            <fieldset className="syft-analysis__workflow-picker">
-              <legend>Evidence</legend>
-              <div role="radiogroup" aria-label="Dependency evidence">
-                {DEPENDENCY_EVIDENCE.map(([value, label]) => {
-                  const disabled = value === "HAZARD" && settings.dependencyResult === "UNCERTAINTY";
-                  return (
-                    <label key={value} className={pillClass(settings.dependencyEvidence === value, disabled)}>
-                      <input type="radio" name={`${fieldId}-evidence`} value={value} checked={settings.dependencyEvidence === value} disabled={disabled} onChange={() => set({ dependencyEvidence: value })} />
-                      <span>{label}</span>
-                    </label>
-                  );
-                })}
-              </div>
-            </fieldset>
-          </>
-        )}
-
         <div className="syft-analysis__run-composer">
           {batch && (
             <>
               <div className="syft-analysis__setup-row">
-                <span className="syft-analysis__selection-summary">{`${plural(composer.treeIds.length, "event tree", "event trees")} selected`}</span>
+                <span className="syft-analysis__selection-summary">{`${countOf(composer.treeIds.length, "event tree", "event trees")} selected`}</span>
               </div>
               <fieldset className="syft-analysis__batch-models">
                 <legend>Event trees</legend>
@@ -1056,14 +749,6 @@ function RunsPanel({ view, shownRun, composer, onCutSets }: { view: EsqSolveView
                   </select>
                 </label>
               )}
-              {dependencies && (
-                <label className="syft-analysis__run-field">
-                  <span>Dependency configuration</span>
-                  <select aria-label="Dependency configuration" value={network?.key ?? ""} disabled={composer.networks.length === 0} onChange={(event) => set({ network: event.target.value })}>
-                    {composer.networks.map((option) => <option key={option.key} value={option.key}>{networkLabel(option)}</option>)}
-                  </select>
-                </label>
-              )}
             </div>
             {editable && (
               <div className="esq-run-actions">
@@ -1075,8 +760,7 @@ function RunsPanel({ view, shownRun, composer, onCutSets }: { view: EsqSolveView
             )}
           </div>
 
-          {hasSettings && (
-            <div className="syft-analysis__advanced-panel" aria-label="Event tree quantification settings">
+          <div className="syft-analysis__advanced-panel" aria-label="Event tree quantification settings">
               <div className="syft-analysis__advanced">
                 {settings.choice === "EXACT" && settings.algorithm === "BDD" && (
                   <label>
@@ -1158,29 +842,16 @@ function RunsPanel({ view, shownRun, composer, onCutSets }: { view: EsqSolveView
                     </label>
                   </>
                 )}
-                {uncertainty && <DependencySampling dependency={dependency} onChange={composer.setDependency} />}
-                {!dependencies && <label className="syft-analysis__check"><input type="checkbox" checked={settings.expandCcf} onChange={(event) => set({ expandCcf: event.target.checked })} /><span>Expand common-cause groups</span></label>}
+                <label className="syft-analysis__check"><input type="checkbox" checked={settings.expandCcf} onChange={(event) => set({ expandCcf: event.target.checked })} /><span>Expand common-cause groups</span></label>
               </div>
-            </div>
-          )}
+          </div>
         </div>
       </div>
       {blocked !== null && <p className="syft-analysis__notice" role="status">{blocked}</p>}
-      {composer.running && composer.live === null && composer.studyTotal === 0 && <p className="syft-analysis__notice" role="status">Building the event trees for PRAXIS</p>}
+      {composer.running && composer.live === null && <p className="syft-analysis__notice" role="status">Building the event trees for PRAXIS</p>}
       {composer.problem !== undefined && <p className="syft-analysis__error" role="alert">{composer.problem}</p>}
       {composer.error !== null && <p className="syft-analysis__error" role="alert">{composer.error}</p>}
-      {dependencies && network !== undefined && (
-        <EsqDependencies
-          option={network}
-          evidence={settings.dependencyEvidence}
-          batchInput={composer.batchInput}
-          running={composer.running}
-          onBatchInput={composer.setBatchInput}
-        />
-      )}
-      {studyMode
-        ? shownStudy !== null && <EsqDependencyResults study={shownStudy} model={view.model} />
-        : <ModelRunsBody view={view} shownRun={shownRun} composer={composer} onCutSets={onCutSets} />}
+      <ModelRunsBody view={view} shownRun={shownRun} live={composer.live} onCutSets={onCutSets} />
     </section>
   );
 }
@@ -1255,7 +926,7 @@ function SequenceTable({ rows, label, model, cutSetRun, onCutSets }: { rows: rea
   );
 }
 
-function TreeResults({ view, summary, onCutSets }: { view: EsqSolveView; summary: EsqModelRunResult; onCutSets: (dialog: CutSetDialog) => void }): JSX.Element | null {
+function TreeResults({ view, shownRun, summary, onCutSets }: { view: EsqSolveView; shownRun: ShownRun; summary: EsqModelRunResult; onCutSets: (dialog: CutSetDialog) => void }): JSX.Element | null {
   const fieldId = useId();
   const [settings, setSettings] = useWorkbookView<ResultSettings>("solve.results", START_RESULTS, RESULTS_VIEW);
   const [open, setOpen] = useState<readonly string[]>([]);
@@ -1308,6 +979,7 @@ function TreeResults({ view, summary, onCutSets }: { view: EsqSolveView; summary
             </select>
           </div>
         </div>
+        <div className="es-records__actions"><RecordRunButton view={view} shownRun={shownRun} /></div>
       </div>
       {settings.group === "NONE" && rows.length > 0 && (
         <PagedResults items={ordered(rows, order, (row) => row.sequence.annualFrequency)} label="Sequences of this event tree" resetKey={resetKey}>
@@ -1357,18 +1029,18 @@ function TreeResults({ view, summary, onCutSets }: { view: EsqSolveView; summary
   );
 }
 
-function ModelRunsBody({ view, shownRun, composer, onCutSets }: { view: EsqSolveView; shownRun: ShownRun; composer: Composer; onCutSets: (dialog: CutSetDialog) => void }): JSX.Element {
+function ModelRunsBody({ view, shownRun, live, onCutSets }: { view: EsqSolveView; shownRun: ShownRun; live: AnalysisRunMetadata | null; onCutSets: (dialog: CutSetDialog) => void }): JSX.Element {
   const summary = shownRun.summary;
   const problem = shownRun.problem;
   const recorded = summary !== undefined && view.run?.runId === summary.runId;
   return (
     <>
-      <ShownRunState shownRun={shownRun} model={view.model} live={composer.live} />
+      <ShownRunState shownRun={shownRun} model={view.model} live={live} />
       {summary !== undefined && (
         <div className="esq-solve-stack">
           {problem !== undefined && !recorded && <p className="es-scope-error" role="status">{problem}</p>}
           <FailedTrees summary={summary} model={view.model} />
-          <TreeResults view={view} summary={summary} onCutSets={onCutSets} />
+          <TreeResults view={view} shownRun={shownRun} summary={summary} onCutSets={onCutSets} />
         </div>
       )}
     </>
@@ -1633,7 +1305,7 @@ function RunDialog({ view, onClose }: { view: EsqSolveView; onClose: () => void 
   const cutOffs = run.cutOffs ?? [];
   const first = cutOffs[0];
   const last = cutOffs[cutOffs.length - 1];
-  const calculation = run.hcl !== undefined ? `Dependencies · ${plural(run.hcl.treeIds.length, "event tree", "event trees")} on the dependency network`
+  const calculation = run.hcl !== undefined ? `Dependencies · ${countOf(run.hcl.treeIds.length, "event tree", "event trees")} on the dependency network`
     : run.monteCarlo !== undefined ? `Direct Monte Carlo · ${run.monteCarlo.trials.toLocaleString()} trials · seed ${String(run.monteCarlo.seed)}`
     : run.quantifier === undefined ? `${CALCULATION_LABELS[run.calculation]} · Direct BDD`
     : `${CALCULATION_LABELS[run.calculation]} · ${CUT_SET_ALGORITHM} · ${QUANTIFIER_LABELS[run.quantifier].toLowerCase()}`;
@@ -1724,7 +1396,7 @@ function SolveDialogs({ context, onClose }: { context: EsqWindowContext; onClose
   }
 }
 
-function EsqSolveTabs({ initialNetworkId = null, initialSourceWorkbookId = null }: { initialNetworkId?: string | null; initialSourceWorkbookId?: string | null }): JSX.Element {
+function EsqSolveTabs(): JSX.Element {
   const { esq, upstream, runtime } = useEsqWorkbook();
   const baseView = useMemo(() => solveViewOf(esq, upstream.es), [esq, upstream.es]);
   const loadedRun = useShownRun(baseView === undefined ? null : runtime.workbookId, baseView?.run?.runId);
@@ -1742,11 +1414,9 @@ function EsqSolveTabs({ initialNetworkId = null, initialSourceWorkbookId = null 
     blocked: shownStale || summary.trees.some((tree) => tree.status === "FAILED"),
     ...(shownProblem === undefined ? {} : { problem: shownProblem }),
   };
-  const composer = useComposer(view?.model, shownRun, initialNetworkId, initialSourceWorkbookId);
+  const composer = useComposer(view?.model, shownRun);
   const [tab, setTab] = useWorkbookView<SolveTab>("solve.tab", "runs", SOLVE_TAB_VIEW);
-  useEffect(() => {
-    if (initialNetworkId !== null) setTab("runs");
-  }, [initialNetworkId, setTab]);
+  const [dependencySession, setDependencySession] = useState<DependencySession>(IDLE_DEPENDENCY_SESSION);
   const [dialogs, setDialogs] = useState<readonly SolveDialog[]>([]);
   const dialog = dialogs.length === 0 ? undefined : dialogs[dialogs.length - 1];
   const cutSetTreeId = cutSetTreeOf(dialogs.find(isCutSetDialog), shownRun.summary);
@@ -1778,10 +1448,24 @@ function EsqSolveTabs({ initialNetworkId = null, initialSourceWorkbookId = null 
     }
   }
 
+  function dependencyRuns(shownView: EsqSolveView): DependencyModelRuns {
+    const shown = shownRun.shown;
+    const configurationId = shownRun.summary?.hcl?.modelId;
+    return {
+      ...(shown === undefined ? {} : { shownId: shown.id }),
+      shownActive: shown !== undefined && (shown.status === "QUEUED" || shown.status === "RUNNING"),
+      ...(configurationId === undefined ? {} : { shownConfigurationId: configurationId }),
+      show: shownRun.show,
+      reload: shownRun.reload,
+      render: (live) => <ModelRunsBody view={shownView} shownRun={shownRun} live={live} onCutSets={open} />,
+    };
+  }
+
   function renderPanel(): JSX.Element | null {
     if (view === undefined) return null;
     switch (tab) {
       case "runs": return <RunsPanel view={view} shownRun={shownRun} composer={composer} onCutSets={open} />;
+      case "dependencies": return <EsqDependencies model={view.model} modelRuns={dependencyRuns(view)} session={dependencySession} onSession={setDependencySession} />;
       case "families": return <FamiliesPanel view={view} shownRun={shownRun} onOpen={(id) => open({ kind: "family", id })} onCutSets={open} />;
       case "convergence": return <ConvergencePanel view={view} shownRun={shownRun} onSweep={(id) => open({ kind: "sweep", id })} />;
       case "dynamic": return null;

@@ -8,5 +8,4 @@ export type {
   QuantificationWorkflow,
   HclEventTreeOption,
   HclFaultTreeOption,
-  HclSyValue,
 } from "./hclBindingTypes";

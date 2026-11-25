@@ -123,7 +123,6 @@ describe("WorkbooksService", () => {
       let syRevision = 1;
       let syMef = {
         systemLogicModels: [],
-        dependencyHclConfigurations: [],
         commonCauseFailureGroups: [],
         systemBasicEvents: [{
           uuid: "be-1",
@@ -180,7 +179,7 @@ describe("WorkbooksService", () => {
       };
       const syAdapter = {
         elementCode: "SY",
-        exampleVariants: () => [{ exampleId: "hcl", label: "Dissertation source", workbookName: "HCL SY" }],
+        exampleVariants: () => [{ exampleId: "hcl", label: "HCL example", workbookName: "HCL SY" }],
         loadExample: jest.fn().mockResolvedValue(undefined),
         load: jest.fn(async () => ({ projectId: "proj-1", ownerUsername: "ada", mef: syMef, revision: syRevision })),
         save: jest.fn(async (_workbookId: string, mef: typeof syMef) => {
@@ -191,7 +190,7 @@ describe("WorkbooksService", () => {
       };
       const daAdapter = {
         elementCode: "DA",
-        exampleVariants: () => [{ exampleId: "hcl", label: "Dissertation source", workbookName: "HCL DA" }],
+        exampleVariants: () => [{ exampleId: "hcl", label: "HCL example", workbookName: "HCL DA" }],
         loadExample: jest.fn().mockResolvedValue(undefined),
         load: jest.fn().mockResolvedValue({ projectId: "proj-1", ownerUsername: "ada", mef: daMef, revision: 1 }),
         save: jest.fn(async (_workbookId: string, mef: typeof daMef) => mef),
@@ -203,7 +202,7 @@ describe("WorkbooksService", () => {
       };
       const hrAdapter = {
         elementCode: "HRA",
-        exampleVariants: () => [{ exampleId: "hcl", label: "Dissertation source", workbookName: "HCL HRA" }],
+        exampleVariants: () => [{ exampleId: "hcl", label: "HCL example", workbookName: "HCL HRA" }],
         loadExample: jest.fn().mockResolvedValue(undefined),
         load: jest.fn().mockResolvedValue({ projectId: "proj-1", ownerUsername: "ada", mef: hrMef, revision: 1 }),
         save: jest.fn(async (_workbookId: string, mef: typeof hrMef) => mef),
@@ -258,10 +257,10 @@ describe("WorkbooksService", () => {
             }),
           ]),
         }),
-        2,
+        1,
       );
       expect(syAdapter.save).toHaveBeenNthCalledWith(
-        3,
+        2,
         "sy-workbook",
         expect.objectContaining({
           systemBasicEvents: expect.arrayContaining([
@@ -285,7 +284,7 @@ describe("WorkbooksService", () => {
             },
           })],
         }),
-        3,
+        2,
       );
       expect(daAdapter.save).toHaveBeenCalledWith("da-workbook", expect.objectContaining({ linkedWorkbooks: { SY: "sy-workbook", HRA: "hr-workbook" } }), 1);
       expect(hrAdapter.save).toHaveBeenCalledWith("hr-workbook", expect.objectContaining({ linkedWorkbooks: { SY: "sy-workbook", DA: "da-workbook" } }), 1);

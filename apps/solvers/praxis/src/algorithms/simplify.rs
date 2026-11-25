@@ -248,23 +248,44 @@ pub fn propagate_constants(pdag: &mut Pdag) -> Result<()> {
     let Some(root) = pdag.root() else {
         return Ok(());
     };
-    let cap = pdag.node_count() * 6 + 4096;
-    let mut cf = Cofactorer {
-        true_const: pdag.add_constant(true),
-        false_const: pdag.add_constant(false),
-        memo: std::collections::HashMap::new(),
-        gate_memo: std::collections::HashMap::new(),
-        next_id: 0,
-        created: 0,
-        cap,
-        aborted: false,
-    };
+    let mut cf = Cofactorer::new(pdag);
     let env: std::collections::BTreeSet<NodeIndex> = std::collections::BTreeSet::new();
     let new_root = cf.go(pdag, root, &env)?;
     if !cf.aborted {
         pdag.set_root(new_root)?;
     }
     Ok(())
+}
+
+fn is_basic_event(pdag: &Pdag, node: NodeIndex) -> bool {
+    matches!(pdag.get_node(node), Some(PdagNode::BasicEvent { .. }))
+}
+
+fn pushed_events(pdag: &Pdag) -> std::collections::HashMap<NodeIndex, usize> {
+    let mut events: std::collections::BTreeSet<NodeIndex> = std::collections::BTreeSet::new();
+    for node in pdag.nodes().values() {
+        let PdagNode::Gate {
+            connective: Connective::And | Connective::Nand,
+            operands,
+            ..
+        } = node
+        else {
+            continue;
+        };
+        if operands.iter().all(|&op| is_basic_event(pdag, op)) {
+            continue;
+        }
+        for &op in operands {
+            if is_basic_event(pdag, op) {
+                events.insert(op.abs());
+            }
+        }
+    }
+    events
+        .into_iter()
+        .enumerate()
+        .map(|(position, event)| (event, position))
+        .collect()
 }
 
 struct Cofactorer {
@@ -276,9 +297,33 @@ struct Cofactorer {
     created: usize,
     cap: usize,
     aborted: bool,
+    pushed: std::collections::HashMap<NodeIndex, usize>,
+    words: usize,
+    reach_start: std::collections::HashMap<NodeIndex, usize>,
+    reach_bits: Vec<u64>,
 }
 
 impl Cofactorer {
+    fn new(pdag: &mut Pdag) -> Self {
+        let cap = pdag.node_count() * 6 + 4096;
+        let pushed = pushed_events(pdag);
+        let words = pushed.len().div_ceil(64);
+        Cofactorer {
+            true_const: pdag.add_constant(true),
+            false_const: pdag.add_constant(false),
+            memo: std::collections::HashMap::new(),
+            gate_memo: std::collections::HashMap::new(),
+            next_id: 0,
+            created: 0,
+            cap,
+            aborted: false,
+            pushed,
+            words,
+            reach_start: std::collections::HashMap::new(),
+            reach_bits: Vec::new(),
+        }
+    }
+
     fn k(&self, value: bool) -> NodeIndex {
         if value {
             self.true_const
@@ -321,6 +366,66 @@ impl Cofactorer {
         Ok(g)
     }
 
+    fn record_reach(&mut self, pdag: &Pdag, gate: NodeIndex) {
+        let mut pending: Vec<(NodeIndex, bool)> = vec![(gate, false)];
+        while let Some((node, children_done)) = pending.pop() {
+            if self.reach_start.contains_key(&node) {
+                continue;
+            }
+            let Some(PdagNode::Gate { operands, .. }) = pdag.get_node(node) else {
+                continue;
+            };
+            if !children_done {
+                pending.push((node, true));
+                for &op in operands {
+                    let child = op.abs();
+                    if !self.reach_start.contains_key(&child) && !is_basic_event(pdag, child) {
+                        pending.push((child, false));
+                    }
+                }
+                continue;
+            }
+            let start = self.reach_bits.len();
+            self.reach_bits.resize(start + self.words, 0);
+            for &op in operands {
+                let child = op.abs();
+                if let Some(&position) = self.pushed.get(&child) {
+                    self.reach_bits[start + position / 64] |= 1 << (position % 64);
+                } else if let Some(&from) = self.reach_start.get(&child) {
+                    for word in 0..self.words {
+                        let below = self.reach_bits[from + word];
+                        self.reach_bits[start + word] |= below;
+                    }
+                }
+            }
+            self.reach_start.insert(node, start);
+        }
+    }
+
+    fn within_reach(
+        &mut self,
+        pdag: &Pdag,
+        gate: NodeIndex,
+        env: &std::collections::BTreeSet<NodeIndex>,
+    ) -> std::collections::BTreeSet<NodeIndex> {
+        if env.is_empty() {
+            return std::collections::BTreeSet::new();
+        }
+        self.record_reach(pdag, gate);
+        let Some(&start) = self.reach_start.get(&gate) else {
+            return env.clone();
+        };
+        env.iter()
+            .copied()
+            .filter(|literal| match self.pushed.get(&literal.abs()) {
+                Some(&position) => {
+                    self.reach_bits[start + position / 64] & (1 << (position % 64)) != 0
+                }
+                None => true,
+            })
+            .collect()
+    }
+
     fn go(
         &mut self,
         pdag: &mut Pdag,
@@ -339,10 +444,6 @@ impl Cofactorer {
         if env.contains(&-base) {
             return Ok(self.k(neg));
         }
-        let key = (base, env.iter().copied().collect::<Vec<_>>());
-        if let Some(&m) = self.memo.get(&key) {
-            return Ok(if neg { self.neg(pdag, m) } else { m });
-        }
         let cloned = pdag.get_node(base).cloned();
         let result = match cloned {
             Some(PdagNode::BasicEvent { .. }) => base,
@@ -352,10 +453,20 @@ impl Cofactorer {
                 operands,
                 min_number,
                 ..
-            }) => self.gate_node(pdag, base, connective, operands, min_number, env)?,
+            }) => {
+                let reached = self.within_reach(pdag, base, env);
+                let key = (base, reached.iter().copied().collect::<Vec<_>>());
+                if let Some(&m) = self.memo.get(&key) {
+                    m
+                } else {
+                    let built =
+                        self.gate_node(pdag, base, connective, operands, min_number, &reached)?;
+                    self.memo.insert(key, built);
+                    built
+                }
+            }
             None => self.k(false),
         };
-        self.memo.insert(key, result);
         Ok(if neg { self.neg(pdag, result) } else { result })
     }
 
@@ -626,6 +737,156 @@ mod tests {
             }
         }
         // Function unchanged: (!E1) | E2.
+        assert!(Bdd::equivalent(&original, &pdag).unwrap());
+    }
+
+    fn reachable_ids(pdag: &Pdag) -> std::collections::BTreeSet<String> {
+        let mut ids = std::collections::BTreeSet::new();
+        let mut seen = std::collections::HashSet::new();
+        let mut stack = vec![pdag.root().unwrap().abs()];
+        while let Some(index) = stack.pop() {
+            if !seen.insert(index) {
+                continue;
+            }
+            match pdag.get_node(index) {
+                Some(PdagNode::BasicEvent { id, .. }) => {
+                    ids.insert(id.clone());
+                }
+                Some(PdagNode::Gate { operands, .. }) => {
+                    stack.extend(operands.iter().map(|op| op.abs()));
+                }
+                _ => {}
+            }
+        }
+        ids
+    }
+
+    #[test]
+    fn a_pushed_event_removes_the_branches_it_contradicts() {
+        let mut pdag = Pdag::new();
+        let a = pdag.add_basic_event("A".to_string());
+        let b = pdag.add_basic_event("B".to_string());
+        let c = pdag.add_basic_event("C".to_string());
+        let d = pdag.add_basic_event("D".to_string());
+        let dead = pdag
+            .add_gate("DEAD".to_string(), Connective::And, vec![-a, d], None)
+            .unwrap();
+        let system = pdag
+            .add_gate("SYSTEM".to_string(), Connective::Or, vec![dead, c], None)
+            .unwrap();
+        let with_a = pdag
+            .add_gate("WITH-A".to_string(), Connective::And, vec![a, system], None)
+            .unwrap();
+        let with_b = pdag
+            .add_gate("WITH-B".to_string(), Connective::And, vec![b, system], None)
+            .unwrap();
+        let root = pdag
+            .add_gate(
+                "ROOT".to_string(),
+                Connective::Or,
+                vec![with_a, with_b],
+                None,
+            )
+            .unwrap();
+        pdag.set_root(root).unwrap();
+
+        let original = pdag.clone();
+        propagate_constants(&mut pdag).unwrap();
+
+        assert!(Bdd::equivalent(&original, &pdag).unwrap());
+        let Some(PdagNode::Gate { operands, .. }) = pdag.get_node(pdag.root().unwrap()) else {
+            panic!("the root is a gate");
+        };
+        let Some(PdagNode::Gate {
+            connective,
+            operands: under_a,
+            ..
+        }) = pdag.get_node(operands[0])
+        else {
+            panic!("the first sequence is a gate");
+        };
+        assert_eq!(*connective, Connective::And);
+        assert_eq!(under_a, &vec![a, c]);
+        assert_eq!(operands[1], with_b);
+        assert!(reachable_ids(&pdag).contains("D"));
+    }
+
+    #[test]
+    fn a_pushed_event_is_true_inside_the_gates_below_it() {
+        let mut pdag = Pdag::new();
+        let a = pdag.add_basic_event("A".to_string());
+        let c = pdag.add_basic_event("C".to_string());
+        let d = pdag.add_basic_event("D".to_string());
+        let inner = pdag
+            .add_gate("INNER".to_string(), Connective::Or, vec![a, c], None)
+            .unwrap();
+        let system = pdag
+            .add_gate("SYSTEM".to_string(), Connective::And, vec![inner, d], None)
+            .unwrap();
+        let root = pdag
+            .add_gate("ROOT".to_string(), Connective::And, vec![a, system], None)
+            .unwrap();
+        pdag.set_root(root).unwrap();
+
+        let original = pdag.clone();
+        propagate_constants(&mut pdag).unwrap();
+
+        assert!(Bdd::equivalent(&original, &pdag).unwrap());
+        assert_eq!(
+            reachable_ids(&pdag),
+            ["A", "D"].iter().map(|id| id.to_string()).collect()
+        );
+    }
+
+    #[test]
+    fn a_pushed_event_is_not_carried_into_gates_that_do_not_contain_it() {
+        let mut pdag = Pdag::new();
+        let depth = 30;
+        let mut below = pdag.add_basic_event("X0".to_string());
+        for level in 1..=depth {
+            let event = pdag.add_basic_event(format!("X{level}"));
+            let connective = if level % 2 == 0 {
+                Connective::And
+            } else {
+                Connective::Or
+            };
+            below = pdag
+                .add_gate(
+                    format!("SYSTEM{level}"),
+                    connective,
+                    vec![event, below],
+                    None,
+                )
+                .unwrap();
+        }
+        let sequences = 40;
+        let mut tops = Vec::new();
+        for sequence in 0..sequences {
+            let initiator = pdag.add_basic_event(format!("IE{sequence}"));
+            tops.push(
+                pdag.add_gate(
+                    format!("SEQUENCE{sequence}"),
+                    Connective::And,
+                    vec![initiator, below],
+                    None,
+                )
+                .unwrap(),
+            );
+        }
+        let root = pdag
+            .add_gate("ROOT".to_string(), Connective::Or, tops, None)
+            .unwrap();
+        pdag.set_root(root).unwrap();
+
+        let original = pdag.clone();
+        let mut cofactorer = Cofactorer::new(&mut pdag);
+        let env = std::collections::BTreeSet::new();
+        let new_root = cofactorer.go(&mut pdag, root, &env).unwrap();
+        pdag.set_root(new_root).unwrap();
+
+        assert!(!cofactorer.aborted);
+        assert_eq!(new_root, root);
+        assert_eq!(cofactorer.memo.len(), 1 + sequences + depth);
         assert!(Bdd::equivalent(&original, &pdag).unwrap());
     }
 

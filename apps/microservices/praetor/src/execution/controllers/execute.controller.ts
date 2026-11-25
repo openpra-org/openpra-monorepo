@@ -17,12 +17,14 @@ import {
 import type { Request, Response } from "express";
 import type { PraetorJobState } from "interfaces-shared-types/execution/praetor-job";
 import { NATIVE_DEADLINE_HEADER, type NativeResponse } from "praxis-node/protocol";
+import { NATIVE_DEADLINE_HEADER as OPENRC_DEADLINE_HEADER, type NativeResponse as OpenRcResponse } from "openrc-node/protocol";
 import { ApiTags } from "@nestjs/swagger";
 import type { ExecuteRequest, ExecuteSolver } from "../../common/types/execute-request";
 import { getSolverDescriptor } from "../solvers.registry";
 import { ExecuteProducerService } from "../services/execute-producer.service";
 import { ExecuteStorageService } from "../services/execute-storage.service";
 import { PraxisJobsService, type PraxisJobRequest } from "../services/praxis-jobs.service";
+import { OpenRcJobsService, type OpenRcJobRequest } from "../services/openrc-jobs.service";
 
 function deadlineOf(request: Request): number | undefined {
   const header = request.headers[NATIVE_DEADLINE_HEADER];
@@ -48,6 +50,20 @@ function requestObject(body: object | null): object {
   return body;
 }
 
+function openRcDeadlineOf(request: Request): number | undefined {
+  const header = request.headers[OPENRC_DEADLINE_HEADER];
+  if (header === undefined) return undefined;
+  if (typeof header !== "string" || header.length === 0 || [...header].some((character) => character < "0" || character > "9") || !Number.isSafeInteger(Number(header))) {
+    throw new BadRequestException("Invalid OpenRC execution deadline");
+  }
+  return Number(header);
+}
+
+function openRcRequestObject(body: object | null): object {
+  if (body === null || typeof body !== "object" || Array.isArray(body)) throw new BadRequestException("A versioned OpenRC request body is required.");
+  return body;
+}
+
 @ApiTags("Solver Execution")
 @Controller()
 export class ExecuteController {
@@ -55,6 +71,7 @@ export class ExecuteController {
     private readonly producerService: ExecuteProducerService,
     private readonly storageService: ExecuteStorageService,
     private readonly praxisJobs: PraxisJobsService,
+    private readonly openRcJobs: OpenRcJobsService,
   ) {}
 
   @Post("praxis/native/validate")
@@ -88,6 +105,39 @@ export class ExecuteController {
   @Delete("praxis/jobs/:jobId")
   public async cancelPraxisJob(@Param("jobId") jobId: string): Promise<PraetorJobState> {
     return this.praxisJobs.cancel(jobId);
+  }
+
+  @Post("openrc/native/validate")
+  @HttpCode(HttpStatus.OK)
+  public async validateOpenRcNative(@Body() body: object | null, @Req() req: Request, @Res({ passthrough: true }) res: Response): Promise<OpenRcResponse> {
+    return this.openRcJobs.run("validate", openRcRequestObject(body), openRcDeadlineOf(req), disconnection(req, res));
+  }
+
+  @Post("openrc/native/execute")
+  @HttpCode(HttpStatus.OK)
+  public async executeOpenRcNative(@Body() body: object | null, @Req() req: Request, @Res({ passthrough: true }) res: Response): Promise<OpenRcResponse> {
+    return this.openRcJobs.run("execute", openRcRequestObject(body), openRcDeadlineOf(req), disconnection(req, res));
+  }
+
+  @Post("openrc/jobs")
+  @HttpCode(HttpStatus.ACCEPTED)
+  public async submitOpenRcJob(@Body() body: OpenRcJobRequest): Promise<PraetorJobState> {
+    return this.openRcJobs.submit(body);
+  }
+
+  @Get("openrc/jobs/:jobId")
+  public async openRcJobState(@Param("jobId") jobId: string): Promise<PraetorJobState> {
+    return this.openRcJobs.state(jobId);
+  }
+
+  @Get("openrc/jobs/:jobId/result")
+  public async openRcJobResult(@Param("jobId") jobId: string): Promise<OpenRcResponse> {
+    return this.openRcJobs.result(jobId);
+  }
+
+  @Delete("openrc/jobs/:jobId")
+  public async cancelOpenRcJob(@Param("jobId") jobId: string): Promise<PraetorJobState> {
+    return this.openRcJobs.cancel(jobId);
   }
 
   @Post("scram/execute")

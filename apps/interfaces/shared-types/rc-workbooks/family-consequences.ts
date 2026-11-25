@@ -24,13 +24,26 @@ export function rcResultNumber(value: number): string {
   return rounded !== 0 && (Math.abs(rounded) >= 1e6 || Math.abs(rounded) < 1e-3) ? rounded.toExponential() : String(rounded);
 }
 
-export function rcResultStatisticsText(statistics: RcResultStatistics, unit: string): string {
+export function rcResultChance(probability: number): string {
+  return `${rcResultNumber(probability * 100)}%`;
+}
+
+export function rcResultStatisticsText(statistics: RcResultStatistics, unit: string, point = false): string {
   const withUnit = (value: number) => `${rcResultNumber(value)}${unit ? ` ${unit}` : ""}`;
   return [
     ...(statistics.mean === undefined ? [] : [`Mean ${withUnit(statistics.mean)}`]),
-    ...[...statistics.percentiles].sort((a, b) => a.percentile - b.percentile).map((row) => `${rcOrdinal(row.percentile)} percentile ${withUnit(row.value)}`),
-    ...[...statistics.exceedances].sort((a, b) => a.threshold - b.threshold).map((row) => `Chance of exceeding ${withUnit(row.threshold)}: ${rcResultNumber(row.probability)}`),
+    ...[...statistics.percentiles].sort((a, b) => a.percentile - b.percentile).map((row) => `${rcOrdinal(row.percentile)} percentile ${point && row.percentile !== 50 ? "—" : withUnit(row.value)}`),
+    ...[...statistics.exceedances].sort((a, b) => a.threshold - b.threshold).map((row) => `Chance of exceeding ${withUnit(row.threshold)}: ${rcResultChance(row.probability)}`),
   ].join(" · ");
+}
+
+export function rcResultStatisticsColumns(statistics: RcResultStatistics, unit: string, point = false): { label: string; value: string }[] {
+  const inUnit = unit ? ` (${unit})` : "";
+  return [
+    ...(statistics.mean === undefined ? [] : [{ label: `Mean${inUnit}`, value: rcResultNumber(statistics.mean) }]),
+    ...[...statistics.percentiles].sort((a, b) => a.percentile - b.percentile).map((row) => ({ label: `${rcOrdinal(row.percentile)} percentile${inUnit}`, value: point && row.percentile !== 50 ? "—" : rcResultNumber(row.value) })),
+    ...[...statistics.exceedances].sort((a, b) => a.threshold - b.threshold).map((row) => ({ label: `Chance of exceeding ${rcResultNumber(row.threshold)}${unit ? ` ${unit}` : ""}`, value: rcResultChance(row.probability) })),
+  ];
 }
 
 export function rcCategoryConsequenceResults(rc: RadiologicalConsequenceAnalysis, categoryId: string): ConsequenceResult[] {
@@ -42,7 +55,7 @@ export function rcCategoryConsequenceResults(rc: RadiologicalConsequenceAnalysis
       metric: metric.name.trim() || metric.id,
       meanValue: result.statistics.mean,
       ...(result.unit ? { unit: result.unit } : {}),
-      uncertaintyDescription: rcResultStatisticsText(result.statistics, result.unit),
+      uncertaintyDescription: rcResultStatisticsText(result.statistics, result.unit, result.calculation?.trialCount === 1),
     }];
   });
 }

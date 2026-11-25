@@ -1,0 +1,22 @@
+{
+  "case_name": "unmapped",
+  "geometry": "centerline",
+  "mode": "lmp",
+  "receptor_x_m": 1000.0,
+  "stability_class": "D",
+  "wind_speed_m_s": 3.0,
+  "tede_sv": 0.0005349596060086045,
+  "tede_msv": 0.5349596060086045,
+  "chi_over_q_s_m3": 4.130185771102728e-05,
+  "ground_deposition_bq_m2": 123905.57313308182,
+  "lmp_tede_sv": 0.0008328009560434037,
+  "epz_distance_m": 0.0,
+  "missing_dcfs": [
+    "Cs-999",
+    "I-999"
+  ],
+  "breakdown_msv": {
+    "Cs-137": 0.5343154577535055,
+    "Kr-85": 0.0006441482550990519
+  }
+}

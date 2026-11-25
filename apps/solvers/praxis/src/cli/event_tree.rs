@@ -5,7 +5,7 @@ use crate::cli::metadata::{
 use crate::cli::optimize::{
     estimate_model_nodes, optimize_run_params_for_cpu, optimize_run_params_for_cuda,
 };
-use crate::cli::output::{writer_stdout, writer_vec};
+use crate::cli::output::{finish_stdout, writer_stdout, writer_vec};
 use praxis::algorithms::bdd_engine::{Bdd, BddRef};
 use praxis::algorithms::end_state_zbdd::EndStateZbdd;
 use praxis::algorithms::mocus::CutSet;
@@ -1183,6 +1183,7 @@ fn run_monte_carlo_impl(
     if !cli.print && cli.output_file.is_none() {
         let mut writer = writer_stdout();
         write_comprehensive_report(&mut writer, &dummy_fault_tree, &report)?;
+        finish_stdout(writer)?;
     }
 
     Ok(())
@@ -1457,6 +1458,7 @@ fn run_analytic_impl(
     if !cli.print && cli.output_file.is_none() {
         let mut writer = writer_stdout();
         write_comprehensive_report(&mut writer, &dummy_fault_tree, &report)?;
+        finish_stdout(writer)?;
     }
 
     Ok(())
@@ -1646,7 +1648,7 @@ fn write_end_state_products(
     }
     let node = aggregate.engine().node(root);
     write_end_state_products(writer, aggregate, node.low, path)?;
-    path.push(node.var);
+    path.push(node.var as usize);
     write_end_state_products(writer, aggregate, node.high, path)?;
     path.pop();
     Ok(())

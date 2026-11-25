@@ -57,9 +57,6 @@ function Marginals({ result, model }: { result: BayesianNetworkAnalysisResult; m
   );
   return (
     <>
-      <p className="analysis-results__identity">
-        Run {result.runId} · revision {result.owner.workbookRevision}
-      </p>
       <PagedResults
         items={rows}
         label="BN states"

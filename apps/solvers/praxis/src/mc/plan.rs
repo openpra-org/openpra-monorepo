@@ -50,6 +50,12 @@ pub fn choose_run_params_for_num_trials(num_trials: usize, seed: u64) -> Result<
     let omega = RunParams::DEFAULT_OMEGA;
     let b = 1usize;
     let p = num_trials.div_ceil(omega);
+    if u32::try_from(p).is_err() {
+        return Err(crate::error::PraxisError::Settings(format!(
+            "Number of trials must be at most {}",
+            u32::MAX as usize * omega
+        )));
+    }
     let padded = b * p * omega;
     let valid_lanes_last_word = (num_trials % omega) as u32;
 
@@ -58,6 +64,56 @@ pub fn choose_run_params_for_num_trials(num_trials: usize, seed: u64) -> Result<
         padded_trials_per_iteration: padded,
         valid_lanes_last_word,
     })
+}
+
+/// A stretch of bit packs that fits one GPU dispatch. `p_start` keeps each word's place in
+/// the layout, so its random stream does not depend on how a run is split.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct BitpackWindow {
+    pub p_start: u32,
+    pub p_count: u32,
+    pub valid_lanes_last_word: u32,
+}
+
+/// Walks `p_total` bit packs in windows of at most `max_p_count`. Only the window that ends
+/// the layout carries its partial last word.
+pub fn bitpack_windows(
+    p_total: u32,
+    max_p_count: u32,
+    valid_lanes_last_word: u32,
+) -> impl Iterator<Item = BitpackWindow> {
+    (0..p_total)
+        .step_by(max_p_count as usize)
+        .map(move |p_start| {
+            let p_count = max_p_count.min(p_total - p_start);
+            BitpackWindow {
+                p_start,
+                p_count,
+                valid_lanes_last_word: if p_start + p_count == p_total {
+                    valid_lanes_last_word
+                } else {
+                    0
+                },
+            }
+        })
+}
+
+/// Bit packs in one GPU dispatch. Long dispatches run slower on large models and can fill a
+/// small card, while below about a thousand bit packs launching the kernels costs more.
+const MAX_BITPACKS_PER_DISPATCH: u64 = 2048;
+
+/// The bit packs one GPU dispatch covers. Kernels stack eight bit packs in a cube, so the
+/// workgroup limit of the adapter applies, and each half of the word buffer has to bind whole.
+pub fn max_bitpacks_per_dispatch(
+    max_cubes_per_dimension: u32,
+    max_buffer_bytes: u64,
+    b_count: u32,
+    words_per_bitpack: u32,
+) -> u32 {
+    let by_cubes = u64::from(max_cubes_per_dimension) * 8;
+    let bytes_per_bitpack = u64::from(b_count) * u64::from(words_per_bitpack) * 4;
+    let by_buffer = max_buffer_bytes / bytes_per_bitpack.max(1);
+    by_cubes.min(by_buffer).clamp(1, MAX_BITPACKS_PER_DISPATCH) as u32
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -311,6 +367,79 @@ mod tests {
         let err = choose_run_params_for_num_trials(0, 0).unwrap_err();
         let msg = format!("{err}");
         assert!(msg.to_lowercase().contains("trials"));
+    }
+
+    #[test]
+    fn choose_run_params_stops_where_the_bitpack_counter_ends() {
+        let most = u32::MAX as usize * 64;
+        assert!(choose_run_params_for_num_trials(most, 0).is_ok());
+        assert!(choose_run_params_for_num_trials(most + 1, 0).is_err());
+    }
+
+    #[test]
+    fn windows_cover_every_bitpack_once_in_order() {
+        for (p_total, max_p_count) in [(1, 1), (7, 3), (9, 3), (10, 1), (5, 8), (524_281, 524_280)]
+        {
+            let mut next = 0;
+            for window in bitpack_windows(p_total, max_p_count, 0) {
+                assert_eq!(window.p_start, next);
+                assert!((1..=max_p_count).contains(&window.p_count));
+                next += window.p_count;
+            }
+            assert_eq!(next, p_total);
+        }
+    }
+
+    #[test]
+    fn only_the_last_window_masks_lanes() {
+        let lanes: Vec<u32> = bitpack_windows(10, 4, 17)
+            .map(|window| window.valid_lanes_last_word)
+            .collect();
+        assert_eq!(lanes, [0, 0, 17]);
+    }
+
+    #[test]
+    fn a_run_that_fits_stays_in_one_window() {
+        let windows: Vec<_> = bitpack_windows(16, 16, 5).collect();
+        assert_eq!(
+            windows,
+            [BitpackWindow {
+                p_start: 0,
+                p_count: 16,
+                valid_lanes_last_word: 5
+            }]
+        );
+    }
+
+    #[test]
+    fn dispatches_stay_short_on_any_adapter() {
+        assert_eq!(
+            max_bitpacks_per_dispatch(u32::MAX, u64::MAX, 1, 1) as u64,
+            MAX_BITPACKS_PER_DISPATCH
+        );
+    }
+
+    #[test]
+    fn dispatches_respect_the_workgroup_limit_of_the_adapter() {
+        assert_eq!(max_bitpacks_per_dispatch(100, u64::MAX, 1, 100), 800);
+    }
+
+    #[test]
+    fn dispatches_respect_the_buffer_limit_of_the_adapter() {
+        let two_gib = 2u64 << 30;
+        assert_eq!(
+            max_bitpacks_per_dispatch(65_535, two_gib, 1, 1_000_000),
+            536
+        );
+        assert_eq!(
+            max_bitpacks_per_dispatch(65_535, two_gib, 4, 1_000_000),
+            134
+        );
+    }
+
+    #[test]
+    fn dispatches_always_cover_at_least_one_bitpack() {
+        assert_eq!(max_bitpacks_per_dispatch(65_535, 1, 1, 100), 1);
     }
 
     #[test]

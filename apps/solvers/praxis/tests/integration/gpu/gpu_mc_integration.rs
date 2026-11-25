@@ -285,3 +285,113 @@ fn test_wgpu_backend_availability() {
 
     let _ = scheduler.is_backend_available(ExecutionBackend::Wgpu);
 }
+
+#[cfg(feature = "wgpu")]
+mod wgpu_large_runs {
+    use cubecl_wgpu::WgpuRuntime;
+    use praxis::core::event::BasicEvent;
+    use praxis::core::event_tree::{
+        Branch, BranchTarget, EventTree, Fork, FunctionalEvent, InitiatingEvent, Path, Sequence,
+    };
+    use praxis::core::fault_tree::FaultTree;
+    use praxis::core::gate::{Formula, Gate};
+    use praxis::core::model::Model;
+    use praxis::mc::core::{ConvergenceSettings, VrtMode, VrtSettings};
+    use praxis::mc::plan::RunParams;
+    use praxis::mc::{DpEventTreeMonteCarloAnalysis, DpMonteCarloAnalysis};
+
+    const PAST_THE_WORKGROUP_LIMIT: usize = 65_535 * 8 * 64 + 1_000;
+
+    fn or_tree() -> FaultTree {
+        let mut tree = FaultTree::new("FT", "TOP").unwrap();
+        let mut gate = Gate::new("TOP".to_string(), Formula::Or).unwrap();
+        gate.add_operand("E1".to_string());
+        gate.add_operand("E2".to_string());
+        tree.add_gate(gate).unwrap();
+        tree.add_basic_event(BasicEvent::new("E1".to_string(), 0.01).unwrap())
+            .unwrap();
+        tree.add_basic_event(BasicEvent::new("E2".to_string(), 0.02).unwrap())
+            .unwrap();
+        tree
+    }
+
+    #[test]
+    fn fault_tree_runs_past_the_workgroup_limit_match_the_cpu() {
+        let tree = or_tree();
+        let device = Default::default();
+        let importance = VrtSettings {
+            mode: VrtMode::ImportanceSampling,
+            is_bias_factor: 10.0,
+            is_max_events: usize::MAX,
+            is_q_min: 1.0e-12,
+            stratify_events: 0,
+        };
+        let stratified = VrtSettings {
+            mode: VrtMode::StratifiedSampling,
+            stratify_events: 1,
+            ..importance
+        };
+        for vrt in [VrtSettings::none(), importance, stratified] {
+            let analysis =
+                DpMonteCarloAnalysis::new(&tree, Some(1009), PAST_THE_WORKGROUP_LIMIT).unwrap();
+            let cpu = analysis
+                .run_cpu_with_watch_convergence_and_vrt(false, ConvergenceSettings::disabled(), vrt)
+                .unwrap();
+            let gpu = analysis
+                .run_gpu_with_watch_convergence_and_vrt::<WgpuRuntime>(
+                    &device,
+                    false,
+                    ConvergenceSettings::disabled(),
+                    vrt,
+                )
+                .unwrap();
+            assert_eq!(gpu.num_trials, PAST_THE_WORKGROUP_LIMIT, "{vrt:?}");
+            assert_eq!(cpu.successes, gpu.successes, "{vrt:?}");
+            assert_eq!(
+                cpu.probability_estimate, gpu.probability_estimate,
+                "{vrt:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn event_tree_runs_across_dispatches_match_the_cpu() {
+        let model = Model::new("").unwrap();
+
+        let seq_ok = Sequence::new("SEQ_OK".to_string());
+        let seq_fail = Sequence::new("SEQ_FAIL".to_string());
+        let ok_branch = Branch::new(BranchTarget::Sequence(seq_ok.id.clone()));
+        let fail_branch = Branch::new(BranchTarget::Sequence(seq_fail.id.clone()));
+        let ok_path = Path::new("success".to_string(), ok_branch)
+            .unwrap()
+            .with_collect_formula_negated(false);
+        let fail_path = Path::new("failure".to_string(), fail_branch)
+            .unwrap()
+            .with_collect_formula_negated(true);
+        let fork = Fork::new("FE1".to_string(), vec![ok_path, fail_path]).unwrap();
+
+        let mut et = EventTree::new("ET1".to_string(), Branch::new(BranchTarget::Fork(fork)));
+        et.add_sequence(seq_ok).unwrap();
+        et.add_sequence(seq_fail).unwrap();
+        et.add_functional_event(
+            FunctionalEvent::new("FE1".to_string()).with_success_probability(0.30),
+        )
+        .unwrap();
+
+        let ie = InitiatingEvent::new("IE".to_string())
+            .with_probability(1.0)
+            .with_frequency(2.0);
+
+        let params = RunParams::new(2, 2, 5_000, 64, 123_456_789);
+        let mc = DpEventTreeMonteCarloAnalysis::with_run_params(ie, et, &model, params).unwrap();
+
+        let cpu = mc.run_cpu().unwrap();
+        let gpu = mc.run_gpu::<WgpuRuntime>(&Default::default()).unwrap();
+
+        assert_eq!(cpu.num_trials, gpu.num_trials);
+        for (c, g) in cpu.sequences.iter().zip(gpu.sequences.iter()) {
+            assert_eq!(c.successes, g.successes);
+            assert_eq!(c.probability_estimate, g.probability_estimate);
+        }
+    }
+}

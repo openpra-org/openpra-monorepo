@@ -19,7 +19,6 @@ import {
   type FaultTreeExecuteResult,
 } from "interfaces-shared-types/newly-developed-methods/fault-tree";
 import { getSyFaultTreeResult, runSyFaultTree, validateSyFaultTree } from "../syWorkbookApi";
-import { createEmptyBayesianNetwork } from "../../newly-developed-methods/bayesian-network";
 import { ModelsScreen } from "../SySystemModels";
 import { settledWithPraxis } from "../../newly-developed-methods/shared/test/praxisUncertainty";
 
@@ -256,8 +255,6 @@ function projectedModel(): FaultTreeEditorProps["model"] {
 
 describe("ModelsScreen canonical fault-tree host", () => {
   it("shows the PRAXIS fault-tree calculation, workflow, and algorithm controls below the editor", () => {
-    const network = createEmptyBayesianNetwork("Dependency network");
-    setWorkbookContext({ sy: makeAnalysis({ dependencyBayesianNetworks: [network] }) });
     render(<ModelsScreen sysId={SYSTEM_ID} setSysId={jest.fn()} openDrawer={jest.fn()} />);
 
     openTab("Fault tree");
@@ -278,7 +275,6 @@ describe("ModelsScreen canonical fault-tree host", () => {
     fireEvent.click(screen.getByRole("radio", { name: "Importance" }));
     expect(screen.getByRole("combobox", { name: "Fault-tree algorithm" })).toBeEnabled();
     expect(within(screen.getByRole("combobox", { name: "Fault-tree algorithm" })).getAllByRole("option").map((option) => option.textContent)).toEqual(["Direct BDD"]);
-    expect(screen.queryByText(/HCL configuration/)).not.toBeInTheDocument();
   });
   beforeEach(() => {
     jest.clearAllMocks();

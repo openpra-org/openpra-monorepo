@@ -12,10 +12,12 @@ const FILTERS: readonly { key: ElementFilter; label: string }[] = [
 function ElementsSection({
   project,
   onOpenElement,
+  onNewLinkedWorkbooks,
   onGenerateExamples,
 }: {
   project: Project;
   onOpenElement: (element: { code: string; name: string }) => void;
+  onNewLinkedWorkbooks?: () => void;
   onGenerateExamples?: () => void;
 }): JSX.Element {
   const [filter, setFilter] = useState<ElementFilter>("all");
@@ -40,8 +42,15 @@ function ElementsSection({
             </button>
           ))}
         </div>
-        {onGenerateExamples !== undefined && (
-          <button type="button" className="wfilters__gen" onClick={onGenerateExamples}>Generate example</button>
+        {(onNewLinkedWorkbooks !== undefined || onGenerateExamples !== undefined) && (
+          <div className="wfilters__actions">
+            {onNewLinkedWorkbooks !== undefined && (
+              <button type="button" className="wfilters__gen" onClick={onNewLinkedWorkbooks}>New workbook</button>
+            )}
+            {onGenerateExamples !== undefined && (
+              <button type="button" className="wfilters__gen" onClick={onGenerateExamples}>Generate example</button>
+            )}
+          </div>
         )}
       </div>
 

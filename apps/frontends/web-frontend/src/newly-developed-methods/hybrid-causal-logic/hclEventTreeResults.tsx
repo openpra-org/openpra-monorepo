@@ -1,4 +1,3 @@
-import { HclSolverDiagnostics } from "./hclDiagnostics";
 import type {
   EventTreeAnalysisResult,
   EventTreeEndStateAggregate,
@@ -167,7 +166,6 @@ export function HclEventTreeResults({
                     <p className="analysis-results__identity">
                       End state: {endState === undefined ? "Unavailable" : labels.endStateName(endState)}
                     </p>
-                    <HclSolverDiagnostics key={result.runId} diagnostics={sequence.diagnostics} resetKey={`${result.runId}:${sequence.sequenceId}`} />
                   </div>
                 );
               })}

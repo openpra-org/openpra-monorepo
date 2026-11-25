@@ -1,4 +1,4 @@
-import { Injectable, Logger, OnModuleInit } from "@nestjs/common";
+import { Injectable, Logger } from "@nestjs/common";
 import { InjectConnection, InjectModel } from "@nestjs/mongoose";
 import type { Connection, Model, Types } from "mongoose";
 import { stringifyJson } from "interfaces-shared-types/json";
@@ -40,7 +40,7 @@ function linkedSy(mef: JsonRecord): string | undefined {
 }
 
 @Injectable()
-export class EsNetworkMigrationService implements OnModuleInit {
+export class EsNetworkMigrationService {
   private readonly logger = new Logger(EsNetworkMigrationService.name);
 
   constructor(
@@ -52,7 +52,7 @@ export class EsNetworkMigrationService implements OnModuleInit {
     private readonly connection: Connection,
   ) {}
 
-  async onModuleInit(): Promise<void> {
+  async start(): Promise<void> {
     try {
       const moved = await this.run();
       if (moved > 0) this.logger.log(`${moved} ES workbooks moved their dependency networks to the linked SY workbook.`);
@@ -80,13 +80,13 @@ export class EsNetworkMigrationService implements OnModuleInit {
     if (es === null || esMef === undefined || !holdsNetworks(esMef)) return false;
     const syId = linkedSy(esMef);
     if (syId === undefined) {
-      this.logger.warn(`ES workbook ${es.workbookId} kept its dependency networks. It links no SY workbook. Link one and restart the backend to move them.`);
+      this.logger.warn(`ES workbook ${es.workbookId} could not move its dependency networks to SY. It links no SY workbook.`);
       return false;
     }
     const sy = await this.syWorkbookModel.findOne({ workbookId: syId }).lean<StoredWorkbook>().exec();
     const syMef = sy === null ? undefined : mefOf(sy);
     if (sy === null || syMef === undefined) {
-      this.logger.warn(`ES workbook ${es.workbookId} kept its dependency networks. Its SY workbook ${syId} was not found.`);
+      this.logger.warn(`ES workbook ${es.workbookId} could not move its dependency networks to SY. Its SY workbook ${syId} was not found.`);
       return false;
     }
     const move = moveEsNetworks(esMef, es.workbookId, syMef, syId);
@@ -123,3 +123,6 @@ export class EsNetworkMigrationService implements OnModuleInit {
     return update.matchedCount === 1;
   }
 }
+
+export { mefOf, sentence };
+export type { StoredWorkbook, WorkbookRow };

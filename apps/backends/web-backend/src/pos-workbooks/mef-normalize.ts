@@ -10,7 +10,7 @@ function stripNulls(
   // Uncertainty is opaque saved draft data. Preserve even malformed/null
   // entries for later review; execution validates only the selected settings.
   const savedUncertainty = path.length === 4
-    && (path[0] === "hclConfigurations" || path[0] === "dependencyHclConfigurations")
+    && path[0] === "hclConfigurations"
     && typeof path[1] === "number" && path[2] === "solverSettings" && path[3] === "uncertainty";
   if (savedUncertainty) return value;
   if (value === null) return preserveNull(path) ? null : undefined;
@@ -21,7 +21,8 @@ function stripNulls(
     const out: Record<string, unknown> = {};
     const law = holdsLaw(value);
     for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
-      if (law && v === null) {
+      // Fault-tree schemas require topGate and store null for a tree without one.
+      if ((law || k === "topGate") && v === null) {
         out[k] = null;
         continue;
       }

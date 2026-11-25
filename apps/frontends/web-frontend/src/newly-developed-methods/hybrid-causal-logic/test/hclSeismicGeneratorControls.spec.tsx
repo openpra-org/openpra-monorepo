@@ -49,7 +49,10 @@ it("adds a fragility generator, edits the median law, randomness and demands, an
     randomness: point("FACTOR", 1),
     demands: [{ stateId: TEST_ID.aFalse, demand: 0 }, { stateId: TEST_ID.aTrue, demand: 0 }],
   });
-  fireEvent.click(screen.getByText("B · Seismic fragility"));
+  expect(screen.getByText("Settings").closest("summary")).toHaveTextContent("BN / nodeBSeismic fragilitySettings");
+  fireEvent.click(screen.getByText("Settings"));
+  expect(slot("Median capacity").tagName).toBe("DIV");
+  expect(slot("Demand per PGA state")).toContainElement(screen.getByRole("textbox", { name: "Demand at TRUE" }));
 
   commit(within(slot("Median capacity")).getByRole("textbox", { name: "Value" }), "0.9");
   fireEvent.change(within(slot("Median capacity")).getByRole("combobox", { name: "Law" }), { target: { value: "LOGNORMAL" } });
@@ -82,7 +85,8 @@ it("adds root PGA bins, edits frequencies, mission time and conversion, and dele
   fireEvent.change(screen.getByLabelText("Generator"), { target: { value: "SEISMIC_PGA_BINS" } });
   expect(screen.getByLabelText("Generator node")).toHaveValue(TEST_ID.a);
   fireEvent.click(screen.getByRole("button", { name: "Add generator" }));
-  fireEvent.click(screen.getByText("A · PGA bins"));
+  expect(screen.getByText("Settings").closest("summary")).toHaveTextContent("BN / nodeAPGA binsSettings");
+  fireEvent.click(screen.getByText("Settings"));
   fireEvent.change(screen.getByLabelText("Frequency conversion"), { target: { value: "LINEAR" } });
   commit(within(slot("Frequency of TRUE")).getByRole("textbox", { name: "Value" }), "0.01");
   fireEvent.change(within(slot("Frequency of TRUE")).getByRole("combobox", { name: "Law" }), { target: { value: "LOGNORMAL" } });

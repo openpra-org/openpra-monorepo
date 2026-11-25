@@ -813,10 +813,10 @@ export const RI_ANALYSIS: RiskIntegration = {
 
 export const RI_PUBLISHED_ID = "published-ri-inputs";
 export const RI_PUBLISHED_SLUG = "ri-published-inputs";
-export const RI_PUBLISHED_LABEL = "Published RI inputs expert review";
+export const RI_PUBLISHED_LABEL = "RI example";
 
 const PUBLISHED_DATE = "2026-09-30T12:00:00.000Z";
-const PUBLISHED_OWNER = "Published-source review example";
+const PUBLISHED_OWNER = RI_PUBLISHED_LABEL;
 const PUBLISHED_DOSE = "30-day dose at the EAB";
 const PUBLISHED_EARLY = "Early fatality risk within 1 mile of the EAB";
 const PUBLISHED_LATENT = "Latent cancer fatality risk within 10 miles of the EAB";

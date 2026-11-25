@@ -1,4 +1,4 @@
-import type { RcCaseRecords, RcCaseSelection, RcCaseTable, RcCaseTextPage, RcCaseDataset, RcCaseReview, RcCategoryResultValues } from "interfaces-mef-types/rc/case-records";
+import type { RcCaseRecords, RcCaseSelection, RcCaseTable, RcCaseTextPage, RcCaseOutputFile, RcCaseDataset, RcCaseReview, RcCategoryResultValues } from "interfaces-mef-types/rc/case-records";
 import React, { createContext, useContext, useMemo, useState, useEffect, useCallback } from "react";
 import { type RadiologicalConsequenceAnalysis } from "interfaces-mef-types/rc/radiological-consequence-analysis";
 import { type PRAConfigurationControl } from "interfaces-mef-types/cross-cutting/pra-configuration-control";
@@ -12,6 +12,7 @@ import type { RcEarlyResponseModel } from "interfaces-mef-types/rc/early-respons
 import type { RcWeatherInputs, RcWeatherModel, RcWeatherSettings, RcWeatherPage, RcWeatherTrialPage } from "interfaces-mef-types/rc/weather";
 import type { RcDoseInputs, RcDosePathway, RcDoseFilePage, RcDoseRecord } from "interfaces-mef-types/rc/dose-inputs";
 import type { RcTransportInputs, RcTransportSettings, RcLinkedDeposition, RcDecayDetail } from "interfaces-mef-types/rc/transport";
+import type { RcConsequenceRun, RcConsequenceRunDetails, RcConsequenceRunFile, RcConsequenceRunFileKind, RcConsequenceRunRequest, RcConsequenceRunSetup, RcConsequenceRunTrialOrder, RcConsequenceRunTrialPage } from "interfaces-mef-types/rc/consequence-runs";
 
 export interface RcCaseActions {
   saveSnapshot: (revision: number, selection: RcCaseSelection) => Promise<{ records: RcCaseRecords; snapshotId: string }>;
@@ -20,7 +21,18 @@ export interface RcCaseActions {
   readTable: (selection: RcCaseSelection, kind: RcCaseDataset, offset: number) => Promise<RcCaseTable>;
   readText: (selection: RcCaseSelection, fileId: string, offset: number) => Promise<RcCaseTextPage>;
   readReview: (selection: RcCaseSelection) => Promise<RcCaseReview>;
-  readOutput: (resultId: string, offset: number) => Promise<RcCaseTextPage>;
+  readOutput: (resultId: string) => Promise<RcCaseOutputFile>;
+}
+export interface RcConsequenceRunActions {
+  list: () => Promise<RcConsequenceRun[]>;
+  setup: (snapshotId: string) => Promise<RcConsequenceRunSetup>;
+  start: (request: RcConsequenceRunRequest) => Promise<RcConsequenceRun>;
+  read: (runId: string) => Promise<RcConsequenceRunDetails>;
+  readTrials: (runId: string, distanceIndex: number, offset: number, order: RcConsequenceRunTrialOrder) => Promise<RcConsequenceRunTrialPage>;
+  readFile: (runId: string, kind: RcConsequenceRunFileKind) => Promise<RcConsequenceRunFile>;
+  cancel: (runId: string) => Promise<RcConsequenceRun>;
+  remove: (runId: string) => Promise<void>;
+  record: (revision: number, runId: string, distanceIndex: number) => Promise<RcCaseRecords>;
 }
 export interface RcResultDraft { snapshotId: string; metricId: string; mean: string; percentiles: Record<string, string>; exceedances: Record<string, string>; version: string; reference: string; confirmed: boolean; file?: File }
 
@@ -46,8 +58,8 @@ export interface RcWeatherActions {
   saveSettings: (revision: number, settings: RcWeatherSettings, model: RcWeatherModel, confirm: boolean) => Promise<RcWeatherInputs>;
   prepareCollection: (revision: number, siteRevision: number, dates: { start: string; end: string }) => Promise<RcWeatherInputs>;
   readOriginal: (documentId: string) => Promise<string>;
-  readRecords: (offset: number) => Promise<RcWeatherPage>;
-  readTrials: (offset: number) => Promise<RcWeatherTrialPage>;
+  readRecords: (offset: number, limit: number) => Promise<RcWeatherPage>;
+  readTrials: (offset: number, limit: number) => Promise<RcWeatherTrialPage>;
 }
 interface WeatherDraft { baseRevision: number; settings: RcWeatherSettings; model?: RcWeatherModel }
 
@@ -80,6 +92,7 @@ type RcMutator = (rc: RadiologicalConsequenceAnalysis) => RadiologicalConsequenc
 
 interface RcWorkbookContextValue extends RcWorkbookData {
   caseRecords?: RcCaseActions;
+  consequenceRuns?: RcConsequenceRunActions;
   resultDraft?: RcResultDraft;
   setResultDraft: (draft: RcResultDraft | undefined) => void;
   doseInputs?: RcDoseActions;
@@ -107,7 +120,7 @@ interface RcWorkbookContextValue extends RcWorkbookData {
 
 const RcWorkbookContext = createContext<RcWorkbookContextValue | null>(null);
 
-function RcWorkbookProvider({ data, editable, mutateRc, links = NO_RC_LINKS, sourceTerms, siteReceptors, earlyResponse, weather, transport, doseInputs, caseRecords, children }: {
+function RcWorkbookProvider({ data, editable, mutateRc, links = NO_RC_LINKS, sourceTerms, siteReceptors, earlyResponse, weather, transport, doseInputs, caseRecords, consequenceRuns, children }: {
   data: RcWorkbookData;
   editable: boolean;
   mutateRc: (mutator: RcMutator) => void;
@@ -119,6 +132,7 @@ function RcWorkbookProvider({ data, editable, mutateRc, links = NO_RC_LINKS, sou
   transport?: RcTransportActions;
   doseInputs?: RcDoseActions;
   caseRecords?: RcCaseActions;
+  consequenceRuns?: RcConsequenceRunActions;
   children: React.ReactNode;
 }): JSX.Element {
   const [resultDraft, setResultDraft] = useState<RcResultDraft>();
@@ -146,9 +160,9 @@ function RcWorkbookProvider({ data, editable, mutateRc, links = NO_RC_LINKS, sou
   }, [sourceTermDrafts, siteReceptorDraft, weatherDraft, weatherDates, transportDrafts, resultDraft]);
   const stepLinks = useMemo(() => rcStepLinks(data.rc, links), [data.rc, links]);
   const value = useMemo<RcWorkbookContextValue>(
-    () => ({ ...data, caseRecords, resultDraft, setResultDraft, editable, mutateRc, links, stepLinks, sourceTerms, sourceTermDrafts, setSourceTermDraft, siteReceptors, earlyResponse, siteReceptorDraft, setSiteReceptorDraft,
+    () => ({ ...data, caseRecords, consequenceRuns, resultDraft, setResultDraft, editable, mutateRc, links, stepLinks, sourceTerms, sourceTermDrafts, setSourceTermDraft, siteReceptors, earlyResponse, siteReceptorDraft, setSiteReceptorDraft,
       weather, weatherDraft, setWeatherDraft, weatherDates, setWeatherDates, transport, transportDrafts, setTransportDraft, rebaseTransportDrafts, doseInputs }),
-    [data, caseRecords, resultDraft, editable, mutateRc, links, stepLinks, sourceTerms, sourceTermDrafts, setSourceTermDraft, siteReceptors, earlyResponse, siteReceptorDraft, weather, weatherDraft, weatherDates, transport, transportDrafts, setTransportDraft, rebaseTransportDrafts, doseInputs],
+    [data, caseRecords, consequenceRuns, resultDraft, editable, mutateRc, links, stepLinks, sourceTerms, sourceTermDrafts, setSourceTermDraft, siteReceptors, earlyResponse, siteReceptorDraft, weather, weatherDraft, weatherDates, transport, transportDrafts, setTransportDraft, rebaseTransportDrafts, doseInputs],
   );
   return <RcWorkbookContext.Provider value={value}>{children}</RcWorkbookContext.Provider>;
 }

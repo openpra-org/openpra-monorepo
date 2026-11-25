@@ -13,7 +13,7 @@ describe("RiMefAdapter project examples", () => {
     jest.clearAllMocks();
   });
 
-  it("advertises the HTGR, SFR, dissertation-source and published-input RI examples to the project generator", () => {
+  it("advertises the HTGR, SFR, HCL and RI examples to the project generator", () => {
     expect(adapter.exampleVariants()).toEqual([
       {
         exampleId: "htgr",
@@ -27,13 +27,13 @@ describe("RiMefAdapter project examples", () => {
       },
       {
         exampleId: "hcl",
-        label: "HCL dissertation case study",
-        workbookName: "HCL dissertation case study — Integrated Risk",
+        label: "HCL example",
+        workbookName: "HCL example — Integrated Risk",
       },
       {
         exampleId: "published-ri-inputs",
-        label: "Published RI inputs expert review",
-        workbookName: "Published RI inputs expert review",
+        label: "RI example",
+        workbookName: "RI example",
       },
     ]);
   });

@@ -2,7 +2,6 @@ import { z } from "zod";
 import {
   WorkbookEntityIdSchema,
   WorkbookModelIdSchema,
-  WorkbookModelAddressSchema,
   WorkbookRevisionSchema,
 } from "../shared";
 import { HclEvidenceScenarioSchema } from "./hcl-schemas";
@@ -50,7 +49,6 @@ const HclGenerateScenariosRequestSchema = z
     schemaVersion: z.literal("1.0.0"),
     modelId: WorkbookModelIdSchema,
     workbookRevision: WorkbookRevisionSchema,
-    dependencyConfiguration: WorkbookModelAddressSchema.optional(),
     spec: HclHazardSweepSpecSchema,
   })
   .strict();

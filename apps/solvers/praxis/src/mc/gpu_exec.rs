@@ -14,7 +14,9 @@ use crate::algorithms::pdag::{Pdag, PdagNode};
 use crate::mc::gpu_soa::GpuSoaPlan;
 
 #[cfg(feature = "gpu")]
-use crate::mc::plan::{ConnectiveRank, DpMcPlan};
+use crate::mc::plan::{
+    bitpack_windows, max_bitpacks_per_dispatch, BitpackWindow, ConnectiveRank, DpMcPlan,
+};
 
 #[cfg(feature = "gpu")]
 #[inline]
@@ -91,6 +93,21 @@ fn choose_tally_cube_dim(bp_total: u32) -> CubeDim {
         1
     };
     CubeDim::new_2d(32, y)
+}
+
+#[cfg(feature = "gpu")]
+fn max_p_count_for_client<R: Runtime>(
+    client: &ComputeClient<R>,
+    b_count: u32,
+    words_per_bitpack: u32,
+) -> u32 {
+    let properties = client.properties();
+    max_bitpacks_per_dispatch(
+        properties.hardware.max_cube_count.1,
+        properties.memory.max_page_size,
+        b_count,
+        words_per_bitpack,
+    )
 }
 
 #[cfg(feature = "gpu")]
@@ -407,6 +424,23 @@ unsafe fn launch_gate_group<R: Runtime>(
         )
     } else if op_code == 6u32 {
         let mins_h = group.mins_h.as_ref().expect("AtLeast gate requires mins_h");
+        crate::mc::kernel::dpmc_gate::eval_gates_packed_atleast_small_kernel::launch_unchecked::<R>(
+            client,
+            cube_count.clone(),
+            cube_dim,
+            ArrayArg::from_raw_parts::<u32>(&group.offsets_h, group.offsets_len, 1),
+            ArrayArg::from_raw_parts::<u32>(&group.indices_h, group.indices_len, 1),
+            ArrayArg::from_raw_parts::<u32>(&group.neg_h, group.neg_len, 1),
+            ArrayArg::from_raw_parts::<u32>(&group.out_h, group.out_len, 1),
+            ArrayArg::from_raw_parts::<u32>(mins_h, group.mins_len, 1),
+            ScalarArg::new(num_gates),
+            ScalarArg::new(num_nodes),
+            ScalarArg::new(b_count),
+            ScalarArg::new(p_count),
+            ArrayArg::from_raw_parts::<u32>(node_words_lo_h, total_words, 1),
+            ArrayArg::from_raw_parts::<u32>(node_words_hi_h, total_words, 1),
+        )
+        .expect("Failed to launch packed AtLeast small-fan-in kernel");
         let mins_arg = ArrayArg::from_raw_parts::<u32>(mins_h, group.mins_len, 1);
         crate::mc::kernel::dpmc_gate::eval_gates_packed_atleast_kernel::launch_unchecked::<R>(
             client,
@@ -487,6 +521,7 @@ pub fn execute_layers_bitpacked_gpu<R: Runtime>(
             ScalarArg::new(num_nodes),
             ScalarArg::new(b_count),
             ScalarArg::new(p_count),
+            ScalarArg::new(0u32),
             ScalarArg::new(t),
             ScalarArg::new(key[0]),
             ScalarArg::new(key[1]),
@@ -646,9 +681,9 @@ pub fn execute_layers_bitpacked_gpu_selected_nodes_process_many_iters<
     mut on_iter: F,
 ) {
     let b_count = plan.params.b as u32;
-    let p_count = plan.params.p as u32;
+    let p_total = plan.params.p as u32;
     assert_eq!(soa.layout.b_count, b_count);
-    assert_eq!(soa.layout.p_count, p_count);
+    assert_eq!(soa.layout.p_count, p_total);
 
     let num_nodes = soa.layout.num_nodes;
     let num_events = soa.event_nodes.len() as u32;
@@ -658,8 +693,8 @@ pub fn execute_layers_bitpacked_gpu_selected_nodes_process_many_iters<
     let num_selected = selected_nodes.len() as u32;
     assert!(num_selected > 0, "selected_nodes must be non-empty");
 
-    let total_words = (b_count as usize) * (p_count as usize) * (num_nodes as usize);
-    let selected_total_words = (b_count as usize) * (p_count as usize) * (num_selected as usize);
+    let max_p_count = max_p_count_for_client(client, b_count, num_nodes).min(p_total);
+    let total_words = (b_count as usize) * (max_p_count as usize) * (num_nodes as usize);
 
     let node_words_lo_h = client.empty(total_words * std::mem::size_of::<u32>());
     let node_words_hi_h = client.empty(total_words * std::mem::size_of::<u32>());
@@ -672,7 +707,6 @@ pub fn execute_layers_bitpacked_gpu_selected_nodes_process_many_iters<
     let selected_nodes_h = client.create_from_slice(u32::as_bytes(selected_nodes));
 
     let threads_per_block = 256u32;
-    let sample_cube_dim = choose_sample_cube_dim(num_events, p_count);
 
     let mut const_nodes: Vec<u32> = Vec::new();
     let mut const_values: Vec<u32> = Vec::new();
@@ -689,122 +723,124 @@ pub fn execute_layers_bitpacked_gpu_selected_nodes_process_many_iters<
         }
     }
 
-    let (const_nodes_h, const_values_h, num_consts, const_blocks) = if !const_nodes.is_empty() {
+    let (const_nodes_h, const_values_h, num_consts) = if !const_nodes.is_empty() {
         let const_nodes_h = client.create_from_slice(u32::as_bytes(&const_nodes));
         let const_values_h = client.create_from_slice(u32::as_bytes(&const_values));
 
         let num_consts = const_nodes.len() as u32;
-        let total_threads = num_consts * b_count * p_count;
-        let blocks = total_threads.div_ceil(threads_per_block);
-        (
-            Some(const_nodes_h),
-            Some(const_values_h),
-            num_consts,
-            blocks,
-        )
+        (Some(const_nodes_h), Some(const_values_h), num_consts)
     } else {
-        (None, None, 0u32, 0u32)
+        (None, None, 0u32)
     };
 
     let uploaded_layers = upload_gate_groups(client, soa);
 
-    let gather_total_threads = num_selected * b_count * p_count;
-    let gather_blocks = gather_total_threads.div_ceil(threads_per_block);
-
     for iter in 0..t_count {
         let t_counter = t_start + iter;
 
-        unsafe {
-            crate::mc::kernel::dpmc_event::sample_events_bitpacked_to_nodes_kernel::launch_unchecked::<R>(
-                client,
-                cube_count_for_sample_launch(num_events, p_count, b_count, sample_cube_dim),
-                sample_cube_dim,
-                ArrayArg::from_raw_parts::<u32>(&thresholds_h, thresholds.len(), 1),
-                ArrayArg::from_raw_parts::<u32>(&full_ranges_h, full_ranges.len(), 1),
-                ArrayArg::from_raw_parts::<u32>(&event_nodes_h, event_nodes_u32.len(), 1),
-                ScalarArg::new(num_events),
-                ScalarArg::new(num_nodes),
-                ScalarArg::new(b_count),
-                ScalarArg::new(p_count),
-                ScalarArg::new(t_counter),
-                ScalarArg::new(key[0]),
-                ScalarArg::new(key[1]),
-                ArrayArg::from_raw_parts::<u32>(&node_words_lo_h, total_words, 1),
-                ArrayArg::from_raw_parts::<u32>(&node_words_hi_h, total_words, 1),
-            )
-            .expect("Failed to launch event sampling-to-node kernel");
-        }
+        for window in bitpack_windows(p_total, max_p_count, 0) {
+            let p_count = window.p_count;
+            let sample_cube_dim = choose_sample_cube_dim(num_events, p_count);
 
-        if let (Some(const_nodes_h), Some(const_values_h)) = (&const_nodes_h, &const_values_h) {
             unsafe {
-                crate::mc::kernel::dpmc_node::set_constant_nodes_kernel::launch_unchecked::<R>(
+                crate::mc::kernel::dpmc_event::sample_events_bitpacked_to_nodes_kernel::launch_unchecked::<R>(
                     client,
-                    cube_count_for_1d_blocks(const_blocks),
+                    cube_count_for_sample_launch(num_events, p_count, b_count, sample_cube_dim),
+                    sample_cube_dim,
+                    ArrayArg::from_raw_parts::<u32>(&thresholds_h, thresholds.len(), 1),
+                    ArrayArg::from_raw_parts::<u32>(&full_ranges_h, full_ranges.len(), 1),
+                    ArrayArg::from_raw_parts::<u32>(&event_nodes_h, event_nodes_u32.len(), 1),
+                    ScalarArg::new(num_events),
+                    ScalarArg::new(num_nodes),
+                    ScalarArg::new(b_count),
+                    ScalarArg::new(p_count),
+                    ScalarArg::new(window.p_start),
+                    ScalarArg::new(t_counter),
+                    ScalarArg::new(key[0]),
+                    ScalarArg::new(key[1]),
+                    ArrayArg::from_raw_parts::<u32>(&node_words_lo_h, total_words, 1),
+                    ArrayArg::from_raw_parts::<u32>(&node_words_hi_h, total_words, 1),
+                )
+                .expect("Failed to launch event sampling-to-node kernel");
+            }
+
+            if let (Some(const_nodes_h), Some(const_values_h)) = (&const_nodes_h, &const_values_h) {
+                let const_blocks = (num_consts * b_count * p_count).div_ceil(threads_per_block);
+                unsafe {
+                    crate::mc::kernel::dpmc_node::set_constant_nodes_kernel::launch_unchecked::<R>(
+                        client,
+                        cube_count_for_1d_blocks(const_blocks),
+                        CubeDim::new_1d(threads_per_block),
+                        ArrayArg::from_raw_parts::<u32>(const_nodes_h, const_nodes.len(), 1),
+                        ArrayArg::from_raw_parts::<u32>(const_values_h, const_values.len(), 1),
+                        ScalarArg::new(num_consts),
+                        ScalarArg::new(num_nodes),
+                        ScalarArg::new(b_count),
+                        ScalarArg::new(p_count),
+                        ArrayArg::from_raw_parts::<u32>(&node_words_lo_h, total_words, 1),
+                        ArrayArg::from_raw_parts::<u32>(&node_words_hi_h, total_words, 1),
+                    )
+                    .expect("Failed to launch constant node init kernel");
+                }
+            }
+
+            for layer in &uploaded_layers {
+                for group in &layer.gate_groups {
+                    unsafe {
+                        launch_gate_group::<R>(
+                            client,
+                            group,
+                            b_count,
+                            p_count,
+                            num_nodes,
+                            total_words,
+                            &node_words_lo_h,
+                            &node_words_hi_h,
+                            choose_gate_cube_dim(group.num_gates, p_count),
+                        );
+                    }
+                }
+            }
+
+            let selected_total_words =
+                (b_count as usize) * (p_count as usize) * (num_selected as usize);
+            let selected_words_lo_h =
+                client.empty(selected_total_words * std::mem::size_of::<u32>());
+            let selected_words_hi_h =
+                client.empty(selected_total_words * std::mem::size_of::<u32>());
+            let gather_blocks = (num_selected * b_count * p_count).div_ceil(threads_per_block);
+
+            unsafe {
+                crate::mc::kernel::dpmc_node::gather_selected_nodes_kernel::launch_unchecked::<R>(
+                    client,
+                    cube_count_for_1d_blocks(gather_blocks),
                     CubeDim::new_1d(threads_per_block),
-                    ArrayArg::from_raw_parts::<u32>(const_nodes_h, const_nodes.len(), 1),
-                    ArrayArg::from_raw_parts::<u32>(const_values_h, const_values.len(), 1),
-                    ScalarArg::new(num_consts),
+                    ArrayArg::from_raw_parts::<u32>(&selected_nodes_h, selected_nodes.len(), 1),
+                    ScalarArg::new(num_selected),
                     ScalarArg::new(num_nodes),
                     ScalarArg::new(b_count),
                     ScalarArg::new(p_count),
                     ArrayArg::from_raw_parts::<u32>(&node_words_lo_h, total_words, 1),
                     ArrayArg::from_raw_parts::<u32>(&node_words_hi_h, total_words, 1),
+                    ArrayArg::from_raw_parts::<u32>(&selected_words_lo_h, selected_total_words, 1),
+                    ArrayArg::from_raw_parts::<u32>(&selected_words_hi_h, selected_total_words, 1),
                 )
-                .expect("Failed to launch constant node init kernel");
+                .expect("Failed to launch selected-node gather kernel");
             }
-        }
 
-        for layer in &uploaded_layers {
-            for group in &layer.gate_groups {
-                unsafe {
-                    launch_gate_group::<R>(
-                        client,
-                        group,
-                        b_count,
-                        p_count,
-                        num_nodes,
-                        total_words,
-                        &node_words_lo_h,
-                        &node_words_hi_h,
-                        choose_gate_cube_dim(group.num_gates, p_count),
-                    );
-                }
+            let out_lo_bytes = client.read_one(selected_words_lo_h);
+            let out_hi_bytes = client.read_one(selected_words_hi_h);
+            let out_lo = u32::from_bytes(&out_lo_bytes).to_vec();
+            let out_hi = u32::from_bytes(&out_hi_bytes).to_vec();
+
+            let mut out_words: Vec<u64> = Vec::with_capacity(selected_total_words);
+            for i in 0..selected_total_words {
+                out_words.push((out_lo[i] as u64) | ((out_hi[i] as u64) << 32));
             }
-        }
 
-        let selected_words_lo_h = client.empty(selected_total_words * std::mem::size_of::<u32>());
-        let selected_words_hi_h = client.empty(selected_total_words * std::mem::size_of::<u32>());
-
-        unsafe {
-            crate::mc::kernel::dpmc_node::gather_selected_nodes_kernel::launch_unchecked::<R>(
-                client,
-                cube_count_for_1d_blocks(gather_blocks),
-                CubeDim::new_1d(threads_per_block),
-                ArrayArg::from_raw_parts::<u32>(&selected_nodes_h, selected_nodes.len(), 1),
-                ScalarArg::new(num_selected),
-                ScalarArg::new(num_nodes),
-                ScalarArg::new(b_count),
-                ScalarArg::new(p_count),
-                ArrayArg::from_raw_parts::<u32>(&node_words_lo_h, total_words, 1),
-                ArrayArg::from_raw_parts::<u32>(&node_words_hi_h, total_words, 1),
-                ArrayArg::from_raw_parts::<u32>(&selected_words_lo_h, selected_total_words, 1),
-                ArrayArg::from_raw_parts::<u32>(&selected_words_hi_h, selected_total_words, 1),
-            )
-            .expect("Failed to launch selected-node gather kernel");
-        }
-
-        let out_lo_bytes = client.read_one(selected_words_lo_h);
-        let out_hi_bytes = client.read_one(selected_words_hi_h);
-        let out_lo = u32::from_bytes(&out_lo_bytes).to_vec();
-        let out_hi = u32::from_bytes(&out_hi_bytes).to_vec();
-
-        let mut out_words: Vec<u64> = Vec::with_capacity(selected_total_words);
-        for i in 0..selected_total_words {
-            out_words.push((out_lo[i] as u64) | ((out_hi[i] as u64) << 32));
-        }
-
-        if !on_iter(&out_words, t_counter) {
-            break;
+            if !on_iter(&out_words, t_counter) {
+                return;
+            }
         }
     }
 }
@@ -920,10 +956,10 @@ pub struct FtGpuContext<R: Runtime> {
     tally_len: usize,
     b_count: u32,
     p_count: u32,
+    max_p_count: u32,
     num_nodes: u32,
     num_events: u32,
     num_consts: u32,
-    const_blocks: u32,
     total_words: usize,
     threads_per_block: u32,
     valid_lanes_last_word: u32,
@@ -960,7 +996,8 @@ impl<R: Runtime> FtGpuContext<R> {
             "full_ranges must be per event"
         );
 
-        let total_words = (b_count as usize) * (p_count as usize) * (num_nodes as usize);
+        let max_p_count = max_p_count_for_client(client, b_count, num_nodes).min(p_count);
+        let total_words = (b_count as usize) * (max_p_count as usize) * (num_nodes as usize);
         let zeros = vec![0u32; total_words];
         let node_words_lo_h = client.create_from_slice(u32::as_bytes(&zeros));
         let node_words_hi_h = client.create_from_slice(u32::as_bytes(&zeros));
@@ -987,30 +1024,21 @@ impl<R: Runtime> FtGpuContext<R> {
             }
         }
 
-        let (
-            const_nodes_h,
-            const_values_h,
-            num_consts,
-            const_blocks,
-            const_nodes_len,
-            const_values_len,
-        ) = if !const_nodes.is_empty() {
-            let const_nodes_h = client.create_from_slice(u32::as_bytes(&const_nodes));
-            let const_values_h = client.create_from_slice(u32::as_bytes(&const_values));
-            let num_consts = const_nodes.len() as u32;
-            let total_threads = num_consts * b_count * p_count;
-            let blocks = total_threads.div_ceil(threads_per_block);
-            (
-                Some(const_nodes_h),
-                Some(const_values_h),
-                num_consts,
-                blocks,
-                const_nodes.len(),
-                const_values.len(),
-            )
-        } else {
-            (None, None, 0u32, 0u32, 0usize, 0usize)
-        };
+        let (const_nodes_h, const_values_h, num_consts, const_nodes_len, const_values_len) =
+            if !const_nodes.is_empty() {
+                let const_nodes_h = client.create_from_slice(u32::as_bytes(&const_nodes));
+                let const_values_h = client.create_from_slice(u32::as_bytes(&const_values));
+                let num_consts = const_nodes.len() as u32;
+                (
+                    Some(const_nodes_h),
+                    Some(const_values_h),
+                    num_consts,
+                    const_nodes.len(),
+                    const_values.len(),
+                )
+            } else {
+                (None, None, 0u32, 0usize, 0usize)
+            };
 
         let uploaded_layers = upload_gate_groups(client, soa);
 
@@ -1050,10 +1078,10 @@ impl<R: Runtime> FtGpuContext<R> {
             tally_len: num_nodes as usize,
             b_count,
             p_count,
+            max_p_count,
             num_nodes,
             num_events,
             num_consts,
-            const_blocks,
             total_words,
             threads_per_block,
             valid_lanes_last_word,
@@ -1073,115 +1101,135 @@ impl<R: Runtime> FtGpuContext<R> {
         for iter in 0..t_count {
             let t_counter = t_start + iter;
 
-            let sample_cube_dim = choose_sample_cube_dim(self.num_events, self.p_count);
-            let tally_cube_dim = choose_tally_cube_dim(self.b_count * self.p_count);
-
-            unsafe {
-                crate::mc::kernel::dpmc_event::sample_events_bitpacked_to_nodes_kernel::launch_unchecked::<R>(
-                    &self.client,
-                    cube_count_for_sample_launch(self.num_events, self.p_count, self.b_count, sample_cube_dim),
-                    sample_cube_dim,
-                    ArrayArg::from_raw_parts::<u32>(&self.thresholds_h, self.thresholds_len, 1),
-                    ArrayArg::from_raw_parts::<u32>(&self.full_ranges_h, self.full_ranges_len, 1),
-                    ArrayArg::from_raw_parts::<u32>(&self.event_nodes_h, self.event_nodes_len, 1),
-                    ScalarArg::new(self.num_events),
-                    ScalarArg::new(self.num_nodes),
-                    ScalarArg::new(self.b_count),
-                    ScalarArg::new(self.p_count),
-                    ScalarArg::new(t_counter),
-                    ScalarArg::new(key[0]),
-                    ScalarArg::new(key[1]),
-                    ArrayArg::from_raw_parts::<u32>(&self.node_words_lo_h, self.total_words, 1),
-                    ArrayArg::from_raw_parts::<u32>(&self.node_words_hi_h, self.total_words, 1),
-                )
-                .expect("Failed to launch event sampling-to-node kernel");
-            }
-
-            if let (Some(const_nodes_h), Some(const_values_h)) =
-                (&self.const_nodes_h, &self.const_values_h)
+            for window in
+                bitpack_windows(self.p_count, self.max_p_count, self.valid_lanes_last_word)
             {
-                unsafe {
-                    crate::mc::kernel::dpmc_node::set_constant_nodes_kernel::launch_unchecked::<R>(
-                        &self.client,
-                        cube_count_for_1d_blocks(self.const_blocks),
-                        CubeDim::new_1d(self.threads_per_block),
-                        ArrayArg::from_raw_parts::<u32>(const_nodes_h, self.const_nodes_len, 1),
-                        ArrayArg::from_raw_parts::<u32>(const_values_h, self.const_values_len, 1),
-                        ScalarArg::new(self.num_consts),
-                        ScalarArg::new(self.num_nodes),
-                        ScalarArg::new(self.b_count),
-                        ScalarArg::new(self.p_count),
-                        ArrayArg::from_raw_parts::<u32>(&self.node_words_lo_h, self.total_words, 1),
-                        ArrayArg::from_raw_parts::<u32>(&self.node_words_hi_h, self.total_words, 1),
-                    )
-                    .expect("Failed to launch constant node init kernel");
+                self.execute_window(&gate_stream_clients, window, t_counter, key);
+                if window.p_count < self.p_count {
+                    self.client.flush();
                 }
-            }
-
-            let mut prev_layer_markers: Vec<Handle> = Vec::new();
-            for layer in &self.uploaded_layers {
-                if gate_stream_clients.is_empty() {
-                    for group in &layer.gate_groups {
-                        unsafe {
-                            launch_gate_group::<R>(
-                                &self.client,
-                                group,
-                                self.b_count,
-                                self.p_count,
-                                self.num_nodes,
-                                self.total_words,
-                                &self.node_words_lo_h,
-                                &self.node_words_hi_h,
-                                choose_gate_cube_dim(group.num_gates, self.p_count),
-                            );
-                        }
-                    }
-                } else {
-                    align_gate_streams_with_markers(&gate_stream_clients, &prev_layer_markers);
-                    let mut used_streams = vec![false; gate_stream_clients.len()];
-                    for (group_index, group) in layer.gate_groups.iter().enumerate() {
-                        let stream_ix = group_index % gate_stream_clients.len();
-                        used_streams[stream_ix] = true;
-                        let stream_client = &gate_stream_clients[stream_ix];
-                        unsafe {
-                            launch_gate_group::<R>(
-                                stream_client,
-                                group,
-                                self.b_count,
-                                self.p_count,
-                                self.num_nodes,
-                                self.total_words,
-                                &self.node_words_lo_h,
-                                &self.node_words_hi_h,
-                                choose_gate_cube_dim(group.num_gates, self.p_count),
-                            );
-                        }
-                    }
-                    prev_layer_markers =
-                        capture_gate_layer_markers(&gate_stream_clients, &used_streams);
-                }
-            }
-
-            unsafe {
-                crate::mc::kernel::dpmc_tally::tally_popcount_per_node_reduced_kernel::launch_unchecked::<R>(
-                    &self.client,
-                    CubeCount::new_1d(self.num_nodes),
-                    tally_cube_dim,
-                    ScalarArg::new(self.num_nodes),
-                    ScalarArg::new(self.b_count),
-                    ScalarArg::new(self.p_count),
-                    ScalarArg::new(self.valid_lanes_last_word),
-                    ArrayArg::from_raw_parts::<u32>(&self.node_words_lo_h, self.total_words, 1),
-                    ArrayArg::from_raw_parts::<u32>(&self.node_words_hi_h, self.total_words, 1),
-                    ArrayArg::from_raw_parts::<u32>(&self.tally_lo_h, self.tally_len, 1),
-                    ArrayArg::from_raw_parts::<u32>(&self.tally_hi_h, self.tally_len, 1),
-                )
-                .expect("Failed to launch DPMC tally kernel");
             }
         }
 
         if t_count != 0 {
             self.client.flush();
+        }
+    }
+
+    fn execute_window(
+        &self,
+        gate_stream_clients: &[ComputeClient<R>],
+        window: BitpackWindow,
+        t_counter: u32,
+        key: [u32; 2],
+    ) {
+        let p_count = window.p_count;
+        let sample_cube_dim = choose_sample_cube_dim(self.num_events, p_count);
+        let tally_cube_dim = choose_tally_cube_dim(self.b_count * p_count);
+
+        unsafe {
+            crate::mc::kernel::dpmc_event::sample_events_bitpacked_to_nodes_kernel::launch_unchecked::<R>(
+                &self.client,
+                cube_count_for_sample_launch(self.num_events, p_count, self.b_count, sample_cube_dim),
+                sample_cube_dim,
+                ArrayArg::from_raw_parts::<u32>(&self.thresholds_h, self.thresholds_len, 1),
+                ArrayArg::from_raw_parts::<u32>(&self.full_ranges_h, self.full_ranges_len, 1),
+                ArrayArg::from_raw_parts::<u32>(&self.event_nodes_h, self.event_nodes_len, 1),
+                ScalarArg::new(self.num_events),
+                ScalarArg::new(self.num_nodes),
+                ScalarArg::new(self.b_count),
+                ScalarArg::new(p_count),
+                ScalarArg::new(window.p_start),
+                ScalarArg::new(t_counter),
+                ScalarArg::new(key[0]),
+                ScalarArg::new(key[1]),
+                ArrayArg::from_raw_parts::<u32>(&self.node_words_lo_h, self.total_words, 1),
+                ArrayArg::from_raw_parts::<u32>(&self.node_words_hi_h, self.total_words, 1),
+            )
+            .expect("Failed to launch event sampling-to-node kernel");
+        }
+
+        if let (Some(const_nodes_h), Some(const_values_h)) =
+            (&self.const_nodes_h, &self.const_values_h)
+        {
+            let const_blocks =
+                (self.num_consts * self.b_count * p_count).div_ceil(self.threads_per_block);
+            unsafe {
+                crate::mc::kernel::dpmc_node::set_constant_nodes_kernel::launch_unchecked::<R>(
+                    &self.client,
+                    cube_count_for_1d_blocks(const_blocks),
+                    CubeDim::new_1d(self.threads_per_block),
+                    ArrayArg::from_raw_parts::<u32>(const_nodes_h, self.const_nodes_len, 1),
+                    ArrayArg::from_raw_parts::<u32>(const_values_h, self.const_values_len, 1),
+                    ScalarArg::new(self.num_consts),
+                    ScalarArg::new(self.num_nodes),
+                    ScalarArg::new(self.b_count),
+                    ScalarArg::new(p_count),
+                    ArrayArg::from_raw_parts::<u32>(&self.node_words_lo_h, self.total_words, 1),
+                    ArrayArg::from_raw_parts::<u32>(&self.node_words_hi_h, self.total_words, 1),
+                )
+                .expect("Failed to launch constant node init kernel");
+            }
+        }
+
+        let mut prev_layer_markers: Vec<Handle> = Vec::new();
+        for layer in &self.uploaded_layers {
+            if gate_stream_clients.is_empty() {
+                for group in &layer.gate_groups {
+                    unsafe {
+                        launch_gate_group::<R>(
+                            &self.client,
+                            group,
+                            self.b_count,
+                            p_count,
+                            self.num_nodes,
+                            self.total_words,
+                            &self.node_words_lo_h,
+                            &self.node_words_hi_h,
+                            choose_gate_cube_dim(group.num_gates, p_count),
+                        );
+                    }
+                }
+            } else {
+                align_gate_streams_with_markers(gate_stream_clients, &prev_layer_markers);
+                let mut used_streams = vec![false; gate_stream_clients.len()];
+                for (group_index, group) in layer.gate_groups.iter().enumerate() {
+                    let stream_ix = group_index % gate_stream_clients.len();
+                    used_streams[stream_ix] = true;
+                    let stream_client = &gate_stream_clients[stream_ix];
+                    unsafe {
+                        launch_gate_group::<R>(
+                            stream_client,
+                            group,
+                            self.b_count,
+                            p_count,
+                            self.num_nodes,
+                            self.total_words,
+                            &self.node_words_lo_h,
+                            &self.node_words_hi_h,
+                            choose_gate_cube_dim(group.num_gates, p_count),
+                        );
+                    }
+                }
+                prev_layer_markers = capture_gate_layer_markers(gate_stream_clients, &used_streams);
+            }
+        }
+
+        unsafe {
+            crate::mc::kernel::dpmc_tally::tally_popcount_per_node_reduced_kernel::launch_unchecked::<R>(
+                &self.client,
+                CubeCount::new_1d(self.num_nodes),
+                tally_cube_dim,
+                ScalarArg::new(self.num_nodes),
+                ScalarArg::new(self.b_count),
+                ScalarArg::new(p_count),
+                ScalarArg::new(window.valid_lanes_last_word),
+                ArrayArg::from_raw_parts::<u32>(&self.node_words_lo_h, self.total_words, 1),
+                ArrayArg::from_raw_parts::<u32>(&self.node_words_hi_h, self.total_words, 1),
+                ArrayArg::from_raw_parts::<u32>(&self.tally_lo_h, self.tally_len, 1),
+                ArrayArg::from_raw_parts::<u32>(&self.tally_hi_h, self.tally_len, 1),
+            )
+            .expect("Failed to launch DPMC tally kernel");
         }
     }
 
@@ -1234,10 +1282,10 @@ pub struct EtGpuContext<R: Runtime> {
     tally_len: usize,
     b_count: u32,
     p_count: u32,
+    max_p_count: u32,
     num_nodes: u32,
     num_events: u32,
     num_consts: u32,
-    const_blocks: u32,
     total_words: usize,
     total_seq_words: usize,
     threads_per_block: u32,
@@ -1286,7 +1334,9 @@ impl<R: Runtime> EtGpuContext<R> {
             "full_ranges must be per event"
         );
 
-        let total_words = (b_count as usize) * (p_count as usize) * (num_nodes as usize);
+        let max_p_count =
+            max_p_count_for_client(client, b_count, num_nodes.max(seq_count)).min(p_count);
+        let total_words = (b_count as usize) * (max_p_count as usize) * (num_nodes as usize);
         let zeros = vec![0u32; total_words];
         let node_words_lo_h = client.create_from_slice(u32::as_bytes(&zeros));
         let node_words_hi_h = client.create_from_slice(u32::as_bytes(&zeros));
@@ -1313,30 +1363,21 @@ impl<R: Runtime> EtGpuContext<R> {
             }
         }
 
-        let (
-            const_nodes_h,
-            const_values_h,
-            num_consts,
-            const_blocks,
-            const_nodes_len,
-            const_values_len,
-        ) = if !const_nodes.is_empty() {
-            let const_nodes_h = client.create_from_slice(u32::as_bytes(&const_nodes));
-            let const_values_h = client.create_from_slice(u32::as_bytes(&const_values));
-            let num_consts = const_nodes.len() as u32;
-            let total_threads = num_consts * b_count * p_count;
-            let blocks = total_threads.div_ceil(threads_per_block);
-            (
-                Some(const_nodes_h),
-                Some(const_values_h),
-                num_consts,
-                blocks,
-                const_nodes.len(),
-                const_values.len(),
-            )
-        } else {
-            (None, None, 0u32, 0u32, 0usize, 0usize)
-        };
+        let (const_nodes_h, const_values_h, num_consts, const_nodes_len, const_values_len) =
+            if !const_nodes.is_empty() {
+                let const_nodes_h = client.create_from_slice(u32::as_bytes(&const_nodes));
+                let const_values_h = client.create_from_slice(u32::as_bytes(&const_values));
+                let num_consts = const_nodes.len() as u32;
+                (
+                    Some(const_nodes_h),
+                    Some(const_values_h),
+                    num_consts,
+                    const_nodes.len(),
+                    const_values.len(),
+                )
+            } else {
+                (None, None, 0u32, 0usize, 0usize)
+            };
 
         let uploaded_layers = upload_gate_groups(client, soa);
 
@@ -1352,7 +1393,7 @@ impl<R: Runtime> EtGpuContext<R> {
         let cond_fe_node_h = client.create_from_slice(u32::as_bytes(cond_fe_node));
         let cond_route_h = client.create_from_slice(u32::as_bytes(cond_route));
 
-        let bp_total = (b_count as usize) * (p_count as usize);
+        let bp_total = (b_count as usize) * (max_p_count as usize);
         let total_seq_words = bp_total * (seq_count as usize);
         let zeros_seq = vec![0u32; total_seq_words];
         let seq_words_lo_h = client.create_from_slice(u32::as_bytes(&zeros_seq));
@@ -1404,10 +1445,10 @@ impl<R: Runtime> EtGpuContext<R> {
             tally_len: seq_count as usize,
             b_count,
             p_count,
+            max_p_count,
             num_nodes,
             num_events,
             num_consts,
-            const_blocks,
             total_words,
             total_seq_words,
             threads_per_block,
@@ -1430,141 +1471,161 @@ impl<R: Runtime> EtGpuContext<R> {
         for iter in 0..t_count {
             let t_counter = t_start + iter;
 
-            let sample_cube_dim = choose_sample_cube_dim(self.num_events, self.p_count);
-            let seq_cube_dim = choose_seq_cube_dim(self.seq_count, self.p_count);
-            let tally_cube_dim = choose_tally_cube_dim(self.b_count * self.p_count);
-
-            unsafe {
-                crate::mc::kernel::dpmc_event::sample_events_bitpacked_to_nodes_kernel::launch_unchecked::<R>(
-                    &self.client,
-                    cube_count_for_sample_launch(self.num_events, self.p_count, self.b_count, sample_cube_dim),
-                    sample_cube_dim,
-                    ArrayArg::from_raw_parts::<u32>(&self.thresholds_h, self.thresholds_len, 1),
-                    ArrayArg::from_raw_parts::<u32>(&self.full_ranges_h, self.full_ranges_len, 1),
-                    ArrayArg::from_raw_parts::<u32>(&self.event_nodes_h, self.event_nodes_len, 1),
-                    ScalarArg::new(self.num_events),
-                    ScalarArg::new(self.num_nodes),
-                    ScalarArg::new(self.b_count),
-                    ScalarArg::new(self.p_count),
-                    ScalarArg::new(t_counter),
-                    ScalarArg::new(key[0]),
-                    ScalarArg::new(key[1]),
-                    ArrayArg::from_raw_parts::<u32>(&self.node_words_lo_h, self.total_words, 1),
-                    ArrayArg::from_raw_parts::<u32>(&self.node_words_hi_h, self.total_words, 1),
-                )
-                .expect("Failed to launch event sampling-to-node kernel");
-            }
-
-            if let (Some(const_nodes_h), Some(const_values_h)) =
-                (&self.const_nodes_h, &self.const_values_h)
+            for window in
+                bitpack_windows(self.p_count, self.max_p_count, self.valid_lanes_last_word)
             {
-                unsafe {
-                    crate::mc::kernel::dpmc_node::set_constant_nodes_kernel::launch_unchecked::<R>(
-                        &self.client,
-                        cube_count_for_1d_blocks(self.const_blocks),
-                        CubeDim::new_1d(self.threads_per_block),
-                        ArrayArg::from_raw_parts::<u32>(const_nodes_h, self.const_nodes_len, 1),
-                        ArrayArg::from_raw_parts::<u32>(const_values_h, self.const_values_len, 1),
-                        ScalarArg::new(self.num_consts),
-                        ScalarArg::new(self.num_nodes),
-                        ScalarArg::new(self.b_count),
-                        ScalarArg::new(self.p_count),
-                        ArrayArg::from_raw_parts::<u32>(&self.node_words_lo_h, self.total_words, 1),
-                        ArrayArg::from_raw_parts::<u32>(&self.node_words_hi_h, self.total_words, 1),
-                    )
-                    .expect("Failed to launch constant node init kernel");
+                self.execute_window(&gate_stream_clients, window, t_counter, key);
+                if window.p_count < self.p_count {
+                    self.client.flush();
                 }
-            }
-
-            let mut prev_layer_markers: Vec<Handle> = Vec::new();
-            for layer in &self.uploaded_layers {
-                if gate_stream_clients.is_empty() {
-                    for group in &layer.gate_groups {
-                        unsafe {
-                            launch_gate_group::<R>(
-                                &self.client,
-                                group,
-                                self.b_count,
-                                self.p_count,
-                                self.num_nodes,
-                                self.total_words,
-                                &self.node_words_lo_h,
-                                &self.node_words_hi_h,
-                                choose_gate_cube_dim(group.num_gates, self.p_count),
-                            );
-                        }
-                    }
-                } else {
-                    align_gate_streams_with_markers(&gate_stream_clients, &prev_layer_markers);
-                    let mut used_streams = vec![false; gate_stream_clients.len()];
-                    for (group_index, group) in layer.gate_groups.iter().enumerate() {
-                        let stream_ix = group_index % gate_stream_clients.len();
-                        used_streams[stream_ix] = true;
-                        let stream_client = &gate_stream_clients[stream_ix];
-                        unsafe {
-                            launch_gate_group::<R>(
-                                stream_client,
-                                group,
-                                self.b_count,
-                                self.p_count,
-                                self.num_nodes,
-                                self.total_words,
-                                &self.node_words_lo_h,
-                                &self.node_words_hi_h,
-                                choose_gate_cube_dim(group.num_gates, self.p_count),
-                            );
-                        }
-                    }
-                    prev_layer_markers =
-                        capture_gate_layer_markers(&gate_stream_clients, &used_streams);
-                }
-            }
-
-            unsafe {
-                crate::mc::kernel::event_tree_seq::event_tree_sequence_words_kernel::launch_unchecked::<R>(
-                    &self.client,
-                    cube_count_for_seq_launch(self.seq_count, self.p_count, self.b_count, seq_cube_dim),
-                    seq_cube_dim,
-                    ScalarArg::new(self.num_nodes),
-                    ScalarArg::new(self.b_count),
-                    ScalarArg::new(self.p_count),
-                    ScalarArg::new(self.valid_lanes_last_word),
-                    ScalarArg::new(self.ie_node),
-                    ScalarArg::new(self.seq_count),
-                    ArrayArg::from_raw_parts::<u32>(&self.seq_path_start_h, self.seq_path_start_len, 1),
-                    ArrayArg::from_raw_parts::<u32>(&self.seq_path_len_h, self.seq_path_len_len, 1),
-                    ArrayArg::from_raw_parts::<u32>(&self.path_cond_start_h, self.path_cond_start_len, 1),
-                    ArrayArg::from_raw_parts::<u32>(&self.path_cond_len_h, self.path_cond_len_len, 1),
-                    ArrayArg::from_raw_parts::<u32>(&self.cond_fe_node_h, self.cond_fe_node_len, 1),
-                    ArrayArg::from_raw_parts::<u32>(&self.cond_route_h, self.cond_route_len, 1),
-                    ArrayArg::from_raw_parts::<u32>(&self.node_words_lo_h, self.total_words, 1),
-                    ArrayArg::from_raw_parts::<u32>(&self.node_words_hi_h, self.total_words, 1),
-                    ArrayArg::from_raw_parts::<u32>(&self.seq_words_lo_h, self.total_seq_words, 1),
-                    ArrayArg::from_raw_parts::<u32>(&self.seq_words_hi_h, self.total_seq_words, 1),
-                )
-                .expect("Failed to launch event-tree sequence kernel");
-            }
-
-            unsafe {
-                crate::mc::kernel::dpmc_tally::tally_popcount_per_node_reduced_kernel::launch_unchecked::<R>(
-                    &self.client,
-                    CubeCount::new_1d(self.seq_count),
-                    tally_cube_dim,
-                    ScalarArg::new(self.seq_count),
-                    ScalarArg::new(self.b_count),
-                    ScalarArg::new(self.p_count),
-                    ScalarArg::new(self.valid_lanes_last_word),
-                    ArrayArg::from_raw_parts::<u32>(&self.seq_words_lo_h, self.total_seq_words, 1),
-                    ArrayArg::from_raw_parts::<u32>(&self.seq_words_hi_h, self.total_seq_words, 1),
-                    ArrayArg::from_raw_parts::<u32>(&self.tally_lo_h, self.tally_len, 1),
-                    ArrayArg::from_raw_parts::<u32>(&self.tally_hi_h, self.tally_len, 1),
-                )
-                .expect("Failed to launch sequence tally kernel");
             }
         }
 
         if t_count != 0 {
             self.client.flush();
+        }
+    }
+
+    fn execute_window(
+        &self,
+        gate_stream_clients: &[ComputeClient<R>],
+        window: BitpackWindow,
+        t_counter: u32,
+        key: [u32; 2],
+    ) {
+        let p_count = window.p_count;
+        let sample_cube_dim = choose_sample_cube_dim(self.num_events, p_count);
+        let seq_cube_dim = choose_seq_cube_dim(self.seq_count, p_count);
+        let tally_cube_dim = choose_tally_cube_dim(self.b_count * p_count);
+
+        unsafe {
+            crate::mc::kernel::dpmc_event::sample_events_bitpacked_to_nodes_kernel::launch_unchecked::<R>(
+                &self.client,
+                cube_count_for_sample_launch(self.num_events, p_count, self.b_count, sample_cube_dim),
+                sample_cube_dim,
+                ArrayArg::from_raw_parts::<u32>(&self.thresholds_h, self.thresholds_len, 1),
+                ArrayArg::from_raw_parts::<u32>(&self.full_ranges_h, self.full_ranges_len, 1),
+                ArrayArg::from_raw_parts::<u32>(&self.event_nodes_h, self.event_nodes_len, 1),
+                ScalarArg::new(self.num_events),
+                ScalarArg::new(self.num_nodes),
+                ScalarArg::new(self.b_count),
+                ScalarArg::new(p_count),
+                ScalarArg::new(window.p_start),
+                ScalarArg::new(t_counter),
+                ScalarArg::new(key[0]),
+                ScalarArg::new(key[1]),
+                ArrayArg::from_raw_parts::<u32>(&self.node_words_lo_h, self.total_words, 1),
+                ArrayArg::from_raw_parts::<u32>(&self.node_words_hi_h, self.total_words, 1),
+            )
+            .expect("Failed to launch event sampling-to-node kernel");
+        }
+
+        if let (Some(const_nodes_h), Some(const_values_h)) =
+            (&self.const_nodes_h, &self.const_values_h)
+        {
+            let const_blocks =
+                (self.num_consts * self.b_count * p_count).div_ceil(self.threads_per_block);
+            unsafe {
+                crate::mc::kernel::dpmc_node::set_constant_nodes_kernel::launch_unchecked::<R>(
+                    &self.client,
+                    cube_count_for_1d_blocks(const_blocks),
+                    CubeDim::new_1d(self.threads_per_block),
+                    ArrayArg::from_raw_parts::<u32>(const_nodes_h, self.const_nodes_len, 1),
+                    ArrayArg::from_raw_parts::<u32>(const_values_h, self.const_values_len, 1),
+                    ScalarArg::new(self.num_consts),
+                    ScalarArg::new(self.num_nodes),
+                    ScalarArg::new(self.b_count),
+                    ScalarArg::new(p_count),
+                    ArrayArg::from_raw_parts::<u32>(&self.node_words_lo_h, self.total_words, 1),
+                    ArrayArg::from_raw_parts::<u32>(&self.node_words_hi_h, self.total_words, 1),
+                )
+                .expect("Failed to launch constant node init kernel");
+            }
+        }
+
+        let mut prev_layer_markers: Vec<Handle> = Vec::new();
+        for layer in &self.uploaded_layers {
+            if gate_stream_clients.is_empty() {
+                for group in &layer.gate_groups {
+                    unsafe {
+                        launch_gate_group::<R>(
+                            &self.client,
+                            group,
+                            self.b_count,
+                            p_count,
+                            self.num_nodes,
+                            self.total_words,
+                            &self.node_words_lo_h,
+                            &self.node_words_hi_h,
+                            choose_gate_cube_dim(group.num_gates, p_count),
+                        );
+                    }
+                }
+            } else {
+                align_gate_streams_with_markers(gate_stream_clients, &prev_layer_markers);
+                let mut used_streams = vec![false; gate_stream_clients.len()];
+                for (group_index, group) in layer.gate_groups.iter().enumerate() {
+                    let stream_ix = group_index % gate_stream_clients.len();
+                    used_streams[stream_ix] = true;
+                    let stream_client = &gate_stream_clients[stream_ix];
+                    unsafe {
+                        launch_gate_group::<R>(
+                            stream_client,
+                            group,
+                            self.b_count,
+                            p_count,
+                            self.num_nodes,
+                            self.total_words,
+                            &self.node_words_lo_h,
+                            &self.node_words_hi_h,
+                            choose_gate_cube_dim(group.num_gates, p_count),
+                        );
+                    }
+                }
+                prev_layer_markers = capture_gate_layer_markers(gate_stream_clients, &used_streams);
+            }
+        }
+
+        unsafe {
+            crate::mc::kernel::event_tree_seq::event_tree_sequence_words_kernel::launch_unchecked::<R>(
+                &self.client,
+                cube_count_for_seq_launch(self.seq_count, p_count, self.b_count, seq_cube_dim),
+                seq_cube_dim,
+                ScalarArg::new(self.num_nodes),
+                ScalarArg::new(self.b_count),
+                ScalarArg::new(p_count),
+                ScalarArg::new(window.valid_lanes_last_word),
+                ScalarArg::new(self.ie_node),
+                ScalarArg::new(self.seq_count),
+                ArrayArg::from_raw_parts::<u32>(&self.seq_path_start_h, self.seq_path_start_len, 1),
+                ArrayArg::from_raw_parts::<u32>(&self.seq_path_len_h, self.seq_path_len_len, 1),
+                ArrayArg::from_raw_parts::<u32>(&self.path_cond_start_h, self.path_cond_start_len, 1),
+                ArrayArg::from_raw_parts::<u32>(&self.path_cond_len_h, self.path_cond_len_len, 1),
+                ArrayArg::from_raw_parts::<u32>(&self.cond_fe_node_h, self.cond_fe_node_len, 1),
+                ArrayArg::from_raw_parts::<u32>(&self.cond_route_h, self.cond_route_len, 1),
+                ArrayArg::from_raw_parts::<u32>(&self.node_words_lo_h, self.total_words, 1),
+                ArrayArg::from_raw_parts::<u32>(&self.node_words_hi_h, self.total_words, 1),
+                ArrayArg::from_raw_parts::<u32>(&self.seq_words_lo_h, self.total_seq_words, 1),
+                ArrayArg::from_raw_parts::<u32>(&self.seq_words_hi_h, self.total_seq_words, 1),
+            )
+            .expect("Failed to launch event-tree sequence kernel");
+        }
+
+        unsafe {
+            crate::mc::kernel::dpmc_tally::tally_popcount_per_node_reduced_kernel::launch_unchecked::<R>(
+                &self.client,
+                CubeCount::new_1d(self.seq_count),
+                tally_cube_dim,
+                ScalarArg::new(self.seq_count),
+                ScalarArg::new(self.b_count),
+                ScalarArg::new(p_count),
+                ScalarArg::new(window.valid_lanes_last_word),
+                ArrayArg::from_raw_parts::<u32>(&self.seq_words_lo_h, self.total_seq_words, 1),
+                ArrayArg::from_raw_parts::<u32>(&self.seq_words_hi_h, self.total_seq_words, 1),
+                ArrayArg::from_raw_parts::<u32>(&self.tally_lo_h, self.tally_len, 1),
+                ArrayArg::from_raw_parts::<u32>(&self.tally_hi_h, self.tally_len, 1),
+            )
+            .expect("Failed to launch sequence tally kernel");
         }
     }
 

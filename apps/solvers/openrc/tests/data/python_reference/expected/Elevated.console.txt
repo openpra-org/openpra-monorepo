@@ -1,0 +1,31 @@
+Loading config: input/Elevated.txt
+  case_name : elevated
+  mode      : lmp
+  geometry  : centerline
+  nuclides  : 20
+  segments  : 2
+  met       : single trial  (class C, 4.2 m/s)
+
+Total released activity : 9.166e+15 Bq  (40 nuclide-segment pairs)
+
+
+============================================================
+  TEDE             : 87.2103 mSv  (8.7210e-02 Sv)
+  chi/Q            : 4.3053e-06 s/m³
+  Ground dep total : 1.6548e+08 Bq/m²
+  LMP TEDE (756 m) : 218.6732 mSv  (30-day at EAB)
+============================================================
+
+Top 10 nuclide contributors to TEDE:
+  I-131        53.4442 mSv  (61.3%)
+  Cs-137       8.9869 mSv  (10.3%)
+  I-133        7.9875 mSv  (9.2%)
+  I-132        4.3519 mSv  (5.0%)
+  Sr-90        3.8500 mSv  (4.4%)
+  Cs-134       2.4452 mSv  (2.8%)
+  La-140       1.3110 mSv  (1.5%)
+  Pu-239       1.2084 mSv  (1.4%)
+  Te-132       1.1995 mSv  (1.4%)
+  Ru-106       0.8100 mSv  (0.9%)
+
+Results written to: outputs\elevated\elevated_results.json

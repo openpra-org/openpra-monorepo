@@ -184,8 +184,8 @@ pub struct Args {
     #[arg(long = "is-bias-factor", default_value = "10.0")]
     pub is_bias_factor: f64,
 
-    #[arg(long = "is-max-events", default_value = "32")]
-    pub is_max_events: u32,
+    #[arg(long = "is-max-events")]
+    pub is_max_events: Option<u32>,
 
     #[arg(long = "is-q-min", default_value = "1e-12")]
     pub is_q_min: f64,
@@ -202,6 +202,13 @@ pub struct Args {
         help = "Export the parsed fault-tree model as PRAXIS Boolean Format (PBF) and exit"
     )]
     pub export_model_pbf: Option<PathBuf>,
+
+    #[arg(
+        long = "export-merged-model-pbf",
+        value_name = "PATH",
+        help = "Merge the basic events that play the same role, export that fault-tree model as PRAXIS Boolean Format (PBF), list the merged events, and exit"
+    )]
+    pub export_merged_model_pbf: Option<PathBuf>,
 
     #[arg(long = "output-format", value_enum, default_value_t = OutputFormat::Xml)]
     pub output_format: OutputFormat,

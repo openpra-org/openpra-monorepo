@@ -249,19 +249,11 @@ export interface EsqNetworkNodeReference {
   nodeId: string;
 }
 
-export interface EsqFunctionNodeLink {
-  treeId: string;
-  node: EsqNetworkNodeReference;
-  trueStateIds: string[];
-  label: string;
-}
-
 export interface EsqFunctionRecord {
   id: string;
   name: string;
   treeIds: string[];
   esLinks: EsqFunctionEsLink[];
-  nodeLinks?: EsqFunctionNodeLink[];
 }
 
 export interface EsqTopNode {
@@ -547,7 +539,13 @@ export interface EsqSplitFractionTarget {
   basis?: string;
 }
 
-export type EsqFunctionTarget = EsqFaultTreeTarget | EsqSplitFractionTarget;
+export interface EsqNetworkNodeTarget {
+  kind: "NETWORK_NODE";
+  node: EsqNetworkNodeReference;
+  trueStateIds: string[];
+}
+
+export type EsqFunctionTarget = EsqFaultTreeTarget | EsqSplitFractionTarget | EsqNetworkNodeTarget;
 
 export interface EsqFunctionRule {
   id: string;

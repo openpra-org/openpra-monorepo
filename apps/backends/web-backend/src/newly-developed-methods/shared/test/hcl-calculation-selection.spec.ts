@@ -1,10 +1,8 @@
 import { WorkbookHclConfigurationSchema, WorkbookHclUncertaintyConfigurationSchema } from "interfaces-mef-types/zod/modeling";
-import { SystemsAnalysisSchema } from "interfaces-mef-types/zod/sy/systems-analysis";
 import { EventSequenceQuantificationSchema } from "interfaces-mef-types/zod/esq/event-sequence-quantification";
-import { createBlankSy } from "../../../sy-workbooks/blank-sy";
 import { createBlankEsq } from "../../../esq-workbooks/blank-esq";
 import { stripNulls } from "../../../pos-workbooks/mef-normalize";
-import { adaptSyHclSnapshot, adaptEsqHclSnapshot } from "../praxis-snapshot-adapters";
+import { adaptHclConfigurationSnapshot } from "../praxis-snapshot-adapters";
 import { model } from "mongoose";
 import { AnalysisRunRecordSchema } from "../analysis-run-record.schema";
 
@@ -32,33 +30,23 @@ it.each(invalidDrafts)("preserves an invalid draft and validates it only for unc
   const before = structuredClone(raw);
   expect(WorkbookHclConfigurationSchema.parse(raw).solverSettings.uncertainty).toEqual(uncertainty);
   expect(WorkbookHclUncertaintyConfigurationSchema.safeParse(raw).success).toBe(false);
-  for (const host of ["sy", "esq"] as const) {
-    const collection = host === "sy" ? "dependencyHclConfigurations" : "hclConfigurations";
-    const mef = host === "sy" ? createBlankSy("Test", "Analyst") : createBlankEsq("Test", "Analyst");
-    const input = { ...mef, [collection]: [raw] };
-    const normalized = stripNulls(input);
-    const parsed = host === "sy" ? SystemsAnalysisSchema.parse(normalized) : EventSequenceQuantificationSchema.parse(normalized);
-    const adapter = host === "sy" ? adaptSyHclSnapshot : adaptEsqHclSnapshot;
-    const source = { workbookId: host, workbookRevision: 1, mef: parsed };
-    expect((parsed as unknown as Record<string, typeof raw[]>)[collection]![0]!.solverSettings.uncertainty).toEqual(uncertainty);
-    const adapt = adapter as (snapshot: typeof source, modelId: string, type?: "PROBABILITY" | "UNCERTAINTY") => Record<string, unknown>;
-    expect(adapt(source, id(1)).solverSettings).not.toHaveProperty("uncertainty");
-    expect(adapt(source, id(1), "PROBABILITY").solverSettings).not.toHaveProperty("uncertainty");
-    expect(() => adapt(source, id(1), "UNCERTAINTY")).toThrow("Invalid uncertainty settings");
-  }
+  const parsed = EventSequenceQuantificationSchema.parse(stripNulls({ ...createBlankEsq("Test", "Analyst"), hclConfigurations: [raw] }));
+  const saved = parsed.hclConfigurations[0]!;
+  const source = { workbookRevision: 1 };
+  expect(saved.solverSettings.uncertainty).toEqual(uncertainty);
+  expect(adaptHclConfigurationSnapshot(source, saved, "PROBABILITY")["solverSettings"]).not.toHaveProperty("uncertainty");
+  expect(() => adaptHclConfigurationSnapshot(source, saved, "UNCERTAINTY")).toThrow("Invalid uncertainty settings");
   expect(raw).toEqual(before);
 });
 
 it("preserves nulls and signed zero inside saved drafts without changing other normalization", () => {
   const draft = { nested: [null, { zero: -0 }] };
-  for (const collection of ["dependencyHclConfigurations", "hclConfigurations"]) {
-    const input = { other: null, [collection]: [{ solverSettings: { uncertainty: draft } }] };
-    const result = stripNulls(input) as typeof input;
-    expect(result).not.toHaveProperty("other");
-    const saved = (result[collection] as Array<{ solverSettings: { uncertainty: typeof draft } }>)[0]!.solverSettings.uncertainty;
-    expect(saved).toEqual(draft);
-    expect(Object.is((saved.nested[1] as { zero: number }).zero, -0)).toBe(true);
-  }
+  const input = { other: null, hclConfigurations: [{ solverSettings: { uncertainty: draft } }] };
+  const result = stripNulls(input) as typeof input;
+  expect(result).not.toHaveProperty("other");
+  const saved = result.hclConfigurations[0]!.solverSettings.uncertainty;
+  expect(saved).toEqual(draft);
+  expect(Object.is((saved.nested[1] as { zero: number }).zero, -0)).toBe(true);
 });
 
 it("keeps empty uncertainty objects when serializing run history for storage", () => {
@@ -75,5 +63,5 @@ it("still rejects invalid point settings and validates only the selected uncerta
   expect(WorkbookHclConfigurationSchema.safeParse({ ...raw, bayesianNetwork: { workbookId: "bn", modelId: "bad-id" } }).success).toBe(false);
   const mef = { ...createBlankEsq("Test", "Analyst"), hclConfigurations: [raw, { ...raw, modelId: id(5), code: "OTHER", solverSettings: { ...raw.solverSettings, uncertainty: null } }] };
   const parsed = EventSequenceQuantificationSchema.parse(stripNulls(mef));
-  expect(adaptEsqHclSnapshot({ workbookId: "esq", workbookRevision: 1, mef: parsed }, id(1), "UNCERTAINTY").solverSettings).toHaveProperty("uncertainty.sampleCount", 10);
+  expect(adaptHclConfigurationSnapshot({ workbookRevision: 1 }, parsed.hclConfigurations[0]!, "UNCERTAINTY")["solverSettings"]).toHaveProperty("uncertainty.sampleCount", 10);
 });

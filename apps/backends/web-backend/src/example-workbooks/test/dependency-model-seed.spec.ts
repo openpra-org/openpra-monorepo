@@ -24,10 +24,10 @@ import { RI_ANALYSIS_HTGR } from "../seeds/ri-seed-htgr";
 import {
   EXAMPLE_DEPENDENCY_IDS,
   reconcileExampleEsqDependencyReferences,
+  reconcileExampleEsqNetworkOwnership,
   reconcileExampleEventTreeDependencyReferences,
   reconcileExampleSyDataAnalysisReferences,
   reconcileExampleSyHumanReliabilityReferences,
-  reconcileExampleSyDependencyOwnership,
   reconcileExampleRiskResultReferences,
 } from "../seeds/dependency-model-seed";
 
@@ -37,17 +37,23 @@ const variants = [
 ] as const;
 
 describe("dependency example models", () => {
-  it.each(variants)("makes the dependency BN editable from SY and ESQ in $name", ({ sy, esq }) => {
-    const networks = [
-      sy.dependencyBayesianNetworks?.[0],
-      esq.bayesianNetworks[0],
-    ];
-    expect(networks.every((network) => network !== undefined)).toBe(true);
-    for (const network of networks) {
-      expect(network?.modelId).toBe(EXAMPLE_DEPENDENCY_IDS.network);
-      expect(validateBayesianNetworkModel(network!, { evidence: { observations: [] } })
-        .filter(({ severity }) => severity === "ERROR")).toEqual([]);
-    }
+  it.each(variants)("keeps the dependency network and its configuration in ESQ only for $name", ({ sy, esq }) => {
+    expect(sy).not.toHaveProperty("dependencyBayesianNetworks");
+    expect(sy).not.toHaveProperty("dependencyHclConfigurations");
+    expect(esq.bayesianNetworks.map(({ modelId }) => modelId)).toEqual([EXAMPLE_DEPENDENCY_IDS.network]);
+    expect(esq.hclConfigurations.map(({ modelId }) => modelId)).toEqual([EXAMPLE_DEPENDENCY_IDS.hclConfiguration]);
+    expect(validateBayesianNetworkModel(esq.bayesianNetworks[0]!, { evidence: { observations: [] } })
+      .filter(({ severity }) => severity === "ERROR")).toEqual([]);
+  });
+
+  it.each(variants)("makes the ESQ workbook own its network references when $name has no project SY workbook", ({ esq }) => {
+    const source = EventSequenceQuantificationSchema.parse(JSON.parse(JSON.stringify(esq)));
+    const [seeded] = source.hclConfigurations;
+    const [owned] = EventSequenceQuantificationSchema.parse(reconcileExampleEsqNetworkOwnership(source, "real-esq-workbook")).hclConfigurations;
+    expect(owned?.bayesianNetwork).toEqual({ workbookId: "real-esq-workbook", modelId: EXAMPLE_DEPENDENCY_IDS.network });
+    expect(owned?.bindings.map((binding) => binding.bayesianNetworkNode.workbookId)).toEqual(["real-esq-workbook", "real-esq-workbook"]);
+    expect(owned?.faultTrees).toEqual(seeded?.faultTrees);
+    expect(owned?.bindings.map((binding) => binding.faultTreeBasicEvent)).toEqual(seeded?.bindings.map((binding) => binding.faultTreeBasicEvent));
   });
 
   it.each(variants)("links every quantified human-error event in $name to its HRA HFE and primary HEP", ({ sy, da, hr }) => {
@@ -142,29 +148,9 @@ describe("dependency example models", () => {
     }]);
     expect(configuration!.bindings.map((binding) => binding.faultTreeBasicEvent.entityId).sort())
       .toEqual(expectedBasicEventIds.sort());
-
-    const ownedSystems = SystemsAnalysisSchema.parse(reconcileExampleSyDependencyOwnership(
-      SystemsAnalysisSchema.parse(structuredClone(sy)),
-      "real-sy-workbook",
-    ));
-    const ownedNetwork = ownedSystems.dependencyBayesianNetworks?.find(
-      ({ modelId }) => modelId === EXAMPLE_DEPENDENCY_IDS.network,
-    );
-    const ownedConfiguration = ownedSystems.dependencyHclConfigurations?.find(
-      ({ modelId }) => modelId === EXAMPLE_DEPENDENCY_IDS.hclConfiguration,
-    );
-    expect(ownedNetwork).toBeDefined();
-    expect(ownedConfiguration?.bayesianNetwork).toEqual({
-      workbookId: "real-sy-workbook",
-      modelId: EXAMPLE_DEPENDENCY_IDS.network,
-    });
-    expect(ownedConfiguration?.faultTrees).toEqual([{
-      workbookId: "real-sy-workbook",
-      modelId: rpsTree!.uuid,
-    }]);
-    expect(ownedConfiguration?.bindings.every((binding) =>
+    expect(configuration!.bindings.every((binding) =>
       binding.faultTreeBasicEvent.workbookId === "real-sy-workbook" &&
-      binding.bayesianNetworkNode.workbookId === "real-sy-workbook")).toBe(true);
+      binding.bayesianNetworkNode.workbookId === "real-esq-workbook")).toBe(true);
   });
 
   it.each(variants)("provides an HCL-executable demonstration event tree for $name", ({ es, sy }) => {

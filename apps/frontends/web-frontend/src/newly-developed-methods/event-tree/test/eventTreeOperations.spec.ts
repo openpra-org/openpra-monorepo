@@ -158,6 +158,28 @@ describe("canonical event-tree operations", () => {
     ]));
   });
 
+  it("links a functional event to a fault-tree top event, removes the link and asks for it on a branching event", () => {
+    const unlinked: EventTree = {
+      ...emptyTree(),
+      functionalEvents: { "FE-1": { uuid: "FE-1", name: "First", label: "F1", order: 0, faultTreeId: "legacy-tree" } },
+      sequences: { "SEQ-1": { uuid: "SEQ-1", name: "Only path", endState: EndState.SUCCESSFUL_MITIGATION } },
+      branches: { "B-1": { uuid: "B-1", name: "First", functionalEventId: "FE-1", paths: [{ state: "SUCCESS", target: "SEQ-1", targetType: "SEQUENCE" }] } },
+      initialState: { branchId: "B-1" },
+    };
+    const required = validateEventTree(unlinked, [unlinked]).filter((finding) => finding.code === "ET_FT_LINK_REQUIRED");
+    expect(required).toEqual([{ code: "ET_FT_LINK_REQUIRED", message: "Link F1 to a fault-tree top event.", severity: "ERROR", entityId: "FE-1" }]);
+    expect(createEventTreePresentation(unlinked, []).functionalEvents.map((event) => event.linked)).toEqual([false]);
+
+    const linked = applyEventTreeOperation(unlinked, { kind: "SET_FAULT_TREE_REFERENCE", functionalEventId: "FE-1", reference });
+    expect(linked.functionalEvents["FE-1"]).toStrictEqual({ uuid: "FE-1", name: "First", label: "F1", order: 0, faultTreeTopEvent: reference });
+    expect(validateEventTree(linked, [linked])).toEqual([]);
+    expect(createEventTreePresentation(linked, []).functionalEvents.map((event) => event.linked)).toEqual([true]);
+
+    const removed = applyEventTreeOperation(linked, { kind: "SET_FAULT_TREE_REFERENCE", functionalEventId: "FE-1", reference: undefined });
+    expect(removed.functionalEvents["FE-1"]).toStrictEqual({ uuid: "FE-1", name: "First", label: "F1", order: 0 });
+    expect(applyEventTreeOperation(linked, { kind: "SET_FAULT_TREE_REFERENCE", functionalEventId: "FE-GONE", reference: undefined })).toBe(linked);
+  });
+
   it.each(["SUCCESS", "FAILURE"] as const)("preserves a single %s outcome through validation, presentation and editing", (outcome) => {
     const model: EventTree = {
       ...emptyTree(),

@@ -1,0 +1,4 @@
+{
+  "type": "ValueError",
+  "message": "cannot convert float NaN to integer"
+}

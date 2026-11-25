@@ -1,4 +1,4 @@
-import { awaitAnalysisRun, finishedRun, getAnalysisRun, type RunProgressListener } from "../newly-developed-methods/shared/analysisRunWait";
+import { finishedRun, type RunProgressListener } from "../newly-developed-methods/shared/analysisRunWait";
 import { createWorkbookPatch } from "interfaces-shared-types/workbooks";
 import { fetchJson, patchJson, postJson, postMultipart, deleteJson } from "../api/client";
 import { type SystemsAnalysis } from "interfaces-mef-types/sy/systems-analysis";
@@ -8,26 +8,6 @@ import type {
   FaultTreeExecuteResult,
   FaultTreeValidateResult,
 } from "interfaces-shared-types/newly-developed-methods/fault-tree";
-import type {
-  BayesianNetworkAnalysisResult,
-  BayesianNetworkBatchAnalysisResult,
-  BayesianNetworkQueryScenario,
-  BayesianNetworkExecuteResult,
-} from "interfaces-shared-types/newly-developed-methods/bayesian-network";
-import type {
-  BayesianNetworkEvidenceConfiguration,
-  FaultTreeTopEventReference,
-  WorkbookModelAddress,
-} from "interfaces-mef-types/modeling";
-import type {
-  HclBatchExecuteResult,
-  HclBatchInput,
-  HclHazardSweepSpec,
-  HclGenerateScenariosResult,
-  HclExecuteResult,
-  HclCalculationType,
-  HclQuantificationResult,
-} from "interfaces-shared-types/newly-developed-methods/hybrid-causal-logic";
 
 type SyWorkbookRoleName = "preparer" | "co_preparer" | "reviewer" | "approver";
 
@@ -140,130 +120,7 @@ async function getSyFaultTreeResult(
   );
 }
 
-async function runSyBayesianNetwork(
-  workbookId: string,
-  modelId: string,
-  workbookRevision: number,
-  evidence: BayesianNetworkEvidenceConfiguration,
-  queryNodeId: string,
-): Promise<BayesianNetworkExecuteResult> {
-  return finishedRun("sy", workbookId, postJson<BayesianNetworkExecuteResult>(
-    `/api/sy-workbooks/${workbookId}/bayesian-networks/${modelId}/runs`,
-    {
-      schemaVersion: "1.0.0",
-      modelId,
-      workbookRevision,
-      query: { evidence, queryNodeIds: [queryNodeId] },
-    },
-  ));
-}
-
-async function runSyBayesianNetworkBatch(
-  workbookId: string,
-  modelId: string,
-  workbookRevision: number,
-  scenarios: BayesianNetworkQueryScenario[],
-  queryNodeId: string,
-): Promise<BayesianNetworkExecuteResult> {
-  return finishedRun("sy", workbookId, postJson<BayesianNetworkExecuteResult>(
-    `/api/sy-workbooks/${workbookId}/bayesian-networks/${modelId}/runs`,
-    {
-      schemaVersion: "1.0.0",
-      modelId,
-      workbookRevision,
-      query: {
-        scenarios: scenarios.map(({ id, code, name, evidence }) => ({ id, code, name, evidence })),
-        queryNodeIds: [queryNodeId],
-      },
-    },
-  ));
-}
-
-async function getSyBayesianNetworkBatchResult(
-  workbookId: string,
-  modelId: string,
-  runId: string,
-): Promise<BayesianNetworkBatchAnalysisResult> {
-  return fetchJson<BayesianNetworkBatchAnalysisResult>(
-    `/api/sy-workbooks/${workbookId}/bayesian-networks/${modelId}/runs/${runId}/result`,
-  );
-}
-
-async function getSyBayesianNetworkResult(
-  workbookId: string,
-  modelId: string,
-  runId: string,
-): Promise<BayesianNetworkAnalysisResult> {
-  return fetchJson<BayesianNetworkAnalysisResult>(
-    `/api/sy-workbooks/${workbookId}/bayesian-networks/${modelId}/runs/${runId}/result`,
-  );
-}
-
-async function runSyHclFaultTree(
-  workbookId: string,
-  configurationId: string,
-  workbookRevision: number,
-  faultTreeTopGate: FaultTreeTopEventReference,
-  calculationType: HclCalculationType,
-  evidenceScenarioId?: string,
-): Promise<HclExecuteResult> {
-  return finishedRun("sy", workbookId, postJson<HclExecuteResult>(
-    `/api/sy-workbooks/${workbookId}/hcl-configurations/${configurationId}/fault-tree-runs`,
-    {
-      schemaVersion: "1.0.0",
-      modelId: configurationId,
-      workbookRevision,
-      calculationType,
-      faultTreeTopGate,
-      ...(evidenceScenarioId === undefined ? {} : { evidenceScenarioId }),
-    },
-  ));
-}
-
-async function runSyHclFaultTreeBatch(
-  workbookId: string,
-  configurationId: string,
-  workbookRevision: number,
-  faultTreeTopGate: FaultTreeTopEventReference,
-  calculationType: HclCalculationType,
-  evidenceScenarioIds: string[],
-  integrateHazardGrid = false,
-  batchInput?: HclBatchInput,
-): Promise<HclBatchExecuteResult> {
-  const response = await postJson<HclBatchExecuteResult>(
-    `/api/sy-workbooks/${workbookId}/hcl-configurations/${configurationId}/fault-tree-batch-runs`,
-    {
-      schemaVersion: "1.0.0",
-      modelId: configurationId,
-      workbookRevision,
-      calculationType,
-      faultTreeTopGate,
-      evidenceScenarioIds,
-      ...(batchInput === undefined ? {} : { batchInput }),
-      ...(integrateHazardGrid ? { integrateHazardGrid: true } : {}),
-    },
-  );
-  if (response.batchId === undefined) return response;
-  const batch = await awaitAnalysisRun("sy", workbookId, await getAnalysisRun("sy", workbookId, response.batchId));
-  if (batch.status === "SUCCEEDED") {
-    return fetchJson<HclBatchExecuteResult>(`/api/sy-workbooks/${workbookId}/hcl-configurations/${configurationId}/runs/${batch.id}/result`);
-  }
-  return { ...response, runs: await Promise.all(response.runs.map(async (row) => ({ ...row, run: await getAnalysisRun("sy", workbookId, row.run.id) }))) };
-}
-
-async function getSyHclFaultTreeResult(
-  workbookId: string,
-  configurationId: string,
-  runId: string,
-): Promise<HclQuantificationResult> {
-  return fetchJson<HclQuantificationResult>(
-    `/api/sy-workbooks/${workbookId}/hcl-configurations/${configurationId}/runs/${runId}/result`,
-  );
-}
-
 export {
-  runSyBayesianNetworkBatch,
-  getSyBayesianNetworkBatchResult,
   getSyWorkbook,
   patchSyWorkbook,
   getSyExampleOptions,
@@ -277,25 +134,8 @@ export {
   runSyFaultTree,
   validateSyFaultTree,
   getSyFaultTreeResult,
-  runSyBayesianNetwork,
-  getSyBayesianNetworkResult,
-  runSyHclFaultTree,
-  runSyHclFaultTreeBatch,
-  getSyHclFaultTreeResult,
   type SyWorkbookResponse,
   type SyWorkbookRoleName,
   type SyExampleOption,
   type SyDocumentEntry,
 };
-
-export async function generateSyHclScenarios(
-  workbookId: string, configurationId: string, workbookRevision: number,
-  spec: HclHazardSweepSpec, dependencyConfiguration?: WorkbookModelAddress,
-): Promise<HclGenerateScenariosResult> {
-  return postJson<HclGenerateScenariosResult>(
-    `/api/sy-workbooks/${workbookId}/hcl-configurations/${configurationId}/generate-scenarios`,
-    { schemaVersion: "1.0.0", modelId: configurationId, workbookRevision, spec,
-      ...(dependencyConfiguration === undefined ? {} : { dependencyConfiguration }),
-    },
-  );
-}

@@ -76,8 +76,10 @@
 .rc-quantification .q-snapshot{border-radius:8px;background:var(--color-surface-low);padding:12px;margin:14px 0;font-size:12px;color:var(--color-text-muted)}
 .rc-quantification .q-snapshot strong{display:block;margin-bottom:4px;color:var(--color-text)}
 .rc-quantification .q-record{padding:14px 0;border-top:1px solid var(--color-border)}
-.rc-quantification .q-record p{font-size:13px;margin:8px 0}
-.rc-quantification .q-record p.q-note{font-size:12px}
+.rc-quantification .q-record .q-table-wrap{margin:10px 0 8px}
+.rc-quantification .q-record small{font-size:12px;margin-top:0}
+.rc-quantification .q-record details{margin-top:10px}
+.rc-quantification .q-record .q-actions{margin-top:12px}
 .rc-quantification .q-fields{display:grid;grid-template-columns:repeat(2,minmax(0,300px));gap:16px;margin:18px 0}
 .rc-quantification .q-inspect{margin:16px 0}
 .rc-quantification .q-check-label{display:flex;align-items:flex-start;gap:8px;margin:16px 0}
@@ -101,7 +103,7 @@
 .rc-details-modal .rc-result-metric-row{flex-wrap:wrap}
 .rc-details-modal .rc-result-metric-row .posfield__input{min-width:0;max-width:100%}
 @container(max-width:600px){.rc-quantification .q-input-list li{grid-template-columns:minmax(0,1fr)auto;gap:8px}.rc-quantification .q-input-list li>div:nth-child(2){grid-row:2;grid-column:1/-1}.rc-quantification .q-status{grid-column:2;grid-row:1}.rc-quantification .q-fields{grid-template-columns:minmax(0,272px)}}
-@container(max-width:480px){.rc-quantification .q-tabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px}.rc-quantification .q-tabs button{padding:10px 4px;font-size:12px}.rc-quantification .q-file-picker,.rc-quantification .q-file-list li{flex-direction:column;align-items:flex-start;gap:10px}.rc-quantification th,.rc-quantification td{padding:8px 4px;font-size:12px}}
+@container(max-width:480px){.rc-quantification .q-tabs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px}.rc-quantification .q-tabs button{padding:10px 4px;font-size:12px}.rc-quantification .q-file-picker,.rc-quantification .q-file-list li{flex-direction:column;align-items:flex-start;gap:10px}.rc-quantification th,.rc-quantification td{padding:8px 4px;font-size:12px}}
 @media(max-width:680px){.rc-step08-family-select{align-items:stretch;flex-direction:column}.rc-step08-family-select .posnav__btn{align-self:flex-start}}
 
 .rc-quantification .q-metric-field{display:flex;flex-direction:column;gap:4px;max-width:520px;margin:10px 0}

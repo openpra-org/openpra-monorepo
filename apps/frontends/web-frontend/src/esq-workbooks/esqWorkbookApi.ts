@@ -2,9 +2,14 @@ import { createWorkbookPatch } from "interfaces-shared-types/workbooks";
 import { finishedRun, getAnalysisRun, awaitAnalysisRun, type RunProgressListener } from "../newly-developed-methods/shared/analysisRunWait";
 import { fetchJson, patchJson, postJson, postMultipart, deleteJson } from "../api/client";
 import { type EventSequenceQuantification } from "interfaces-mef-types/esq/event-sequence-quantification";
-import type {
-  BayesianNetworkAnalysisResult,
-  BayesianNetworkExecuteResult,
+import {
+  BayesianNetworkBuilderResponseSchema,
+  type BayesianNetworkAnalysisResult,
+  type BayesianNetworkBatchAnalysisResult,
+  type BayesianNetworkBuilderFormat,
+  type BayesianNetworkBuilderResponse,
+  type BayesianNetworkExecuteResult,
+  type BayesianNetworkQueryScenario,
 } from "interfaces-shared-types/newly-developed-methods/bayesian-network";
 import type {
   BayesianNetworkEvidenceConfiguration,
@@ -18,6 +23,8 @@ import type {
   HclGenerateScenariosResult,
   HclExecuteResult,
   HclCalculationType,
+  HclDependencyCutSetSettings,
+  HclFaultTreeCutSetSettings,
   HclQuantificationResult,
   HclRunSampling,
 } from "interfaces-shared-types/newly-developed-methods/hybrid-causal-logic";
@@ -151,6 +158,27 @@ async function runEsqBayesianNetwork(
   ));
 }
 
+async function runEsqBayesianNetworkBatch(
+  workbookId: string,
+  modelId: string,
+  workbookRevision: number,
+  scenarios: BayesianNetworkQueryScenario[],
+  queryNodeId: string,
+): Promise<BayesianNetworkExecuteResult> {
+  return finishedRun("esq", workbookId, postJson<BayesianNetworkExecuteResult>(
+    `/api/esq-workbooks/${workbookId}/bayesian-networks/${modelId}/runs`,
+    {
+      schemaVersion: "1.0.0",
+      modelId,
+      workbookRevision,
+      query: {
+        scenarios: scenarios.map(({ id, code, name, evidence }) => ({ id, code, name, evidence })),
+        queryNodeIds: [queryNodeId],
+      },
+    },
+  ));
+}
+
 async function getEsqBayesianNetworkResult(
   workbookId: string,
   modelId: string,
@@ -161,12 +189,37 @@ async function getEsqBayesianNetworkResult(
   );
 }
 
+async function getEsqBayesianNetworkBatchResult(
+  workbookId: string,
+  modelId: string,
+  runId: string,
+): Promise<BayesianNetworkBatchAnalysisResult> {
+  return fetchJson<BayesianNetworkBatchAnalysisResult>(
+    `/api/esq-workbooks/${workbookId}/bayesian-networks/${modelId}/runs/${runId}/result`,
+  );
+}
+
+async function buildBayesianNetworkFromSpecification(format: BayesianNetworkBuilderFormat, source: string): Promise<string> {
+  const response = BayesianNetworkBuilderResponseSchema.parse(
+    await postJson<BayesianNetworkBuilderResponse>("/api/bayesian-network/network-builder", { format, source }),
+  );
+  return response.networkFile;
+}
+
+function importanceFields(importance: boolean | number | undefined): { dependencyImportance?: true; dependencyImportanceEvents?: number } {
+  if (importance === undefined || importance === false) return {};
+  return typeof importance === "number" ? { dependencyImportance: true, dependencyImportanceEvents: importance } : { dependencyImportance: true };
+}
+
 async function runEsqHclFaultTree(
   workbookId: string,
   configurationId: string,
   workbookRevision: number,
   faultTreeTopGate: FaultTreeTopEventReference,
   calculationType: HclCalculationType,
+  sampling?: HclRunSampling,
+  dependencyCutSets?: HclFaultTreeCutSetSettings,
+  dependencyImportance?: boolean | number,
 ): Promise<HclExecuteResult> {
   return finishedRun("esq", workbookId, postJson<HclExecuteResult>(
     `/api/esq-workbooks/${workbookId}/hcl-configurations/${configurationId}/fault-tree-runs`,
@@ -176,6 +229,9 @@ async function runEsqHclFaultTree(
       workbookRevision,
       calculationType,
       faultTreeTopGate,
+      ...(sampling === undefined ? {} : { sampling }),
+      ...(dependencyCutSets === undefined ? {} : { dependencyCutSets }),
+      ...importanceFields(dependencyImportance),
     },
   ));
 }
@@ -186,8 +242,9 @@ async function runEsqHclEventTree(
   workbookRevision: number,
   eventTree: WorkbookModelAddress,
   calculationType: HclCalculationType,
-  dependencyConfiguration?: WorkbookModelAddress,
   sampling?: HclRunSampling,
+  dependencyCutSets?: HclDependencyCutSetSettings,
+  dependencyImportance?: boolean | number,
 ): Promise<HclExecuteResult> {
   return finishedRun("esq", workbookId, postJson<HclExecuteResult>(
     `/api/esq-workbooks/${workbookId}/hcl-configurations/${configurationId}/event-tree-runs`,
@@ -197,8 +254,9 @@ async function runEsqHclEventTree(
       workbookRevision,
       calculationType,
       eventTree,
-      ...(dependencyConfiguration === undefined ? {} : { dependencyConfiguration }),
       ...(sampling === undefined ? {} : { sampling }),
+      ...(dependencyCutSets === undefined ? {} : { dependencyCutSets }),
+      ...importanceFields(dependencyImportance),
     },
   ));
 }
@@ -222,6 +280,9 @@ async function runEsqHclFaultTreeBatch(
   evidenceScenarioIds: string[],
   integrateHazardGrid = false,
   batchInput?: HclBatchInput,
+  sampling?: HclRunSampling,
+  dependencyCutSets?: HclFaultTreeCutSetSettings,
+  dependencyImportance?: boolean | number,
 ): Promise<HclBatchExecuteResult> {
   return finishedHclBatch(workbookId, configurationId, postJson<HclBatchExecuteResult>(
     `/api/esq-workbooks/${workbookId}/hcl-configurations/${configurationId}/fault-tree-batch-runs`,
@@ -234,6 +295,9 @@ async function runEsqHclFaultTreeBatch(
       evidenceScenarioIds,
       ...(batchInput === undefined ? {} : { batchInput }),
       ...(integrateHazardGrid ? { integrateHazardGrid: true } : {}),
+      ...(sampling === undefined ? {} : { sampling }),
+      ...(dependencyCutSets === undefined ? {} : { dependencyCutSets }),
+      ...importanceFields(dependencyImportance),
     },
   ));
 }
@@ -246,9 +310,10 @@ async function runEsqHclEventTreeBatch(
   calculationType: HclCalculationType,
   evidenceScenarioIds: string[],
   integrateHazardGrid = false,
-  dependencyConfiguration?: WorkbookModelAddress,
   batchInput?: HclBatchInput,
   sampling?: HclRunSampling,
+  dependencyCutSets?: HclDependencyCutSetSettings,
+  dependencyImportance?: boolean | number,
 ): Promise<HclBatchExecuteResult> {
   return finishedHclBatch(workbookId, configurationId, postJson<HclBatchExecuteResult>(
     `/api/esq-workbooks/${workbookId}/hcl-configurations/${configurationId}/event-tree-batch-runs`,
@@ -258,11 +323,12 @@ async function runEsqHclEventTreeBatch(
       workbookRevision,
       calculationType,
       eventTree,
-      ...(dependencyConfiguration === undefined ? {} : { dependencyConfiguration }),
       evidenceScenarioIds,
       ...(batchInput === undefined ? {} : { batchInput }),
       ...(integrateHazardGrid ? { integrateHazardGrid: true } : {}),
       ...(sampling === undefined ? {} : { sampling }),
+      ...(dependencyCutSets === undefined ? {} : { dependencyCutSets }),
+      ...importanceFields(dependencyImportance),
     },
   ));
 }
@@ -284,6 +350,13 @@ async function getEsqHclEventTreeResult(
 ): Promise<EventTreeAnalysisResult> {
   return fetchJson<EventTreeAnalysisResult>(
     `/api/esq-workbooks/${workbookId}/hcl-configurations/${configurationId}/runs/${runId}/result`,
+  );
+}
+
+async function generateEsqHclScenarios(workbookId: string, configurationId: string, workbookRevision: number, spec: HclHazardSweepSpec): Promise<HclGenerateScenariosResult> {
+  return postJson<HclGenerateScenariosResult>(
+    `/api/esq-workbooks/${workbookId}/hcl-configurations/${configurationId}/generate-scenarios`,
+    { schemaVersion: "1.0.0", modelId: configurationId, workbookRevision, spec },
   );
 }
 
@@ -517,7 +590,11 @@ export {
   deleteEsqDocument,
   getEsqDocumentDownload,
   runEsqBayesianNetwork,
+  runEsqBayesianNetworkBatch,
   getEsqBayesianNetworkResult,
+  getEsqBayesianNetworkBatchResult,
+  buildBayesianNetworkFromSpecification,
+  generateEsqHclScenarios,
   runEsqHclFaultTree,
   runEsqHclEventTree,
   runEsqHclFaultTreeBatch,
@@ -529,15 +606,3 @@ export {
   type EsqExampleOption,
   type EsqDocumentEntry,
 };
-
-export async function generateEsqHclScenarios(
-  workbookId: string, configurationId: string, workbookRevision: number,
-  spec: HclHazardSweepSpec, dependencyConfiguration?: WorkbookModelAddress,
-): Promise<HclGenerateScenariosResult> {
-  return postJson<HclGenerateScenariosResult>(
-    `/api/esq-workbooks/${workbookId}/hcl-configurations/${configurationId}/generate-scenarios`,
-    { schemaVersion: "1.0.0", modelId: configurationId, workbookRevision, spec,
-      ...(dependencyConfiguration === undefined ? {} : { dependencyConfiguration }),
-    },
-  );
-}

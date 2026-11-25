@@ -1,5 +1,6 @@
 .bneditor {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 14px;
   color: var(--color-text);
 }
@@ -27,7 +28,6 @@
 
 .bneditor__header,
 .bneditor__panel-head,
-.bneditor__inspector-head,
 .bneditor__section-head {
   display: flex;
   align-items: center;
@@ -43,7 +43,6 @@
 
 .bneditor__identity,
 .bneditor__toolbar,
-.bneditor__query-grid,
 .bneditor__binding-form {
   display: flex;
   flex-wrap: wrap;
@@ -66,12 +65,6 @@
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
-}
-
-.poscard__head.bneditor__network-head {
-  justify-content: flex-start;
-  flex-wrap: wrap;
-  gap: 12px;
 }
 
 .bneditor__readonly-notice {
@@ -304,7 +297,6 @@
 }
 
 .bneditor__identity label,
-.bneditor__query-grid label,
 .bneditor__evidence-editor label,
 .bneditor__query-target,
 .bneditor__binding-form > label,
@@ -314,12 +306,10 @@
 }
 
 .bneditor__identity label > span,
-.bneditor__query-grid label > span,
 .bneditor__evidence-editor label > span,
 .bneditor__query-target > span,
 .bneditor__binding-form label > span,
-.bneditor__field > span,
-.bneditor__inspector-head span {
+.bneditor__field > span {
   color: var(--color-text-muted);
   font-size: 10px;
   font-weight: 750;
@@ -374,7 +364,6 @@
   cursor: default;
 }
 
-.bneditor__btn,
 .bneditor__section-head button,
 .bneditor__cpt button,
 .bneditor__binding button,
@@ -390,23 +379,15 @@
   cursor: pointer;
 }
 
-.bneditor__btn:hover:not(:disabled),
 .bneditor__section-head button:hover:not(:disabled),
 .bneditor__cpt button:hover:not(:disabled) {
   border-color: var(--color-primary);
   color: var(--color-primary);
 }
 
-.bneditor__btn:disabled,
 .bneditor button:disabled {
   cursor: not-allowed;
   opacity: 0.5;
-}
-
-.bneditor__btn--primary {
-  border-color: var(--color-primary);
-  background: var(--color-primary);
-  color: white;
 }
 
 .bneditor__icon-btn {
@@ -857,12 +838,6 @@
   white-space: nowrap;
 }
 
-.bneditor__add-parent {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 6px;
-}
-
 .bneditor__panel,
 .bneditor__validation {
   border: 1px solid var(--color-border);
@@ -901,26 +876,17 @@
 .bneditor__cpt th,
 .bneditor__cpt td {
   padding: 6px;
-}
-
-.bneditor__cpt th {
-  text-align: center;
-}
-
-.bneditor__cpt td {
-  text-align: center;
-}
-
-.bneditor__cpt .bneditor__cpt-parent {
   text-align: left;
+}
+
+.bneditor__cpt .bneditor__cpt-actions {
+  text-align: center;
 }
 
 .bneditor__cpt input {
   display: block;
   width: 92px;
-  margin-inline: auto;
   font-family: var(--font-data), ui-monospace, monospace;
-  text-align: center;
 }
 
 .bneditor__cpt tr.is-invalid {
@@ -942,11 +908,10 @@
 
 .bneditor__evidence-popover {
   position: absolute;
-  top: 102px;
-  right: auto;
-  left: 14px;
+  top: calc(100% + 6px);
+  left: 0;
   z-index: 30;
-  width: min(520px, calc(100% - 28px));
+  width: min(520px, 100%);
   overflow: visible;
   border: 1px solid var(--color-border-strong);
   border-radius: 10px;
@@ -995,6 +960,27 @@
   line-height: 1;
 }
 
+.bneditor__evidence-missing {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  border-bottom: 1px solid var(--color-border);
+  padding: 8px 10px;
+  background: color-mix(in srgb, var(--color-error) 7%, transparent);
+  color: var(--color-text);
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.bneditor .bneditor__evidence-missing button {
+  height: 27px;
+  min-height: 27px;
+  padding: 4px 9px;
+  font-size: 11.5px;
+  line-height: 1;
+}
+
 .bneditor__evidence-editor {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(135px, 1fr));
@@ -1013,30 +999,6 @@
   font-size: 11px;
 }
 
-.bneditor__analysis-tabs {
-  display: flex;
-  gap: 4px;
-  border-bottom: 1px solid var(--color-border);
-  padding: 5px 8px;
-}
-
-.bneditor__analysis-tabs button {
-  border: 0;
-  border-radius: 7px;
-  padding: 7px 11px;
-  background: transparent;
-  color: var(--color-text-muted);
-  font-size: 11.5px;
-  font-weight: 750;
-  cursor: pointer;
-}
-
-.bneditor__analysis-tabs button:hover,
-.bneditor__analysis-tabs button.is-active {
-  background: var(--color-primary-soft);
-  color: var(--color-primary);
-}
-
 .bneditor__quantification-shell {
   display: grid;
   gap: 14px;
@@ -1044,7 +1006,6 @@
   font-family: inherit;
 }
 
-.bneditor__calculation-picker,
 .bneditor__workflow-picker {
   display: grid;
   gap: 6px;
@@ -1053,7 +1014,6 @@
   padding: 0;
 }
 
-.bneditor__calculation-picker > legend,
 .bneditor__workflow-picker > legend {
   margin: 0;
   padding: 0;
@@ -1064,14 +1024,12 @@
   text-transform: uppercase;
 }
 
-.bneditor__calculation-picker > div,
 .bneditor__workflow-picker > div {
   display: flex;
   flex-wrap: wrap;
   gap: 5px;
 }
 
-.bneditor__calculation-picker label,
 .bneditor__workflow-picker label {
   display: inline-flex;
   align-items: center;
@@ -1087,15 +1045,12 @@
   cursor: pointer;
 }
 
-.bneditor__calculation-picker label:hover,
 .bneditor__workflow-picker label:hover,
-.bneditor__calculation-picker label.is-selected,
 .bneditor__workflow-picker label.is-selected {
   background: var(--color-primary-soft);
   color: var(--color-primary);
 }
 
-.bneditor__calculation-picker input,
 .bneditor__workflow-picker input {
   width: 13px;
   height: 13px;
@@ -1148,7 +1103,8 @@
   display: none;
 }
 
-.bneditor .bneditor__batch-sample-chevron {
+.bneditor .bneditor__batch-sample-chevron,
+.bneditor .bneditor__toggle-chevron {
   width: 10px;
   height: 7px;
   margin-left: 2px;
@@ -1160,8 +1116,16 @@
   transition: transform 140ms ease;
 }
 
-.bneditor__batch-sample-menu[open] .bneditor__batch-sample-chevron {
+.bneditor__batch-sample-menu[open] .bneditor__batch-sample-chevron,
+.bneditor__toggle[aria-expanded="true"] > .bneditor__toggle-chevron {
   transform: rotate(180deg);
+}
+
+.bneditor button.bneditor__toggle[aria-expanded="true"],
+.bneditor button.bneditor__toggle[aria-expanded="true"]:hover {
+  border-color: transparent;
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
 }
 
 .bneditor__batch-sample-popover {
@@ -1210,13 +1174,16 @@
 }
 
 .bneditor__query-batch-row > summary {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  min-height: 34px;
+  display: grid;
+  grid-template-columns: minmax(0, 3fr) minmax(0, 6fr) minmax(0, 2fr);
+  align-items: baseline;
+  gap: 12px;
+  padding: 8px 0;
   list-style: none;
   color: var(--color-text);
   font-size: 11.5px;
+  text-align: left;
+  overflow-wrap: anywhere;
   cursor: pointer;
 }
 
@@ -1227,6 +1194,10 @@
 .bneditor__query-batch-row > summary span {
   color: var(--color-text-muted);
   font-size: 10.5px;
+}
+
+.bneditor__query-batch-row > summary > span:last-child {
+  text-align: right;
 }
 
 .bneditor__query-batch-row .bneditor__posterior {
@@ -1291,15 +1262,7 @@
 }
 
 .bneditor__evidence-anchor {
-  position: relative;
   display: inline-flex;
-}
-
-.bneditor__evidence-anchor .bneditor__evidence-popover {
-  top: calc(100% + 8px);
-  right: 0;
-  left: auto;
-  width: min(520px, calc(100vw - 48px));
 }
 
 .bneditor__evidence-trigger {
@@ -1370,22 +1333,8 @@
 }
 
 .bneditor__binding-form {
-  align-items: end;
+  align-items: start;
   margin-top: 12px;
-}
-
-.bneditor__binding-form fieldset {
-  display: flex;
-  gap: 8px;
-  margin: 0;
-  border: 1px solid var(--color-border);
-  border-radius: 7px;
-  padding: 5px 8px 7px;
-}
-
-.bneditor__binding-form legend {
-  color: var(--color-text-muted);
-  font-size: 10px;
 }
 
 .bneditor__check {
@@ -1397,23 +1346,6 @@
 
 .bneditor__check input {
   width: auto;
-}
-
-.bneditor__used-by {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px;
-  margin-top: 10px;
-  font-size: 11px;
-}
-
-.bneditor__used-by span {
-  border-radius: 999px;
-  padding: 4px 7px;
-  background: var(--color-primary-soft);
-  color: var(--color-primary);
-  font-weight: 700;
 }
 
 .bneditor__binding {
@@ -1510,6 +1442,10 @@
   color: var(--color-error);
 }
 
+.bneditor__validation-count {
+  color: var(--color-text-muted);
+}
+
 @media (max-width: 920px) {
   .bneditor__identity {
     grid-template-columns: 1fr;
@@ -1537,13 +1473,8 @@
     flex-wrap: wrap;
   }
 
-  .bneditor__evidence-anchor .bneditor__evidence-popover {
-    right: auto;
-    left: 0;
-  }
-
   .bneditor__workspace,
-  .bneditor__workspace--inspecting {
+.bneditor__workspace--inspecting {
     grid-template-columns: 1fr;
     height: auto;
   }
@@ -1594,7 +1525,8 @@
   max-width: 100%;
   font-size: 12px;
 }
-.bneditor__view-selector select, .bneditor__module-inputs select {
+.bneditor__view-selector select,
+.bneditor__module-inputs select {
   min-width: 0;
   max-width: 100%;
   color: var(--color-text);
@@ -1623,7 +1555,8 @@
 .bneditor__group-form { display: grid; gap: 8px; padding: 10px; }
 .bneditor__group-fields { display: flex; flex-wrap: wrap; align-items: end; gap: 8px; }
 .bneditor__group-fields label { display: grid; gap: 4px; min-width: 0; font-size: 12px; }
-.bneditor__group-fields input, .bneditor__group-fields select { width: 180px; height: 31px; min-width: 0; box-sizing: border-box; }
+.bneditor__group-fields input,
+.bneditor__group-fields select { width: 180px; height: 31px; min-width: 0; box-sizing: border-box; }
 .bneditor__group-remove {
   min-height: 31px;
   height: 31px;
@@ -1640,7 +1573,7 @@
   opacity: 1;
 }
 .bneditor__group-members { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 4px 8px; max-height: 180px; margin-top: 8px; overflow: auto; }
-.bneditor__group-members label { display: flex; align-items: center; gap: 6px; min-width: 0; padding: 2px 0; font-size: 12px; }
+.bneditor__group-members label { display: flex; align-items: start; gap: 6px; min-width: 0; padding: 2px 0; font-size: 12px; }
 .bneditor__group-members label > span { overflow-wrap: anywhere; }
 .bneditor__group-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 12px; }
 .bneditor__view-nav { justify-content: center; width: 52px; height: 27px; }

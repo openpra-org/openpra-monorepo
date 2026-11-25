@@ -34,12 +34,16 @@ mod cli_event_tree_mc_xml_output;
 mod cli_importance_output;
 #[path = "integration/cli/cli_mc_xml_output.rs"]
 mod cli_mc_xml_output;
+#[path = "integration/cli/cli_merged_model_export.rs"]
+mod cli_merged_model_export;
 #[path = "integration/cli/cli_mocus.rs"]
 mod cli_mocus;
 #[path = "integration/cli/cli_pbf_export.rs"]
 mod cli_pbf_export;
 #[path = "integration/cli/cli_pbf_input.rs"]
 mod cli_pbf_input;
+#[path = "integration/cli/cli_pbf_interop.rs"]
+mod cli_pbf_interop;
 #[path = "integration/cli/cli_test.rs"]
 mod cli_test;
 #[path = "integration/cli/cli_variable_order.rs"]
@@ -71,6 +75,8 @@ mod event_tree_parser_integration;
 mod event_tree_dpmc_scaffolding;
 #[path = "integration/mc/unary_gate_mc.rs"]
 mod unary_gate_mc;
+#[path = "integration/mc/variance_reduction.rs"]
+mod variance_reduction;
 
 #[path = "integration/workflow/full_pra_workflow.rs"]
 mod full_pra_workflow;

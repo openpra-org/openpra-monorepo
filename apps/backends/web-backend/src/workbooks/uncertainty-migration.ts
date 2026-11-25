@@ -704,8 +704,7 @@ function relinkProjectDa(mef: JsonRecord, lookups: MigrationLookups, projectId: 
 function convertSyMef(mef: JsonRecord, lookups: MigrationLookups, scope: ConversionScope, projectId: string): JsonRecord {
   const defined = convertSyDefinitions(mef, scLinkContext(mef, lookups, projectId), scope);
   const events = convertSyEvents(defined, lookups.daParameters, scope);
-  const groups = convertSyGroups(events, lookups.daCcf, scope);
-  return relinkProjectDa(convertConfigurations(groups, "dependencyHclConfigurations", "dependencyBayesianNetworks", scope, "SY"), lookups, projectId);
+  return relinkProjectDa(convertSyGroups(events, lookups.daCcf, scope), lookups, projectId);
 }
 
 function componentHolder(expression: UncertainExpression | undefined, parameterIds: ReadonlySet<string>): JsonRecord {
@@ -791,7 +790,7 @@ function convertEsqMef(mef: JsonRecord, lookups: MigrationLookups, scope: Conver
   const modelled = withRecord(convertEsqHeps(mef), "model", (model) => convertEsqModel(model, daWorkbookId, syGroups, facts, scope));
   const decided = withRecord(modelled, "modelDecisions", (decisions) => withArray(decisions, "initiatorChoices", (choice) => convertEsqInitiatorChoice(choice, scope)));
   const barriers = convertBarrierWork(decided, scope);
-  const configured = convertConfigurations(barriers, "hclConfigurations", "bayesianNetworks", scope, "ESQ");
+  const configured = convertConfigurations(barriers, scope);
   return relinkProjectDa(withRecord(configured, "uncertaintyWork", (work) => withRecord(withRecord(work, "run", withStandardErrors), "independent", withStandardErrors)), lookups, projectId);
 }
 
@@ -809,8 +808,7 @@ function outcomeIssue(outcome: { success: boolean; error?: SchemaIssues }): stri
 }
 
 function syIssue(mef: JsonRecord): string | undefined {
-  const parsed = SystemsAnalysisSchema.safeParse(stripNulls(mef));
-  return parsed.success ? hclSettingsIssue(mef, "dependencyHclConfigurations") : firstIssue(parsed.error);
+  return outcomeIssue(SystemsAnalysisSchema.safeParse(stripNulls(mef)));
 }
 
 function daIssue(mef: JsonRecord): string | undefined {
@@ -825,7 +823,7 @@ function daIssueAndFacts(mef: JsonRecord): { issue?: string; facts?: Map<string,
 
 function esqIssue(mef: JsonRecord): string | undefined {
   const parsed = EventSequenceQuantificationSchema.safeParse(normalizeEsqMef(mef));
-  return parsed.success ? hclSettingsIssue(mef, "hclConfigurations") : firstIssue(parsed.error);
+  return parsed.success ? hclSettingsIssue(mef) : firstIssue(parsed.error);
 }
 
 function ieIssue(mef: JsonRecord): string | undefined {
@@ -849,8 +847,7 @@ function previousName(mef: JsonRecord, fallback: string): string {
 }
 
 function previousSyIssue(mef: JsonRecord, owner: string): string | undefined {
-  const parsed = SystemsAnalysisSchema.safeParse(healMef(mef, createBlankSy(previousName(mef, "SY Workbook"), textField(mef, "owner") ?? owner)));
-  return parsed.success ? hclSettingsIssue(mef, "dependencyHclConfigurations") : firstIssue(parsed.error);
+  return outcomeIssue(SystemsAnalysisSchema.safeParse(healMef(mef, createBlankSy(previousName(mef, "SY Workbook"), textField(mef, "owner") ?? owner))));
 }
 
 function previousDaIssue(mef: JsonRecord, owner: string): string | undefined {
@@ -860,7 +857,7 @@ function previousDaIssue(mef: JsonRecord, owner: string): string | undefined {
 
 function previousEsqIssue(mef: JsonRecord, owner: string): string | undefined {
   const parsed = EventSequenceQuantificationSchema.safeParse(healMef(mef, createBlankEsq(previousName(mef, "ESQ Workbook"), textField(mef, "owner") ?? owner)));
-  return parsed.success ? hclSettingsIssue(mef, "hclConfigurations") : firstIssue(parsed.error);
+  return parsed.success ? hclSettingsIssue(mef) : firstIssue(parsed.error);
 }
 
 function previousIeIssue(mef: JsonRecord, owner: string): string | undefined {

@@ -1,0 +1,7 @@
+Loading config: input/PolarSingleTrialError.txt
+  case_name : polar_single_trial
+  mode      : lmp
+  geometry  : polar
+  nuclides  : 3
+  segments  : 1
+  met       : single trial  (class D, 3.0 m/s)

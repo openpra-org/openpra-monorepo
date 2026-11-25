@@ -1,0 +1,23 @@
+Loading config: input/EpzBelowLimit.txt
+  case_name : epz_below_limit
+  mode      : epz
+  geometry  : centerline
+  nuclides  : 3
+  segments  : 1
+  met       : single trial  (class D, 3.0 m/s)
+
+Total released activity : 1.350e+12 Bq  (3 nuclide-segment pairs)
+
+
+============================================================
+  TEDE             : 0.1114 mSv  (1.1141e-04 Sv)
+  chi/Q            : 4.1302e-05 s/m³
+  Ground dep total : 9.8104e+04 Bq/m²
+============================================================
+
+Top 10 nuclide contributors to TEDE:
+  I-131        0.0579 mSv  (52.0%)
+  Cs-137       0.0534 mSv  (48.0%)
+  Xe-133       0.0001 mSv  (0.0%)
+
+Results written to: outputs\epz_below_limit\epz_below_limit_results.json

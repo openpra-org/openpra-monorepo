@@ -1,0 +1,22 @@
+{
+  "case_name": "epz_case",
+  "geometry": "centerline",
+  "mode": "epz",
+  "receptor_x_m": 2000.0,
+  "stability_class": "F",
+  "wind_speed_m_s": 1.0,
+  "tede_sv": 189.03965785532307,
+  "tede_msv": 189039.65785532308,
+  "chi_over_q_s_m3": 0.000108808629942651,
+  "ground_deposition_bq_m2": 87578572694.05055,
+  "lmp_tede_sv": 0.0,
+  "epz_distance_m": 100000.0,
+  "missing_dcfs": [],
+  "breakdown_msv": {
+    "Pu-239": 77041.73283222117,
+    "I-131": 51658.03446598283,
+    "Cs-137": 42228.75156423352,
+    "Sr-90": 16901.465163774366,
+    "Xe-133": 1209.6738291111717
+  }
+}

@@ -59,7 +59,7 @@
       "outputs": ["{workspaceRoot}/coverage/{projectRoot}"],
       "dependsOn": [
         {
-          "projects": ["solvers-praxis-node"],
+          "projects": ["solvers-praxis-node", "solvers-openrc-node"],
           "target": "build"
         }
       ],
@@ -71,7 +71,7 @@
       "executor": "@nx/jest:jest",
       "dependsOn": [
         {
-          "projects": ["solvers-praxis-node"],
+          "projects": ["solvers-praxis-node", "solvers-openrc-node"],
           "target": "build"
         }
       ],

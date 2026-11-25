@@ -239,14 +239,11 @@ export class WorkbookOracle {
     configuration: WorkbookModelAddress,
   ) {
     const mef = this.mef(configuration.workbookId);
-    const configurations = (mef["dependencyHclConfigurations"] ??
-      mef["hclConfigurations"]) as WorkbookHclConfiguration[];
+    const configurations = mef["hclConfigurations"] as WorkbookHclConfiguration[];
     this.configuration = configurations.find((row) => row.modelId === configuration.modelId)!;
     assert.ok(this.configuration, "Missing original HCL configuration");
     const owner = this.mef(this.configuration.bayesianNetwork.workbookId);
-    this.network = (
-      (owner["dependencyBayesianNetworks"] ?? owner["bayesianNetworks"]) as WorkbookBayesianNetwork[]
-    ).find((row) => row.modelId === this.configuration.bayesianNetwork.modelId)!;
+    this.network = (owner["bayesianNetworks"] as WorkbookBayesianNetwork[]).find((row) => row.modelId === this.configuration.bayesianNetwork.modelId)!;
     assert.ok(this.network, "Missing original BN");
   }
   private mef(id: string): Record<string, unknown> {

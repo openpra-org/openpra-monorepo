@@ -271,7 +271,7 @@ function onlyChild(parent: Element, tagName: string, required = false): Element 
   return elements[0];
 }
 
-function importBayesianNetworkXdsl(xml: string, current?: BayesianNetworkModel): BayesianNetworkModel {
+function importBayesianNetworkXdsl(xml: string): BayesianNetworkModel {
   const document = new DOMParser().parseFromString(xml, "application/xml");
   if (document.querySelector("parsererror") !== null) throw new Error("The XDSL file is not valid XML.");
   const root = document.documentElement;
@@ -299,7 +299,7 @@ function importBayesianNetworkXdsl(xml: string, current?: BayesianNetworkModel):
         probabilities: tokens.map(Number),
       };
     }),
-  }, current);
+  });
   const extensions = onlyChild(root, "extensions");
   const genie = extensions === undefined ? undefined : onlyChild(extensions, "genie");
   const metadata = new Map((genie === undefined ? [] : genieNodes(genie)).map((node) => [node.getAttribute("id")?.trim(), node]));
@@ -458,10 +458,10 @@ function exportCanonicalBayesianNetworkJson(model: BayesianNetworkModel): string
   return stringifyJson(toCanonicalBayesianNetwork(model), 2)!;
 }
 
-function importBayesianNetworkJson(json: string, current?: BayesianNetworkModel): BayesianNetworkModel {
+function importBayesianNetworkJson(json: string): BayesianNetworkModel {
   const input: unknown = JSON.parse(json);
   if (input !== null && typeof input === "object" && "variables" in input) {
-    return fromCanonicalBayesianNetwork(input, current);
+    return fromCanonicalBayesianNetwork(input);
   }
   return validateInterchangeModel(input);
 }

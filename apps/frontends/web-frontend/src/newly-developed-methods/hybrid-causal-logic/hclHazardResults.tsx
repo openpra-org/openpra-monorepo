@@ -7,7 +7,7 @@ import type {
 import type { HclEventTreeViewLabels } from "./hclEventTreeResults";
 import { displayedSequenceName } from "./hclEventTreeResults";
 import { sequenceEndState } from "./hclResultLabels";
-import { formatScientific, formatPercentage, HclResultMetric } from "./hclResultMetrics";
+import { formatScientific, formatPercentage, HclResultMetric, HclUncertaintyResults } from "./hclResultMetrics";
 import { PagedResults, ResultNumber, formatResultNumber } from "../shared/resultPresentation";
 import { HclHazardExceedance } from "./hclSampleOutputs";
 
@@ -33,6 +33,7 @@ function sequenceIdentity(id: string, sequences: HazardSequenceLookup, labels: H
 }
 
 export function HclHazardSummary({ hazard }: { hazard: HclHazardConvolutionResult }) {
+  const scaled = hazard.annualizedFrequencyScale !== 1;
   return (
     <>
       <div
@@ -40,41 +41,35 @@ export function HclHazardSummary({ hazard }: { hazard: HclHazardConvolutionResul
         aria-label="Hazard convolution summary"
       >
         <HclResultMetric
-          label="Grid"
-          value={hazard.gridName}
-        />
-        <HclResultMetric
           label="Covered probability"
           value={formatPercentage(hazard.rawWeightSum)}
           exactValue={hazard.rawWeightSum}
           ratio={hazard.rawWeightSum}
         />
-        <HclResultMetric
-          label="Annual scale"
-          value={`${formatScientific(hazard.annualizedFrequencyScale)}/yr`}
-          exactValue={hazard.annualizedFrequencyScale}
-        />
-        <HclResultMetric
-          label="Weights"
-          value={hazard.normalizeWeights ? "Normalized" : "Raw"}
-          detail={`Applied weight sum ${String(hazard.convolutionWeightSum)}`}
-        />
         {hazard.targetKind === "FAULT_TREE" && (
           <>
             <HclResultMetric
               label="Convolved probability"
-              value={formatPercentage(hazard.convolvedProbability)}
+              value={formatScientific(hazard.convolvedProbability)}
               exactValue={hazard.convolvedProbability}
               ratio={hazard.convolvedProbability}
             />
-            <HclResultMetric
-              label="Integrated frequency"
-              value={`${formatScientific(hazard.integratedAnnualFrequency)}/yr`}
-              exactValue={hazard.integratedAnnualFrequency}
-            />
+            {scaled && (
+              <HclResultMetric
+                label="Integrated frequency"
+                value={`${formatScientific(hazard.integratedAnnualFrequency)}/yr`}
+                exactValue={hazard.integratedAnnualFrequency}
+              />
+            )}
           </>
         )}
       </div>
+      {hazard.targetKind === "FAULT_TREE" && hazard.uncertainty !== undefined && (
+        <>
+          <HclUncertaintyResults summary={hazard.uncertainty.convolvedProbability} label="Convolved probability" inline />
+          {scaled && <HclUncertaintyResults summary={hazard.uncertainty.integratedAnnualFrequency} annual label="Integrated frequency" inline />}
+        </>
+      )}
       {hazard.targetKind === "FAULT_TREE" && hazard.exceedance !== undefined && (
         <HclHazardExceedance points={hazard.exceedance} label="Top event" />
       )}

@@ -1,0 +1,183 @@
+{
+ "add_duplicate_node": {
+  "ok": false,
+  "error_type": "ValueError",
+  "error_message": "Duplicate node id in working model: 'A'."
+ },
+ "add_one_state": {
+  "ok": false,
+  "error_type": "ValueError",
+  "error_message": "Node 'C' must have at least two states."
+ },
+ "add_unknown_parent": {
+  "ok": false,
+  "error_type": "ValueError",
+  "error_message": "Node 'C' declares unknown parent id 'Z' during add_node."
+ },
+ "add_duplicate_parents": {
+  "ok": false,
+  "error_type": "ValueError",
+  "error_message": "Node 'C' has duplicate parent ids in add_node."
+ },
+ "add_states_converted": {
+  "ok": true,
+  "value": [
+   "1",
+   "2.5",
+   "True",
+   "None"
+  ]
+ },
+ "add_parents_sorted": {
+  "ok": true,
+  "value": [
+   "A",
+   "B"
+  ]
+ },
+ "has_node": {
+  "ok": true,
+  "value": [
+   true,
+   false
+  ]
+ },
+ "node_unknown": {
+  "ok": false,
+  "error_type": "KeyError",
+  "error_message": "\"Unknown node id in working model: 'Z'.\""
+ },
+ "mark_dirty_unknown": {
+  "ok": false,
+  "error_type": "KeyError",
+  "error_message": "\"Cannot mark unknown node 'Z' dirty.\""
+ },
+ "edge_unknown_parent": {
+  "ok": false,
+  "error_type": "KeyError",
+  "error_message": "\"Cannot add edge: unknown parent node 'Z'.\""
+ },
+ "edge_unknown_child": {
+  "ok": false,
+  "error_type": "KeyError",
+  "error_message": "\"Cannot add edge: unknown child node 'Z'.\""
+ },
+ "edge_self": {
+  "ok": false,
+  "error_type": "ValueError",
+  "error_message": "Self loop is not allowed: 'A' -> 'A'."
+ },
+ "edge_existing": {
+  "ok": true,
+  "value": false
+ },
+ "edge_new": {
+  "ok": true,
+  "value": true
+ },
+ "counts": {
+  "ok": true,
+  "value": [
+   2,
+   6,
+   1
+  ]
+ },
+ "regenerate_without_generator": {
+  "ok": false,
+  "error_type": "ValueError",
+  "error_message": "Node 'B' is dirty but has no CPD generator. Add a generator to support CPD regeneration."
+ },
+ "regenerate_wrong_size": {
+  "ok": false,
+  "error_type": "ValueError",
+  "error_message": "CPD generator size mismatch for 'A': got 1, expected 2."
+ },
+ "registry_empty_key": {
+  "ok": false,
+  "error_type": "ValueError",
+  "error_message": "Canonical key cannot be empty."
+ },
+ "registry_empty_node": {
+  "ok": false,
+  "error_type": "ValueError",
+  "error_message": "Node id cannot be empty."
+ },
+ "registry_remap_key": {
+  "ok": false,
+  "error_type": "ValueError",
+  "error_message": "Key 'k' already mapped to node 'A', cannot remap to 'B'."
+ },
+ "registry_rebind_node": {
+  "ok": false,
+  "error_type": "ValueError",
+  "error_message": "Node id 'A' already bound to key 'k', cannot bind to 'j'."
+ },
+ "registry_same_again": {
+  "ok": true,
+  "value": [
+   "k",
+   "A",
+   true,
+   false,
+   "A",
+   "k"
+  ]
+ },
+ "registry_unknown_key": {
+  "ok": false,
+  "error_type": "KeyError",
+  "error_message": "\"Unknown canonical key: 'zz'.\""
+ },
+ "registry_unknown_node": {
+  "ok": false,
+  "error_type": "KeyError",
+  "error_message": "\"Unknown node id: 'zz'.\""
+ },
+ "registry_unknown_key_with_quote": {
+  "ok": false,
+  "error_type": "KeyError",
+  "error_message": "'Unknown canonical key: \\'it\\'s \"x\"\\'.'"
+ },
+ "disc_has": {
+  "ok": true,
+  "value": [
+   true,
+   false,
+   true,
+   false
+  ]
+ },
+ "disc_states": {
+  "ok": true,
+  "value": [
+   [
+    "a",
+    "b"
+   ],
+   [
+    "u",
+    "v",
+    "w"
+   ],
+   [
+    0.1,
+    0.2
+   ]
+  ]
+ },
+ "disc_unknown_states": {
+  "ok": false,
+  "error_type": "KeyError",
+  "error_message": "\"Unknown discretization set: 'Z'.\""
+ },
+ "disc_unknown_centers": {
+  "ok": false,
+  "error_type": "KeyError",
+  "error_message": "\"Discretization set 'W' has no centers defined.\""
+ },
+ "disc_none": {
+  "ok": true,
+  "value": false
+ }
+}

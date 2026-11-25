@@ -395,21 +395,27 @@ fn run_pre_event_tree_impl(
         if verbose {
             eprintln!("Computing top event probability using BDD...");
         }
-        let (_pdag, _order, mut bdd_engine, root) = build_pdag_and_bdd(
-            &fault_tree,
-            cli_build_options(cli),
-            cli.effective_variable_order(),
-        )?;
         let p = if cli.limit_order.is_some() || cli.cut_off.is_some() {
-            bdd_engine.probability_with_limits(
+            let (_pdag, _order, mut bdd_engine, root) = build_pdag_and_bdd(
+                &fault_tree,
+                cli_build_options(cli),
+                cli.effective_variable_order(),
+            )?;
+            let limited = bdd_engine.probability_with_limits(
                 root,
                 cli.limit_order.map(|n| n as usize),
                 cli.cut_off,
-            )
+            );
+            bdd_engine.freeze();
+            limited
         } else {
-            bdd_engine.probability(root)
+            let built = praxis::algorithms::build::build_merged_bdd_with_variable_order(
+                &fault_tree,
+                cli_build_options(cli),
+                cli.effective_variable_order(),
+            )?;
+            built.bdd.probability(built.root)
         };
-        bdd_engine.freeze();
         result.top_event_probability = p;
         if verbose {
             eprintln!("BDD analysis complete!");
@@ -961,19 +967,22 @@ pub fn run_post_event_tree(
             burn_in: cli.burn_in,
         };
 
+        let is_max_events = cli
+            .is_max_events
+            .map_or(usize::MAX, |events| events as usize);
         let vrt = match cli.vrt {
             CliVrt::None => VrtSettings::none(),
             CliVrt::Importance => VrtSettings {
                 mode: VrtMode::ImportanceSampling,
                 is_bias_factor: cli.is_bias_factor,
-                is_max_events: cli.is_max_events as usize,
+                is_max_events,
                 is_q_min: cli.is_q_min,
                 stratify_events: cli.stratify_events as usize,
             },
             CliVrt::Stratified => VrtSettings {
                 mode: VrtMode::StratifiedSampling,
                 is_bias_factor: cli.is_bias_factor,
-                is_max_events: cli.is_max_events as usize,
+                is_max_events,
                 is_q_min: cli.is_q_min,
                 stratify_events: cli.stratify_events as usize,
             },

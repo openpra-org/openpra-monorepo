@@ -1,5 +1,6 @@
 import { BadRequestException } from "@nestjs/common";
 import { FaultTreeValidateResultSchema } from "interfaces-shared-types/newly-developed-methods/fault-tree";
+import { createWorkbookPatch } from "interfaces-shared-types/workbooks";
 import { carriesUncertainExpression } from "interfaces-mef-types/sy/systems-analysis";
 import { SY_ANALYSIS } from "../../example-workbooks/seeds/sy-seed";
 import { SyWorkbooksService } from "../sy-workbooks.service";
@@ -86,6 +87,30 @@ describe("SY fault-tree validation", () => {
     document.mef.systemBasicEvents[componentIndex]!.quantificationBasis = structuredClone(legacyBasis);
     await expect(service.findOne("sy-workbook", { username: "reviewer" })).rejects.toThrow("This workbook was saved in an older format and could not be converted. Workbook sy-workbook. The server log has the details.");
     expect(document.revision).toBe(7);
+  });
+
+  it("keeps a fault tree when its top gate is cleared and set again", async () => {
+    const { service } = serviceFixture();
+    const saved = (await service.findOne("sy-workbook", { username: "reviewer" })).mef;
+    const index = saved.systemLogicModels.findIndex(({ topGate, gates }) => topGate !== null && gates.length > 1);
+    expect(index).toBeGreaterThanOrEqual(0);
+    const tree = saved.systemLogicModels[index]!;
+    const cleared = structuredClone(saved);
+    cleared.systemLogicModels[index] = { ...tree, topGate: null };
+
+    const afterClear = await service.patchMef("sy-workbook", {
+      expectedRevision: 7,
+      operations: createWorkbookPatch(saved, cleared),
+    }, { username: "reviewer" });
+    expect(afterClear.mef.systemLogicModels[index]).toEqual({ ...tree, topGate: null });
+    const reread = await service.findOne("sy-workbook", { username: "reviewer" });
+    expect(reread.mef.systemLogicModels[index]).toEqual({ ...tree, topGate: null });
+
+    const afterRestore = await service.patchMef("sy-workbook", {
+      expectedRevision: 8,
+      operations: createWorkbookPatch(cleared, saved),
+    }, { username: "reviewer" });
+    expect(afterRestore.mef.systemLogicModels[index]).toEqual(tree);
   });
 
   it("returns the versioned server-authoritative analysis-ready result", async () => {

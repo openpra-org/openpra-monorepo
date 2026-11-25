@@ -1,12 +1,13 @@
 use crate::cli::args::{Algorithm, Args, Backend, CutOffBasis, OutputFormat, Vrt};
 use crate::cli::event_tree;
 use crate::cli::fault_tree;
-use crate::cli::output::{writer_stdout, writer_vec};
+use crate::cli::output::{finish_stdout, writer_stdout, writer_vec};
+use praxis::analysis::merged_model::merge_same_role_events;
 use praxis::io::ftc::serialize_saphire_v2;
 use praxis::io::parser::{parse_any_mef, ParsedInput};
 use praxis::io::pbf::{decode_fault_tree, encode_fault_tree};
 use praxis::io::reporter::{write_comprehensive_report, AnalysisReport, EventTreeMonteCarloReport};
-use praxis::io::serializer::{write_results, write_results_with_monte_carlo};
+use praxis::io::serializer::{write_merged_events, write_results, write_results_with_monte_carlo};
 use std::fs;
 
 pub fn run(cli: Args) -> Result<(), Box<dyn std::error::Error>> {
@@ -298,6 +299,51 @@ pub fn run(cli: Args) -> Result<(), Box<dyn std::error::Error>> {
         return Ok(());
     }
 
+    if let Some(output_path) = cli.export_merged_model_pbf.as_deref() {
+        let fault_tree = match &parsed_input {
+            ParsedInput::FaultTree(fault_tree) => fault_tree,
+            ParsedInput::EventTreeModel(_) => {
+                return Err(
+                    "--export-merged-model-pbf currently requires a fault-tree input".into(),
+                );
+            }
+        };
+        let merged = merge_same_role_events(fault_tree)?;
+        let model = encode_fault_tree(&merged.fault_tree)?;
+        fs::write(output_path, model).map_err(|error| {
+            format!(
+                "Failed to write PBF model file '{}': {error}",
+                output_path.display()
+            )
+        })?;
+        let model_name = fault_tree.element().id();
+        match cli.output_file.as_deref() {
+            Some(list_path) => {
+                let mut writer = writer_vec();
+                write_merged_events(&mut writer, model_name, &merged.merged_events)?;
+                fs::write(list_path, writer.into_inner()).map_err(|error| {
+                    format!(
+                        "Failed to write merged event list '{}': {error}",
+                        list_path.display()
+                    )
+                })?;
+            }
+            None => {
+                let mut writer = writer_stdout();
+                write_merged_events(&mut writer, model_name, &merged.merged_events)?;
+                finish_stdout(writer)?;
+            }
+        }
+        if verbose {
+            eprintln!(
+                "Merged PBF model written to: {} ({} merged events)",
+                output_path.display(),
+                merged.merged_events.len()
+            );
+        }
+        return Ok(());
+    }
+
     if let Some(request_path) = cli.hcl_request.as_deref() {
         let fault_tree = match parsed_input {
             ParsedInput::FaultTree(fault_tree) => fault_tree,
@@ -399,7 +445,7 @@ pub fn run(cli: Args) -> Result<(), Box<dyn std::error::Error>> {
 
     let fault_tree = outputs.fault_tree;
     let result = outputs.result;
-    let computed_cut_sets = outputs.computed_cut_sets;
+    let mut computed_cut_sets = outputs.computed_cut_sets;
     let computed_monte_carlo = outputs.computed_monte_carlo;
     let computed_monte_carlo_config = outputs.computed_monte_carlo_config;
 
@@ -482,8 +528,8 @@ pub fn run(cli: Args) -> Result<(), Box<dyn std::error::Error>> {
 
             if computed_cut_sets.is_some() || !computed_event_tree_monte_carlo.is_empty() {
                 let mut report = AnalysisReport::new(result.clone());
-                if let Some(ref cut_sets) = computed_cut_sets {
-                    report = report.with_cut_sets(cut_sets.clone());
+                if let Some(cut_sets) = computed_cut_sets.take() {
+                    report = report.with_cut_sets(cut_sets);
                 }
                 if let Some(ref mc) = computed_monte_carlo {
                     report = report.with_monte_carlo(mc.clone());
@@ -507,6 +553,7 @@ pub fn run(cli: Args) -> Result<(), Box<dyn std::error::Error>> {
             } else {
                 write_results(&mut writer, &fault_tree, &result)?;
             }
+            finish_stdout(writer)?;
         }
     }
 

@@ -1,0 +1,6 @@
+Loading config: input/BadMetFile.txt
+  case_name : bad_met_file
+  mode      : lmp
+  geometry  : centerline
+  nuclides  : 3
+  segments  : 1

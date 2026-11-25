@@ -476,6 +476,7 @@ sequence builder and are hidden in the ET editor. While traversing a BDD:
 - Unbound events `C`, `D`, and `E` use their independent catalogue probabilities.
 - Taking a bound event's true or false branch adds the corresponding allowed or excluded BN states to the current path context.
 - TensorBayes evaluates subsequent BN probabilities under that complete context, preserving dependency.
+- A restriction that cannot change an answer (its BN node is d-separated from the queried node given the evidence and the other restrictions) is left out of that query and of the cache key. The value is the same and far fewer network calibrations are needed.
 
 At a bound BDD variable `x`, HCL evaluates:
 
@@ -580,8 +581,45 @@ The web backend retains both the result and the exact revisions of the ET, FT, B
 
 End-state totals sum sequence frequencies. This is the approved sequence-based
 method: there is no combined end-state BDD or general Boolean disjointness check.
-The example's four paths are mutually exclusive. Cut sets and importance are
-absent from this application execution path.
+The example's four paths are mutually exclusive.
+
+A dependency probability run can also give the importance of each basic event.
+Set Importance to On in the Dependencies tab of ESQ Step 05. Each sequence,
+end state and fault tree result then has an Importance button. It opens Fussell-Vesely,
+Birnbaum, RAW, RRW and criticality for every basic event, most important
+first. For an event that depends on the network the values answer what the
+risk is when that event is known to have occurred or not occurred, so the
+events that depend on it move with it. A dash marks a value that is not
+defined, for example for an event that is certain under the evidence.
+
+With Uncertainty as the result, Importance also asks for Events sampled for
+importance. The leading events by the point Fussell-Vesely value then get a
+mean, a median and a 5th to 95th range for each measure, picked with the
+Measure list in the importance window.
+
+Hazard convolution can run with Uncertainty as well. Every sample is convolved
+over the grid with the hazard weights of that sample, and the grid tables show
+the mean, the median and the 5th to 95th range of the integrated frequency.
+
+A dependency probability run can also rank the cut sets of each sequence. In
+the Dependencies tab of ESQ Step 05, quantify Event trees, keep Probability as
+the result, and set Ranked cut sets to Failed events or to Failed events and
+success branches. A
+click on a sequence then opens its cut sets, ranked by their probability under
+the network for the chosen evidence. With a hazard grid, the grid table opens
+the hazard-weighted ranking. Maximum cut set order and Cut set cutoff limit the
+list on very large sequences. The cutoff keeps the cut sets whose probability
+under the network reaches it, so it gives the same list as the full ranking cut
+at that value.
+
+Causes per cut set adds a cause trace. The cut set window then shows a Causes
+column, and a click on it lists the network nodes whose state the cut set
+shifts most, with the probability of that state without and with the cut set.
+
+A fault tree dependency run can rank its cut sets too. In the same tab,
+quantify Fault trees and set Ranked cut sets to Failed events, with the same
+Cut sets kept, Maximum cut set order and Cut set cutoff. The result then shows a Ranked cut
+sets button, for each scenario and for the hazard grid as well.
 
 Results retain point-pass BDD, junction-tree and cache diagnostics. Their display,
 CSV export and historical-run behavior are documented in the

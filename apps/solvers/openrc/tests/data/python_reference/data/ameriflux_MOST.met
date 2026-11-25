@@ -1,0 +1,21 @@
+# OpenRC sequential met data — US-Dk1 AmeriFlux (Duke Forest Open Field)
+# 12 records sampled uniformly across the 0.5–6 m/s wind speed range.
+# All records pass quality filters: sigma < 5 m/s, u* > 0.01 m/s, WS > 0.1 m/s.
+# Stability class derived via Golder (1972) from measured Obukhov length (z=3.8 m).
+# sigma_v and sigma_w are direct half-hourly eddy-covariance measurements.
+# mixing_height_m is not measured at this site; left blank (config value used).
+#
+# Columns: stability_class, wind_speed_m_s, wind_dir_deg, u_star_m_s, mixing_height_m, sigma_v_m_s, sigma_w_m_s
+stability_class,wind_speed_m_s,wind_dir_deg,u_star_m_s,mixing_height_m,sigma_v_m_s,sigma_w_m_s
+D,0.50,182.0,0.0680,,0.2970,0.0920
+D,0.75,187.0,0.0410,,0.4490,0.1250
+D,1.00,329.0,0.1250,,0.3270,0.1580
+D,1.26,302.1,0.3390,,1.0390,0.4790
+D,1.58,293.0,0.2210,,0.5430,0.3060
+D,2.00,102.0,0.1990,,0.6920,0.2830
+D,2.38,95.5,0.1630,,0.4490,0.1770
+D,3.00,291.0,0.4220,,1.4330,0.5050
+D,3.35,227.0,0.2380,,1.3960,0.5580
+D,4.00,296.0,0.5420,,1.5150,0.6780
+D,5.00,325.0,0.5920,,1.8270,0.7800
+D,6.03,324.0,0.6640,,2.0010,0.8700

@@ -16,6 +16,7 @@ import { WorkbookElementRegistry } from "./workbook-element-registry";
 import { WorkbookModelAccessService } from "./workbook-model-access.service";
 import { UncertaintyMigrationService } from "./uncertainty-migration.service";
 import { EsNetworkMigrationService } from "./es-network-migration.service";
+import { SyNetworkMigrationService } from "./sy-network-migration.service";
 import { SyWorkbook, SyWorkbookSchema } from "../sy-workbooks/sy-workbook.schema";
 import { DaWorkbook, DaWorkbookSchema } from "../da-workbooks/da-workbook.schema";
 import { EsqWorkbook, EsqWorkbookSchema } from "../esq-workbooks/esq-workbook.schema";
@@ -68,6 +69,7 @@ import { UncertaintyService } from "../newly-developed-methods/shared/uncertaint
     UncertaintyService,
     UncertaintyMigrationService,
     EsNetworkMigrationService,
+    SyNetworkMigrationService,
   ],
   exports: [
     MongooseModule,

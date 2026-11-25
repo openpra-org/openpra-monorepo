@@ -1,0 +1,19 @@
+Loading config: input/ZeroDose.txt
+  case_name : zero_dose
+  mode      : lmp
+  geometry  : centerline
+  nuclides  : 3
+  segments  : 1
+  met       : single trial  (class D, 3.0 m/s)
+
+Total released activity : 0.000e+00 Bq  (0 nuclide-segment pairs)
+
+
+============================================================
+  TEDE             : 0.0000 mSv  (0.0000e+00 Sv)
+  chi/Q            : 4.1302e-05 s/m³
+  Ground dep total : 0.0000e+00 Bq/m²
+  LMP TEDE (756 m) : 0.0000 mSv  (30-day at EAB)
+============================================================
+
+Results written to: outputs\zero_dose\zero_dose_results.json

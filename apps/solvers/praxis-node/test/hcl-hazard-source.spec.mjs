@@ -106,7 +106,7 @@ test("annual unit conversion preserves unscaled probability", () => {
 });
 
 for (const eventTree of [false, true]) for (const sampler of ["MC", "LHS"]) {
-  test(`blocks ${sampler} hazard uncertainty while retaining scenario UQ: ${eventTree ? "ET" : "FT"}`, () => {
+  test(`samples ${sampler} hazard uncertainty and keeps scenario UQ: ${eventTree ? "ET" : "FT"}`, () => {
     const r = request(fixture.cases[0], eventTree);
     r.modelSnapshots[0].baseEvidence.observations = [{nodeId: "N", stateId: "False"}];
     r.request.calculationType = "UNCERTAINTY";
@@ -115,10 +115,15 @@ for (const eventTree of [false, true]) for (const sampler of ["MC", "LHS"]) {
       basicEvents: [{faultTreeBasicEvent: {entityId: "E"}, expression: {node: "VALUE", value: {unit: "PROBABILITY", law: {family: "UNIFORM", lower: .1, upper: .3}}}}],
       cptRows: [],
     };
-    for (const operation of ["validate", "execute"]) {
-      const output = JSON.parse(addon[operation](JSON.stringify(r)));
-      assert.match(output.error.message, /Hazard convolution supports point runs only/);
-      assert.equal(output.result, undefined);
+    assert.equal(JSON.parse(addon.validate(JSON.stringify(r))).error, undefined);
+    const sampled = JSON.parse(addon.execute(JSON.stringify(r)));
+    assert.equal(sampled.error, undefined, JSON.stringify(sampled));
+    const totals = eventTree ? sampled.result.hazardConvolution.sequences : [sampled.result.hazardConvolution];
+    for (const total of totals) {
+      const summary = total.uncertainty.convolvedProbability;
+      assert.equal(summary.sampleCount, 10);
+      assert.ok(summary.minimum <= summary.mean && summary.mean <= summary.maximum);
+      assert.ok(total.uncertainty.integratedAnnualFrequency.mean >= 0);
     }
     delete r.request.hazardConvolution;
     const ordinary = JSON.parse(addon.execute(JSON.stringify(r)));

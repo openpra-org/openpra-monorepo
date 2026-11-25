@@ -536,7 +536,7 @@ const validateBayesianNetworkHclBindings = (
       issues.push({
         code: "BN_HCL_MODEL_MISMATCH",
         severity: "ERROR",
-        message: "The HCL binding must reference this Bayesian-network model",
+        message: "The dependency binding must reference this Bayesian-network model",
         entityId: binding.id,
         fieldPath: ["bindings", bindingIndex, "bayesianNetworkNode", "modelId"],
       });
@@ -550,8 +550,8 @@ const validateBayesianNetworkHclBindings = (
         severity: "ERROR",
         message:
           matchingNodes.length === 0
-            ? "The HCL binding node reference does not resolve to a node"
-            : "The HCL binding node reference must resolve to exactly one node",
+            ? "The dependency binding node reference does not resolve to a node"
+            : "The dependency binding node reference must resolve to exactly one node",
         entityId: binding.bayesianNetworkNode.entityId,
         fieldPath: ["bindings", bindingIndex, "bayesianNetworkNode", "entityId"],
       });
@@ -563,7 +563,7 @@ const validateBayesianNetworkHclBindings = (
       issues.push({
         code: "BN_HCL_TRUE_STATES_REQUIRED",
         severity: "ERROR",
-        message: "An HCL binding must select at least one true state",
+        message: "A dependency binding must select at least one true state",
         entityId: binding.id,
         fieldPath: ["bindings", bindingIndex, "trueStateIds"],
       });
@@ -576,7 +576,7 @@ const validateBayesianNetworkHclBindings = (
         issues.push({
           code: "BN_HCL_TRUE_STATE_DUPLICATE",
           severity: "ERROR",
-          message: "An HCL true-state selection cannot contain duplicate states",
+          message: "A dependency binding true-state selection cannot contain duplicate states",
           entityId: binding.id,
           fieldPath: ["bindings", bindingIndex, "trueStateIds", stateIndex],
         });
@@ -590,8 +590,8 @@ const validateBayesianNetworkHclBindings = (
           severity: "ERROR",
           message:
             matchingStates.length === 0
-              ? "The HCL true state does not belong to the bound node"
-              : "The HCL true state must resolve to exactly one state within the bound node",
+              ? "The dependency binding true state does not belong to the bound node"
+              : "The dependency binding true state must resolve to exactly one state within the bound node",
           entityId: stateId,
           fieldPath: ["bindings", bindingIndex, "trueStateIds", stateIndex],
         });
@@ -605,7 +605,7 @@ const validateBayesianNetworkHclBindings = (
       issues.push({
         code: "BN_HCL_TRUE_STATES_CANNOT_INCLUDE_ALL",
         severity: "ERROR",
-        message: "An HCL true-state selection cannot contain every state of the bound node",
+        message: "A dependency binding true-state selection cannot contain every state of the bound node",
         entityId: binding.id,
         fieldPath: ["bindings", bindingIndex, "trueStateIds"],
       });

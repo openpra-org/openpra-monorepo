@@ -16,12 +16,10 @@ import { useRcWorkbook } from "./rcWorkbookContext";
 import { RCIcon } from "./rcIcons";
 import "./css/rcMeteorology.css";
 
-type Tab = "records" | "dataset" | "quality" | "treatment" | "trials";
-const tabs: { id: Tab; label: string }[] = [
-  { id: "records", label: "Weather records" }, { id: "dataset", label: "Dataset" }, { id: "quality", label: "Quality basis" },
-  { id: "treatment", label: "Weather treatment" }, { id: "trials", label: "Generated trials" },
-];
+type Tab = "data" | "trials" | "quality";
+const tabs: { id: Tab; label: string }[] = [{ id: "data", label: "Weather data" }, { id: "trials", label: "Weather trials" }, { id: "quality", label: "Data quality" }];
 const stabilityClasses = ["A", "B", "C", "D", "E", "F", "G"] as const;
+const pageSize = 10;
 const scientific = (value: number) => value !== 0 && (Math.abs(value) >= 1e6 || Math.abs(value) < 1e-3);
 const show = (value: number | undefined) => value === undefined || !Number.isFinite(value) ? "—" : scientific(value) ? value.toExponential() : Number(value.toFixed(5)).toString();
 const inputValue = (value: number | undefined) => value === undefined ? "" : scientific(value) ? value.toExponential() : value;
@@ -52,7 +50,7 @@ export function RcMeteorologyPanel({ onReviewSite, onEditBasis, onEditQuality }:
   const reviewed = !dirty && weatherIsReviewed(weather, siteSettings, site?.geometry);
   const conflict = dirty && revision !== (saved?.revision ?? 0);
   const valid = RcWeatherSettingsSchema.safeParse(settings).success && RcWeatherModelSchema.safeParse(model).success;
-  const [source, setSource] = useState<"import" | "collect">("import"), [tab, setTab] = useState<Tab>("records");
+  const [source, setSource] = useState<"import" | "collect">("import"), [tab, setTab] = useState<Tab>("data");
   const [recordPage, setRecordPage] = useState(0), [trialPage, setTrialPage] = useState(0), [selectedRecord, setSelectedRecord] = useState(0);
   const [records, setRecords] = useState<RcWeatherPage>(), [trials, setTrials] = useState<RcWeatherTrialPage>();
   const [busy, setBusy] = useState(false), [loadingRecords, setLoadingRecords] = useState(false), [loadingTrials, setLoadingTrials] = useState(false);
@@ -61,33 +59,37 @@ export function RcMeteorologyPanel({ onReviewSite, onEditBasis, onEditQuality }:
   const input = useRef<HTMLInputElement>(null), importKind = useRef<"weather" | "configuration">("weather"), tablist = useRef<HTMLDivElement>(null), id = useId();
   const disabled = !editable || !actions || busy, request = weather.collectionRequest, datesDraft = editable ? weatherDates : undefined;
   const dates = datesDraft ?? (request ? { start: request.start, end: request.end } : { start: "", end: "" });
-  const recordOffset = Math.min(recordPage, Math.max(0, Math.ceil((data?.recordCount ?? 0) / 6) - 1)) * 6;
-  const trialOffset = Math.min(trialPage, Math.max(0, Math.ceil((trialSet?.trialCount ?? 0) / 6) - 1)) * 6;
+  const recordOffset = Math.min(recordPage, Math.max(0, Math.ceil((data?.recordCount ?? 0) / pageSize) - 1)) * pageSize;
+  const trialOffset = Math.min(trialPage, Math.max(0, Math.ceil((trialSet?.trialCount ?? 0) / pageSize) - 1)) * pageSize;
 
   useEffect(() => { setRecordPage(0); setSelectedRecord(0); setRaw(undefined); }, [weather.weatherFile?.documentId]);
   useEffect(() => { setTrialPage(0); }, [trialSet?.generatedAt]);
+  const recordList = tab === "data" && saved?.weatherFile ? `${saved.weatherFile.documentId}/${saved.revision}` : "";
+  const trialList = tab === "trials" && trialSet && !dirty ? `${trialSet.generatedAt}/${saved?.revision ?? 0}` : "";
+  useEffect(() => { setRecords(undefined); }, [recordList]);
+  useEffect(() => { setTrials(undefined); }, [trialList]);
   useEffect(() => {
     let cancelled = false;
-    setRecords(undefined); setLoadError("");
-    if (tab !== "records" || !saved?.weatherFile || !actions) { setLoadingRecords(false); return; }
+    setLoadError("");
+    if (tab !== "data" || !saved?.weatherFile || !actions) { setLoadingRecords(false); return; }
     setLoadingRecords(true);
-    void actions.readRecords(recordOffset).then(result => {
+    void actions.readRecords(recordOffset, pageSize).then(result => {
       if (cancelled) return;
-      if (result.revision !== saved.revision) { setLoadError("Weather inputs changed. Reload the workbook."); return; }
+      if (result.revision !== saved.revision) { setRecords(undefined); setLoadError("Weather inputs changed. Reload the workbook."); return; }
       setRecords(result); setSelectedRecord(0);
-    }).catch(error => { if (!cancelled) setLoadError(failureMessage(error)); }).finally(() => { if (!cancelled) setLoadingRecords(false); });
+    }).catch(error => { if (!cancelled) { setRecords(undefined); setLoadError(failureMessage(error)); } }).finally(() => { if (!cancelled) setLoadingRecords(false); });
     return () => { cancelled = true; };
   }, [actions, recordOffset, retry, saved?.revision, saved?.weatherFile, tab]);
   useEffect(() => {
     let cancelled = false;
-    setTrials(undefined); setLoadError("");
+    setLoadError("");
     if (tab !== "trials" || !trialSet || !actions || dirty) { setLoadingTrials(false); return; }
     setLoadingTrials(true);
-    void actions.readTrials(trialOffset).then(result => {
+    void actions.readTrials(trialOffset, pageSize).then(result => {
       if (cancelled) return;
-      if (result.revision !== saved?.revision) { setLoadError("Weather inputs changed. Reload the workbook."); return; }
+      if (result.revision !== saved?.revision) { setTrials(undefined); setLoadError("Weather inputs changed. Reload the workbook."); return; }
       setTrials(result);
-    }).catch(error => { if (!cancelled) setLoadError(failureMessage(error)); }).finally(() => { if (!cancelled) setLoadingTrials(false); });
+    }).catch(error => { if (!cancelled) { setTrials(undefined); setLoadError(failureMessage(error)); } }).finally(() => { if (!cancelled) setLoadingTrials(false); });
     return () => { cancelled = true; };
   }, [actions, dirty, retry, saved?.revision, tab, trialOffset, trialSet]);
 
@@ -197,25 +199,24 @@ export function RcMeteorologyPanel({ onReviewSite, onEditBasis, onEditQuality }:
           setTab(tabs[next].id); tablist.current?.querySelectorAll<HTMLButtonElement>("button")[next].focus();
         }}>
           {tabs.map(item => <button type="button" key={item.id} id={`${id}-${item.id}`} role="tab" aria-selected={tab === item.id} aria-controls={`${id}-panel`} tabIndex={tab === item.id ? 0 : -1} onClick={() => { setTab(item.id); setRaw(undefined); }}>
-            {item.label}{item.id === "records" && data && <span className="mw-count"> {data.recordCount}</span>}{item.id === "trials" && trialSet && <span className="mw-count"> {trialSet.trialCount}</span>}
+            {item.label}{item.id === "data" && data && <span className="mw-count"> {data.recordCount}</span>}{item.id === "trials" && trialSet && <span className="mw-count"> {trialSet.trialCount}</span>}
           </button>)}
         </div>
         <div id={`${id}-panel`} role="tabpanel" aria-labelledby={`${id}-${tab}`} tabIndex={0}>
-          {tab === "records" && <>{fileBox("weather")}{!data ? <p className="mw-empty">No weather records.</p> : <>
+          {tab === "data" && <>{fileBox("weather")}{fileBox("configuration")}{data && <>
             <div className="mw-section-title"><h3>Imported records</h3></div>
             <div className="mw-meta"><span>{data.intervalMinutes}-minute averages</span><span>{recordRange(data)}</span>{data.gaps > 0 && <span>{data.gaps} gaps · {data.missingPeriods} missing periods</span>}</div>
-            {loadingRecords && <p role="status" className="mw-note">Loading records…</p>}
+            {loadingRecords && !records && <p role="status" className="mw-note">Loading records…</p>}
             {loadError && <p className="mw-error" role="alert">{loadError} <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => setRetry(retry + 1)}>Retry</button></p>}
             {records && <><table className="mw-records-table" aria-label="Weather records"><thead><tr><th>Day / period</th><th>Wind (m/s)</th><th>Wind toward (°)</th><th>Stability</th></tr></thead><tbody>
-              {records.records.map((record, index) => <tr key={`${record.day}-${record.period}`} data-selected={index === selectedRecord}><td><button type="button" className="posnav__btn posnav__btn--sm posnav__btn--ghost" aria-label={`Inspect weather record ${recordOffset + index + 1}`} aria-pressed={index === selectedRecord} onClick={() => setSelectedRecord(index)}>{record.day} / {record.period}</button></td><td>{show(record.windSpeedMetresPerSecond)}</td><td>{show(windToward(record, count))}</td><td>{record.stabilityClass}</td></tr>)}
-            </tbody></table><div className="mw-pagination"><span>{recordOffset + 1} to {Math.min(recordOffset + 6, data.recordCount)} of {data.recordCount} records</span><div><button type="button" className="posnav__btn posnav__btn--sm" disabled={!recordOffset} onClick={() => setRecordPage(recordPage - 1)}>Previous</button><button type="button" className="posnav__btn posnav__btn--sm" disabled={recordOffset + 6 >= data.recordCount} onClick={() => setRecordPage(recordPage + 1)}>Next</button></div></div></>}
-            {row && <div className="mw-detail"><strong>Record {recordOffset + selectedRecord + 1} · day {row.day}, period {row.period}</strong><dl>
+              {records.records.map((record, index) => <tr key={`${record.day}-${record.period}`} data-selected={index === selectedRecord}><td><button type="button" className="posnav__btn posnav__btn--sm posnav__btn--ghost" aria-label={`Inspect weather record ${records.offset + index + 1}`} aria-pressed={index === selectedRecord} onClick={() => setSelectedRecord(index)}>{record.day} / {record.period}</button></td><td>{show(record.windSpeedMetresPerSecond)}</td><td>{show(windToward(record, count))}</td><td>{record.stabilityClass}</td></tr>)}
+            </tbody></table><div className="mw-pagination"><span>{records.offset + 1} to {Math.min(records.offset + pageSize, data.recordCount)} of {data.recordCount} records</span><div><button type="button" className="posnav__btn posnav__btn--sm" disabled={!recordOffset} onClick={() => setRecordPage(recordPage - 1)}>Previous</button><button type="button" className="posnav__btn posnav__btn--sm" disabled={recordOffset + pageSize >= data.recordCount} onClick={() => setRecordPage(recordPage + 1)}>Next</button></div></div></>}
+            {row && <div className="mw-detail"><strong>Record {(records?.offset ?? recordOffset) + selectedRecord + 1} · day {row.day}, period {row.period}</strong><dl>
               <div><dt>Original wind sector</dt><dd>{row.windSector} of {count ?? "—"}</dd></div><div><dt>Wind comes from</dt><dd>{show(toward === undefined ? undefined : (toward + 180) % 360)}°</dd></div>
               <div><dt>Rain</dt><dd>{row.rainMillimetresPerHour === null ? "Trace" : `${show(row.rainMillimetresPerHour)} mm/h`}</dd></div><div><dt>Mixing height</dt><dd>{row.mixingHeightMetres === undefined ? "Seasonal" : `${show(row.mixingHeightMetres)} m`}</dd></div>
             </dl><details><summary>Original record</summary><pre>{row.original}</pre></details></div>}
-          </>}</>}
-
-          {tab === "dataset" && <>{fileBox("configuration")}<div className="mw-section-title"><h3>{config ? "Extracted settings" : "Weather source"}</h3></div>
+          </>}
+            <div className="mw-section-title"><h3>{config ? "Extracted settings" : "Weather source"}</h3></div>
             {!config && <div className="mw-fields">{field("Latitude (°)", "latitude", -90, 90)}{field("Longitude (°)", "longitude", -180, 180)}{field("Data year", "year", 1000, 9999)}
               <label>Wind direction sectors{data?.windSectors !== undefined || config ? <WorkbookInput className="posfield__input posmono" aria-label="Wind direction sectors" readOnly value={count ?? ""} /> :
                 <select className="posfield__select" aria-label="Wind direction sectors" disabled={disabled} value={settings.windSectors ?? ""} onChange={event => editSettings({ windSectors: event.target.value ? Number(event.target.value) as RcWindSectors : undefined })}><option value="">Choose sectors</option>{[16, 32, 48, 64].map(value => <option key={value} value={value}>{value}</option>)}</select>}
@@ -228,17 +229,7 @@ export function RcMeteorologyPanel({ onReviewSite, onEditBasis, onEditQuality }:
             </div>
           </>}
 
-          {tab === "quality" && <>
-            <div className="mw-section-title"><h3>Source and period</h3>{editable && onEditBasis && <button type="button" className="posnav__btn posnav__btn--sm" onClick={onEditBasis}><RCIcon.Settings /> Edit</button>}</div>
-            {reviewTable("Source and period", [{ label: "Data source", value: sourceDescription }, { label: "Spatial representativeness", value: analysis.spatialRepresentativenessJustification }, { label: "Period-selection approach", value: periodApproach }, { label: "Period-selection basis", value: periodDescription }])}
-            <div className="mw-section-title"><h3>Measurements</h3></div>
-            {reviewTable("Measurements", [{ label: "Wind", value: isConstant ? `${show(constant.windSpeedMetresPerSecond)} m/s` : data || analysis.extractedParameters.windSpeedAndDirection10m ? "Supplied" : "Not confirmed" }, { label: "Stability", value: isConstant ? constant.stabilityClass ?? "Not supplied" : data || analysis.extractedParameters.stabilityClassMeasurement ? "Supplied" : "Not confirmed" }, { label: "Precipitation", value: isConstant ? `${show(constant.rainMillimetresPerHour)} mm/h` : data || analysis.extractedParameters.precipitation ? "Supplied" : "Not confirmed" }, { label: "Mixing height", value: isConstant ? `${show(constant.mixingHeightMetres)} m` : data?.mixingHeightMode === "per_record" ? "Each weather record" : data?.mixingHeightMode === "seasonal" || config ? "Seasonal values" : "Not supplied" }])}
-            <div className="mw-section-title"><h3>Quality controls</h3>{editable && onEditQuality && <button type="button" className="posnav__btn posnav__btn--sm" onClick={onEditQuality}><RCIcon.Settings /> Edit</button>}</div>
-            {reviewTable("Quality controls", [...(isConstant ? [] : [{ label: "Instrumentation program", value: analysis.instrumentationQuality?.calibratedProgram ? "Calibrated and maintained" : "Not confirmed" }, { label: "Instrumentation basis", value: analysis.instrumentationQuality?.description ?? "" }]), { label: "Accuracy review", value: analysis.accuracyReview.performed ? "Performed" : "Not performed" }, { label: "Accuracy findings", value: analysis.accuracyReview.findings ?? "" }, ...(isConstant ? [] : [{ label: "Stability method", value: analysis.stabilityClassificationMethod.approach === "RECOGNIZED_SOURCE" ? "Recognized source" : "Simplified" }, { label: "Stability-method basis", value: stabilityDescription }]), { label: "Temporal treatment", value: analysis.temporalChangesAccommodation ?? "" }, { label: "Parameter uncertainty", value: analysis.parameterUncertaintyCharacterization ?? "" }])}
-            <details className="mw-checks"><summary>{qualityIssues.length ? `${qualityIssues.length} quality ${qualityIssues.length === 1 ? "item" : "items"} to complete` : "Quality basis complete"}</summary>{qualityIssues.length > 0 && <ul>{qualityIssues.map(issue => <li key={issue}>{issue}</li>)}</ul>}</details>
-          </>}
-
-          {tab === "treatment" && <><div className="mw-section-title"><h3>Trial selection</h3></div>
+          {tab === "trials" && <><div className="mw-section-title"><h3>Trial selection</h3></div>
             <div className="mw-fields mw-treatment-head"><label>Weather treatment<select className="posfield__select" aria-label="Weather treatment" disabled={disabled} value={treatment.mode} onChange={event => changeMode(event.target.value as RcWeatherModel["mode"])}>
               {Object.entries(weatherTreatmentNames).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
             </select></label>{treatment.mode !== "constant" && <label>Mixing-height treatment<select className="posfield__select" aria-label="Mixing-height treatment" disabled={disabled} value={treatment.mixingHeight ?? ""} onChange={event => editModel({ ...treatment, mixingHeight: event.target.value as NonNullable<RcWeatherModel["mixingHeight"]> })}>
@@ -268,16 +259,24 @@ export function RcMeteorologyPanel({ onReviewSite, onEditBasis, onEditQuality }:
               <label>Boundary stability<select className="posfield__select" aria-label="Boundary stability" disabled={disabled} value={boundary.stabilityClass ?? ""} onChange={event => editBoundary({ stabilityClass: event.target.value ? event.target.value as typeof stabilityClasses[number] : undefined })}><option value="">Choose class</option>{stabilityClasses.map(value => <option key={value}>{value}</option>)}</select></label>
               {modelNumber("Boundary rain rate", boundary.rainMillimetresPerHour, value => editBoundary({ rainMillimetresPerHour: value }), "mm/h", 0, 99)}{modelNumber("Boundary mixing height", boundary.mixingHeightMetres, value => editBoundary({ mixingHeightMetres: value }), "m", 100, 10000)}
             </div>}
+            {trialSet && !dirty && <div className="mw-generated">
+              <div className="mw-section-title"><h3>Generated trials</h3></div>{loadingTrials && !trials && <p role="status" className="mw-note">Loading trials…</p>}{loadError && <p className="mw-error" role="alert">{loadError} <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => setRetry(retry + 1)}>Retry</button></p>}
+              {trials && <><table className="mw-trials-table" aria-label="Generated weather trials"><thead><tr><th>Trial</th><th>Start</th><th>Group</th><th>Probability</th><th>Wind</th><th>Stability</th></tr></thead><tbody>{trials.trials.map(trial => <tr key={trial.id}><td>{trial.id}</td><td>{trial.source === "constant" ? "Constant" : `Day ${trial.day}, period ${trial.period}`}</td><td>{trial.selectionGroup}</td><td>{trial.probability.toExponential(4)}</td><td>{show(trial.windSpeedMetresPerSecond)} m/s · {show(trial.windTowardDegrees)}°</td><td>{trial.stabilityClass}</td></tr>)}</tbody></table>
+                <div className="mw-pagination"><span>{trials.offset + 1} to {Math.min(trials.offset + pageSize, trialSet.trialCount)} of {trialSet.trialCount} trials</span><div><button type="button" className="posnav__btn posnav__btn--sm" disabled={!trialOffset} onClick={() => setTrialPage(trialPage - 1)}>Previous</button><button type="button" className="posnav__btn posnav__btn--sm" disabled={trialOffset + pageSize >= trialSet.trialCount} onClick={() => setTrialPage(trialPage + 1)}>Next</button></div></div></>}
+              {trialSet.bins.length > 1 && <><div className="mw-section-title"><h3>Selection groups</h3></div><div className="mw-summary-scroll"><table aria-label="Weather trial selection groups"><thead><tr><th>Group</th><th>Records</th><th>Selected</th><th>Probability</th></tr></thead><tbody>{trialSet.bins.map(bin => <tr key={bin.id}><td>{bin.id} · {bin.label}</td><td>{bin.population}</td><td>{bin.selected}</td><td>{show(bin.probability)}</td></tr>)}</tbody></table></div></>}
+              {trialSet.windRose.length > 1 && <><div className="mw-section-title"><h3>Wind rose</h3></div><div className="mw-wind-rose">{trialSet.windRose.map(sector => <div key={sector.sector}><span>S{String(sector.sector).padStart(2, "0")} · {show(sector.towardDegrees)}°</span><i><b style={{ width: `${roseMax ? sector.probability / roseMax * 100 : 0}%` }} /></i><strong>{(sector.probability * 100).toFixed(2)}%</strong></div>)}</div></>}
+            </div>}
           </>}
 
-          {tab === "trials" && <>{!trialSet || dirty ? <p className="mw-empty">Save the weather treatment to generate trials.</p> : <>
-            {trialSet.boundary && <div className="mw-detail"><strong>Outer-grid weather from band {trialSet.boundary.startBand}</strong><dl><div><dt>Wind</dt><dd>{show(trialSet.boundary.windSpeedMetresPerSecond)} m/s</dd></div><div><dt>Stability</dt><dd>{trialSet.boundary.stabilityClass}</dd></div><div><dt>Rain</dt><dd>{show(trialSet.boundary.rainMillimetresPerHour)} mm/h</dd></div><div><dt>Mixing height</dt><dd>{show(trialSet.boundary.mixingHeightMetres)} m</dd></div></dl></div>}
-            <div className="mw-section-title"><h3>Weather trials</h3></div>{loadingTrials && <p role="status" className="mw-note">Loading trials…</p>}{loadError && <p className="mw-error" role="alert">{loadError} <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => setRetry(retry + 1)}>Retry</button></p>}
-            {trials && <><table className="mw-trials-table" aria-label="Generated weather trials"><thead><tr><th>Trial</th><th>Start</th><th>Group</th><th>Probability</th><th>Wind</th><th>Stability</th></tr></thead><tbody>{trials.trials.map(trial => <tr key={trial.id}><td>{trial.id}</td><td>{trial.source === "constant" ? "Constant" : `Day ${trial.day}, period ${trial.period}`}</td><td>{trial.selectionGroup}</td><td>{trial.probability.toExponential(4)}</td><td>{show(trial.windSpeedMetresPerSecond)} m/s · {show(trial.windTowardDegrees)}°</td><td>{trial.stabilityClass}</td></tr>)}</tbody></table>
-              <div className="mw-pagination"><span>{trialOffset + 1} to {Math.min(trialOffset + 6, trialSet.trialCount)} of {trialSet.trialCount} trials</span><div><button type="button" className="posnav__btn posnav__btn--sm" disabled={!trialOffset} onClick={() => setTrialPage(trialPage - 1)}>Previous</button><button type="button" className="posnav__btn posnav__btn--sm" disabled={trialOffset + 6 >= trialSet.trialCount} onClick={() => setTrialPage(trialPage + 1)}>Next</button></div></div></>}
-            {trialSet.bins.length > 1 && <><div className="mw-section-title"><h3>Selection groups</h3></div><div className="mw-summary-scroll"><table aria-label="Weather trial selection groups"><thead><tr><th>Group</th><th>Records</th><th>Selected</th><th>Probability</th></tr></thead><tbody>{trialSet.bins.map(bin => <tr key={bin.id}><td>{bin.id} · {bin.label}</td><td>{bin.population}</td><td>{bin.selected}</td><td>{show(bin.probability)}</td></tr>)}</tbody></table></div></>}
-            {trialSet.windRose.length > 1 && <><div className="mw-section-title"><h3>Wind rose</h3></div><div className="mw-wind-rose">{trialSet.windRose.map(sector => <div key={sector.sector}><span>S{String(sector.sector).padStart(2, "0")} · {show(sector.towardDegrees)}°</span><i><b style={{ width: `${roseMax ? sector.probability / roseMax * 100 : 0}%` }} /></i><strong>{(sector.probability * 100).toFixed(2)}%</strong></div>)}</div></>}
-          </>}</>}
+          {tab === "quality" && <>
+            <div className="mw-section-title"><h3>Source and period</h3>{editable && onEditBasis && <button type="button" className="posnav__btn posnav__btn--sm" onClick={onEditBasis}><RCIcon.Settings /> Edit</button>}</div>
+            {reviewTable("Source and period", [{ label: "Data source", value: sourceDescription }, { label: "Spatial representativeness", value: analysis.spatialRepresentativenessJustification }, { label: "Period-selection approach", value: periodApproach }, { label: "Period-selection basis", value: periodDescription }])}
+            <div className="mw-section-title"><h3>Measurements</h3></div>
+            {reviewTable("Measurements", [{ label: "Wind", value: isConstant ? `${show(constant.windSpeedMetresPerSecond)} m/s` : data || analysis.extractedParameters.windSpeedAndDirection10m ? "Supplied" : "Not confirmed" }, { label: "Stability", value: isConstant ? constant.stabilityClass ?? "Not supplied" : data || analysis.extractedParameters.stabilityClassMeasurement ? "Supplied" : "Not confirmed" }, { label: "Precipitation", value: isConstant ? `${show(constant.rainMillimetresPerHour)} mm/h` : data || analysis.extractedParameters.precipitation ? "Supplied" : "Not confirmed" }, { label: "Mixing height", value: isConstant ? `${show(constant.mixingHeightMetres)} m` : data?.mixingHeightMode === "per_record" ? "Each weather record" : data?.mixingHeightMode === "seasonal" || config ? "Seasonal values" : "Not supplied" }])}
+            <div className="mw-section-title"><h3>Quality controls</h3>{editable && onEditQuality && <button type="button" className="posnav__btn posnav__btn--sm" onClick={onEditQuality}><RCIcon.Settings /> Edit</button>}</div>
+            {reviewTable("Quality controls", [...(isConstant ? [] : [{ label: "Instrumentation program", value: analysis.instrumentationQuality?.calibratedProgram ? "Calibrated and maintained" : "Not confirmed" }, { label: "Instrumentation basis", value: analysis.instrumentationQuality?.description ?? "" }]), { label: "Accuracy review", value: analysis.accuracyReview.performed ? "Performed" : "Not performed" }, { label: "Accuracy findings", value: analysis.accuracyReview.findings ?? "" }, ...(isConstant ? [] : [{ label: "Stability method", value: analysis.stabilityClassificationMethod.approach === "RECOGNIZED_SOURCE" ? "Recognized source" : "Simplified" }, { label: "Stability-method basis", value: stabilityDescription }]), { label: "Temporal treatment", value: analysis.temporalChangesAccommodation ?? "" }, { label: "Parameter uncertainty", value: analysis.parameterUncertaintyCharacterization ?? "" }])}
+            <details className="mw-checks"><summary>{qualityIssues.length ? `${qualityIssues.length} quality ${qualityIssues.length === 1 ? "item" : "items"} to complete` : "Data quality complete"}</summary>{qualityIssues.length > 0 && <ul>{qualityIssues.map(issue => <li key={issue}>{issue}</li>)}</ul>}</details>
+          </>}
         </div>
         {!!issues.length && <details className="mw-checks"><summary>{issues.length} {issues.length === 1 ? "item" : "items"} to complete</summary><ul>{issues.map(issue => <li key={issue}>{issue}</li>)}</ul></details>}
       </> : <div role="region" aria-label="Collection settings"><div className="mw-section-title"><h3>Collection location</h3>{siteLink}</div>

@@ -5,10 +5,12 @@ import { ExecuteProducerService } from "./services/execute-producer.service";
 import { ExecuteStorageService } from "./services/execute-storage.service";
 import { PraxisJobsService } from "./services/praxis-jobs.service";
 import { PraxisJobStore } from "./praxis-job-store";
+import { OpenRcJobsService } from "./services/openrc-jobs.service";
+import { OpenRcJobStore } from "./openrc-job-store";
 
 @Module({
   imports: [QueueModule],
   controllers: [ExecuteController],
-  providers: [ExecuteProducerService, ExecuteStorageService, PraxisJobsService, PraxisJobStore],
+  providers: [ExecuteProducerService, ExecuteStorageService, PraxisJobsService, PraxisJobStore, OpenRcJobsService, OpenRcJobStore],
 })
 export class ExecutionModule {}

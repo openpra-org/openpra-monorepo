@@ -1,0 +1,15 @@
+Loading config: input/PolarNegativeSectors.txt
+  case_name : polar_negative_sectors
+  mode      : lmp
+  geometry  : polar
+  nuclides  : 3
+  segments  : 1
+  met file  : data\single.met  (1 realizations)
+  sectors   : -8
+  rings     : 2  (100-1000 m)
+  wind shift: disabled
+
+Total released activity : 1.350e+12 Bq  (3 nuclide-segment pairs)
+
+
+======================================================================

@@ -57,7 +57,6 @@ import {
   HclGenerateScenariosRequestSchema,
   HclGenerateScenariosResultSchema,
   HclHazardConvolutionResultSchema,
-  HCL_HAZARD_CONVOLUTION_POINT_ONLY,
   HclQuantificationResultSchema,
   HclSampleVectorsSchema,
   LoadCapacityAnalysisResultSchema,
@@ -93,6 +92,8 @@ import type {
   EventTreeExecuteRequest,
   FaultTreeExecuteRequest,
   HclEventTreeExecuteRequest,
+  HclDependencyCutSetSettings,
+  HclFaultTreeCutSetSettings,
   HclEventTreeBatchExecuteRequest,
   HclExecuteRequest,
   HclCalculationType,
@@ -127,9 +128,7 @@ import { AnalysisRunRecord, type AnalysisRunRecordDocument } from "./analysis-ru
 import {
   adaptEsEventTreeSnapshot,
   adaptEsqBayesianNetworkSnapshot,
-  adaptEsqHclSnapshot,
   adaptHclConfigurationSnapshot,
-  adaptSyBayesianNetworkSnapshot,
   adaptSyFaultTreeSnapshot,
   collectEsEventTreeReferences,
   collectHclUncertaintyReferences,
@@ -223,14 +222,11 @@ interface HclBatchRunContext {
   };
 }
 
-export type HclConfigurationOwner =
-  | LoadedWorkbook<EventSequenceQuantification>
-  | LoadedWorkbook<SystemsAnalysis>;
+export type HclConfigurationOwner = LoadedWorkbook<EventSequenceQuantification>;
 
 interface LoadedHclSources {
   configuration: WorkbookHclConfiguration;
   configurationOwner: HclConfigurationOwner;
-  bayesian: HclConfigurationOwner;
   faultTrees: Array<{ source: LoadedWorkbook<SystemsAnalysis>; modelId: string }>;
 }
 
@@ -264,16 +260,15 @@ export interface EsqPreparedTreeRun {
 }
 
 export interface EsqModelHcl {
-  sources: HclConfigurationOwner[];
+  sources: Array<HclConfigurationOwner | LoadedWorkbook<SystemsAnalysis>>;
   configurationId: string;
-  configurationWorkbookId: string;
   network: WorkbookModelAddress;
   covers: (syWorkbookId: string, syModelIds: readonly string[], standIns: readonly EsqRunStandIn[]) => boolean;
   augment: (envelope: SolverEnvelope, syWorkbookId: string, syModelIds: readonly string[], standIns: readonly EsqRunStandIn[], evidence?: WorkbookHclConfiguration["baseEvidence"]) => SolverEnvelope;
   entities: (envelope: SolverEnvelope, syWorkbookId: string, syModelIds: readonly string[], standIns: readonly EsqRunStandIn[], evidence: WorkbookHclConfiguration["baseEvidence"]) => WorkbookCrossReference[];
 }
 
-export type EsqDependencySource = HclConfigurationOwner | LoadedWorkbook<SuccessCriteriaDevelopment> | LoadedWorkbook<DataAnalysis>;
+export type EsqDependencySource = HclConfigurationOwner | LoadedWorkbook<SystemsAnalysis> | LoadedWorkbook<SuccessCriteriaDevelopment> | LoadedWorkbook<DataAnalysis>;
 
 export interface EsqDependencyTreeBuild {
   rootModelId: string;
@@ -356,12 +351,32 @@ const adaptOrThrow = <T>(adapter: () => T): T => {
   }
 };
 
+const rankedCutSetsOf = <Settings extends HclDependencyCutSetSettings | HclFaultTreeCutSetSettings>(request: { calculationType: HclCalculationType; dependencyCutSets?: Settings; dependencyImportance?: boolean; dependencyImportanceEvents?: number; integrateHazardGrid?: boolean }): { dependencyCutSets?: Settings; dependencyImportance?: true; dependencyImportanceEvents?: number } => {
+  const importance = request.dependencyImportance === true;
+  if (request.dependencyCutSets === undefined && !importance) return {};
+  const sampled = request.calculationType === "UNCERTAINTY";
+  if (sampled && request.dependencyCutSets !== undefined) {
+    throw new BadRequestException("Ranked cut sets are available for dependency probability runs. Choose Probability as the result.");
+  }
+  if (sampled && request.dependencyImportanceEvents === undefined) {
+    throw new BadRequestException("Importance under uncertainty needs the number of events to sample.");
+  }
+  if (sampled && request.integrateHazardGrid === true) {
+    throw new BadRequestException("Importance over a hazard grid is available for probability runs. Choose Probability as the result.");
+  }
+  return {
+    ...(request.dependencyCutSets === undefined ? {} : { dependencyCutSets: { ...request.dependencyCutSets } }),
+    ...(importance ? { dependencyImportance: true as const } : {}),
+    ...(importance && sampled && request.dependencyImportanceEvents !== undefined ? { dependencyImportanceEvents: request.dependencyImportanceEvents } : {}),
+  };
+};
+
 const withRunSampling = (hcl: LoadedHclSources, sampling: HclRunSampling | undefined): LoadedHclSources => {
   if (sampling === undefined) return hcl;
   const stored = hcl.configuration.solverSettings.uncertainty;
   const laws = stored === undefined ? undefined : HclUncertaintySettingsSchema.safeParse(stored);
   if (laws !== undefined && !laws.success) {
-    throw new BadRequestException(`The uncertainty laws of dependency configuration '${hcl.configuration.code}' need review in the linked SY workbook. ${laws.error.issues[0]?.message ?? ""}`.trim());
+    throw new BadRequestException(`The uncertainty laws of dependency configuration '${hcl.configuration.code}' need review. ${laws.error.issues[0]?.message ?? ""}`.trim());
   }
   return {
     ...hcl,
@@ -995,6 +1010,8 @@ export class WorkbookAnalysisRunsService implements OnModuleInit, OnModuleDestro
       ...(raw["compilationReuse"] === undefined ? {} : { compilationReuse: raw["compilationReuse"] }),
       junctionTree: raw["junctionTree"],
       basicEventQuantifications: raw["basicEventQuantifications"],
+      ...(raw["dependencyCutSets"] === undefined ? {} : { dependencyCutSets: raw["dependencyCutSets"] }),
+      ...(raw["dependencyImportance"] === undefined ? {} : { dependencyImportance: raw["dependencyImportance"] }),
       validationIssues: raw["validationIssues"] ?? [],
     };
     if (raw["uncertainty"] != null) hclResult["uncertainty"] = raw["uncertainty"];
@@ -1524,7 +1541,6 @@ export class WorkbookAnalysisRunsService implements OnModuleInit, OnModuleDestro
     pathModelId: string,
     body: unknown,
     acting: ActingUser,
-    ownerKind: "ESQ" | "SY" = "ESQ",
   ): Promise<AnalysisRunMetadata> {
     const request = parseRequest(BayesianNetworkExecuteRequestSchema, body);
     const evidence =
@@ -1533,7 +1549,7 @@ export class WorkbookAnalysisRunsService implements OnModuleInit, OnModuleDestro
       : request.query.evidence.observations;
     const evidenceNodeIds = [...new Set(evidence.map((observation) => observation.nodeId))];
     expectPathModel(pathModelId, request.modelId);
-    const owner = ownerKind === "SY" ? await this.loadSy(workbookId) : await this.loadEsq(workbookId);
+    const owner = await this.loadEsq(workbookId);
     await this.authorizeOwner(owner, request.workbookRevision, acting);
     const runId = randomUUID();
     const identity = { workbookId, modelId: request.modelId, workbookRevision: owner.workbookRevision };
@@ -1577,13 +1593,7 @@ export class WorkbookAnalysisRunsService implements OnModuleInit, OnModuleDestro
           requestedBy: acting.username,
           query: request.query,
         },
-        modelSnapshots: [
-          adaptOrThrow(() =>
-            ownerKind === "SY" ?
-              adaptSyBayesianNetworkSnapshot(owner as LoadedWorkbook<SystemsAnalysis>, request.modelId)
-            : adaptEsqBayesianNetworkSnapshot(owner as LoadedWorkbook<EventSequenceQuantification>, request.modelId),
-          ),
-        ],
+        modelSnapshots: [adaptOrThrow(() => adaptEsqBayesianNetworkSnapshot(owner, request.modelId))],
         resources: {},
       },
       "BAYESIAN_NETWORK",
@@ -1618,7 +1628,6 @@ export class WorkbookAnalysisRunsService implements OnModuleInit, OnModuleDestro
     if (!tree) throw new NotFoundException("ES event tree not found");
     const refs = Object.values(tree.functionalEvents).flatMap((event) => {
       if (!event.faultTreeTopEvent) {
-        if (event.networkNode !== undefined) throw new BadRequestException(`Functional event '${event.label ?? event.name}' links to a network node. Quantify it in ESQ with dependencies.`);
         throw new BadRequestException(`Functional event '${event.uuid}' has no typed fault-tree top-event reference`);
       }
       return [{
@@ -1704,18 +1713,17 @@ export class WorkbookAnalysisRunsService implements OnModuleInit, OnModuleDestro
     address: EsqModelRunHcl,
     acting: ActingUser,
   ): Promise<EsqModelHcl> {
-    const hcl = await this.loadHclSources(owner, address.modelId, address.workbookId === owner.workbookId ? undefined : { workbookId: address.workbookId, modelId: address.modelId });
-    return this.esqModelHcl(owner, hcl, acting, "PROBABILITY");
+    if (address.workbookId !== owner.workbookId) throw new BadRequestException("Pick a dependency configuration from this workbook.");
+    return this.esqModelHcl(await this.loadHclSources(owner, address.modelId), acting, "PROBABILITY");
   }
 
   private async esqModelHcl(
-    owner: LoadedWorkbook<EventSequenceQuantification>,
     hcl: LoadedHclSources,
     acting: ActingUser,
     calculationType: HclCalculationType,
   ): Promise<EsqModelHcl> {
-    if (hcl.configurationOwner.hostType !== "SY") throw new BadRequestException("Pick a dependency configuration from the linked SY workbook.");
-    const sources: HclConfigurationOwner[] = [hcl.configurationOwner, hcl.bayesian, ...hcl.faultTrees.map(({ source }) => source)];
+    const owner = hcl.configurationOwner;
+    const sources = [owner, ...hcl.faultTrees.map(({ source }) => source)];
     await this.authorizeSources(sources, owner.workbookId, acting);
     const controlled = await this.resolveFaultTreeInputs([], this.hclReferences(hcl, calculationType));
     const network = adaptOrThrow(() => this.adaptHclBayesianNetwork(hcl));
@@ -1742,7 +1750,6 @@ export class WorkbookAnalysisRunsService implements OnModuleInit, OnModuleDestro
     return {
       sources,
       configurationId: hcl.configuration.modelId,
-      configurationWorkbookId: hcl.configurationOwner.workbookId,
       network: { workbookId: hcl.configuration.bayesianNetwork.workbookId, modelId: hcl.configuration.bayesianNetwork.modelId },
       covers: (syWorkbookId, syModelIds, standIns) => standIns.length > 0 || syModelIds.some((modelId) => declared.has(`${syWorkbookId}:${modelId}`)),
       augment: (envelope, syWorkbookId, syModelIds, standIns, evidence) => {
@@ -1761,7 +1768,7 @@ export class WorkbookAnalysisRunsService implements OnModuleInit, OnModuleDestro
         };
       },
       entities: (envelope, syWorkbookId, syModelIds, standIns, evidence) => [
-        ...this.hclBindingContributionEntities(hcl.configurationOwner, hcl.configuration, effectiveOf(syWorkbookId, syModelIds, standIns), membershipOf(envelope)),
+        ...this.hclBindingContributionEntities(owner, hcl.configuration, effectiveOf(syWorkbookId, syModelIds, standIns), membershipOf(envelope)),
         ...standIns.map((standIn) => ({ referenceType: "BAYESIAN_NETWORK_NODE" as const, workbookId: standIn.node.workbookId, modelId: standIn.node.modelId, entityId: standIn.node.nodeId })),
         ...this.hclEvidenceContributionEntities(hcl.configuration, evidence),
       ],
@@ -1776,8 +1783,7 @@ export class WorkbookAnalysisRunsService implements OnModuleInit, OnModuleDestro
   }
 
   private esqDependencyTrace(
-    owner: LoadedWorkbook<EventSequenceQuantification>,
-    hcl: LoadedHclSources,
+    configuration: WorkbookHclConfiguration,
     identity: WorkbookModelSnapshotIdentity,
     tree: EsqDependencyTreeBuild,
     sources: EsqDependencySource[],
@@ -1787,18 +1793,12 @@ export class WorkbookAnalysisRunsService implements OnModuleInit, OnModuleDestro
       sources,
       {
         targetType: "HCL_EVENT_TREE",
-        configuration: {
-          workbookId: hcl.configurationOwner.workbookId,
-          workbookRevision: hcl.configurationOwner.workbookRevision,
-          modelId: hcl.configuration.modelId,
-        },
-        eventTree: { workbookId: owner.workbookId, workbookRevision: owner.workbookRevision, modelId: tree.rootModelId },
-        orchestrator: identity,
+        configuration: identity,
+        eventTree: { workbookId: identity.workbookId, workbookRevision: identity.workbookRevision, modelId: tree.rootModelId },
       },
       [
-        { workbookId: owner.workbookId, modelId: identity.modelId },
-        { workbookId: hcl.configurationOwner.workbookId, modelId: hcl.configuration.modelId },
-        hcl.configuration.bayesianNetwork,
+        { workbookId: identity.workbookId, modelId: identity.modelId },
+        configuration.bayesianNetwork,
         ...tree.models,
       ],
       entities,
@@ -1814,12 +1814,14 @@ export class WorkbookAnalysisRunsService implements OnModuleInit, OnModuleDestro
     build: (hcl: EsqModelHcl) => Promise<EsqDependencyTreeBuild>;
   }): Promise<AnalysisRunMetadata> {
     const { owner, request, acting } = input;
-    const loaded = await this.loadHclSources(owner, request.modelId, request.dependencyConfiguration);
+    const rankedCutSets = rankedCutSetsOf(request);
+    const loaded = await this.loadHclSources(owner, request.modelId);
     const scenario = this.resolveHclEvidenceScenario(loaded.configuration, request.evidenceScenarioId);
-    const hcl = await this.esqModelHcl(owner, withRunSampling(loaded, request.sampling), acting, request.calculationType);
+    const hcl = await this.esqModelHcl(withRunSampling(loaded, request.sampling), acting, request.calculationType);
     const tree = this.coveredDependencyTree(hcl, await input.build(hcl));
     const evidence = scenario?.evidence ?? loaded.configuration.baseEvidence;
-    const envelope = hcl.augment(tree.envelope, tree.syWorkbookId, tree.syModelIds, tree.standIns, scenario?.evidence);
+    const augmented = hcl.augment(tree.envelope, tree.syWorkbookId, tree.syModelIds, tree.standIns, scenario?.evidence);
+    const envelope: SolverEnvelope = { ...augmented, request: { ...augmented.request, ...rankedCutSets } };
     const sources = [...tree.sources, ...hcl.sources];
     const identity = { workbookId: owner.workbookId, modelId: request.modelId, workbookRevision: owner.workbookRevision };
     const entities = hcl.entities(envelope, tree.syWorkbookId, tree.syModelIds, tree.standIns, evidence);
@@ -1832,7 +1834,7 @@ export class WorkbookAnalysisRunsService implements OnModuleInit, OnModuleDestro
       envelope,
       "EVENT_TREE",
       acting,
-      this.esqDependencyTrace(owner, loaded, identity, tree, sources, entities),
+      this.esqDependencyTrace(loaded.configuration, identity, tree, sources, entities),
     );
   }
 
@@ -1845,20 +1847,22 @@ export class WorkbookAnalysisRunsService implements OnModuleInit, OnModuleDestro
     build: (hcl: EsqModelHcl) => Promise<EsqDependencyTreeBuild>;
   }): Promise<HclBatchExecuteResult> {
     const { owner, request, acting } = input;
-    const loaded = await this.loadHclSources(owner, request.modelId, request.dependencyConfiguration);
+    const rankedCutSets = rankedCutSetsOf(request);
+    const loaded = await this.loadHclSources(owner, request.modelId);
     const configuration = this.resolveHclBatchConfiguration(loaded, request.evidenceScenarioIds, request.batchInput);
-    const hazardGrid = this.resolveHclHazardGrid(configuration, request.integrateHazardGrid, request.calculationType);
+    const hazardGrid = this.resolveHclHazardGrid(configuration, request.integrateHazardGrid);
     const scenarios = request.evidenceScenarioIds.flatMap((scenarioId) => {
       const resolved = this.resolveHclEvidenceScenario(configuration, scenarioId);
       return resolved === null ? [] : [resolved];
     });
-    const hcl = await this.esqModelHcl(owner, withRunSampling(loaded, request.sampling), acting, request.calculationType);
+    const hcl = await this.esqModelHcl(withRunSampling(loaded, request.sampling), acting, request.calculationType);
     const tree = this.coveredDependencyTree(hcl, await input.build(hcl));
     const augmented = hcl.augment(tree.envelope, tree.syWorkbookId, tree.syModelIds, tree.standIns);
     const envelope: SolverEnvelope = {
       ...augmented,
       request: {
         ...augmented.request,
+        ...rankedCutSets,
         evidenceBatch: scenarios.map(({ scenario, evidence }) => ({
           scenarioId: scenario.id,
           observations: evidence.observations,
@@ -1893,15 +1897,15 @@ export class WorkbookAnalysisRunsService implements OnModuleInit, OnModuleDestro
         modelId: request.modelId,
         workbookRevision: request.workbookRevision,
         eventTree: request.eventTree,
-        ...(request.dependencyConfiguration === undefined ? {} : { dependencyConfiguration: request.dependencyConfiguration }),
         ...(request.sampling === undefined ? {} : { sampling: structuredClone(request.sampling) }),
+        ...rankedCutSetsOf(request),
         evidenceScenarioId: scenario.id,
         mode: "HYBRID_CAUSAL_LOGIC",
         batchContext,
         evidenceScenario: structuredClone(scenario),
         effectiveEvidence: structuredClone(evidence),
       },
-      trace: this.esqDependencyTrace(owner, loaded, identity, tree, sources, hcl.entities(envelope, tree.syWorkbookId, tree.syModelIds, tree.standIns, evidence)),
+      trace: this.esqDependencyTrace(loaded.configuration, identity, tree, sources, hcl.entities(envelope, tree.syWorkbookId, tree.syModelIds, tree.standIns, evidence)),
     }));
     const executed = await this.executeHclBatchRuns(identity, "EVENT_TREE", prepared, sources, envelope, "EVENT_TREE", acting, hazardGrid !== null);
     return HclBatchExecuteResultSchema.parse({ schemaVersion: "1.0.0", ...executed });
@@ -1923,7 +1927,7 @@ export class WorkbookAnalysisRunsService implements OnModuleInit, OnModuleDestro
   async executeEsqBatch(input: {
     owner: WorkbookModelSnapshotIdentity;
     request: EsqModelRunRequest | EsqPostRunRequest | EsqImportanceRunRequest | EsqUncertaintyRunRequest | EsqSensitivityRunRequest;
-    sources: Array<LoadedWorkbook<EventSequenceQuantification> | LoadedWorkbook<SystemsAnalysis> | LoadedWorkbook<SuccessCriteriaDevelopment> | LoadedWorkbook<DataAnalysis> | HclConfigurationOwner>;
+    sources: Array<LoadedWorkbook<EventSequenceQuantification> | LoadedWorkbook<SystemsAnalysis> | LoadedWorkbook<SuccessCriteriaDevelopment> | LoadedWorkbook<DataAnalysis>>;
     trees: EsqPreparedTreeRun[];
     summarize: (batchId: string, completedAt: string, outcomes: EsqTreeRunOutcome[]) => EsqBatchSummary;
     stored?: (result: EventTreeAnalysisResult) => EventTreeAnalysisResult;
@@ -2165,28 +2169,12 @@ export class WorkbookAnalysisRunsService implements OnModuleInit, OnModuleDestro
     );
   }
 
-  private async loadHclSources(
-    owner: HclConfigurationOwner,
-    modelId: string,
-    dependencyConfiguration?: WorkbookModelAddress,
-  ): Promise<LoadedHclSources> {
-    const configurationOwner =
-      dependencyConfiguration === undefined ? owner : await this.loadDependencyOwner(dependencyConfiguration.workbookId);
-    if (dependencyConfiguration !== undefined && dependencyConfiguration.modelId !== modelId) {
-      throw new BadRequestException("The configuration id must match the referenced dependency configuration");
+  private async loadHclSources(configurationOwner: HclConfigurationOwner, modelId: string): Promise<LoadedHclSources> {
+    const configuration = configurationOwner.mef.hclConfigurations.find((candidate) => candidate.modelId === modelId);
+    if (!configuration) throw new NotFoundException("ESQ dependency configuration not found");
+    if (configuration.bayesianNetwork.workbookId !== configurationOwner.workbookId) {
+      throw new BadRequestException(`Dependency configuration '${configuration.code}' uses a dependency network from another workbook. Pick a network from this workbook.`);
     }
-    const configurations =
-      configurationOwner.hostType === "SY" ?
-        ((configurationOwner.mef as SystemsAnalysis).dependencyHclConfigurations ?? [])
-      : (configurationOwner.mef as EventSequenceQuantification).hclConfigurations;
-    const configuration = configurations.find((candidate) => candidate.modelId === modelId);
-    if (!configuration) {
-      throw new NotFoundException(`${configurationOwner.hostType} dependency configuration not found`);
-    }
-    const bayesian =
-      configuration.bayesianNetwork.workbookId === configurationOwner.workbookId ? configurationOwner
-      : configurationOwner.hostType === "SY" ? await this.loadSy(configuration.bayesianNetwork.workbookId)
-      : await this.loadEsq(configuration.bayesianNetwork.workbookId);
     const byWorkbook = new Map<string, LoadedWorkbook<SystemsAnalysis>>();
     for (const reference of configuration.faultTrees) {
       if (!byWorkbook.has(reference.workbookId)) {
@@ -2196,7 +2184,6 @@ export class WorkbookAnalysisRunsService implements OnModuleInit, OnModuleDestro
     return {
       configuration,
       configurationOwner,
-      bayesian,
       faultTrees: configuration.faultTrees.map((reference) => ({
         source: byWorkbook.get(reference.workbookId)!,
         modelId: reference.modelId,
@@ -2204,22 +2191,8 @@ export class WorkbookAnalysisRunsService implements OnModuleInit, OnModuleDestro
     };
   }
 
-  private async loadDependencyOwner(workbookId: string): Promise<HclConfigurationOwner> {
-    const fromSy = await this.syWorkbookModel.exists({ workbookId }).exec();
-    if (fromSy === null) throw new BadRequestException("Pick a dependency configuration from the linked SY workbook.");
-    return this.loadSy(workbookId);
-  }
-
   private adaptHclBayesianNetwork(hcl: LoadedHclSources): PraxisModelSnapshot {
-    return hcl.bayesian.hostType === "SY" ?
-        adaptSyBayesianNetworkSnapshot(
-          hcl.bayesian as LoadedWorkbook<SystemsAnalysis>,
-          hcl.configuration.bayesianNetwork.modelId,
-        )
-      : adaptEsqBayesianNetworkSnapshot(
-          hcl.bayesian as LoadedWorkbook<EventSequenceQuantification>,
-          hcl.configuration.bayesianNetwork.modelId,
-        );
+    return adaptEsqBayesianNetworkSnapshot(hcl.configurationOwner, hcl.configuration.bayesianNetwork.modelId);
   }
 
   private adaptHclConfiguration(
@@ -2231,24 +2204,15 @@ export class WorkbookAnalysisRunsService implements OnModuleInit, OnModuleDestro
     effectiveFaultTrees?: WorkbookModelAddress[],
   ): PraxisModelSnapshot {
     this.validateHclBindingReferences(hcl, faultTreeBasicEventMembership, effectiveFaultTrees);
-    return hcl.configurationOwner.hostType === "SY" ?
-        adaptHclConfigurationSnapshot(
-          hcl.configurationOwner,
-          hcl.configuration,
-          calculationType,
-          faultTreeBasicEventMembership,
-          evidence,
-          effectiveFaultTrees,
-          sources,
-        )
-      : adaptEsqHclSnapshot(
-          hcl.configurationOwner as LoadedWorkbook<EventSequenceQuantification>,
-          hcl.configuration.modelId,
-          calculationType,
-          faultTreeBasicEventMembership,
-          evidence,
-          sources,
-        );
+    return adaptHclConfigurationSnapshot(
+      hcl.configurationOwner,
+      hcl.configuration,
+      calculationType,
+      faultTreeBasicEventMembership,
+      evidence,
+      effectiveFaultTrees,
+      sources,
+    );
   }
 
   private hclReferences(
@@ -2307,13 +2271,8 @@ export class WorkbookAnalysisRunsService implements OnModuleInit, OnModuleDestro
   }
 
   private hclBayesianNetwork(source: HclConfigurationOwner, modelId: string): WorkbookBayesianNetwork {
-    const models =
-      source.hostType === "SY" ?
-        ((source.mef as SystemsAnalysis).dependencyBayesianNetworks ?? [])
-      : (source.mef as EventSequenceQuantification).bayesianNetworks;
-    const model = models.find((candidate) => candidate.modelId === modelId);
-    if (model === undefined)
-      throw new NotFoundException(`${source.hostType} Bayesian network '${modelId}' was not found`);
+    const model = source.mef.bayesianNetworks.find((candidate) => candidate.modelId === modelId);
+    if (model === undefined) throw new NotFoundException(`ESQ dependency network '${modelId}' was not found`);
     return model;
   }
 
@@ -2350,7 +2309,7 @@ export class WorkbookAnalysisRunsService implements OnModuleInit, OnModuleDestro
   ): WorkbookHclConfiguration {
     const { hazardGrid: _savedGrid, ...saved } = hcl.configuration;
     const configuration = input === undefined ? hcl.configuration : { ...saved, ...input };
-    const model = this.hclBayesianNetwork(hcl.bayesian, configuration.bayesianNetwork.modelId);
+    const model = this.hclBayesianNetwork(hcl.configurationOwner, configuration.bayesianNetwork.modelId);
     for (const row of input?.evidenceScenarios ?? []) {
       for (const observation of row.evidence.observations) {
         const node = model.nodes.find((candidate) => candidate.id === observation.nodeId);
@@ -2394,12 +2353,8 @@ export class WorkbookAnalysisRunsService implements OnModuleInit, OnModuleDestro
   private resolveHclHazardGrid(
     configuration: WorkbookHclConfiguration,
     requested: boolean | undefined,
-    calculationType: HclCalculationType,
   ): NonNullable<WorkbookHclConfiguration["hazardGrid"]> | null {
     if (requested !== true) return null;
-    if (calculationType === "UNCERTAINTY") {
-      throw new BadRequestException(HCL_HAZARD_CONVOLUTION_POINT_ONLY);
-    }
     if (configuration.hazardGrid === undefined) {
       throw new BadRequestException("Hazard convolution requires hazard-grid settings on the dependency configuration");
     }
@@ -2443,13 +2398,13 @@ export class WorkbookAnalysisRunsService implements OnModuleInit, OnModuleDestro
     pathModelId: string,
     body: unknown,
     acting: ActingUser,
-    ownerKind: "ESQ" | "SY" = "ESQ",
   ): Promise<AnalysisRunMetadata> {
     const request = parseRequest(HclExecuteRequestSchema, body);
     expectPathModel(pathModelId, request.modelId);
-    const owner = ownerKind === "SY" ? await this.loadSy(workbookId) : await this.loadEsq(workbookId);
+    const rankedCutSets = rankedCutSetsOf(request);
+    const owner = await this.loadEsq(workbookId);
     await this.authorizeOwner(owner, request.workbookRevision, acting);
-    const hcl = await this.loadHclSources(owner, request.modelId);
+    const hcl = withRunSampling(await this.loadHclSources(owner, request.modelId), request.sampling);
     const evidenceScenario = this.resolveHclEvidenceScenario(hcl.configuration, request.evidenceScenarioId);
     const selected = hcl.faultTrees.find(
       ({ source, modelId }) =>
@@ -2457,13 +2412,7 @@ export class WorkbookAnalysisRunsService implements OnModuleInit, OnModuleDestro
     );
     if (!selected) throw new BadRequestException("Requested fault tree is not declared by the dependency configuration");
     const controlled = await this.resolveFaultTreeInputs([selected], this.hclReferences(hcl, request.calculationType));
-    const sources = [
-      owner,
-      hcl.configurationOwner,
-      hcl.bayesian,
-      ...hcl.faultTrees.map(({ source }) => source),
-      ...controlled.sources,
-    ];
+    const sources = [owner, ...hcl.faultTrees.map(({ source }) => source), ...controlled.sources];
     await this.authorizeSources(sources, owner.workbookId, acting);
     const runId = randomUUID();
     const faultTrees = combineFaultTrees(runId, [
@@ -2487,9 +2436,6 @@ export class WorkbookAnalysisRunsService implements OnModuleInit, OnModuleDestro
       },
       [
         { workbookId: owner.workbookId, modelId: request.modelId },
-        ...(hcl.configurationOwner.workbookId === owner.workbookId ?
-          []
-        : [{ workbookId: hcl.configurationOwner.workbookId, modelId: hcl.configuration.modelId }]),
         hcl.configuration.bayesianNetwork,
         ...hcl.faultTrees.map(({ source, modelId }) => ({
           workbookId: source.workbookId,
@@ -2499,7 +2445,7 @@ export class WorkbookAnalysisRunsService implements OnModuleInit, OnModuleDestro
       [
         request.faultTreeTopGate,
         ...this.hclBindingContributionEntities(
-          hcl.configurationOwner,
+          owner,
           hcl.configuration,
           hcl.faultTrees.map(({ source, modelId }) => ({ workbookId: source.workbookId, modelId })),
           faultTreeBasicEventMembership,
@@ -2531,6 +2477,7 @@ export class WorkbookAnalysisRunsService implements OnModuleInit, OnModuleDestro
             entityId: request.faultTreeTopGate.entityId,
           },
           ...(request.calculationType === "UNCERTAINTY" ? { keepSamples: true } : {}),
+          ...rankedCutSets,
         },
         modelSnapshots: [
           ...faultTrees.modelSnapshots,
@@ -2559,14 +2506,12 @@ export class WorkbookAnalysisRunsService implements OnModuleInit, OnModuleDestro
     pathModelId: string,
     body: unknown,
     acting: ActingUser,
-    ownerKind: "ESQ" | "SY" = "ESQ",
   ): Promise<HclGenerateScenariosResult> {
     const request = parseRequest(HclGenerateScenariosRequestSchema, body);
     expectPathModel(pathModelId, request.modelId);
-    const owner = ownerKind === "SY" ? await this.loadSy(workbookId) : await this.loadEsq(workbookId);
+    const owner = await this.loadEsq(workbookId);
     await this.authorizeOwner(owner, request.workbookRevision, acting);
-    const hcl = await this.loadHclSources(owner, request.modelId, request.dependencyConfiguration);
-    await this.authorizeSources([hcl.configurationOwner, hcl.bayesian], owner.workbookId, acting);
+    const hcl = await this.loadHclSources(owner, request.modelId);
     const response = await this.praetor.execute({
       schemaVersion: "1.0.0",
       request: {
@@ -2612,15 +2557,16 @@ export class WorkbookAnalysisRunsService implements OnModuleInit, OnModuleDestro
     pathModelId: string,
     body: unknown,
     acting: ActingUser,
-    ownerKind: "ESQ" | "SY" = "ESQ",
   ): Promise<HclBatchExecuteResult> {
     const request = parseRequest(HclFaultTreeBatchExecuteRequestSchema, body);
     expectPathModel(pathModelId, request.modelId);
-    const owner = ownerKind === "SY" ? await this.loadSy(workbookId) : await this.loadEsq(workbookId);
+    const rankedCutSets = rankedCutSetsOf(request);
+    const owner = await this.loadEsq(workbookId);
     await this.authorizeOwner(owner, request.workbookRevision, acting);
-    const hcl = await this.loadHclSources(owner, request.modelId);
-    const configuration = this.resolveHclBatchConfiguration(hcl, request.evidenceScenarioIds, request.batchInput);
-    const hazardGrid = this.resolveHclHazardGrid(configuration, request.integrateHazardGrid, request.calculationType);
+    const loaded = await this.loadHclSources(owner, request.modelId);
+    const configuration = this.resolveHclBatchConfiguration(loaded, request.evidenceScenarioIds, request.batchInput);
+    const hazardGrid = this.resolveHclHazardGrid(configuration, request.integrateHazardGrid);
+    const hcl = withRunSampling(loaded, request.sampling);
     const resolvedScenarios = request.evidenceScenarioIds.map(
       (scenarioId) => this.resolveHclEvidenceScenario(configuration, scenarioId)!,
     );
@@ -2636,13 +2582,7 @@ export class WorkbookAnalysisRunsService implements OnModuleInit, OnModuleDestro
       throw new BadRequestException("Requested fault tree is not declared by the dependency configuration");
     }
     const controlled = await this.resolveFaultTreeInputs([selected], this.hclReferences(hcl, request.calculationType));
-    const sources = [
-      owner,
-      hcl.configurationOwner,
-      hcl.bayesian,
-      ...hcl.faultTrees.map(({ source }) => source),
-      ...controlled.sources,
-    ];
+    const sources = [owner, ...hcl.faultTrees.map(({ source }) => source), ...controlled.sources];
     await this.authorizeSources(sources, owner.workbookId, acting);
     const envelopeId = randomUUID();
     const faultTrees = combineFaultTrees(envelopeId, [
@@ -2660,6 +2600,8 @@ export class WorkbookAnalysisRunsService implements OnModuleInit, OnModuleDestro
         workbookRevision: request.workbookRevision,
         faultTreeTopGate: request.faultTreeTopGate,
         evidenceScenarioId: scenario.id,
+        ...(request.sampling === undefined ? {} : { sampling: structuredClone(request.sampling) }),
+        ...rankedCutSets,
       };
       const runId = randomUUID();
       const trace = this.createAnalysisRunTrace(
@@ -2685,7 +2627,7 @@ export class WorkbookAnalysisRunsService implements OnModuleInit, OnModuleDestro
         [
           request.faultTreeTopGate,
           ...this.hclBindingContributionEntities(
-            hcl.configurationOwner,
+            owner,
             hcl.configuration,
             hcl.faultTrees.map(({ source, modelId }) => ({ workbookId: source.workbookId, modelId })),
             faultTreeBasicEventMembership,
@@ -2726,6 +2668,7 @@ export class WorkbookAnalysisRunsService implements OnModuleInit, OnModuleDestro
             entityId: request.faultTreeTopGate.entityId,
           },
           ...(request.calculationType === "UNCERTAINTY" ? { keepSamples: true } : {}),
+          ...rankedCutSets,
           evidenceBatch: resolvedScenarios.map(({ scenario, evidence }) => ({
             scenarioId: scenario.id,
             observations: evidence.observations,

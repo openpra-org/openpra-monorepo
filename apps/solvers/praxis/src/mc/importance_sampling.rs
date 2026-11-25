@@ -180,6 +180,121 @@ impl Default for WeightedTallies {
     }
 }
 
+/// Failure probability a biased event may not pass. Beyond one half the unfailed
+/// state turns rare, every trial looks alike, and the self normalised estimate
+/// collapses towards one.
+const MAX_PROPOSAL_PROBABILITY: f64 = 0.5;
+
+/// Expected failures per trial the biased events may carry. The effective sample
+/// size falls about exponentially with this sum, so past the ceiling a few heavy
+/// trials decide the estimate and its interval stops being reliable.
+const MAX_EXPECTED_FAILURES: f64 = 3.0;
+
+/// The bias factor that holds the selected events under `MAX_EXPECTED_FAILURES`.
+/// It never drops below one on this account, so a large model is sampled as it
+/// is. Events at or past the proposal ceiling keep their probability and do not count.
+pub fn effective_bias_factor(selected: &[f64], bias_factor: f64) -> f64 {
+    let expected: f64 = selected
+        .iter()
+        .filter(|&&p| p < MAX_PROPOSAL_PROBABILITY)
+        .sum();
+    if expected * bias_factor <= MAX_EXPECTED_FAILURES {
+        bias_factor
+    } else {
+        (MAX_EXPECTED_FAILURES / expected).clamp(bias_factor.min(1.0), bias_factor)
+    }
+}
+
+/// The probability an event is drawn at, given its true probability `p`. An
+/// event that is already likelier than the ceiling stays at `p`.
+pub fn proposal_probability(p: f64, bias_factor: f64, q_min: f64) -> f64 {
+    (p * bias_factor)
+        .min(p.max(MAX_PROPOSAL_PROBABILITY))
+        .clamp(q_min, 1.0 - q_min)
+}
+
+/// Running sums of the self normalised estimator. Weights are kept relative to
+/// the largest seen so far, because a likelihood ratio can underflow on its own.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct LogWeightTally {
+    trials: usize,
+    hits: usize,
+    log_weight_max: f64,
+    sum_w: f64,
+    sum_w_hit: f64,
+    sum_w2_hit: f64,
+    sum_w2_miss: f64,
+}
+
+impl LogWeightTally {
+    pub fn new() -> Self {
+        Self {
+            trials: 0,
+            hits: 0,
+            log_weight_max: f64::NEG_INFINITY,
+            sum_w: 0.0,
+            sum_w_hit: 0.0,
+            sum_w2_hit: 0.0,
+            sum_w2_miss: 0.0,
+        }
+    }
+
+    pub fn add(&mut self, log_weight: f64, y: bool) {
+        self.trials += 1;
+        self.hits += usize::from(y);
+        if log_weight == f64::NEG_INFINITY {
+            return;
+        }
+        if log_weight > self.log_weight_max {
+            let scale = (self.log_weight_max - log_weight).exp();
+            self.sum_w *= scale;
+            self.sum_w_hit *= scale;
+            self.sum_w2_hit *= scale * scale;
+            self.sum_w2_miss *= scale * scale;
+            self.log_weight_max = log_weight;
+        }
+        let w = (log_weight - self.log_weight_max).exp();
+        self.sum_w += w;
+        if y {
+            self.sum_w_hit += w;
+            self.sum_w2_hit += w * w;
+        } else {
+            self.sum_w2_miss += w * w;
+        }
+    }
+
+    pub fn trials(&self) -> usize {
+        self.trials
+    }
+
+    pub fn hits(&self) -> usize {
+        self.hits
+    }
+
+    pub fn estimate(&self) -> Option<f64> {
+        (self.sum_w > 0.0).then(|| self.sum_w_hit / self.sum_w)
+    }
+
+    pub fn effective_sample_size(&self) -> Option<f64> {
+        let sum_w2 = self.sum_w2_hit + self.sum_w2_miss;
+        (sum_w2 > 0.0).then(|| self.sum_w * self.sum_w / sum_w2)
+    }
+
+    /// Delta method variance of the estimate, the sum of `w^2 (y - p)^2` over
+    /// the square of the summed weights.
+    pub fn variance(&self) -> Option<f64> {
+        let p = self.estimate()?;
+        let spread = (1.0 - p) * (1.0 - p) * self.sum_w2_hit + p * p * self.sum_w2_miss;
+        Some(spread / (self.sum_w * self.sum_w))
+    }
+}
+
+impl Default for LogWeightTally {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 pub mod diagnostics {
     use crate::{PraxisError, Result};
 
@@ -419,5 +534,109 @@ mod tests {
         let w = vec![2.0];
         let maxn = diagnostics::max_normalized_weight(&w).unwrap().unwrap();
         assert_close(maxn, 1.0);
+    }
+
+    #[test]
+    fn proposal_scales_the_true_probability() {
+        assert_close(proposal_probability(0.01, 10.0, 1e-12), 0.1);
+    }
+
+    #[test]
+    fn proposal_stops_at_one_half() {
+        assert_close(proposal_probability(0.1, 100.0, 1e-12), 0.5);
+        assert_close(proposal_probability(0.8, 100.0, 1e-12), 0.8);
+    }
+
+    #[test]
+    fn proposal_respects_the_floor() {
+        assert_close(proposal_probability(0.0, 10.0, 1e-6), 1e-6);
+    }
+
+    #[test]
+    fn bias_factor_is_kept_while_failures_stay_low() {
+        assert_close(effective_bias_factor(&[0.01; 10], 10.0), 10.0);
+    }
+
+    #[test]
+    fn bias_factor_shrinks_to_hold_expected_failures() {
+        let bias = effective_bias_factor(&[0.01; 100], 10.0);
+        assert_close(bias * 100.0 * 0.01, MAX_EXPECTED_FAILURES);
+    }
+
+    #[test]
+    fn bias_factor_never_turns_failures_down_on_its_own() {
+        assert_close(effective_bias_factor(&[0.4; 100], 10.0), 1.0);
+        assert_close(effective_bias_factor(&[0.4; 100], 0.5), 0.5);
+    }
+
+    #[test]
+    fn events_the_bias_cannot_move_do_not_use_up_the_ceiling() {
+        assert_close(effective_bias_factor(&[0.01, 0.8, 1.0], 10.0), 10.0);
+    }
+
+    #[test]
+    fn tally_with_equal_weights_matches_the_binomial() {
+        let mut tally = LogWeightTally::new();
+        for trial in 0..1000 {
+            tally.add(-3.0, trial < 100);
+        }
+        assert_eq!(tally.trials(), 1000);
+        assert_eq!(tally.hits(), 100);
+        assert_close(tally.estimate().unwrap(), 0.1);
+        assert_close(tally.effective_sample_size().unwrap(), 1000.0);
+        assert_close(tally.variance().unwrap(), 0.1 * 0.9 / 1000.0);
+    }
+
+    #[test]
+    fn tally_variance_follows_the_delta_method() {
+        let weights = [0.5f64, 2.0, 1.0, 4.0];
+        let hits = [true, false, true, false];
+        let mut tally = LogWeightTally::new();
+        for (w, y) in weights.iter().zip(hits) {
+            tally.add(w.ln(), y);
+        }
+        let total: f64 = weights.iter().sum();
+        let p = 1.5 / total;
+        let spread: f64 = weights
+            .iter()
+            .zip(hits)
+            .map(|(w, y)| w * w * (f64::from(u8::from(y)) - p).powi(2))
+            .sum();
+        assert_close(tally.estimate().unwrap(), p);
+        assert_close(tally.variance().unwrap(), spread / (total * total));
+    }
+
+    #[test]
+    fn tally_does_not_depend_on_the_order_of_trials() {
+        let trials = [(-700.0, true), (0.0, false), (-1.0, true), (-2000.0, false)];
+        let mut forward = LogWeightTally::new();
+        let mut backward = LogWeightTally::new();
+        for &(log_weight, y) in &trials {
+            forward.add(log_weight, y);
+        }
+        for &(log_weight, y) in trials.iter().rev() {
+            backward.add(log_weight, y);
+        }
+        assert_close(forward.estimate().unwrap(), backward.estimate().unwrap());
+        assert_close(forward.variance().unwrap(), backward.variance().unwrap());
+    }
+
+    #[test]
+    fn tally_skips_trials_the_target_cannot_produce() {
+        let mut tally = LogWeightTally::new();
+        tally.add(f64::NEG_INFINITY, true);
+        tally.add(0.0, false);
+        tally.add(0.0, true);
+        assert_eq!(tally.trials(), 3);
+        assert_close(tally.estimate().unwrap(), 0.5);
+    }
+
+    #[test]
+    fn tally_without_usable_weights_has_no_estimate() {
+        let mut tally = LogWeightTally::new();
+        tally.add(f64::NEG_INFINITY, true);
+        assert_eq!(tally.estimate(), None);
+        assert_eq!(tally.variance(), None);
+        assert_eq!(tally.effective_sample_size(), None);
     }
 }

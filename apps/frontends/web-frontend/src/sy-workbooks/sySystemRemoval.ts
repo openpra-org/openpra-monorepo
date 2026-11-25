@@ -120,12 +120,6 @@ function withoutSystem(sy: SystemsAnalysis, systemId: string): SystemRemoval {
     const supportedSystems = item.supportedSystems.filter((id) => id !== systemId);
     return supportedSystems.length === 0 ? [] : [{ ...item, supportedSystems }];
   });
-  const dependencyHclConfigurations = sy.dependencyHclConfigurations?.map((configuration) => {
-    const faultTrees = configuration.faultTrees.filter((tree) => !removedModelIds.has(tree.modelId));
-    const bindings = configuration.bindings.filter((binding) => !removedEventIds.has(binding.faultTreeBasicEvent.entityId));
-    const unchanged = faultTrees.length === configuration.faultTrees.length && bindings.length === configuration.bindings.length;
-    return unchanged ? configuration : { ...configuration, faultTrees, bindings };
-  });
 
   const analysis: SystemsAnalysis = {
     ...sy,
@@ -137,7 +131,6 @@ function withoutSystem(sy: SystemsAnalysis, systemId: string): SystemRemoval {
     systemConfirmationRecords: kept(sy.systemConfirmationRecords, (item) => item.systemReference !== systemId),
     systemDependencies: sy.systemDependencies.filter((item) => item.dependentSystem !== systemId && item.supportingSystem !== systemId),
     componentDependencies: sy.componentDependencies.filter((item) => item.system !== systemId),
-    dependencyHclConfigurations,
     dependencySearchMethodology: {
       ...sy.dependencySearchMethodology,
       systemsAnalyzed: sy.dependencySearchMethodology.systemsAnalyzed.filter((id) => id !== systemId),

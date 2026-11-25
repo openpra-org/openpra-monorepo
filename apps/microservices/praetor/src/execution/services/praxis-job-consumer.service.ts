@@ -106,7 +106,7 @@ class PraxisJobConsumerService implements OnApplicationBootstrap, OnApplicationS
       this.logger.error(`Dropped a malformed PRAXIS job message: ${error instanceof Error ? error.message : String(error)}`);
     }
     if (jobId === undefined || !isPraetorJobId(jobId)) {
-      this.channel?.nack(message, false, false);
+      this.settle(message, false);
       return;
     }
     try {
@@ -118,7 +118,16 @@ class PraxisJobConsumerService implements OnApplicationBootstrap, OnApplicationS
         (stored: Error) => this.logger.error(`PRAXIS job ${jobId} failure could not be stored: ${stored.message}`),
       );
     } finally {
-      this.channel?.ack(message);
+      this.settle(message, true);
+    }
+  }
+
+  private settle(message: ConsumeMessage, processed: boolean): void {
+    try {
+      if (processed) this.channel?.ack(message);
+      else this.channel?.nack(message, false, false);
+    } catch (error) {
+      this.logger.warn(`${this.worker} could not settle a PRAXIS job message: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 
@@ -164,6 +173,10 @@ class PraxisJobConsumerService implements OnApplicationBootstrap, OnApplicationS
     const controller = new AbortController();
     this.running.set(jobId, controller);
     try {
+      if ((await this.store.cancel(jobId)) !== undefined) {
+        await this.finish(jobId, "CANCELLED", null);
+        return;
+      }
       const { resultJson } = await runPraxisProcess(
         { operation: input.operation, requestJson, preflight: plansBayesianTables(input.request) },
         { timeoutMs: input.timeoutMs, signal: controller.signal },

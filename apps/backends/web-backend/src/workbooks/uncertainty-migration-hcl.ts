@@ -290,21 +290,21 @@ function convertSettings(settings: JsonRecord, nodes: NodeStates, scope: Convers
   };
 }
 
-function convertConfigurations(mef: JsonRecord, configurationsKey: string, networksKey: string, scope: ConversionScope, host: string): JsonRecord {
-  const nodes = networkStates(arrayField(mef, networksKey));
-  return withArray(mef, configurationsKey, (configuration) => withRecord(configuration, "solverSettings", (settings) => {
+function convertConfigurations(mef: JsonRecord, scope: ConversionScope): JsonRecord {
+  const nodes = networkStates(arrayField(mef, "bayesianNetworks"));
+  return withArray(mef, "hclConfigurations", (configuration) => withRecord(configuration, "solverSettings", (settings) => {
     const uncertainty = recordField(settings, "uncertainty");
     if (uncertainty === undefined) {
-      if (present(settings, "uncertainty")) scope.report(`The uncertainty settings of ${host} HCL configuration ${textField(configuration, "modelId") ?? "?"} are not an object.`);
+      if (present(settings, "uncertainty")) scope.report(`The uncertainty settings of ESQ dependency configuration ${textField(configuration, "modelId") ?? "?"} are not an object.`);
       return settings;
     }
-    const converted = convertSettings(uncertainty, nodes, scope, `${host} HCL configuration ${textField(configuration, "modelId") ?? "?"}`);
+    const converted = convertSettings(uncertainty, nodes, scope, `ESQ dependency configuration ${textField(configuration, "modelId") ?? "?"}`);
     return converted === uncertainty ? settings : { ...settings, uncertainty: converted };
   }));
 }
 
-function hclSettingsIssue(mef: JsonRecord, configurationsKey: string): string | undefined {
-  for (const configuration of arrayField(mef, configurationsKey) ?? []) {
+function hclSettingsIssue(mef: JsonRecord): string | undefined {
+  for (const configuration of arrayField(mef, "hclConfigurations") ?? []) {
     if (!isRecord(configuration)) continue;
     const settings = recordField(configuration, "solverSettings");
     const uncertainty = settings === undefined ? undefined : field(settings, "uncertainty");

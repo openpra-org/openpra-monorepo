@@ -1,0 +1,411 @@
+{
+  "version": 2,
+  "generated": "2026-11-12",
+  "purpose": "Results of the Python OpenRC engine, kept as the reference for the Rust port.",
+  "engine": {
+    "folder": "apps/solvers/openrc2",
+    "python": "3.12.0",
+    "platform": "Windows-11-10.0.26100-SP0",
+    "sha256": {
+      "RC00_CONFIG.py": "fcd5a33cb4e6556376ab2381e35ea0f8197d444ac7b5b392f9169f5d58551e48",
+      "RC01_ST.py": "057cab8cbd852d4da8fab8b8ee223d94d5216007c1363cbea4c53fb093030a75",
+      "RC03_MET.py": "04ffe579c3eaeb94bdb1b907a24ea3b3f34333441248e8434295a5e8a3564678",
+      "RC04_DCF.py": "e90e236e00ff585093e5a5d150e6defe5de438e07eb744ab93bd8fe80ced1e92",
+      "RC05_RCRE.py": "66bed3ac7795abfb6d26a716c2f507a6f156ea735bd45f53f15e4049230be678",
+      "RC10_RCAD.py": "fbead48d5aaeac9dd0f413b314448f0b67f0c07f83a2aafc2b1ddad8f85a04be",
+      "RC13_RUN.py": "e1198535aef324cecba8bfc7cac95b34c55113da55d6bea2faa2e76896ce43e3"
+    }
+  },
+  "data": {
+    "location": "apps/solvers/openrc2/data",
+    "sha256": {
+      "DCF.json": "320a58c96b622ae27285ee007c0114851aaae5303ff1eb7ef3e34df1c5b9d4c2",
+      "Chains.json": "38afb44978b4ba8932b4dbbb0652567f2cde441754cdea76b20558a9cfe30b80"
+    }
+  },
+  "generator": {
+    "script": "generate.py",
+    "command": "python -B generate.py <engine folder> [group ...]",
+    "groups": {
+      "number, sigma, plume, depletion, decay, rcre, tede, polar, config, met, run, loaders": "Call the engine functions with fixed and seeded random inputs and store the answers in vectors/.",
+      "sort": "Store the order the built-in sort gives to seeded lists of numbers, many of them with values that are not numbers.",
+      "cases": "Run RC13_RUN.py on every config in input/ from a temporary copy of this folder with data/DCF.json and data/Chains.json added, and store the console text, the results file or the error in expected/.",
+      "manifest": "Rewrite this file."
+    }
+  },
+  "vectors": {
+    "config.json": {
+      "bytes": 193976,
+      "sha256": "fc604adf4681ffe79c9e3fdb52f470125ec0c07e594d5ed45a493757c2ad53a6"
+    },
+    "decay.json": {
+      "bytes": 103800,
+      "sha256": "3d7239be42a02d04fb145a3ccb800027bb3fe22387351960fd88bd2fe12d3ea7"
+    },
+    "depletion.json": {
+      "bytes": 1239862,
+      "sha256": "3afaa4190df0a0e78e21fae93bf29ff94a705db9aa2f4dfc23a8d474f0f11795"
+    },
+    "loaders.json": {
+      "bytes": 2011,
+      "sha256": "e2d50fb2300061b4d0b94fd503b9982feca179077ace3c25fe65569ef930d23b"
+    },
+    "met.json": {
+      "bytes": 8483,
+      "sha256": "866e1b5803ce916d34dc69f90d7f69e50ac1cfbef58248d74da7f3108af27e53"
+    },
+    "number.json": {
+      "bytes": 866336,
+      "sha256": "d98ad2b5bb55f906776ff901d82b636600d367ab5c0cf4776fab24b98d8a063a"
+    },
+    "plume.json": {
+      "bytes": 332032,
+      "sha256": "db03b8d1c6c907dbc5a40550faee595db07d20b812495444668bfd290e97fa92"
+    },
+    "polar.json": {
+      "bytes": 264056,
+      "sha256": "6b07f5e9a3f66223b4627e8d238ba2d2acc5b5e9407e72be7422671bbd9fa6a9"
+    },
+    "rcre.json": {
+      "bytes": 108493,
+      "sha256": "1878539b2c32a0e91674de08c69626be7e171ff837ee22668b9656263a0f25d3"
+    },
+    "run.json": {
+      "bytes": 122279,
+      "sha256": "4684be2f5078561bc65bc4d258d109e409e8eec9d7c504dcf9b319ce4f68cbb8"
+    },
+    "sigma.json": {
+      "bytes": 451754,
+      "sha256": "18d6dc66831ec274f0962af30179518ebb65a43921338d229e2e9e0e0f903717"
+    },
+    "sort.json": {
+      "bytes": 1255319,
+      "sha256": "4bed04fb9b8bdcc639e9d047440b991d358da8faea09b04fb752f64dd61294a9"
+    },
+    "tede.json": {
+      "bytes": 492909,
+      "sha256": "691ac33491cc61a3d045005d86f4ed75de7e4972ba79f3a9ebea2e1d47c95a8d"
+    }
+  },
+  "cases": [
+    {
+      "config": "input/BadDataFile.txt",
+      "source": "written for the Rust port",
+      "error": "expected/BadDataFile.error.json",
+      "console": "expected/BadDataFile.console.txt"
+    },
+    {
+      "config": "input/BadMetFile.txt",
+      "source": "written for the Rust port",
+      "error": "expected/BadMetFile.error.json",
+      "console": "expected/BadMetFile.console.txt"
+    },
+    {
+      "config": "input/CaseNameSpaces.txt",
+      "source": "written for the Rust port",
+      "results": "expected/CaseNameSpaces.json",
+      "console": "expected/CaseNameSpaces.console.txt"
+    },
+    {
+      "config": "input/DecayIngrowth.txt",
+      "source": "written for the Rust port",
+      "results": "expected/DecayIngrowth.json",
+      "console": "expected/DecayIngrowth.console.txt"
+    },
+    {
+      "config": "input/DecaySimple.txt",
+      "source": "written for the Rust port",
+      "results": "expected/DecaySimple.json",
+      "console": "expected/DecaySimple.console.txt"
+    },
+    {
+      "config": "input/DefaultSection.txt",
+      "source": "written for the Rust port",
+      "results": "expected/DefaultSection.json",
+      "console": "expected/DefaultSection.console.txt"
+    },
+    {
+      "config": "input/Elevated.txt",
+      "source": "written for the Rust port",
+      "results": "expected/Elevated.json",
+      "console": "expected/Elevated.console.txt"
+    },
+    {
+      "config": "input/Epz.txt",
+      "source": "written for the Rust port",
+      "results": "expected/Epz.json",
+      "console": "expected/Epz.console.txt"
+    },
+    {
+      "config": "input/EpzBelowLimit.txt",
+      "source": "written for the Rust port",
+      "results": "expected/EpzBelowLimit.json",
+      "console": "expected/EpzBelowLimit.console.txt"
+    },
+    {
+      "config": "input/EpzMet.txt",
+      "source": "written for the Rust port",
+      "results": "expected/EpzMet.json",
+      "console": "expected/EpzMet.console.txt"
+    },
+    {
+      "config": "input/Example.txt",
+      "source": "apps/solvers/openrc2/input/Example.txt",
+      "changes": [
+        "write_csv set to true so the results file is written"
+      ],
+      "results": "expected/Example.json",
+      "console": "expected/Example.console.txt"
+    },
+    {
+      "config": "input/FarField.txt",
+      "source": "written for the Rust port",
+      "results": "expected/FarField.json",
+      "console": "expected/FarField.console.txt"
+    },
+    {
+      "config": "input/InfiniteActivity.txt",
+      "source": "written for the Rust port",
+      "results": "expected/InfiniteActivity.json",
+      "console": "expected/InfiniteActivity.console.txt"
+    },
+    {
+      "config": "input/LongIntegration.txt",
+      "source": "written for the Rust port",
+      "results": "expected/LongIntegration.json",
+      "console": "expected/LongIntegration.console.txt"
+    },
+    {
+      "config": "input/MetClasses.txt",
+      "source": "written for the Rust port",
+      "results": "expected/MetClasses.json",
+      "console": "expected/MetClasses.console.txt"
+    },
+    {
+      "config": "input/MetMixing.txt",
+      "source": "written for the Rust port",
+      "results": "expected/MetMixing.json",
+      "console": "expected/MetMixing.console.txt"
+    },
+    {
+      "config": "input/MetSingleRow.txt",
+      "source": "written for the Rust port",
+      "results": "expected/MetSingleRow.json",
+      "console": "expected/MetSingleRow.console.txt"
+    },
+    {
+      "config": "input/MidField.txt",
+      "source": "written for the Rust port",
+      "results": "expected/MidField.json",
+      "console": "expected/MidField.console.txt"
+    },
+    {
+      "config": "input/MissingCaseName.txt",
+      "source": "written for the Rust port",
+      "error": "expected/MissingCaseName.error.json",
+      "console": "expected/MissingCaseName.console.txt"
+    },
+    {
+      "config": "input/MissingSection.txt",
+      "source": "written for the Rust port",
+      "error": "expected/MissingSection.error.json",
+      "console": "expected/MissingSection.console.txt"
+    },
+    {
+      "config": "input/MixingLid.txt",
+      "source": "written for the Rust port",
+      "results": "expected/MixingLid.json",
+      "console": "expected/MixingLid.console.txt"
+    },
+    {
+      "config": "input/MostElevated.txt",
+      "source": "written for the Rust port",
+      "results": "expected/MostElevated.json",
+      "console": "expected/MostElevated.console.txt"
+    },
+    {
+      "config": "input/NearField.txt",
+      "source": "written for the Rust port",
+      "results": "expected/NearField.json",
+      "console": "expected/NearField.console.txt"
+    },
+    {
+      "config": "input/NoResultsFile.txt",
+      "source": "written for the Rust port",
+      "console": "expected/NoResultsFile.console.txt"
+    },
+    {
+      "config": "input/NoSegments.txt",
+      "source": "written for the Rust port",
+      "error": "expected/NoSegments.error.json",
+      "console": "expected/NoSegments.console.txt"
+    },
+    {
+      "config": "input/NonFiniteMet.txt",
+      "source": "written for the Rust port",
+      "results": "expected/NonFiniteMet.json",
+      "console": "expected/NonFiniteMet.console.txt"
+    },
+    {
+      "config": "input/NonFiniteReceptor.txt",
+      "source": "written for the Rust port",
+      "results": "expected/NonFiniteReceptor.json",
+      "console": "expected/NonFiniteReceptor.console.txt"
+    },
+    {
+      "config": "input/Polar.txt",
+      "source": "written for the Rust port",
+      "results": "expected/Polar.json",
+      "console": "expected/Polar.console.txt"
+    },
+    {
+      "config": "input/PolarDecay.txt",
+      "source": "written for the Rust port",
+      "results": "expected/PolarDecay.json",
+      "console": "expected/PolarDecay.console.txt"
+    },
+    {
+      "config": "input/PolarInfiniteRing.txt",
+      "source": "written for the Rust port",
+      "error": "expected/PolarInfiniteRing.error.json",
+      "console": "expected/PolarInfiniteRing.console.txt"
+    },
+    {
+      "config": "input/PolarMost.txt",
+      "source": "written for the Rust port",
+      "results": "expected/PolarMost.json",
+      "console": "expected/PolarMost.console.txt"
+    },
+    {
+      "config": "input/PolarMulti.txt",
+      "source": "written for the Rust port",
+      "results": "expected/PolarMulti.json",
+      "console": "expected/PolarMulti.console.txt"
+    },
+    {
+      "config": "input/PolarNanRing.txt",
+      "source": "written for the Rust port",
+      "error": "expected/PolarNanRing.error.json",
+      "console": "expected/PolarNanRing.console.txt"
+    },
+    {
+      "config": "input/PolarNanRingNoResults.txt",
+      "source": "written for the Rust port",
+      "console": "expected/PolarNanRingNoResults.console.txt"
+    },
+    {
+      "config": "input/PolarNegativeSectors.txt",
+      "source": "written for the Rust port",
+      "error": "expected/PolarNegativeSectors.error.json",
+      "console": "expected/PolarNegativeSectors.console.txt"
+    },
+    {
+      "config": "input/PolarNonFiniteMet.txt",
+      "source": "written for the Rust port",
+      "results": "expected/PolarNonFiniteMet.json",
+      "console": "expected/PolarNonFiniteMet.console.txt"
+    },
+    {
+      "config": "input/PolarRingsDup.txt",
+      "source": "written for the Rust port",
+      "results": "expected/PolarRingsDup.json",
+      "console": "expected/PolarRingsDup.console.txt"
+    },
+    {
+      "config": "input/PolarSingleTrialError.txt",
+      "source": "written for the Rust port",
+      "error": "expected/PolarSingleTrialError.error.json",
+      "console": "expected/PolarSingleTrialError.console.txt"
+    },
+    {
+      "config": "input/PolarSixteenSectors.txt",
+      "source": "written for the Rust port",
+      "error": "expected/PolarSixteenSectors.error.json",
+      "console": "expected/PolarSixteenSectors.console.txt"
+    },
+    {
+      "config": "input/PolarWindShift.txt",
+      "source": "written for the Rust port",
+      "results": "expected/PolarWindShift.json",
+      "console": "expected/PolarWindShift.console.txt"
+    },
+    {
+      "config": "input/PolarWindShiftClamp.txt",
+      "source": "written for the Rust port",
+      "results": "expected/PolarWindShiftClamp.json",
+      "console": "expected/PolarWindShiftClamp.console.txt"
+    },
+    {
+      "config": "input/PolarZeroPeriod.txt",
+      "source": "written for the Rust port",
+      "error": "expected/PolarZeroPeriod.error.json",
+      "console": "expected/PolarZeroPeriod.console.txt"
+    },
+    {
+      "config": "input/PolarZeroRing.txt",
+      "source": "written for the Rust port",
+      "error": "expected/PolarZeroRing.error.json",
+      "console": "expected/PolarZeroRing.console.txt"
+    },
+    {
+      "config": "input/SegmentsSkipped.txt",
+      "source": "written for the Rust port",
+      "results": "expected/SegmentsSkipped.json",
+      "console": "expected/SegmentsSkipped.console.txt"
+    },
+    {
+      "config": "input/StressTest.txt",
+      "source": "apps/solvers/openrc2/input/StressTest.txt",
+      "changes": [],
+      "results": "expected/StressTest.json",
+      "console": "expected/StressTest.console.txt"
+    },
+    {
+      "config": "input/StressTest_EK_amf.txt",
+      "source": "apps/solvers/openrc2/input/StressTest_EK_amf.txt",
+      "changes": [],
+      "results": "expected/StressTest_EK_amf.json",
+      "console": "expected/StressTest_EK_amf.console.txt",
+      "sameAsStoredOutput": "apps/solvers/openrc2/outputs/stress_ek_amf/stress_ek_amf_results.json"
+    },
+    {
+      "config": "input/StressTest_MOST.txt",
+      "source": "apps/solvers/openrc2/input/StressTest_MOST.txt",
+      "changes": [],
+      "results": "expected/StressTest_MOST.json",
+      "console": "expected/StressTest_MOST.console.txt",
+      "sameAsStoredOutput": "apps/solvers/openrc2/outputs/stress_most/stress_most_results.json"
+    },
+    {
+      "config": "input/StressTest_met.txt",
+      "source": "apps/solvers/openrc2/input/StressTest_met.txt",
+      "changes": [],
+      "results": "expected/StressTest_met.json",
+      "console": "expected/StressTest_met.console.txt",
+      "sameAsStoredOutput": "apps/solvers/openrc2/outputs/stress_test_001/stress_test_001_results.json"
+    },
+    {
+      "config": "input/Thyroid.txt",
+      "source": "written for the Rust port",
+      "results": "expected/Thyroid.json",
+      "console": "expected/Thyroid.console.txt"
+    },
+    {
+      "config": "input/Unmapped.txt",
+      "source": "written for the Rust port",
+      "results": "expected/Unmapped.json",
+      "console": "expected/Unmapped.console.txt"
+    },
+    {
+      "config": "input/ZeroDose.txt",
+      "source": "written for the Rust port",
+      "results": "expected/ZeroDose.json",
+      "console": "expected/ZeroDose.console.txt"
+    }
+  ],
+  "checks": {
+    "repeatable": "Two runs of every case gave byte-identical results.",
+    "storedOutputs": "Three cases are byte-identical to the outputs stored with the Python code.",
+    "rust": "The tests in apps/solvers/openrc/tests compare the Rust port with these files. Set OPENRC_EXACT=1 to require bit-identical numbers and byte-identical files."
+  }
+}

@@ -1,4 +1,4 @@
-import type { EsqCell, EsqLogic, EsqModel, EventSequenceQuantification } from "interfaces-mef-types/esq/event-sequence-quantification";
+import type { EsqCell, EsqLogic, EsqModel, EsqNetworkNodeTarget, EventSequenceQuantification } from "interfaces-mef-types/esq/event-sequence-quantification";
 import type { SystemBasicEvent, SystemLogicModel, SystemsAnalysis } from "interfaces-mef-types/sy/systems-analysis";
 import type { FaultTreeGate, FaultTreeGateInput, FaultTreeLeafNode } from "interfaces-mef-types/modeling/fault-tree";
 import { canonicalJson, type Law, type UncertainExpression, type UncertainParameter, type UncertainUnit } from "interfaces-mef-types/core/uncertainty";
@@ -9,6 +9,7 @@ import type { EsqEventTreeRunLogic } from "interfaces-shared-types/newly-develop
 import { FrequencyUnit } from "interfaces-mef-types/core/events";
 import { createBlankEsq } from "../blank-esq";
 import { createBlankSy } from "../../sy-workbooks/blank-sy";
+import { createExampleDependencyNetwork, EXAMPLE_DEPENDENCY_IDS } from "../../example-workbooks/seeds/dependency-model-seed";
 import { buildEsqEventTreeRun, EsqRunBuildError, type EsqRunBuild } from "../esq-model-run-builder";
 import { caseOverridesFor, sampledBuild, type EsqSamplingTally } from "../esq-measure-run-builder";
 import { sampledInputsOf } from "interfaces-mef-types/esq/esq-measure-inputs";
@@ -168,6 +169,14 @@ function build(esq: EventSequenceQuantification, logic: EsqEventTreeRunLogic = A
   return buildEsqEventTreeRun({ esq, treeId: "T1", sy, syWorkbookId: "sy-1", syRevision: 4, missionTimes, esqWorkbookId: "esq-1", esqRevision: 7, logic, points });
 }
 
+function nodeTarget(trueStateIds: string[], workbookId = "esq-1", nodeId: string = EXAMPLE_DEPENDENCY_IDS.divisionANode): EsqNetworkNodeTarget {
+  return { kind: "NETWORK_NODE", node: { workbookId, modelId: EXAMPLE_DEPENDENCY_IDS.network, nodeId }, trueStateIds };
+}
+
+function buildOnNetwork(esq: EventSequenceQuantification, network: { workbookId: string; modelId: string } = { workbookId: "esq-1", modelId: EXAMPLE_DEPENDENCY_IDS.network }): EsqRunBuild {
+  return buildEsqEventTreeRun({ esq, treeId: "T1", sy: systems(), syWorkbookId: "sy-1", syRevision: 4, missionTimes: new Map(), esqWorkbookId: "esq-1", esqRevision: 7, logic: AS_SET, points: new Map(), network });
+}
+
 function own(key: string): UncertainExpression {
   return parameter(key, "esq-1");
 }
@@ -265,6 +274,57 @@ describe("ESQ event tree run builder", () => {
     expect(split?.basicEventCatalogue.uncertaintyParameters).toEqual([]);
     expect(run.eventCodes[events[0]?.id ?? ""]).toBe("SF-F3");
     expect(run.values).toContainEqual({ id: events[0]?.id, role: "SPLIT", splitKey: `SPLIT:F3:${canonicalJson(point("PROBABILITY", 0.3))}` });
+  });
+
+  it("stands a one-event fault tree in for a function that a rule links to a node of the run network", () => {
+    const esq = workbook();
+    esq.bayesianNetworks = [createExampleDependencyNetwork()];
+    esq.modelDecisions = { functionLinks: [{ functionId: "F3", target: { kind: "SPLIT_FRACTION", expression: point("PROBABILITY", 0.3) }, rules: [{ id: "R-NODE", treeIds: ["T1"], groupIds: [], stateIds: [], target: nodeTarget([EXAMPLE_DEPENDENCY_IDS.divisionAFailed, EXAMPLE_DEPENDENCY_IDS.divisionAAvailable]), reason: "" }] }] };
+    const run = buildOnNetwork(esq);
+    const [standIn] = run.standIns;
+    expect(run.standIns).toEqual([{
+      modelId: standIn?.modelId,
+      eventId: standIn?.eventId,
+      node: { workbookId: "esq-1", modelId: EXAMPLE_DEPENDENCY_IDS.network, nodeId: EXAMPLE_DEPENDENCY_IDS.divisionANode },
+      trueStateIds: [EXAMPLE_DEPENDENCY_IDS.divisionAAvailable, EXAMPLE_DEPENDENCY_IDS.divisionAFailed],
+    }]);
+    expect(run.splitFractionModelIds).toEqual([]);
+    const tree = run.faultTrees.find((entry) => entry.modelSnapshot.id === standIn?.modelId);
+    expect(tree?.modelSnapshot).toMatchObject({ methodType: "FAULT_TREE", revision: 7, gates: [{ gateType: "OR", code: "BN-F3", name: "Recovery network node" }], leafNodes: [{ kind: "BASIC_EVENT_REFERENCE", basicEventId: standIn?.eventId }] });
+    expect(tree?.basicEventCatalogue.basicEvents).toEqual([{ id: standIn?.eventId, expression: point("PROBABILITY", 0) }]);
+    expect(run.eventCodes[standIn?.eventId ?? ""]).toBe("BN-F3");
+    const [root] = run.eventTreeSnapshots;
+    const links = root?.["functionalEventFaultTreeLinks"] as { functionalEventId: string; faultTreeTopGate: { modelId: string; entityId: string } }[];
+    expect(links.find((link) => link.functionalEventId === esqFunctionRunId("F3"))?.faultTreeTopGate.modelId).toBe(standIn?.modelId);
+  });
+
+  it("stands in for the default node target of a function and shares one stand-in across its trees", () => {
+    const esq = workbook();
+    esq.bayesianNetworks = [createExampleDependencyNetwork()];
+    esq.modelDecisions = { functionLinks: [{ functionId: "F3", target: nodeTarget([EXAMPLE_DEPENDENCY_IDS.divisionAFailed]) }, { functionId: "F1", target: nodeTarget([EXAMPLE_DEPENDENCY_IDS.divisionAFailed]) }] };
+    const run = buildOnNetwork(esq);
+    expect(run.standIns.map((standIn) => standIn.trueStateIds)).toEqual([[EXAMPLE_DEPENDENCY_IDS.divisionAFailed], [EXAMPLE_DEPENDENCY_IDS.divisionAFailed]]);
+    expect(new Set(run.standIns.map((standIn) => standIn.modelId)).size).toBe(2);
+    expect(run.syModelIds).toEqual([FT_B]);
+    const linked = run.eventTreeSnapshots.flatMap((tree) => (tree["functionalEventFaultTreeLinks"] as { functionalEventId: string; faultTreeTopGate: { modelId: string } }[]).filter((link) => link.functionalEventId === esqFunctionRunId("F1")));
+    expect(linked).toHaveLength(2);
+    expect(new Set(linked.map((link) => link.faultTreeTopGate.modelId)).size).toBe(1);
+  });
+
+  it("refuses a node link outside a dependency run on its network and a node the workbook does not hold", () => {
+    const esq = workbook();
+    esq.bayesianNetworks = [createExampleDependencyNetwork()];
+    esq.modelDecisions = { functionLinks: [{ functionId: "F3", target: nodeTarget([EXAMPLE_DEPENDENCY_IDS.divisionAFailed]) }] };
+    const quantified = "Recovery in ET-T1 links to the network node RPS-DIV-A · Protection division A · BN-RPS-DEPENDENCY, which only a dependency run on that network quantifies.";
+    expect(buildError(() => build(esq))).toBe(quantified);
+    expect(buildError(() => buildOnNetwork(esq, { workbookId: "esq-1", modelId: "another-network" }))).toBe(quantified);
+    const missing = "Recovery in ET-T1 links to a node that the dependency networks of this workbook do not have. Link it again in Step 02.";
+    esq.modelDecisions = { functionLinks: [{ functionId: "F3", target: nodeTarget([EXAMPLE_DEPENDENCY_IDS.divisionAFailed], "esq-1", "node-gone") }] };
+    expect(buildError(() => buildOnNetwork(esq))).toBe(missing);
+    esq.modelDecisions = { functionLinks: [{ functionId: "F3", target: nodeTarget([EXAMPLE_DEPENDENCY_IDS.divisionAFailed], "sy-1") }] };
+    expect(buildError(() => buildOnNetwork(esq, { workbookId: "sy-1", modelId: EXAMPLE_DEPENDENCY_IDS.network }))).toBe(missing);
+    esq.modelDecisions = { functionLinks: [{ functionId: "F3", target: nodeTarget([]) }] };
+    expect(buildError(() => buildOnNetwork(esq))).toBe("Recovery in ET-T1 links to the network node RPS-DIV-A · Protection division A · BN-RPS-DEPENDENCY with no failing state. Pick its failing states in Step 02.");
   });
 
   it("links a split fraction to a DA estimate through the parameter", () => {

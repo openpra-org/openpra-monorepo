@@ -31,6 +31,8 @@ use crate::transport::SolverRequest;
 const EVENT_TREE_METHOD: &str = "EVENT_TREE";
 
 mod cut_sets;
+mod dependency_cut_sets;
+mod dependency_importance;
 mod linked;
 mod measures;
 mod monte_carlo;
@@ -55,6 +57,12 @@ struct EventTreeExecuteRequest {
     expand_ccf: bool,
     #[serde(default)]
     cut_sets: Option<cut_sets::CutSetsInput>,
+    #[serde(default)]
+    dependency_cut_sets: Option<dependency_cut_sets::DependencyCutSetsInput>,
+    #[serde(default)]
+    dependency_importance: bool,
+    #[serde(default)]
+    dependency_importance_events: Option<usize>,
     #[serde(default)]
     sequence_families: HashMap<String, String>,
     #[serde(default)]
@@ -316,6 +324,9 @@ struct EventTreeAdapter {
     evidence_batch: Option<Vec<EventTreeEvidenceRow>>,
     hazard_convolution: Option<HazardConvolutionRequest>,
     cut_sets: Option<cut_sets::CutSetsInput>,
+    dependency_cut_sets: Option<dependency_cut_sets::DependencyCutSetsInput>,
+    dependency_importance: bool,
+    sampled_importance_events: Option<usize>,
     sequence_families: HashMap<String, String>,
     expand_ccf: bool,
     importance: Option<measures::ImportanceInput>,
@@ -373,9 +384,6 @@ fn parse_event_tree_snapshots(
 
 fn build_adapter(request: &SolverRequest) -> Result<EventTreeAdapter> {
     let execute = parse_request(request)?;
-    execute
-        .calculation_type
-        .ensure_hazard_supported(execute.hazard_convolution.is_some())?;
     if matches!(execute.mode, EventTreeExecutionMode::Independent)
         && execute.calculation_type == HclCalculationType::Uncertainty
     {
@@ -399,6 +407,20 @@ fn build_adapter(request: &SolverRequest) -> Result<EventTreeAdapter> {
             ));
         }
         cut_sets.validate()?;
+    }
+    if let Some(ranked) = &execute.dependency_cut_sets {
+        ranked.validate(
+            execute.mode,
+            execute.calculation_type == HclCalculationType::Probability,
+        )?;
+    }
+    if execute.dependency_importance {
+        dependency_importance::validate(
+            execute.mode,
+            execute.calculation_type == HclCalculationType::Probability,
+            execute.dependency_importance_events,
+            execute.hazard_convolution.is_some(),
+        )?;
     }
     if execute.importance.is_some() || execute.sampling.is_some() {
         if matches!(execute.mode, EventTreeExecutionMode::HybridCausalLogic)
@@ -544,13 +566,10 @@ fn build_adapter(request: &SolverRequest) -> Result<EventTreeAdapter> {
         sequences: linked.sequences,
         ..snapshot
     };
-    if execute.hazard_convolution.is_some() {
-        hcl_context
-            .as_ref()
-            .ok_or_else(|| {
-                PraxisError::Hcl("event-tree hazard convolution requires HCL mode".into())
-            })?
-            .ensure_hazard_convolution_supported()?;
+    if execute.hazard_convolution.is_some() && hcl_context.is_none() {
+        return Err(PraxisError::Hcl(
+            "event-tree hazard convolution requires HCL mode".into(),
+        ));
     }
     Ok(EventTreeAdapter {
         model_id: snapshot.id.clone(),
@@ -566,6 +585,13 @@ fn build_adapter(request: &SolverRequest) -> Result<EventTreeAdapter> {
         evidence_batch: execute.evidence_batch,
         hazard_convolution: execute.hazard_convolution,
         cut_sets: execute.cut_sets,
+        dependency_cut_sets: execute.dependency_cut_sets,
+        dependency_importance: execute.dependency_importance,
+        sampled_importance_events: crate::dependency_importance::sampled_events(
+            execute.calculation_type == HclCalculationType::Probability
+                || !execute.dependency_importance,
+            execute.dependency_importance_events,
+        )?,
         sequence_families: execute.sequence_families,
         expand_ccf: execute.expand_ccf,
         importance: execute.importance,
@@ -703,7 +729,19 @@ pub(crate) fn execute(request: &SolverRequest) -> Result<Value> {
         adapter.hcl_context.as_ref(),
         &unions,
     )?;
-    event_tree_result_json(&adapter, &probabilities, &end_states, None)
+    let mut value = event_tree_result_json(&adapter, &probabilities, &end_states, None)?;
+    if let Some(ranked) = &adapter.dependency_cut_sets {
+        dependency_cut_sets::attach_to_result(&adapter, ranked, &mut value)?;
+    }
+    if adapter.dependency_importance {
+        match adapter.sampled_importance_events {
+            Some(events) => {
+                dependency_importance::attach_sampled_to_result(&adapter, events, &mut value)?
+            }
+            None => dependency_importance::attach_to_result(&adapter, &mut value)?,
+        }
+    }
+    Ok(value)
 }
 
 fn end_state_unions(adapter: &EventTreeAdapter) -> Result<Vec<EventTreeUnion>> {
@@ -1001,6 +1039,20 @@ fn execute_batch(adapter: &EventTreeAdapter, rows: &[EventTreeEvidenceRow]) -> R
     });
     if let Some(hazard_convolution) = hazard_convolution {
         response["hazardConvolution"] = hazard_convolution;
+    }
+    if let Some(ranked) = &adapter.dependency_cut_sets {
+        dependency_cut_sets::attach_to_batch(adapter, ranked, rows, &mut response)?;
+    }
+    if adapter.hazard_convolution.is_some() {
+        dependency_importance::attach_sampled_hazard(adapter, rows, &batch, &mut response)?;
+    }
+    if adapter.dependency_importance {
+        match adapter.sampled_importance_events {
+            Some(events) => {
+                dependency_importance::attach_sampled_to_batch(adapter, events, rows, &mut response)?
+            }
+            None => dependency_importance::attach_to_batch(adapter, rows, &mut response)?,
+        }
     }
     Ok(response)
 }

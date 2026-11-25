@@ -1,0 +1,31 @@
+Loading config: input/MixingLid.txt
+  case_name : mixing_lid
+  mode      : lmp
+  geometry  : centerline
+  nuclides  : 20
+  segments  : 1
+  met       : single trial  (class A, 2.0 m/s)
+
+Total released activity : 7.103e+15 Bq  (20 nuclide-segment pairs)
+
+
+============================================================
+  TEDE             : 32.8170 mSv  (3.2817e-02 Sv)
+  chi/Q            : 2.8252e-06 s/m³
+  Ground dep total : 6.4154e+07 Bq/m²
+  LMP TEDE (756 m) : 46.8328 mSv  (30-day at EAB)
+============================================================
+
+Top 10 nuclide contributors to TEDE:
+  I-131        20.7967 mSv  (63.4%)
+  Cs-137       3.6549 mSv  (11.1%)
+  I-133        3.1171 mSv  (9.5%)
+  I-132        1.7164 mSv  (5.2%)
+  Cs-134       0.9952 mSv  (3.0%)
+  Sr-90        0.7314 mSv  (2.2%)
+  La-140       0.7283 mSv  (2.2%)
+  Te-132       0.4880 mSv  (1.5%)
+  Ru-106       0.1539 mSv  (0.5%)
+  Te-129m      0.1485 mSv  (0.5%)
+
+Results written to: outputs\mixing_lid\mixing_lid_results.json

@@ -3,6 +3,7 @@ use napi_derive::napi;
 use praxis::PraxisError;
 
 mod bayesian_network;
+mod dependency_importance;
 mod diagnostics;
 mod event_tree;
 mod evidence_batch;

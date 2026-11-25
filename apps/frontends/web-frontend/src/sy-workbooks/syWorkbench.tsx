@@ -34,7 +34,6 @@ import { DockDependsChip } from "../workbooks/workbookInterfaces";
 import { WorkbookSaveIndicator } from "../workbooks/workbookSaveIndicator";
 import { TEXT_VIEW, useWorkbookView, useWorkbookViewSlot } from "../workbooks/workbookViewMemory";
 import { type RevisionedSaveStatus } from "../workbooks/useRevisionedMefPatch";
-import { SyBayesianNetworkWorkspace } from "./syBayesianNetworkWorkspace";
 import "../workbooks/css/workbookWorkspace.css";
 import "../welcome/css/newProjectModal.css";
 import "./css/syScreens.css";
@@ -385,8 +384,6 @@ function SyWorkbench({
   [data.sy, persona, uncertaintyReadiness]);
   const [searchParams] = useSearchParams();
   const requestedStepId = searchParams.get("step");
-  const requestedNetworkId = searchParams.get("network");
-  const requestedEsqWorkbookId = searchParams.get("esqWorkbook");
   const mefCcId = data.sy.capabilityCategory === "CC-I" ? "cc-i" : "cc-ii";
   const mefStage: Stage = data.sy.plantStage === "OPERATIONAL" ? "operational" : "pre_operational";
   const [ccId, setCcId] = useState<string>(mefCcId);
@@ -503,7 +500,6 @@ function SyWorkbench({
         <>
           <DependenciesScreen sysId={sysId} setSysId={setSysId} openDrawer={setDrawer} onOpenSystems={openSystemsInScope} />
           <DependencyMatrix openDrawer={setDrawer} />
-          <SyBayesianNetworkWorkspace initialModelId={requestedNetworkId} initialEsqWorkbookId={requestedEsqWorkbookId} />
         </>
       );
       case "integrity": return (
@@ -586,7 +582,7 @@ function SyWorkbench({
           </div>
 
           {renderScreen()}
-          {["ccf", "deps"].includes(stepId) && <SyAnalysisHistory />}
+          {stepId === "ccf" && <SyAnalysisHistory />}
 
           <div className="posnav">
             {prev ? (

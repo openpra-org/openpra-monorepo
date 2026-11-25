@@ -14,7 +14,9 @@ use crate::core::gate::Gate;
 use crate::core::model::Model;
 use crate::error::{MefError, Result};
 
-use crate::io::parser::{parse_ccf_group, parse_element, parse_gate, parse_house_event_value};
+use crate::io::parser::{
+    parse_ccf_group, parse_element, parse_gate, parse_house_event_value, root_gates,
+};
 
 #[derive(Debug)]
 pub struct EventTreeModel {
@@ -380,7 +382,6 @@ fn parse_fault_tree_from_reader<R: BufRead>(
 ) -> Result<FaultTree> {
     let ft_name = required_attr(start, b"name", "define-fault-tree")?;
 
-    let mut top_gate: Option<String> = None;
     let mut gates = Vec::new();
     let mut basic_events = Vec::new();
     let mut ccf_groups = Vec::new();
@@ -391,9 +392,6 @@ fn parse_fault_tree_from_reader<R: BufRead>(
             Ok(Event::Start(e)) => match e.name().as_ref() {
                 b"define-gate" => {
                     let gate_name = required_attr(&e, b"name", "define-gate")?;
-                    if top_gate.is_none() {
-                        top_gate = Some(gate_name.clone());
-                    }
                     let parsed = parse_gate(reader, &gate_name)?;
                     gates.extend(parsed);
                 }
@@ -426,7 +424,14 @@ fn parse_fault_tree_from_reader<R: BufRead>(
         buf.clear();
     }
 
-    let top = top_gate.unwrap_or_else(|| "top".to_string());
+    // Event trees name the gates they use, and other trees may link into this one, so
+    // several roots are normal here and the top only answers a reference to the root.
+    let top = root_gates(&gates)
+        .first()
+        .copied()
+        .or_else(|| gates.first().map(|gate| gate.element().id()))
+        .unwrap_or("top")
+        .to_string();
     let mut ft = FaultTree::new(ft_name, top)?;
     for gate in gates {
         ft.add_gate(gate)?;
@@ -1251,5 +1256,36 @@ mod tests {
                 .unwrap()
                 .state());
         }
+    }
+
+    #[test]
+    fn a_tree_takes_its_root_as_the_top_wherever_the_root_is_defined() {
+        let xml = r#"
+<opsa-mef>
+  <define-fault-tree name="FT">
+    <define-gate name="SUB"><and><basic-event name="E1"/><basic-event name="E2"/></and></define-gate>
+    <define-gate name="TOP"><or><gate name="SUB"/><basic-event name="E3"/></or></define-gate>
+  </define-fault-tree>
+</opsa-mef>
+"#;
+        let parsed = parse_event_tree_model_full(xml).unwrap();
+        assert_eq!(
+            parsed.model.get_fault_tree("FT").unwrap().top_event(),
+            "TOP"
+        );
+    }
+
+    #[test]
+    fn a_tree_may_have_several_roots() {
+        let xml = r#"
+<opsa-mef>
+  <define-fault-tree name="FT">
+    <define-gate name="A"><or><basic-event name="E1"/><basic-event name="E2"/></or></define-gate>
+    <define-gate name="B"><or><basic-event name="E2"/><basic-event name="E3"/></or></define-gate>
+  </define-fault-tree>
+</opsa-mef>
+"#;
+        let parsed = parse_event_tree_model_full(xml).unwrap();
+        assert_eq!(parsed.model.get_fault_tree("FT").unwrap().top_event(), "A");
     }
 }

@@ -1,5 +1,9 @@
 import { JSX, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
+import { useWorkbookSharing } from "../workbooks/useWorkbookSharing";
+import { WorkbookAccessRedirect } from "../workbooks/workbookAccessRedirect";
+import { WorkbookSharingProvider } from "../workbooks/workbookSharing";
+import { useWorkbookLiveUpdates } from "../workbooks/useWorkbookLiveUpdates";
 import { type EventSequenceAnalysis } from "interfaces-mef-types/es/event-sequence-analysis";
 import { type EsLinkedWorkbooks } from "interfaces-mef-types/es/event-sequence-analysis";
 import { listWorkbooks } from "../workbooks/workbookApi";
@@ -179,13 +183,23 @@ function EsWorkbookPage(): JSX.Element {
     };
   }, [id, refreshWorkbook]);
 
+  const sharing = useWorkbookSharing(id, myRoles);
+  const refreshFromServer = useCallback(async (): Promise<void> => {
+    if (id === undefined) return;
+    const workbook = await getEsWorkbook(id);
+    updateEs(workbook.mef);
+    setRevision(workbook.revision);
+    setMyRoles(workbook.myRoles);
+  }, [id, updateEs]);
+  useWorkbookLiveUpdates(id, refreshFromServer);
+
   const availablePersonas = useMemo<EsPersona[]>(() => {
     const out: EsPersona[] = [];
-    if (myRoles.includes("preparer") || myRoles.includes("co_preparer")) out.push("preparer");
+    if (sharing.preparerView) out.push("preparer");
     if (myRoles.includes("reviewer")) out.push("reviewer");
     if (myRoles.includes("approver")) out.push("approver");
     return out;
-  }, [myRoles]);
+  }, [myRoles, sharing.preparerView]);
 
   const linkRoles = myRoles.includes("preparer") || myRoles.includes("co_preparer");
   const projectId = data?.projectId;
@@ -287,29 +301,20 @@ function EsWorkbookPage(): JSX.Element {
   if (error !== null) {
     return <div className="posw"><main className="posmain"><p className="pws-status pws-status--error">{error}</p></main></div>;
   }
-  if (data === null || viewData === null || id === undefined) {
+  if (data === null || viewData === null || id === undefined || !sharing.loaded) {
     return <div className="posw"><main className="posmain"><p className="pws-status">Loading workbook…</p></main></div>;
   }
 
-  if (availablePersonas.length === 0) {
-    return (
-      <div className="posw">
-        <main className="posmain">
-          <p className="pws-status">You do not have any role on this workbook yet. Ask the workbook owner to assign you a preparer, reviewer, or approver role.</p>
-          <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => setRolesOpen(true)}>View roles</button>
-        </main>
-        {rolesOpen && <WorkbookRolesModal workbookId={id} onClose={() => setRolesOpen(false)} onChanged={(res) => setMyRoles(res.myRoles as EsWorkbookRoleName[])} />}
-      </div>
-    );
-  }
+  if (availablePersonas.length === 0) return <WorkbookAccessRedirect projectId={projectId ?? null} />;
 
   const workflowState = data.es.workflowState;
-  const canLink = myRoles.includes("preparer") || myRoles.includes("co_preparer");
-  const editable = persona === "preparer" && (workflowState === "DRAFT" || workflowState === "REVISION_REQUIRED");
-  const canLoadExample = canLink && (workflowState === "DRAFT" || workflowState === "REVISION_REQUIRED");
+  const canLink = sharing.authoring;
+  const editable = persona === "preparer" && sharing.authoring && (workflowState === "DRAFT" || workflowState === "REVISION_REQUIRED");
+  const canLoadExample = (myRoles.includes("preparer") || myRoles.includes("co_preparer")) && (workflowState === "DRAFT" || workflowState === "REVISION_REQUIRED");
   const canUnloadExample = canLoadExample && hasPreviousMef;
 
   return (
+    <WorkbookSharingProvider workbookId={id} workbookName={workbookName} sharing={sharing}>
     <EsWorkbookProvider
       data={viewData}
       editable={editable}
@@ -389,6 +394,7 @@ function EsWorkbookPage(): JSX.Element {
         />
       )}
     </EsWorkbookProvider>
+    </WorkbookSharingProvider>
   );
 }
 

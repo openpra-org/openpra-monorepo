@@ -1,6 +1,6 @@
 import { JSX, useMemo, useState } from "react";
 import { type Project, type Workbook, elementsForMode } from "interfaces-shared-types";
-import { ArrowLeftIcon, ClockIcon, FolderIcon, SettingsIcon } from "../welcome/icons";
+import { ArrowLeftIcon, ClockIcon, FolderIcon, SettingsIcon, ShareIcon } from "../welcome/icons";
 import { formatRelative } from "../welcome/formatRelative";
 import { LegacyElementPane } from "../workbooks/legacyElementPane";
 import { KebabMenu } from "./kebabMenu";
@@ -21,6 +21,7 @@ function WorkspaceLegacy({
   onRename,
   onDuplicate,
   onShare,
+  onOpenSharing,
   onToggleArchive,
   onDelete,
   onNewLinkedWorkbooks,
@@ -37,6 +38,7 @@ function WorkspaceLegacy({
   onRename: () => void;
   onDuplicate: () => void;
   onShare: () => void;
+  onOpenSharing?: () => void;
   onToggleArchive: () => void;
   onDelete: () => void;
   onNewLinkedWorkbooks?: () => void;
@@ -99,6 +101,11 @@ function WorkspaceLegacy({
               )}
               {onGenerateExamples !== undefined && (
                 <button type="button" className="wfilters__gen" onClick={onGenerateExamples}>Generate example</button>
+              )}
+              {onOpenSharing !== undefined && (
+                <button type="button" className="btn btn--ghost btn--sm phead__history-btn" onClick={onOpenSharing}>
+                  <ShareIcon /> Share
+                </button>
               )}
               <button type="button" className="btn btn--ghost btn--sm phead__history-btn" onClick={onOpenHistory}>
                 <ClockIcon /> History

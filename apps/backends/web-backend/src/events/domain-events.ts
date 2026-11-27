@@ -10,6 +10,8 @@ export type DomainEvent =
   | { type: "project.shared_team"; projectId: string; projectName: string; actor: string; teamId: string; teamName: string; role: string; teamMembers: string[] }
   | { type: "project.unshared_user"; projectId: string; projectName: string; actor: string; target: string }
   | { type: "project.unshared_team"; projectId: string; projectName: string; actor: string; teamId: string; teamName: string }
-  | { type: "project.deleted"; projectId: string; projectName: string; actor: string };
+  | { type: "project.deleted"; projectId: string; projectName: string; actor: string }
+  | { type: "project.collaborator_added"; projectId: string; projectName: string; actor: string; target: string; access: string }
+  | { type: "workbook.collaborator_added"; projectId: string; projectName: string; workbookId: string; workbookName: string; link: string; actor: string; target: string; access: string };
 
 export type DomainEventType = DomainEvent["type"];

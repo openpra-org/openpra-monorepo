@@ -62,7 +62,7 @@ export class InternalFloodPraWorkbooksService {
     const doc = await this.findOrInitialize(workbookId, acting); await this.projectsService.resolveAccess(doc.projectId, acting); return toResponse(doc, await this.loadMyRoles(workbookId, acting.username));
   }
   async patchMef(workbookId: string, operations: unknown, acting: ActingUser): Promise<InternalFloodPraWorkbookResponse> {
-    const doc = await this.findOrInitialize(workbookId, acting); const { role } = await this.projectsService.resolveAccess(doc.projectId, acting);
+    const doc = await this.findOrInitialize(workbookId, acting); const { role } = await this.projectsService.resolveAccess(doc.projectId, acting, workbookId);
     if (role === "viewer") throw new ForbiddenException("You cannot edit this Internal Flood PRA workbook");
     const parsed = InternalFloodPRASchema.safeParse(stripNulls(mergeWorkbookPatch(doc.mef, operations)));
     if (!parsed.success) throw new ForbiddenException(`Invalid Internal Flood PRA workbook payload: ${parsed.error.message}`);

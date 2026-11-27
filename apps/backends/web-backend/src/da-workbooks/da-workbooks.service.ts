@@ -77,7 +77,7 @@ export class DaWorkbooksService {
   async patchMef(workbookId: string, patch: RevisionedWorkbookPatchBody, acting: ActingUser): Promise<DaWorkbookResponse> {
     const doc = await this.daWorkbookModel.findOne({ workbookId }).exec();
     if (!doc) throw new NotFoundException("DA workbook not found");
-    const { role } = await this.projectsService.resolveAccess(doc.projectId, acting);
+    const { role } = await this.projectsService.resolveAccess(doc.projectId, acting, workbookId);
     if (role === "viewer") throw new ForbiddenException("You cannot edit this DA workbook");
     assertExpectedWorkbookRevision(doc, patch.expectedRevision);
     const current = DataAnalysisSchema.safeParse(stripNulls(doc.mef));

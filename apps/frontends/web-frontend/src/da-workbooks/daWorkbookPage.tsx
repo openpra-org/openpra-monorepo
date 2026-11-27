@@ -1,5 +1,9 @@
 import { JSX, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
+import { useWorkbookSharing } from "../workbooks/useWorkbookSharing";
+import { WorkbookAccessRedirect } from "../workbooks/workbookAccessRedirect";
+import { WorkbookSharingProvider } from "../workbooks/workbookSharing";
+import { useWorkbookLiveUpdates } from "../workbooks/useWorkbookLiveUpdates";
 import { type DataAnalysis } from "interfaces-mef-types/da/data-analysis";
 import { type PRAConfigurationControl } from "interfaces-mef-types/cross-cutting/pra-configuration-control";
 import { type NewlyDevelopedMethod } from "interfaces-mef-types/cross-cutting/newly-developed-methods";
@@ -72,6 +76,7 @@ function DaWorkbookPage(): JSX.Element {
   const [hasPreviousMef, setHasPreviousMef] = useState(false);
   const [approvalRefresh, setApprovalRefresh] = useState(0);
   const [projectName, setProjectName] = useState<string>("");
+  const [projectId, setProjectId] = useState<string | null>(null);
   const [exampleOptions, setExampleOptions] = useState<DaExampleOption[]>([]);
   const [linkOptions, setLinkOptions] = useState<Record<DaLinkCode, Workbook[]>>(EMPTY_UPSTREAM.options);
   const [reading, setReading] = useState(0);
@@ -97,6 +102,7 @@ function DaWorkbookPage(): JSX.Element {
           nms: bundle.newlyDevelopedMethods.map((nm) => nm.mef as NewlyDevelopedMethod),
         });
         setMyRoles(workbook.myRoles);
+        setProjectId(workbook.projectId);
         setRevision(workbook.revision);
         setHasPreviousMef(workbook.hasPreviousMef);
         try {
@@ -186,13 +192,23 @@ function DaWorkbookPage(): JSX.Element {
     };
   }, [id, updateDa]);
 
+  const sharing = useWorkbookSharing(id, myRoles);
+  const refreshFromServer = useCallback(async (): Promise<void> => {
+    if (id === undefined) return;
+    const workbook = await getDaWorkbook(id);
+    updateDa(workbook.mef);
+    setRevision(workbook.revision);
+    setMyRoles(workbook.myRoles);
+  }, [id, updateDa]);
+  useWorkbookLiveUpdates(id, refreshFromServer);
+
   const availablePersonas = useMemo<DaPersona[]>(() => {
     const out: DaPersona[] = [];
-    if (myRoles.includes("preparer") || myRoles.includes("co_preparer")) out.push("preparer");
+    if (sharing.preparerView) out.push("preparer");
     if (myRoles.includes("reviewer")) out.push("reviewer");
     if (myRoles.includes("approver")) out.push("approver");
     return out;
-  }, [myRoles]);
+  }, [myRoles, sharing.preparerView]);
 
   const [persona, setPersona] = useState<DaPersona>("preparer");
   useEffect(() => {
@@ -203,29 +219,20 @@ function DaWorkbookPage(): JSX.Element {
   if (error !== null) {
     return <div className="posw"><main className="posmain"><p className="pws-status pws-status--error">{error}</p></main></div>;
   }
-  if (data === null || viewData === null || id === undefined) {
+  if (data === null || viewData === null || id === undefined || !sharing.loaded) {
     return <div className="posw"><main className="posmain"><p className="pws-status">Loading workbook…</p></main></div>;
   }
 
-  if (availablePersonas.length === 0) {
-    return (
-      <div className="posw">
-        <main className="posmain">
-          <p className="pws-status">You do not have any role on this workbook yet. Ask the workbook owner to assign you a preparer, reviewer, or approver role.</p>
-          <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => setRolesOpen(true)}>View roles</button>
-        </main>
-        {rolesOpen && <WorkbookRolesModal workbookId={id} onClose={() => setRolesOpen(false)} onChanged={(res) => setMyRoles(res.myRoles as DaWorkbookRoleName[])} />}
-      </div>
-    );
-  }
+  if (availablePersonas.length === 0) return <WorkbookAccessRedirect projectId={projectId} />;
 
   const workflowState = data.da.workflowState;
   const canEdit = myRoles.includes("preparer") || myRoles.includes("co_preparer");
-  const editable = persona === "preparer" && (workflowState === "DRAFT" || workflowState === "REVISION_REQUIRED");
+  const editable = persona === "preparer" && sharing.authoring && (workflowState === "DRAFT" || workflowState === "REVISION_REQUIRED");
   const canLoadExample = canEdit && (workflowState === "DRAFT" || workflowState === "REVISION_REQUIRED");
   const canUnloadExample = canLoadExample && hasPreviousMef;
 
   return (
+    <WorkbookSharingProvider workbookId={id} workbookName={workbookName} sharing={sharing}>
     <DaWorkbookProvider data={viewData} editable={editable} mutateDa={mutateDa} upstream={upstream}>
       <DaWorkbench
         data={viewData}
@@ -250,7 +257,7 @@ function DaWorkbookPage(): JSX.Element {
           />
         )}
         renderRoster={() => <WorkbookRoster workbookId={id} refreshSignal={approvalRefresh} />}
-        renderDocuments={() => <DaDocumentsCard workbookId={id} canEdit={canEdit} />}
+        renderDocuments={() => <DaDocumentsCard workbookId={id} canEdit={sharing.authoring} />}
       />
       {unavailableLinks.length > 0 && dismissedUnavailable !== unavailableLinks && (
         <div className="ie-savebar" role="alert">
@@ -292,6 +299,7 @@ function DaWorkbookPage(): JSX.Element {
         />
       )}
     </DaWorkbookProvider>
+    </WorkbookSharingProvider>
   );
 }
 

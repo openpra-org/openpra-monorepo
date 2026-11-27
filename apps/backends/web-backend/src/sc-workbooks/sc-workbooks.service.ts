@@ -67,7 +67,7 @@ export class ScWorkbooksService {
   async patchMef(workbookId: string, operations: unknown, acting: ActingUser): Promise<ScWorkbookResponse> {
     const doc = await this.scWorkbookModel.findOne({ workbookId }).exec();
     if (!doc) throw new NotFoundException("SC workbook not found");
-    const { role } = await this.projectsService.resolveAccess(doc.projectId, acting);
+    const { role } = await this.projectsService.resolveAccess(doc.projectId, acting, workbookId);
     if (role === "viewer") throw new ForbiddenException("You cannot edit this SC workbook");
     const parsed = SuccessCriteriaDevelopmentSchema.safeParse(stripNulls(mergeWorkbookPatch(doc.mef, operations)));
     if (!parsed.success) {

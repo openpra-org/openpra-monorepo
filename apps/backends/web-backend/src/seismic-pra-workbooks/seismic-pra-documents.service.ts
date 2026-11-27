@@ -76,7 +76,7 @@ export class SeismicPraDocumentsService implements OnModuleInit {
   private async authorize(workbookId: string, acting: ActingUser, write: boolean): Promise<WorkbookRoleName[]> {
     const workbook = await this.workbookModel.findOne({ workbookId }).exec();
     if (!workbook) throw new NotFoundException("Seismic PRA workbook not found");
-    const { role } = await this.projectsService.resolveAccess(workbook.projectId, acting);
+    const { role } = await this.projectsService.resolveAccess(workbook.projectId, acting, workbookId);
     if (write && role === "viewer") throw new ForbiddenException("You cannot modify documents on this workbook");
     return this.rolesService.resolveEffectiveRoles(workbookId, acting.username);
   }
@@ -96,7 +96,7 @@ export class SeismicPraDocumentsService implements OnModuleInit {
 
   async upload(workbookId: string, input: UploadInput, acting: ActingUser): Promise<SeismicPraDocumentEntry> {
     const roles = await this.authorize(workbookId, acting, true);
-    if (!roles.includes("preparer") && !roles.includes("co_preparer")) throw new ForbiddenException("Only preparers can upload documents");
+    if (!roles.includes("preparer") && !roles.includes("co_preparer") && !(await this.rolesService.canAuthor(workbookId, acting.username))) throw new ForbiddenException("Only preparers can upload documents");
     if (!ALLOWED_MIME_TYPES.has(input.mimeType)) throw new BadRequestException(`Unsupported file type: ${input.mimeType}`);
     if (input.size > MAX_BYTES) throw new BadRequestException(`File exceeds ${MAX_BYTES} bytes`);
     if (input.size <= 0) throw new BadRequestException("Empty file");
@@ -109,7 +109,7 @@ export class SeismicPraDocumentsService implements OnModuleInit {
 
   async update(workbookId: string, documentId: string, requestedName: string | undefined, acting: ActingUser): Promise<SeismicPraDocumentEntry> {
     const roles = await this.authorize(workbookId, acting, true);
-    if (!roles.includes("preparer") && !roles.includes("co_preparer")) throw new ForbiddenException("Only preparers can edit documents");
+    if (!roles.includes("preparer") && !roles.includes("co_preparer") && !(await this.rolesService.canAuthor(workbookId, acting.username))) throw new ForbiddenException("Only preparers can edit documents");
     const document = await this.documentModel.findOne({ workbookId, documentId }).exec();
     if (!document) throw new NotFoundException("Document not found");
     const name = requestedName?.trim() ?? "";
@@ -128,7 +128,7 @@ export class SeismicPraDocumentsService implements OnModuleInit {
 
   async remove(workbookId: string, documentId: string, acting: ActingUser): Promise<void> {
     const roles = await this.authorize(workbookId, acting, true);
-    if (!roles.includes("preparer") && !roles.includes("co_preparer")) throw new ForbiddenException("Only preparers can delete documents");
+    if (!roles.includes("preparer") && !roles.includes("co_preparer") && !(await this.rolesService.canAuthor(workbookId, acting.username))) throw new ForbiddenException("Only preparers can delete documents");
     const document = await this.documentModel.findOne({ workbookId, documentId }).exec();
     if (!document) throw new NotFoundException("Document not found");
     try { await this.client.removeObject(this.bucket, document.minioKey); } catch (err) { this.logger.warn(`Failed to remove ${document.minioKey}`, err); }

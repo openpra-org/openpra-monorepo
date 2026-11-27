@@ -7,8 +7,8 @@ import {
   EditIcon,
   MoreIcon,
   PinIcon,
-  ShareIcon,
   TrashIcon,
+  UsersIcon,
 } from "../welcome/icons";
 import "./css/kebabMenu.css";
 
@@ -73,7 +73,7 @@ function KebabMenu(props: KebabMenuProps): JSX.Element {
             <CopyIcon /> Duplicate
           </button>
           <button type="button" className="kebab__opt" role="menuitem" onClick={pick(onShare)}>
-            <ShareIcon /> Share…
+            <UsersIcon /> Members…
           </button>
           <div className="kebab__divider" />
           <button type="button" className="kebab__opt" role="menuitem" onClick={pick(onToggleArchive)}>

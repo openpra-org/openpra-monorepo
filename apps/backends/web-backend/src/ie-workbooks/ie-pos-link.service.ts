@@ -143,7 +143,7 @@ export class IePosLinkService {
   async link(workbookId: string, posWorkbookId: string, acting: ActingUser): Promise<IePosLinkStatus> {
     const ie = await this.requireIe(workbookId, acting);
     const myRoles = await this.rolesService.resolveEffectiveRoles(workbookId, acting.username);
-    if (!myRoles.includes("preparer") && !myRoles.includes("co_preparer")) throw new ForbiddenException("Only preparers can link a POS workbook");
+    if (!myRoles.includes("preparer") && !myRoles.includes("co_preparer") && !(await this.rolesService.canAuthor(workbookId, acting.username))) throw new ForbiddenException("Only preparers can link a POS workbook");
     const pos = await this.posWorkbookModel.findOne({ workbookId: posWorkbookId }).exec();
     if (!pos) throw new NotFoundException("POS workbook not found");
     if (pos.projectId !== ie.projectId) throw new BadRequestException("POS workbook is in a different project");
@@ -160,7 +160,7 @@ export class IePosLinkService {
   async unlink(workbookId: string, acting: ActingUser): Promise<IePosLinkStatus> {
     const ie = await this.requireIe(workbookId, acting);
     const myRoles = await this.rolesService.resolveEffectiveRoles(workbookId, acting.username);
-    if (!myRoles.includes("preparer") && !myRoles.includes("co_preparer")) throw new ForbiddenException("Only preparers can unlink a POS workbook");
+    if (!myRoles.includes("preparer") && !myRoles.includes("co_preparer") && !(await this.rolesService.canAuthor(workbookId, acting.username))) throw new ForbiddenException("Only preparers can unlink a POS workbook");
     const ieMef = ie.mef as IeLinkedMef;
     ie.mef = { ...ieMef, linkedWorkbooks: withIePosLink(ieMef.linkedWorkbooks, null), applicablePlantOperatingStates: [] };
     ie.markModified("mef");

@@ -1,4 +1,5 @@
 import { JSX, useEffect, useMemo, useRef, useState } from "react";
+import { WorkbookShareButton, useWorkbookSharingContext } from "../workbooks/workbookSharing";
 import { useNavigate } from "react-router-dom";
 import { type PlantOperatingStatesAnalysis } from "interfaces-mef-types/pos/plant-operating-state-analysis";
 import { type PRAConfigurationControl } from "interfaces-mef-types/cross-cutting/pra-configuration-control";
@@ -184,6 +185,7 @@ function WorkspaceHeader({
             </select>
           </label>
         )}
+        <WorkbookShareButton />
         {onOpenRoles !== undefined && (
           <button type="button" className="posnav__btn posnav__btn--sm" onClick={onOpenRoles} title="Manage roles">
             <POSIcon.Settings /> Roles
@@ -419,6 +421,7 @@ function PosWorkbench({ data, persona, setPersona, showPersonaPicker, availableP
   const isReviewer = persona === "reviewer";
   const isApprover = persona === "approver";
   const isPreparer = persona === "preparer";
+  const { sharedOnly, authoring } = useWorkbookSharingContext();
 
   const visibleSteps = useMemo(() => stepsFromMef(data.pos, persona), [data.pos, persona]);
 
@@ -557,7 +560,7 @@ function PosWorkbench({ data, persona, setPersona, showPersonaPicker, availableP
   const scores = ccScore(data.pos, ccId, stage);
   const h = headersFor(stepId);
 
-  const canEdit = isPreparer && (workflowState === "DRAFT" || workflowState === "REVISION_REQUIRED");
+  const canEdit = isPreparer && authoring && (workflowState === "DRAFT" || workflowState === "REVISION_REQUIRED");
   function addEvolution(): void {
     if (mefPatch === undefined) return;
     const ev = blankPlantEvolution();
@@ -616,7 +619,7 @@ function PosWorkbench({ data, persona, setPersona, showPersonaPicker, availableP
           flash(ready ? "Submitted for internal review" : "Working draft submitted for review");
           setStepId("review");
         }
-      }} canSubmit={isPreparer && (workflowState === "DRAFT" || workflowState === "REVISION_REQUIRED")} />;
+      }} canSubmit={isPreparer && !sharedOnly && (workflowState === "DRAFT" || workflowState === "REVISION_REQUIRED")} />;
       case "review":
       case "approval": return (
         <InternalReviewScreen

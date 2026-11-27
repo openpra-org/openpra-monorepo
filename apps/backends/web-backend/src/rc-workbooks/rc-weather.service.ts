@@ -25,11 +25,11 @@ export class RcWeatherService {
   private async load(id: string, baseRevision: unknown, actor: Actor, write = true) {
     const doc = await this.workbooks.findOne({ workbookId: id }).exec();
     if (!doc) throw new NotFoundException("RC workbook not found");
-    const access = await this.projects.resolveAccess(doc.projectId, actor), mef = doc.mef as RadiologicalConsequenceAnalysis;
+    await this.projects.resolveAccess(doc.projectId, actor);
+    const mef = doc.mef as RadiologicalConsequenceAnalysis;
     const weather = mef.meteorologicalData.weatherInputs, siteInputs = mef.protectiveActionParameters.siteAndReceptors, site = siteInputs?.settings ?? {};
     if (write) {
-      const roles = await this.roles.resolveEffectiveRoles(id, actor.username);
-      if (access.role === "viewer" || !roles.some(r => r === "preparer" || r === "co_preparer")) throw new ForbiddenException("Only preparers can edit weather inputs");
+      if (!(await this.roles.canAuthor(id, actor.username))) throw new ForbiddenException("Only preparers can edit weather inputs");
       if (!["DRAFT", "REVISION_REQUIRED"].includes(mef.workflowState ?? "DRAFT")) throw new ForbiddenException("Weather inputs are locked during review and approval");
       if (!revision.safeParse(baseRevision).success) throw new BadRequestException("A weather-input revision is required");
       if ((weather?.revision ?? 0) !== baseRevision) throw new ConflictException("Weather inputs changed. Reload before saving");

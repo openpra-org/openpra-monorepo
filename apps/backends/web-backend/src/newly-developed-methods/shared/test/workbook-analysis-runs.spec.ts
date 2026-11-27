@@ -1241,7 +1241,7 @@ describe("workbook-owned analysis-run APIs", () => {
         { provide: WorkbookModelAccessService, useValue: accessService },
         {
           provide: ProjectsService,
-          useValue: { resolveAccess: jest.fn().mockResolvedValue({ role: "editor" }) },
+          useValue: { resolveAccess: jest.fn().mockResolvedValue({ role: "editor" }), casualAccess: jest.fn().mockResolvedValue(null) },
         },
         { provide: SyWorkbooksService, useValue: {} },
         { provide: EsWorkbooksService, useValue: {} },

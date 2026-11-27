@@ -23,10 +23,10 @@ export class RcDoseInputsService {
   private async load(id: string, actor: Actor, baseRevision?: number) {
     const doc = await this.workbooks.findOne({ workbookId: id }).exec();
     if (!doc) throw new NotFoundException("RC workbook not found");
-    const access = await this.projects.resolveAccess(doc.projectId, actor), mef = doc.mef as RadiologicalConsequenceAnalysis, inputs = mef.dosimetry.doseInputs;
+    await this.projects.resolveAccess(doc.projectId, actor);
+    const mef = doc.mef as RadiologicalConsequenceAnalysis, inputs = mef.dosimetry.doseInputs;
     if (baseRevision !== undefined) {
-      const roles = await this.roles.resolveEffectiveRoles(id, actor.username);
-      if (access.role === "viewer" || !roles.some(r => r === "preparer" || r === "co_preparer")) throw new ForbiddenException("Only preparers can edit dose inputs");
+      if (!(await this.roles.canAuthor(id, actor.username))) throw new ForbiddenException("Only preparers can edit dose inputs");
       if (!["DRAFT", "REVISION_REQUIRED"].includes(mef.workflowState ?? "DRAFT")) throw new ForbiddenException("Dose inputs are locked during review and approval");
       if ((inputs?.revision ?? 0) !== baseRevision) throw new ConflictException("Dose inputs changed. Reload before saving");
     }

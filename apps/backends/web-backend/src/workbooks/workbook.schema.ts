@@ -5,6 +5,13 @@ import type { WorkbookSignedAgainst } from "interfaces-shared-types/workbooks";
 
 export type WorkbookDocument = HydratedDocument<Workbook> & { createdAt: Date; updatedAt: Date };
 
+export interface WorkbookRecentChange {
+  paths: string[];
+  actor: string;
+  clientId: string | null;
+  at: Date;
+}
+
 @Schema({ timestamps: true, collection: "workbooks" })
 export class Workbook {
   @Prop({ type: String, required: true, index: true })
@@ -33,6 +40,22 @@ export class Workbook {
 
   @Prop({ type: Object, default: null })
   signedAgainst?: WorkbookSignedAgainst | null;
+
+  @Prop({ type: Number })
+  changeSeq?: number;
+
+  @Prop({
+    type: [{
+      paths: { type: [String], default: undefined },
+      actor: { type: String, required: true },
+      clientId: { type: String, default: null },
+      at: { type: Date, required: true },
+      _id: false,
+    }],
+    default: undefined,
+    select: false,
+  })
+  recentChanges?: WorkbookRecentChange[];
 }
 
 export const WorkbookSchema = SchemaFactory.createForClass(Workbook);

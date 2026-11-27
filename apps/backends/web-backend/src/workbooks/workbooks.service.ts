@@ -525,6 +525,7 @@ export class WorkbooksService {
     if (role === "viewer") throw new ForbiddenException("You cannot delete workbooks in this project");
     const doc = await this.findScoped(projectId, id);
     await doc.deleteOne();
+    await this.projectsService.forgetWorkbookCollaborators(projectId, id);
   }
 
   private async findScoped(projectId: string, id: string): Promise<WorkbookDocument> {

@@ -1,6 +1,7 @@
 import { AnalysisRunHistory } from "../newly-developed-methods/shared/analysisRunHistory";
 import { WorkbookSectionHeading } from "../workbooks/workbookSectionHeading";
 import { JSX, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { WorkbookShareButton, useWorkbookSharingContext } from "../workbooks/workbookSharing";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { ESQIcon } from "./esqIcons";
 import {
@@ -123,6 +124,7 @@ function WorkspaceHeader({
             </select>
           </label>
         )}
+        <WorkbookShareButton />
         {onOpenRoles !== undefined && (
           <button type="button" className="posnav__btn posnav__btn--sm" onClick={onOpenRoles} title="Manage roles"><ESQIcon.Settings /> Roles</button>
         )}
@@ -404,6 +406,7 @@ function EsqWorkbench({
   const { user: authUser } = useAuth();
   const actingUsername = authUser?.username ?? "";
   const isPreparer = persona === "preparer";
+  const { sharedOnly } = useWorkbookSharingContext();
   const [comments, setComments] = useState<CommentView[]>(() => commentsView(data.esq));
   const [commentDockOpen, setCommentDockOpen] = useState(false);
   const [demoSubmittedLocal, setDemoSubmittedLocal] = useState(false);
@@ -462,7 +465,7 @@ function EsqWorkbench({
       case "uncert": return <UncertScreen openWindow={setWindowCtx} />;
       case "sens": return <SensScreen openWindow={setWindowCtx} />;
       case "handoff": return <HandoffScreen />;
-      case "draft": return <DraftScreen cc={cc} scores={scores} stage={stage} onSubmitDraft={() => { handleSubmitToApproval(); setStepId("review"); }} canSubmit={isPreparer} />;
+      case "draft": return <DraftScreen cc={cc} scores={scores} stage={stage} onSubmitDraft={() => { handleSubmitToApproval(); setStepId("review"); }} canSubmit={isPreparer && !sharedOnly} />;
       case "review":
       case "approval": return (
         <InternalReviewScreen

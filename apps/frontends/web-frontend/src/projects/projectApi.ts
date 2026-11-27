@@ -6,10 +6,13 @@ import {
   type RecentProjectResponse,
   type SharedProjectsResponse,
   type UpdateProjectRequest,
+  type WorkbookShareAccess,
+  type WorkbookSharesResponse,
   OwnedProjectsResponseSchema,
   ProjectSchema,
   RecentProjectResponseSchema,
   SharedProjectsResponseSchema,
+  WorkbookSharesResponseSchema,
 } from "interfaces-shared-types";
 import { getToken, onUnauthorized } from "../auth/authStorage";
 
@@ -124,6 +127,23 @@ async function deleteProject(id: string): Promise<void> {
   await request("DELETE", `/${id}`);
 }
 
+async function getProjectCollaborators(id: string): Promise<WorkbookSharesResponse> {
+  return WorkbookSharesResponseSchema.parse(await getJson(`/${id}/collaborators`));
+}
+
+async function addProjectCollaborator(id: string, identifier: string, access: WorkbookShareAccess): Promise<WorkbookSharesResponse> {
+  return WorkbookSharesResponseSchema.parse(await postJson(`/${id}/collaborators`, { identifier, access }));
+}
+
+async function updateProjectCollaborator(id: string, username: string, access: WorkbookShareAccess): Promise<WorkbookSharesResponse> {
+  return WorkbookSharesResponseSchema.parse(await patchJson(`/${id}/collaborators/${encodeURIComponent(username)}`, { access }));
+}
+
+async function removeProjectCollaborator(id: string, username: string): Promise<WorkbookSharesResponse> {
+  const response = await request("DELETE", `/${id}/collaborators/${encodeURIComponent(username)}`);
+  return WorkbookSharesResponseSchema.parse(await response.json());
+}
+
 export {
   getRecentProject,
   getOwnedProjects,
@@ -139,4 +159,8 @@ export {
   updateProjectUserShare,
   unshareProjectFromUser,
   deleteProject,
+  getProjectCollaborators,
+  addProjectCollaborator,
+  updateProjectCollaborator,
+  removeProjectCollaborator,
 };

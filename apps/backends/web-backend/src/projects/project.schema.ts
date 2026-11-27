@@ -1,6 +1,14 @@
 import { Prop, Schema, SchemaFactory } from "@nestjs/mongoose";
 import { HydratedDocument } from "mongoose";
-import type { PageLayout, ProjectShareRole, ProjectState, RiskMode } from "interfaces-shared-types";
+import type { PageLayout, ProjectShareRole, ProjectState, RiskMode, WorkbookShareAccess } from "interfaces-shared-types";
+
+export interface ProjectCollaborator {
+  username: string;
+  access: WorkbookShareAccess;
+  workbookId: string | null;
+  sharedBy: string;
+  sharedAt: Date;
+}
 
 export interface ProjectTeamShare {
   teamId: string;
@@ -40,6 +48,19 @@ export class Project {
   })
   sharedUsers!: ProjectUserShare[];
 
+  @Prop({
+    type: [{
+      username: { type: String, required: true },
+      access: { type: String, required: true },
+      workbookId: { type: String, default: null },
+      sharedBy: { type: String, required: true },
+      sharedAt: { type: Date, required: true },
+      _id: false,
+    }],
+    default: [],
+  })
+  collaborators!: ProjectCollaborator[];
+
   @Prop({ type: Boolean, default: false, index: true })
   pinned!: boolean;
 
@@ -54,3 +75,5 @@ export class Project {
 }
 
 export const ProjectSchema = SchemaFactory.createForClass(Project);
+
+ProjectSchema.index({ "collaborators.username": 1 });

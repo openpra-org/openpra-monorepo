@@ -31,9 +31,8 @@ export class RcSourceTermService {
     if (!revisionSchema.safeParse(baseRevision).success) throw new BadRequestException("A source-term revision is required");
     const doc = await this.workbooks.findOne({ workbookId }).exec();
     if (!doc) throw new NotFoundException("RC workbook not found");
-    const access = await this.projects.resolveAccess(doc.projectId, actor);
-    const roles = await this.roles.resolveEffectiveRoles(workbookId, actor.username);
-    if (access.role === "viewer" || !roles.some((role) => role === "preparer" || role === "co_preparer"))
+    await this.projects.resolveAccess(doc.projectId, actor);
+    if (!(await this.roles.canAuthor(workbookId, actor.username)))
       throw new ForbiddenException("Only preparers can edit source terms");
     const mef = doc.mef as RadiologicalConsequenceAnalysis;
     if (!["DRAFT", "REVISION_REQUIRED"].includes(mef.workflowState ?? "DRAFT"))

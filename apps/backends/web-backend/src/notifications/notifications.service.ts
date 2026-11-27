@@ -86,6 +86,24 @@ function specFor(event: DomainEvent): NotificationSpec | null {
         link: "/projects",
         prefKey: "projectShared",
       };
+    case "project.collaborator_added":
+      return {
+        recipients: [event.target],
+        type: event.type,
+        title: `Project shared: ${event.projectName}`,
+        body: `${event.actor} shared a project with you. You can ${event.access === "edit" ? "edit" : "view"} it.`,
+        link: `/projects/${event.projectId}`,
+        prefKey: "projectShared",
+      };
+    case "workbook.collaborator_added":
+      return {
+        recipients: [event.target],
+        type: event.type,
+        title: `Workbook shared: ${event.workbookName}`,
+        body: `${event.actor} shared a workbook in "${event.projectName}" with you. You can ${event.access === "edit" ? "edit" : "view"} it.`,
+        link: event.link,
+        prefKey: "projectShared",
+      };
     default:
       return null;
   }

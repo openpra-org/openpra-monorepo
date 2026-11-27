@@ -27,10 +27,9 @@ export class RcEarlyResponseService {
   private async load(id: string, baseRevision: unknown, actor: Actor) {
     const doc = await this.workbooks.findOne({ workbookId: id }).exec();
     if (!doc) throw new NotFoundException("RC workbook not found");
-    const access = await this.projects.resolveAccess(doc.projectId, actor);
-    const roles = await this.roles.resolveEffectiveRoles(id, actor.username);
+    await this.projects.resolveAccess(doc.projectId, actor);
     const mef = doc.mef as RadiologicalConsequenceAnalysis;
-    if (access.role === "viewer" || !roles.some(role => role === "preparer" || role === "co_preparer")) throw new ForbiddenException("Only preparers can edit response inputs");
+    if (!(await this.roles.canAuthor(id, actor.username))) throw new ForbiddenException("Only preparers can edit response inputs");
     if (!["DRAFT", "REVISION_REQUIRED"].includes(mef.workflowState ?? "DRAFT")) throw new ForbiddenException("Response inputs are locked during review");
     if (!z.number().int().nonnegative().safeParse(baseRevision).success) throw new BadRequestException("A response revision is required");
     const current = mef.protectiveActionParameters.earlyResponseModel;

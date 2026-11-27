@@ -89,7 +89,7 @@ export class RcWorkbooksService {
   async patchMef(workbookId: string, operations: unknown, acting: ActingUser): Promise<RcWorkbookResponse> {
     const doc = await this.rcWorkbookModel.findOne({ workbookId }).exec();
     if (!doc) throw new NotFoundException("RC workbook not found");
-    const { role } = await this.projectsService.resolveAccess(doc.projectId, acting);
+    const { role } = await this.projectsService.resolveAccess(doc.projectId, acting, workbookId);
     if (role === "viewer") throw new ForbiddenException("You cannot edit this RC workbook");
     const parsed = RadiologicalConsequenceAnalysisSchema.safeParse(stripNulls(mergeWorkbookPatch(doc.mef, operations)));
     if (!parsed.success) {
@@ -140,7 +140,7 @@ export class RcWorkbooksService {
     if (new Set(nextCategories.map((c) => c.releaseCategory)).size !== nextCategories.length)
       throw new ForbiddenException("Release category identifiers must be unique");
     if (!isDeepStrictEqual(oldCategories, nextCategories)) {
-      if (!myRoles.some((r) => r === "preparer" || r === "co_preparer") || !["DRAFT", "REVISION_REQUIRED"].includes(before.workflowState ?? "DRAFT"))
+      if ((!myRoles.some((r) => r === "preparer" || r === "co_preparer") && !(await this.rolesService.canAuthor(workbookId, acting.username))) || !["DRAFT", "REVISION_REQUIRED"].includes(before.workflowState ?? "DRAFT"))
         throw new ForbiddenException("Only preparers can edit source terms in a draft workbook");
       for (const category of nextCategories) {
         const previous = oldCategories.find((c) => c.releaseCategory === category.releaseCategory);

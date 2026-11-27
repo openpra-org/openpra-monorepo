@@ -94,7 +94,7 @@ export class InternalFirePraWorkbooksService {
 
   async patchMef(workbookId: string, operations: unknown, acting: ActingUser): Promise<InternalFirePraWorkbookResponse> {
     const doc = await this.findOrInitialize(workbookId, acting);
-    const { role } = await this.projectsService.resolveAccess(doc.projectId, acting);
+    const { role } = await this.projectsService.resolveAccess(doc.projectId, acting, workbookId);
     if (role === "viewer") throw new ForbiddenException("You cannot edit this Internal Fire PRA workbook");
     const parsed = InternalFirePRASchema.safeParse(stripNulls(mergeWorkbookPatch(doc.mef, operations)));
     if (!parsed.success) throw new ForbiddenException(`Invalid Internal Fire PRA workbook payload: ${parsed.error.message}`);

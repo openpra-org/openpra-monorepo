@@ -46,10 +46,10 @@ export class RcCaseRecordsService {
   private async load(id: string, actor: Actor, baseRevision?: number) {
     const doc = await this.workbooks.findOne({ workbookId: id }).exec();
     if (!doc) throw new NotFoundException("RC workbook not found");
-    const access = await this.projects.resolveAccess(doc.projectId, actor), mef = doc.mef as RadiologicalConsequenceAnalysis, records = mef.consequenceQuantification.caseRecords;
+    await this.projects.resolveAccess(doc.projectId, actor);
+    const mef = doc.mef as RadiologicalConsequenceAnalysis, records = mef.consequenceQuantification.caseRecords;
     if (baseRevision !== undefined) {
-      const roles = await this.roles.resolveEffectiveRoles(id, actor.username);
-      if (access.role === "viewer" || !roles.some(r => r === "preparer" || r === "co_preparer")) throw new ForbiddenException("Only preparers can save case records");
+      if (!(await this.roles.canAuthor(id, actor.username))) throw new ForbiddenException("Only preparers can save case records");
       if (!["DRAFT", "REVISION_REQUIRED"].includes(mef.workflowState ?? "DRAFT")) throw new ForbiddenException("Case records are locked during review and approval");
       if ((records?.revision ?? 0) !== baseRevision) throw new ConflictException("Case records changed. Reload before saving");
     }

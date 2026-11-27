@@ -1,6 +1,7 @@
 import { type ReviewComment } from "interfaces-mef-types/core/pra-common";
 import { reviewBlockingHighWindsPraDiagnostics } from "interfaces-mef-types/high-winds/high-winds-pra-validation";
 import { type JSX, type ReactNode, useMemo, useState } from "react";
+import { useWorkbookSharingContext } from "../workbooks/workbookSharing";
 import { POSIcon } from "../pos-workbooks/posIcons";
 import { Badge } from "../pos-workbooks/posShared";
 import { WorkbookSectionHeading } from "../workbooks/workbookSectionHeading";
@@ -26,7 +27,8 @@ export function HighWindsDraftScreen({ actions }: { actions?: HighWindsWorkflowA
   const [busy, setBusy] = useState(false);
   const blockers = useMemo(() => reviewBlockingHighWindsPraDiagnostics(mef), [mef]);
   const score = useMemo(() => highWindsConformanceScore(highWindsConformanceItems(mef)), [mef]);
-  const canSubmit = editable && (mef.workflowState === "DRAFT" || mef.workflowState === "REVISION_REQUIRED");
+  const { sharedOnly } = useWorkbookSharingContext();
+  const canSubmit = editable && !sharedOnly && (mef.workflowState === "DRAFT" || mef.workflowState === "REVISION_REQUIRED");
   function submit(): void {
     setBusy(true);
     const operation = actions?.submitForReview?.();

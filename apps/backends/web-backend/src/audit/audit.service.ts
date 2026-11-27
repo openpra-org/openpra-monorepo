@@ -40,6 +40,10 @@ function auditFor(event: DomainEvent): AuditSpec {
       return { entityKind: "project", entityId: event.projectId, summary: `${event.actor} removed team ${event.teamName}` };
     case "project.deleted":
       return { entityKind: "project", entityId: event.projectId, summary: `${event.actor} deleted the project` };
+    case "project.collaborator_added":
+      return { entityKind: "project", entityId: event.projectId, summary: `${event.actor} shared the project with ${event.target}, who can ${event.access} it` };
+    case "workbook.collaborator_added":
+      return { entityKind: "project", entityId: event.projectId, summary: `${event.actor} shared ${event.workbookName} with ${event.target}, who can ${event.access} it` };
   }
 }
 

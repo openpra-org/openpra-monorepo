@@ -62,7 +62,7 @@ export async function createSourceTermTestApp(extra: { features?: ModelDefinitio
         if (actor.username === "outsider") throw new ForbiddenException();
         return { role: actor.username === "viewer" ? "viewer" : "editor" };
       } } },
-      { provide: WorkbookRolesService, useValue: { resolveEffectiveRoles: async (_id: string, name: string) => [name] } },
+      { provide: WorkbookRolesService, useValue: { resolveEffectiveRoles: async (_id: string, name: string) => [name], canAuthor: async (_id: string, name: string) => name === "preparer" || name === "co_preparer" } },
     ],
   }).overrideGuard(JwtAuthGuard).useValue({ canActivate: (ctx: ExecutionContext) => {
     const req = ctx.switchToHttp().getRequest(); req.user = { username: req.headers["x-test-user"] ?? "preparer" }; return true;

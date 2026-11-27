@@ -107,6 +107,15 @@ export class WorkbookRolesService {
     return Array.from(seen);
   }
 
+  async canAuthor(workbookId: string, username: string): Promise<boolean> {
+    const wb = await this.requireWorkbook(workbookId);
+    const { role } = await this.projectsService.resolveAccess(wb.projectId, { username }, workbookId);
+    if (role === "viewer") return false;
+    const roles = await this.resolveEffectiveRoles(workbookId, username);
+    if (roles.includes("preparer") || roles.includes("co_preparer")) return true;
+    return (await this.projectsService.casualAccess(wb.projectId, username, workbookId)) === "edit";
+  }
+
   private async ensureSingleApprover(workbookId: string, role: WorkbookRoleName): Promise<void> {
     if (role !== "approver") return;
     const existing = await this.roleModel.findOne({ workbookId, role: "approver" }).exec();

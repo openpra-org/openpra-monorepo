@@ -135,7 +135,7 @@ function ShareProjectModal({ project, onClose, onChanged, onError, onSuccess }: 
       <div className="modal" role="dialog" aria-modal="true" aria-labelledby="sh-title">
         <div className="modal__head">
           <div>
-            <h2 className="modal__title" id="sh-title">Share &quot;{project.name}&quot;</h2>
+            <h2 className="modal__title" id="sh-title">Members of &quot;{project.name}&quot;</h2>
             <p className="modal__sub">
               You stay the sole owner — only you can delete. Share with teams or individuals; they can view or edit.
             </p>

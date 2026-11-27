@@ -29,7 +29,7 @@ describe("SyDocumentsService content", () => {
         { provide: getModelToken("SyWorkbook"), useValue: { findOne: jest.fn().mockReturnValue(query({ workbookId: "sy-1", projectId: "project-1" })) } },
         { provide: getModelToken("SyWorkbookFile"), useValue: fileModel },
         { provide: ProjectsService, useValue: { resolveAccess: jest.fn().mockResolvedValue({ doc: {}, role: "viewer" }) } },
-        { provide: WorkbookRolesService, useValue: { resolveEffectiveRoles: jest.fn().mockResolvedValue(["reviewer"]) } },
+        { provide: WorkbookRolesService, useValue: { resolveEffectiveRoles: jest.fn().mockResolvedValue(["reviewer"]), canAuthor: jest.fn().mockResolvedValue(false) } },
       ],
     }).compile();
 

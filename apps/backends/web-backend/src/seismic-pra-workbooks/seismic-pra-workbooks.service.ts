@@ -104,7 +104,7 @@ export class SeismicPraWorkbooksService {
 
   async patchMef(workbookId: string, operations: unknown, acting: ActingUser): Promise<SeismicPraWorkbookResponse> {
     const doc = await this.findOrInitialize(workbookId, acting);
-    const { role } = await this.projectsService.resolveAccess(doc.projectId, acting);
+    const { role } = await this.projectsService.resolveAccess(doc.projectId, acting, workbookId);
     if (role === "viewer") throw new ForbiddenException("You cannot edit this Seismic PRA workbook");
     const parsed = SeismicPRASchema.safeParse(stripNulls(mergeWorkbookPatch(doc.mef, operations)));
     if (!parsed.success) throw new ForbiddenException(`Invalid Seismic PRA workbook payload: ${parsed.error.message}`);

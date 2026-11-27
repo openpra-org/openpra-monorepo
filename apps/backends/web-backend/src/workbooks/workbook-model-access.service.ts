@@ -48,6 +48,7 @@ export class WorkbookModelAccessService {
     const { role: projectRole } = await this.projectsService.resolveAccess(
       input.projectId,
       input.acting,
+      input.workbookId,
     );
     const description = operationDescription(operation);
     if (projectRole === "viewer") {
@@ -58,7 +59,8 @@ export class WorkbookModelAccessService {
       input.workbookId,
       input.acting.username,
     );
-    if (!workbookRoles.includes("preparer") && !workbookRoles.includes("co_preparer")) {
+    const preparer = workbookRoles.includes("preparer") || workbookRoles.includes("co_preparer");
+    if (!preparer && (await this.projectsService.casualAccess(input.projectId, input.acting.username, input.workbookId)) !== "edit") {
       throw new ForbiddenException(`Only workbook preparers can ${description}`);
     }
 

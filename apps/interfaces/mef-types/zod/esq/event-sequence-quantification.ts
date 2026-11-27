@@ -95,6 +95,7 @@ export const EsqStateWeightingSchema = z.enum(["POS_HOURS", "TYPED_SHARES"]);
 
 export const EsqModuleCountSchema = z.object({
   value: z.number(),
+  reason: z.string().optional(),
   link: z
     .object({
       element: z.literal("IE"),
@@ -553,6 +554,7 @@ export const EsqModelDecisionsSchema = z.object({
     .optional(),
   typedTrees: z.array(EventTreeSchema).optional(),
   typedInitiators: z.array(EsqTypedInitiatorSchema).optional(),
+  treeMissionTimes: z.array(z.object({ treeId: z.string(), missionTime: UncertainExpressionSchema })).optional(),
 });
 
 export const EsqLogicSchema = z.object({
@@ -951,6 +953,19 @@ export const EsqSensitivityWorkSchema = z.object({
             families: z.array(z.object({ familyId: z.string(), annualFrequency: z.number() })),
           })
           .optional(),
+      }),
+    )
+    .optional(),
+  linkedCaseRuns: z
+    .array(
+      z.object({
+        caseId: z.string(),
+        run: z.object({
+          runId: z.string(),
+          at: z.string(),
+          inputs: z.string(),
+          families: z.array(z.object({ familyId: z.string(), annualFrequency: z.number() })),
+        }),
       }),
     )
     .optional(),

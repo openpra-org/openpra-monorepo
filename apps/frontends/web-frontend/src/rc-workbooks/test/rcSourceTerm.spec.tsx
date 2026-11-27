@@ -12,6 +12,7 @@ const category = (): ReleaseCategoryInputs => ({
 function setup(editable = true, inline = true, withDrawer = false, c = category()) {
   const actions: RcSourceTermActions = {
     saveValues: jest.fn(async (_id, revision, values) => ({ ...c, sourceTerm: { revision: revision + 1, values } })),
+    typeOver: jest.fn(async () => c),
     importFile: jest.fn(async () => c), downloadOriginal: jest.fn(),
   };
   const data = { rc: {}, cc: {}, nms: [] } as unknown as RcWorkbookData;
@@ -105,6 +106,16 @@ describe("Step 01 source input controls", () => {
     expect(screen.getByLabelText("Activity Cs-137 (Bq)")).toBeDisabled();
     expect(screen.queryByRole("button", { name: "Save source data" })).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Import source-term file")).not.toBeInTheDocument();
+    expect(actions.saveValues).not.toHaveBeenCalled();
+  });
+  it("shows a source term read from the linked MS workbook without edit controls", () => {
+    const c = category();
+    c.sourceTerm!.msSource = { workbookId: "ms-1", sourceTermId: "ST-1", inventoryIds: ["SRC-1"] };
+    const { actions } = setup(true, true, false, c);
+    expect(screen.getByLabelText("Activity Cs-137 (Bq)")).toBeDisabled();
+    expect(screen.queryByRole("button", { name: "Save source data" })).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Import source-term file")).not.toBeInTheDocument();
+    expect(screen.getByText("MS ST-1 · SRC-1")).toBeInTheDocument();
     expect(actions.saveValues).not.toHaveBeenCalled();
   });
   it("switches input tabs with the keyboard and keeps the panel labelled", () => {

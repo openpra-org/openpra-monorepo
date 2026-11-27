@@ -15,12 +15,12 @@ import { ESQ_ANALYSIS_HTGR } from "../../../../../backends/web-backend/src/examp
 import { evaluateUncertainty } from "../../newly-developed-methods/shared/uncertaintyApi";
 import { uncertaintyIdle } from "../../newly-developed-methods/shared/useUncertainty";
 import { praxisUncertainty, settledWithPraxis } from "../../newly-developed-methods/shared/test/praxisUncertainty";
-import { daImportNeeds, withAutoMapping, withLinkedValuesSynced, withNeedsMerged } from "../daSelectors";
+import { daViewOf } from "../daLinkedData";
 import { withEstimates } from "../daFailures";
 import { withUnavailability } from "../daUnavailability";
 import { withCcf } from "../daCcf";
 import { withFrequencies } from "../daFrequencies";
-import { handoffFindings, handoffView, handoffsComplete, importanceFindings, significant, withImportanceFromEsq } from "../daHandoffs";
+import { handoffFindings, handoffView, handoffsComplete, importanceFindings, significant } from "../daHandoffs";
 import { DaWorkbookProvider, type DaUpstream } from "../daWorkbookContext";
 import { HandoffScreen } from "../daHandoffScreen";
 import { linkScExamples } from "./daScExamples";
@@ -56,8 +56,7 @@ const CC: PRAConfigurationControl = {
 const UPSTREAM: DaUpstream = { options: { SY: [], IE: [], HRA: [], POS: [], SC: [], ESQ: [] }, scReferenced: [], sy: SY_ANALYSIS_HTGR, ie: IE_ANALYSIS, hr: HR_ANALYSIS_HTGR, pos: POS_ANALYSIS, esq: ESQ_ANALYSIS_HTGR };
 
 function imported(seed: DataAnalysis): DataAnalysis {
-  const merged = withLinkedValuesSynced({ ...seed, dataNeeds: withNeedsMerged(seed.dataNeeds, daImportNeeds(seed, UPSTREAM, NOW)) });
-  return withCcf(withFrequencies(withUnavailability(withEstimates(withAutoMapping(merged)))));
+  return withCcf(withFrequencies(withUnavailability(withEstimates(daViewOf(seed, UPSTREAM)))));
 }
 
 let DA: DataAnalysis = DA_ANALYSIS_HTGR;
@@ -132,8 +131,9 @@ describe("hand-offs", () => {
     expect(significant(0.004, 1.9)).toBe(false);
     const bare: DataAnalysis = { ...DA, parameters: DA.parameters.map((parameter) => (parameter.uuid === "DA-BE-201" ? { ...parameter, isRiskSignificant: undefined, importance: undefined } : parameter)) };
     expect((await importance(bare, UPSTREAM)).map(([, check, item]) => [check, item])).toContainEqual(["Significant in ESQ", "DA-BE-201"]);
-    const read = withImportanceFromEsq(bare, UPSTREAM, NOW).parameters.find((parameter) => parameter.uuid === "DA-BE-201");
-    expect(read).toMatchObject({ isRiskSignificant: true, importance: { from: "ESQ", fussellVesely: 0.04, riskAchievementWorth: 1.9, entryIds: ["IMP-1 · 5"], importedAt: NOW } });
+    const read = daViewOf(bare, UPSTREAM).parameters.find((parameter) => parameter.uuid === "DA-BE-201");
+    expect(read).toMatchObject({ isRiskSignificant: true, importance: { from: "ESQ", fussellVesely: 0.04, riskAchievementWorth: 1.9, entryIds: ["IMP-1 · 5"] } });
+    expect(read?.importance?.importedAt).toBeUndefined();
   });
 
   it("shows each exported section as a tab with its record count and table", async () => {

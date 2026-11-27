@@ -357,7 +357,7 @@ function phenomenonFindings(view: EsqBarriersView): EsqBarrierFinding[] {
     const item = phenomenon.name;
     const quantified = users.some((entry) => entry.cell.screening === undefined);
     if (!phenomenon.fromEs && blank(mechanism.name)) findings.push(withTarget({ severity: "error", check: "Phenomenon not named", item, detail: "Name the phenomenon or mechanism." }, target));
-    if (phenomenon.fromEs && phenomenon.record === undefined) findings.push(withTarget({ severity: "warning", check: "ES phenomenon missing", item, detail: `ES no longer lists ${mechanism.phenomenonId ?? item}. Import again in Step 02 or choose another phenomenon.` }, target));
+    if (phenomenon.fromEs && phenomenon.record === undefined) findings.push(withTarget({ severity: "warning", check: "ES phenomenon missing", item, detail: `ES no longer lists ${mechanism.phenomenonId ?? item}. Choose another phenomenon.` }, target));
     if (mechanism.kind === "HAZARD" && blank(mechanism.hazardGroup) && users.every((entry) => entry.cell.hazardGroup === undefined)) findings.push(withTarget({ severity: "error", check: "No hazard group", item, detail: "Choose the external hazard group that causes this mechanism (ESQ-C11)." }, target));
     if (quantified && phenomenon.affected.length > 0 && blank(mechanism.dependency)) findings.push(withTarget({ severity: "error", check: "No dependency assessment", item, detail: `Assess how ${item} affects ${listText(phenomenon.affected)} (ESQ-C4).` }, target));
     if (quantified && !phenomenon.fromEs && blank(mechanism.basis)) findings.push(withTarget({ severity: "warning", check: "Basis missing", item, detail: "Record the analysis behind this phenomenon." }, target));
@@ -454,7 +454,7 @@ function sortFindings(findings: readonly EsqBarrierFinding[]): EsqBarrierFinding
 
 function barriersViewOf(esq: EventSequenceQuantification): EsqBarriersView | undefined {
   const model = esq.model;
-  if (model?.importedAt === undefined) return undefined;
+  if (model === undefined) return undefined;
   const work = barrierWorkOf(esq);
   const families = (modelViewOf(esq)?.families ?? []).map((family) => ({ id: family.id, name: family.name }));
   const barriers = barrierViews(model, work);

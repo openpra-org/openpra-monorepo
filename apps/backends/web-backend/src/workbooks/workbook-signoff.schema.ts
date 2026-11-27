@@ -1,5 +1,6 @@
 import { Prop, Schema, SchemaFactory } from "@nestjs/mongoose";
 import { HydratedDocument } from "mongoose";
+import type { WorkbookLinkedRevision } from "interfaces-shared-types/workbooks";
 
 export type WorkbookSignoffDocument = HydratedDocument<WorkbookSignoff> & { createdAt: Date; updatedAt: Date };
 
@@ -21,6 +22,9 @@ export class WorkbookSignoff {
 
   @Prop({ type: String, default: null })
   signatureDataUrl!: string | null;
+
+  @Prop({ type: [Object], default: [] })
+  linkedRevisions!: WorkbookLinkedRevision[];
 }
 
 export const WorkbookSignoffSchema = SchemaFactory.createForClass(WorkbookSignoff);

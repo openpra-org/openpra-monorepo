@@ -337,17 +337,50 @@ export const ModelUncertaintySourceSchema = z.object({
     )
     .optional(),
   recommendations: z.array(z.string()).optional(),
+  overridesLink: z.boolean().optional(),
+  overrideReason: z.string().optional(),
   implementsSrs: z.array(SRReferenceSchema),
 });
 
+export const RiLinkedUncertaintyDetailSchema = z.object({
+  uuid: z.string(),
+  originatingElement: TechnicalElementTypesSchema,
+  name: z.string(),
+  impactScope: z.array(TechnicalElementTypesSchema).optional(),
+  affectedMetrics: z.array(z.string()).optional(),
+  impactAssessment: z.string().optional(),
+  frequencyImpactRef: z.string().optional(),
+  consequenceImpactRef: z.string().optional(),
+  characterizationMethod: z.string().optional(),
+  alternatives: z
+    .array(
+      z.object({
+        description: z.string(),
+        potentialImpact: z.string(),
+      }),
+    )
+    .optional(),
+  recommendations: z.array(z.string()).optional(),
+});
+
+const ScreenedItemTypeSchema = z.enum(["HAZARD_GROUP", "HAZARD_EVENT", "PLANT_OPERATING_STATE", "INITIATING_EVENT", "EVENT_SEQUENCE", "BASIC_EVENT"]);
+
 export const ScreenedItemLedgerEntrySchema = z.object({
   uuid: z.string(),
-  itemType: z.enum(["HAZARD_GROUP", "HAZARD_EVENT", "PLANT_OPERATING_STATE", "INITIATING_EVENT", "EVENT_SEQUENCE", "BASIC_EVENT"]),
+  itemType: ScreenedItemTypeSchema,
   itemRef: z.string(),
   screeningElementCode: z.enum(["POS", "IE", "ES", "SC", "SY", "HR", "DA", "ESQ", "MS", "RC"]),
   screeningBasis: z.string(),
   impactOnRiskMetrics: z.string().optional(),
+  overridesLink: z.boolean().optional(),
+  overrideReason: z.string().optional(),
   implementsSrs: z.array(SRReferenceSchema),
+});
+
+export const RiLinkedScreenedItemDetailSchema = z.object({
+  itemType: ScreenedItemTypeSchema,
+  itemRef: z.string(),
+  impactOnRiskMetrics: z.string(),
 });
 
 export const RiskUncertaintyAnalysisSchema = z.object({
@@ -620,6 +653,7 @@ export const RiInputsSchema = z.object({
     imported: RiFrequencyStatsSchema.optional(),
     frequency: RiFrequencyStatsSchema.optional(),
     changeReason: z.string().optional(),
+    overridesLink: z.boolean().optional(),
     included: z.boolean(),
     exclusionReason: z.string().optional(),
     manual: RiManualEntrySchema.optional(),
@@ -638,6 +672,7 @@ export const RiInputsSchema = z.object({
     imported: RiFrequencyStatsSchema.optional(),
     frequency: RiFrequencyStatsSchema.optional(),
     changeReason: z.string().optional(),
+    overridesLink: z.boolean().optional(),
     manual: RiManualEntrySchema.optional(),
   })),
   consequences: z.array(z.object({
@@ -649,6 +684,7 @@ export const RiInputsSchema = z.object({
     imported: RiConsequenceStatsSchema.optional(),
     statistics: RiConsequenceStatsSchema,
     changeReason: z.string().optional(),
+    overridesLink: z.boolean().optional(),
     manual: RiManualEntrySchema.optional(),
   })),
   contributors: z.array(z.object({
@@ -675,6 +711,25 @@ export const RiInputsSchema = z.object({
     manual: RiManualEntrySchema.optional(),
   })).optional(),
   unavailable: z.array(z.object({ measure: z.string(), reason: z.string() })).optional(),
+  linkedFamilyDetails: z.array(z.object({
+    familyId: z.string(),
+    included: z.boolean().optional(),
+    exclusionReason: z.string().optional(),
+    overridesLink: z.boolean().optional(),
+    frequency: RiFrequencyStatsSchema.optional(),
+    changeReason: z.string().optional(),
+  })).optional(),
+  linkedSequenceDetails: z.array(z.object({
+    sequenceId: z.string(),
+    frequency: RiFrequencyStatsSchema.optional(),
+    changeReason: z.string().optional(),
+  })).optional(),
+  linkedConsequenceDetails: z.array(z.object({
+    releaseCategoryId: z.string(),
+    rcMetricId: z.string(),
+    statistics: RiConsequenceStatsSchema,
+    changeReason: z.string().optional(),
+  })).optional(),
 });
 
 export const RiScopeExclusionSchema = z.object({
@@ -731,7 +786,9 @@ export const RiskIntegrationSchema = z.object({
   significantContributors: SignificantRiskContributorsSchema,
   integrationMethods: z.array(RiskIntegrationMethodSchema),
   modelUncertaintySources: z.array(ModelUncertaintySourceSchema),
+  linkedUncertaintyDetails: z.array(RiLinkedUncertaintyDetailSchema).optional(),
   screenedItemsLedger: z.array(ScreenedItemLedgerEntrySchema).optional(),
+  linkedScreenedItemDetails: z.array(RiLinkedScreenedItemDetailSchema).optional(),
   uncertaintyAnalyses: z.array(RiskUncertaintyAnalysisSchema),
   sensitivityStudies: z.array(SensitivityStudySchema).optional(),
   riskIntegrationFeedbackDispatch: RiskIntegrationFeedbackDispatchSchema.optional(),

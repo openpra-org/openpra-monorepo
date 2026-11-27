@@ -1,4 +1,5 @@
 import { useCallback } from "react";
+import { createWorkbookPatch } from "interfaces-shared-types/workbooks";
 import { type RiskIntegration } from "interfaces-mef-types/ri/risk-integration";
 import { patchRiWorkbook } from "./riWorkbookApi";
 
@@ -18,6 +19,7 @@ function useRiMefPatch(
   const patch = useCallback(async (mutator: Mutator): Promise<void> => {
     if (current === null) return;
     const draft = mutator(current);
+    if (createWorkbookPatch(current, draft).length === 0) return;
     try {
       const updated = await patchRiWorkbook(workbookId, current, draft);
       onSuccess(updated.mef);

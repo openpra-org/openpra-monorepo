@@ -63,7 +63,7 @@ function postUpstream(hrJoint = 1.6e-4): EsqUpstream {
 }
 
 function postEsq(hrJoint?: number): EventSequenceQuantification {
-  return withModelImported(linkedEsq(), postUpstream(hrJoint), NOW);
+  return withModelImported(linkedEsq(), postUpstream(hrJoint));
 }
 
 function postSummary(esq: EventSequenceQuantification, combinations: EsqPostCombinationFinding[], deletions: EsqPostDeletionFinding[] = []): EsqPostRunResult {

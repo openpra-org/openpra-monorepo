@@ -3,7 +3,7 @@ import { createWorkbookPatch } from "interfaces-shared-types/workbooks";
 import { fetchJson, patchJson, postJson, postMultipart, deleteJson } from "../api/client";
 import { type RadiologicalConsequenceAnalysis } from "interfaces-mef-types/rc/radiological-consequence-analysis";
 import type { ReleaseCategoryInputs } from "interfaces-mef-types/rc/radiological-consequence-analysis";
-import type { RcSourceTermMsLink, RcSourceTermValues } from "interfaces-mef-types/rc/source-term";
+import type { RcSourceTermValues } from "interfaces-mef-types/rc/source-term";
 import type { RcSiteReceptors, RcSiteSettings } from "interfaces-mef-types/rc/site-receptors";
 import type { RcEarlyResponseModel } from "interfaces-mef-types/rc/early-response";
 import type { RcWeatherInputs, RcWeatherModel, RcWeatherPage, RcWeatherSettings, RcWeatherTrialPage } from "interfaces-mef-types/rc/weather";
@@ -101,8 +101,8 @@ export async function importRcSourceTerm(workbookId: string, categoryId: string,
   return postMultipart(`/api/rc-workbooks/${encodeURIComponent(workbookId)}/source-terms/${encodeURIComponent(categoryId)}/import`, form);
 }
 
-export async function saveRcSourceTerm(workbookId: string, categoryId: string, baseRevision: number, values: RcSourceTermValues, msSource?: RcSourceTermMsLink): Promise<ReleaseCategoryInputs> {
-  return patchJson(`/api/rc-workbooks/${encodeURIComponent(workbookId)}/source-terms/${encodeURIComponent(categoryId)}`, { baseRevision, values, ...(msSource ? { msSource } : {}) });
+export async function saveRcSourceTerm(workbookId: string, categoryId: string, baseRevision: number, values: RcSourceTermValues): Promise<ReleaseCategoryInputs> {
+  return patchJson(`/api/rc-workbooks/${encodeURIComponent(workbookId)}/source-terms/${encodeURIComponent(categoryId)}`, { baseRevision, values });
 }
 
 type RcWorkbookRoleName = "preparer" | "co_preparer" | "reviewer" | "approver";

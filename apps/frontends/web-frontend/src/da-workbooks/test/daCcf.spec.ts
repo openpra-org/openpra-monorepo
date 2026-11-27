@@ -8,7 +8,7 @@ import { DA_ANALYSIS_HTGR } from "../../../../../backends/web-backend/src/exampl
 import { DA_ANALYSIS } from "../../../../../backends/web-backend/src/example-workbooks/seeds/da-seed";
 import { SY_ANALYSIS_HTGR } from "../../../../../backends/web-backend/src/example-workbooks/seeds/sy-seed-htgr";
 import { SY_ANALYSIS } from "../../../../../backends/web-backend/src/example-workbooks/seeds/sy-seed";
-import { daImportNeeds } from "../daSelectors";
+import { daNeedRows, daNeedsView } from "interfaces-mef-types/da/da-linked-needs";
 import { lawSummary } from "../daLaws";
 import { evaluateUncertainty } from "../../newly-developed-methods/shared/uncertaintyApi";
 import { praxisUncertainty, settledWithPraxis } from "../../newly-developed-methods/shared/test/praxisUncertainty";
@@ -691,11 +691,10 @@ describe("updated factors in the group's model form", () => {
 describe("examples", () => {
   it("keeps both examples stable once derived and in step with Systems Analysis", async () => {
     linkScExamples();
-    const options = { SY: [], IE: [], HRA: [], POS: [], SC: [], ESQ: [] };
     for (const [seed, sy] of [[DA_ANALYSIS_HTGR, SY_ANALYSIS_HTGR], [DA_ANALYSIS, SY_ANALYSIS]] as const) {
       const da = await settledWithPraxis(() => withCcf(seed));
       expect(await settledWithPraxis(() => withCcf(da))).toBe(da);
-      const linked: DataAnalysis = { ...da, dataNeeds: daImportNeeds(da, { options, sy, scReferenced: [] }, "2026-10-04T00:00:00.000Z") };
+      const linked: DataAnalysis = { ...da, dataNeeds: daNeedsView(da.dataNeeds, daNeedRows(da, { sy }), []) };
       expect((await checks(linked)).filter((line) => !line.startsWith("note:"))).toEqual([]);
       expect(await settledWithPraxis(() => ccfComplete(linked))).toBe(true);
     }

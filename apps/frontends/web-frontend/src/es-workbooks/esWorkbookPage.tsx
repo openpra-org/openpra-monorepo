@@ -1,11 +1,10 @@
-import { JSX, useCallback, useEffect, useMemo, useState } from "react";
+import { JSX, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { type EventSequenceAnalysis } from "interfaces-mef-types/es/event-sequence-analysis";
 import { type EsLinkedWorkbooks } from "interfaces-mef-types/es/event-sequence-analysis";
 import { listWorkbooks } from "../workbooks/workbookApi";
-import { getScWorkbook } from "../sc-workbooks/scWorkbookApi";
+import { useLinkedWorkbookRefresh } from "../workbooks/useLinkedWorkbookRefresh";
 import { getSyWorkbook } from "../sy-workbooks/syWorkbookApi";
-import { getHrWorkbook } from "../hr-workbooks/hrWorkbookApi";
 import { getProject } from "../projects/projectApi";
 import { WorkbookRolesModal } from "../workbooks/workbookRolesModal";
 import { WorkbookApprovalTable } from "../workbooks/workbookApprovalTable";
@@ -33,7 +32,8 @@ import {
   type EsIeLinkStatus,
 } from "./esWorkbookApi";
 import { EsWorkbench, type EsWorkbenchActions } from "./esWorkbench";
-import { EsWorkbookProvider, type EsWorkbookData } from "./esWorkbookContext";
+import { EsWorkbookProvider, type EsUnavailableLink, type EsWorkbookData } from "./esWorkbookContext";
+import { esShowsSavedCopies, esWithLinkedTiming, esWithTypedWindowsReplaced, esWithoutLinkedTiming, loadEsLinkedSources } from "./esLinkedTiming";
 import { useEsMefPatch } from "./useEsMefPatch";
 import { type EsLinkActions } from "./EsScope";
 import { LoadExampleModal, UnloadExampleModal } from "../workbooks/exampleWorkbookModal";
@@ -144,10 +144,12 @@ function EsWorkbookPage(): JSX.Element {
     handleSaveErr,
     handleSaveResync,
   );
+  const upstream = data?.upstream;
   const mutateEs = useCallback((mutator: (es: EventSequenceAnalysis) => EventSequenceAnalysis): void => {
-    setData((prev) => (prev === null ? prev : { ...prev, es: mutator(prev.es) }));
-    void patch(mutator);
-  }, [patch]);
+    const saved = (current: EventSequenceAnalysis): EventSequenceAnalysis => esWithoutLinkedTiming(mutator(esWithLinkedTiming(current, upstream)), upstream);
+    setData((prev) => (prev === null ? prev : { ...prev, es: saved(prev.es) }));
+    void patch(saved);
+  }, [patch, upstream]);
 
   const refreshLinks = useCallback(async (): Promise<void> => {
     if (id === undefined) return;
@@ -187,6 +189,9 @@ function EsWorkbookPage(): JSX.Element {
 
   const linkRoles = myRoles.includes("preparer") || myRoles.includes("co_preparer");
   const projectId = data?.projectId;
+  const linkedSc = data?.es.linkedWorkbooks?.SC;
+  const linkedSy = data?.es.linkedWorkbooks?.SY;
+  const linkedHr = data?.es.linkedWorkbooks?.HRA;
   const links = useMemo<EsLinkActions | undefined>(() => {
     if (id === undefined || projectId === undefined || !linkRoles) return undefined;
     const reload = async (): Promise<void> => {
@@ -213,6 +218,13 @@ function EsWorkbookPage(): JSX.Element {
           await reload();
           return;
         }
+        if (code === "HRA" || code === "SC") {
+          const held: EsLinkedWorkbooks = { ...(linkedSc === undefined ? {} : { SC: linkedSc }), ...(linkedHr === undefined ? {} : { HRA: linkedHr }) };
+          const next = await loadEsLinkedSources({ linkedWorkbooks: withLink(held, code, workbookId) });
+          if (next.unavailable.includes(code)) throw new Error("Linked workbook unavailable");
+          mutateEs((draft) => ({ ...esWithTypedWindowsReplaced(draft, next.sources), linkedWorkbooks: withLink(draft.linkedWorkbooks, code, workbookId) }));
+          return;
+        }
         mutateEs((draft) => ({ ...draft, linkedWorkbooks: withLink(draft.linkedWorkbooks, code, workbookId) }));
       },
       unlink: async (code) => {
@@ -231,24 +243,40 @@ function EsWorkbookPage(): JSX.Element {
         mutateEs((draft) => ({ ...draft, linkedWorkbooks: withLink(draft.linkedWorkbooks, code, null) }));
       },
     };
-  }, [id, projectId, linkRoles, updateEs, mutateEs]);
+  }, [id, projectId, linkRoles, updateEs, mutateEs, linkedSc, linkedHr]);
 
-  const linkedSc = data?.es.linkedWorkbooks?.SC;
-  const linkedSy = data?.es.linkedWorkbooks?.SY;
-  const linkedHr = data?.es.linkedWorkbooks?.HRA;
-  useEffect(() => {
-    let cancelled = false;
-    Promise.all([
-      linkedSc === undefined ? Promise.resolve(undefined) : getScWorkbook(linkedSc).then((workbook) => workbook.mef),
-      linkedSy === undefined ? Promise.resolve(undefined) : getSyWorkbook(linkedSy).then((workbook) => workbook.mef),
-      linkedHr === undefined ? Promise.resolve(undefined) : getHrWorkbook(linkedHr).then((workbook) => workbook.mef),
-    ])
-      .then(([sc, sy, hr]) => {
-        if (!cancelled) setData((prev) => (prev === null ? prev : { ...prev, upstream: { ...(sc === undefined ? {} : { sc }), ...(sy === undefined ? {} : { sy }), ...(hr === undefined ? {} : { hr }) } }));
-      })
-      .catch((failure: Error) => { if (!cancelled) setUpstreamError(`Could not load a linked workbook: ${failure.message}`); });
-    return () => { cancelled = true; };
+  const upstreamRequest = useRef(0);
+  const loadUpstream = useCallback(async (): Promise<void> => {
+    const request = upstreamRequest.current + 1;
+    upstreamRequest.current = request;
+    const [linked, sy] = await Promise.all([
+      loadEsLinkedSources({ linkedWorkbooks: { ...(linkedSc === undefined ? {} : { SC: linkedSc }), ...(linkedHr === undefined ? {} : { HRA: linkedHr }) } }),
+      linkedSy === undefined ? undefined : getSyWorkbook(linkedSy).then((workbook) => workbook.mef).catch(() => undefined),
+    ]);
+    if (upstreamRequest.current !== request) return;
+    const unavailable: EsUnavailableLink[] = [...linked.unavailable];
+    if (linkedSy !== undefined && sy === undefined) unavailable.push("SY");
+    setData((prev) => (prev === null ? prev : { ...prev, upstream: { ...linked.sources, ...(sy === undefined ? {} : { sy }), ...(unavailable.length === 0 ? {} : { unavailable }) } }));
+    setUpstreamError(unavailable.length > 0
+      ? `Could not load a linked workbook: ${unavailable.map((code) => (code === "HRA" ? "HR" : code)).join(", ")}`
+      : linked.missionTimesUnavailable ? "Could not read the mission times of the linked SC workbook" : null);
   }, [linkedSc, linkedSy, linkedHr]);
+
+  const loaded = data !== null;
+  useEffect(() => {
+    if (loaded) void loadUpstream();
+  }, [loaded, loadUpstream]);
+
+  const refreshLinked = useCallback(async (): Promise<void> => {
+    await Promise.all([loadUpstream(), refreshLinks()]);
+  }, [loadUpstream, refreshLinks]);
+  useLinkedWorkbookRefresh(refreshLinked);
+
+  const savedEs = data?.es;
+  const viewData = useMemo<EsWorkbookData | null>(() => {
+    if (data === null || savedEs === undefined) return null;
+    return esShowsSavedCopies(savedEs) ? data : { ...data, es: esWithLinkedTiming(savedEs, upstream) };
+  }, [data, savedEs, upstream]);
 
   const [persona, setPersona] = useState<EsPersona>("preparer");
   useEffect(() => {
@@ -259,7 +287,7 @@ function EsWorkbookPage(): JSX.Element {
   if (error !== null) {
     return <div className="posw"><main className="posmain"><p className="pws-status pws-status--error">{error}</p></main></div>;
   }
-  if (data === null || id === undefined) {
+  if (data === null || viewData === null || id === undefined) {
     return <div className="posw"><main className="posmain"><p className="pws-status">Loading workbook…</p></main></div>;
   }
 
@@ -283,13 +311,13 @@ function EsWorkbookPage(): JSX.Element {
 
   return (
     <EsWorkbookProvider
-      data={data}
+      data={viewData}
       editable={editable}
       runtime={{ workbookId: id, revision, saveState: saveStatus }}
       mutateEs={mutateEs}
     >
       <EsWorkbench
-        data={data}
+        data={viewData}
         persona={persona}
         setPersona={setPersona}
         showPersonaPicker={availablePersonas.length > 1}

@@ -3,6 +3,7 @@ import type { EventSequenceQuantification, ModelUncertaintySourceAssessment } fr
 import type { SensitivityStudy } from "interfaces-mef-types/core/shared-patterns";
 import { fetchJson } from "../api/client";
 import { sensitivityResult } from "../da-workbooks/daUncertainty";
+import { daWithLinkedSources } from "../da-workbooks/daWorkbookApi";
 
 const EXAMPLE_PREFIX = "example-da-";
 
@@ -117,10 +118,10 @@ async function loadEsqDaLinks(workbookId: string | undefined): Promise<EsqDaLink
   try {
     if (workbookId.startsWith(EXAMPLE_PREFIX)) {
       const bundle = await fetchJson<{ da: { mef: DataAnalysis } }>(`/api/example-workbooks/da-bundle?example=${encodeURIComponent(workbookId.slice(EXAMPLE_PREFIX.length))}`);
-      return [{ workbookId, workbookName: bundle.da.mef.name, mef: bundle.da.mef }];
+      return [{ workbookId, workbookName: bundle.da.mef.name, mef: await daWithLinkedSources(bundle.da.mef) }];
     }
     const workbook = await fetchJson<{ mef: DataAnalysis }>(`/api/da-workbooks/${encodeURIComponent(workbookId)}`);
-    return [{ workbookId, workbookName: workbook.mef.name, mef: workbook.mef }];
+    return [{ workbookId, workbookName: workbook.mef.name, mef: await daWithLinkedSources(workbook.mef) }];
   } catch {
     return [];
   }

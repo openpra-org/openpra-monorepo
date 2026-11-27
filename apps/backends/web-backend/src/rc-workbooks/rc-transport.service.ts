@@ -14,6 +14,7 @@ import { ProjectsService } from "../projects/projects.service";
 import { WorkbookRolesService } from "../workbooks/workbook-roles.service";
 import { RcWorkbook, type RcWorkbookDocument } from "./rc-workbook.schema";
 import { RcDocumentsService } from "./rc-documents.service";
+import { RcLinkedSourcesService } from "./rc-linked-sources.service";
 
 interface Actor { username: string }
 interface Upload { buffer: Buffer; originalname: string }
@@ -23,7 +24,8 @@ const reason = (e: unknown) => e instanceof z.ZodError ? e.issues.slice(0, 5).ma
 export class RcTransportService {
   private readonly logger = new Logger(RcTransportService.name);
   constructor(@InjectModel(RcWorkbook.name) private readonly workbooks: Model<RcWorkbookDocument>,
-    private readonly projects: ProjectsService, private readonly roles: WorkbookRolesService, private readonly documents: RcDocumentsService) {}
+    private readonly projects: ProjectsService, private readonly roles: WorkbookRolesService, private readonly documents: RcDocumentsService,
+    private readonly linkedSources: RcLinkedSourcesService) {}
   private async load(id: string, actor: Actor, baseRevision?: unknown) {
     const doc = await this.workbooks.findOne({ workbookId: id }).exec();
     if (!doc) throw new NotFoundException("RC workbook not found");
@@ -38,9 +40,10 @@ export class RcTransportService {
     }
     return { doc, mef, inputs };
   }
-  private source(loaded: Awaited<ReturnType<RcTransportService["load"]>>, categoryId: string, sourceRevision?: number) {
-    const source = loaded.mef.releaseCategoryToConsequence.releaseCategoryInputs.find(c => c.releaseCategory === categoryId)?.sourceTerm;
-    if (!source) throw new BadRequestException("Import or save the source inventory for this category in Step 01");
+  private async source(loaded: Awaited<ReturnType<RcTransportService["load"]>>, categoryId: string, sourceRevision?: number) {
+    const view = await this.linkedSources.viewFor(loaded.mef, loaded.doc.projectId, categoryId);
+    const source = view.releaseCategoryToConsequence.releaseCategoryInputs.find(c => c.releaseCategory === categoryId)?.sourceTerm;
+    if (!source) throw new BadRequestException("Link or save the source inventory for this category in Step 01");
     if (sourceRevision !== undefined && source.revision !== sourceRevision) throw new ConflictException("The Step 01 source changed. Review the transport settings again");
     return source;
   }
@@ -61,7 +64,7 @@ export class RcTransportService {
   async save(id: string, body: unknown, actor: Actor) {
     const parsed = z.object({ baseRevision: revision, sourceRevision: revision, categoryId: z.string().min(1), settings: RcTransportSettingsSchema }).strict().safeParse(body);
     if (!parsed.success) throw new BadRequestException(reason(parsed.error));
-    const p = parsed.data, loaded = await this.load(id, actor, p.baseRevision), source = this.source(loaded, p.categoryId, p.sourceRevision), settings = p.settings;
+    const p = parsed.data, loaded = await this.load(id, actor, p.baseRevision), source = await this.source(loaded, p.categoryId, p.sourceRevision), settings = p.settings;
     if (settings.groupVelocities.length !== source.values.groups.length || source.values.groups.some(g => !settings.groupVelocities.some(v => v.groupId === g.id && v.name === g.name)))
       throw new BadRequestException("Group velocities must match the current Step 01 chemical groups");
     const old = loaded.inputs?.categories.find(c => c.categoryId === p.categoryId);
@@ -87,7 +90,7 @@ export class RcTransportService {
     const p = parsed.data, loaded = await this.load(id, actor, p.baseRevision), next = this.initial(loaded.inputs);
     if (!files.length || files.length > 8 || kind !== "decay" && files.length !== 1 || files.some(f => !f.buffer.length || f.buffer.length > 12 * 1024 * 1024) || files.reduce((n, f) => n + f.buffer.length, 0) > 24 * 1024 * 1024)
       throw new BadRequestException("Choose up to eight nonempty text files, 12 MB each and 24 MB total");
-    const source = kind === "deposition" ? this.source(loaded, p.categoryId ?? "", p.sourceRevision) : undefined;
+    const source = kind === "deposition" ? await this.source(loaded, p.categoryId ?? "", p.sourceRevision) : undefined;
     if (kind === "deposition" && p.sourceRevision === undefined) throw new BadRequestException("A source revision is required for deposition imports");
     // Parse every file before storing any part of a batch.
     let pending;
@@ -120,7 +123,7 @@ export class RcTransportService {
     return this.importFiles(id, "decay", body, [{ buffer: readRcPublishedFile(RC_STANDARD_DECAY_LIBRARY), originalname: RC_STANDARD_DECAY_LIBRARY }], actor);
   }
   async linkedSource(id: string, categoryId: string, actor: Actor): Promise<RcLinkedDeposition> {
-    const loaded = await this.load(id, actor), source = this.source(loaded, categoryId);
+    const loaded = await this.load(id, actor), source = await this.source(loaded, categoryId);
     if (!source.originalFile) return { sourceRevision: source.revision, issue: "No original source file. Import deposition data to inspect particle-size bins." };
     const raw = await this.documents.readSourceInput(id, source.originalFile.documentId, actor);
     try {

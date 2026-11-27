@@ -519,7 +519,7 @@ function ResultsScreen({ openWindow }: { openWindow: (ctx: EsqWindowContext) => 
           </div>
           {daNote !== undefined && <p className="esq-meta" role="status">{daNote}</p>}
           {view === undefined ? (
-            <p className="posmuted">Nothing is imported yet. Import the model in Step 02.</p>
+            <p className="posmuted">Nothing to show yet. Link the ES and SY workbooks in Step 01.</p>
           ) : tab === "consistency" ? (
             <ConsistencyPanel view={view} openWindow={openWindow} />
           ) : tab === "contributors" ? (

@@ -4,12 +4,11 @@ import type {
   DaElicitation,
   DaEstimateQuantity,
   DaEvidenceKind,
-  DaQuantificationModel,
   DaSourceEntry,
   DaSourceUse,
   DaTransferFactor,
 } from "interfaces-mef-types/da/data-analysis";
-import { entryHoldsLaw, holdsEstimate } from "interfaces-mef-types/da/data-analysis";
+import { daEstimateUnit, entryHoldsLaw, holdsEstimate } from "interfaces-mef-types/da/data-analysis";
 import { canonicalJson, parameterReferenceKey, lawBounds, lawWithinUnit, modelArguments, unitBounds, type Law, type MixtureComponent, type UncertainExpression, type UncertainParameter, type UncertainUnit } from "interfaces-mef-types/core/uncertainty";
 import { legacyLaw } from "interfaces-mef-types/core/legacy-uncertainty-adapter";
 import type {
@@ -48,18 +47,6 @@ interface DaSpread {
   sampled: boolean;
   point: boolean;
 }
-
-const ESTIMATE_UNITS: Partial<Record<DaQuantificationModel, UncertainUnit>> = {
-  DEMAND_PROBABILITY: "PROBABILITY",
-  OTHER_PROBABILITY: "PROBABILITY",
-  MISSION_PROBABILITY: "PROBABILITY",
-  RUNNING_RATE: "PER_HOUR",
-  STANDBY_RATE: "PER_HOUR",
-  UNAVAILABILITY: "FRACTION",
-  HUMAN_ERROR: "PROBABILITY",
-  NON_RECOVERY: "PROBABILITY",
-  FREQUENCY: "PER_YEAR",
-};
 
 const SPREAD_SAMPLING: UncertaintySampling = { method: "LATIN_HYPERCUBE", trials: 10000, seed: 1 };
 
@@ -217,7 +204,7 @@ function expressionSpread(expression: UncertainExpression, unit: UncertainUnit, 
 }
 
 function componentUnit(parameter: DataAnalysisParameter): UncertainUnit | undefined {
-  return parameter.quantificationModel === undefined ? undefined : ESTIMATE_UNITS[parameter.quantificationModel];
+  return daEstimateUnit(parameter.quantificationModel);
 }
 
 function pointState(expression: UncertainExpression, unit: UncertainUnit): UncertaintyState<number> {

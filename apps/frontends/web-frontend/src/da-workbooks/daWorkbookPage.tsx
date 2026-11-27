@@ -1,4 +1,4 @@
-import { JSX, useCallback, useEffect, useMemo, useState } from "react";
+import { JSX, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { type DataAnalysis } from "interfaces-mef-types/da/data-analysis";
 import { type PRAConfigurationControl } from "interfaces-mef-types/cross-cutting/pra-configuration-control";
@@ -26,6 +26,8 @@ import {
 import { DaWorkbench, type DaWorkbenchActions } from "./daWorkbench";
 import { DaWorkbookProvider, EMPTY_UPSTREAM, useDaUpstream, type DaWorkbookData } from "./daWorkbookContext";
 import { useDaMefPatch } from "./useDaMefPatch";
+import { daSavedOf, daViewOf } from "./daLinkedData";
+import { useLinkedWorkbookRefresh } from "../workbooks/useLinkedWorkbookRefresh";
 import { LoadExampleModal, UnloadExampleModal } from "../workbooks/exampleWorkbookModal";
 import { DaDocumentsCard } from "./daDocumentsCard";
 import { type DaPersona } from "./daViewData";
@@ -72,6 +74,8 @@ function DaWorkbookPage(): JSX.Element {
   const [projectName, setProjectName] = useState<string>("");
   const [exampleOptions, setExampleOptions] = useState<DaExampleOption[]>([]);
   const [linkOptions, setLinkOptions] = useState<Record<DaLinkCode, Workbook[]>>(EMPTY_UPSTREAM.options);
+  const [reading, setReading] = useState(0);
+  const [dismissedUnavailable, setDismissedUnavailable] = useState("");
   const workbookName = data?.da.name ?? "";
   const workbookVersion = data?.da.version ?? "1";
 
@@ -117,7 +121,14 @@ function DaWorkbookPage(): JSX.Element {
     return () => { cancelled = true; };
   }, []);
 
-  const upstream = useDaUpstream(data?.da, linkOptions, id);
+  const upstream = useDaUpstream(data?.da, linkOptions, id, reading);
+  const viewUpstream = useRef(upstream);
+  viewUpstream.current = upstream;
+  const refreshLinked = useCallback((): Promise<void> => {
+    setReading((count) => count + 1);
+    return Promise.resolve();
+  }, []);
+  useLinkedWorkbookRefresh(refreshLinked);
 
   const updateDa = useCallback((da: DataAnalysis): void => {
     setData((prev) => (prev === null ? prev : { ...prev, da }));
@@ -143,9 +154,15 @@ function DaWorkbookPage(): JSX.Element {
     handleSaveResync,
   );
   const mutateDa = useCallback((mutator: (da: DataAnalysis) => DataAnalysis): void => {
-    setData((prev) => (prev === null ? prev : { ...prev, da: mutator(prev.da) }));
-    void patch(mutator);
+    const saved = (current: DataAnalysis): DataAnalysis => {
+      const before = daViewOf(current, viewUpstream.current);
+      return daSavedOf(mutator(before), before, viewUpstream.current);
+    };
+    setData((prev) => (prev === null ? prev : { ...prev, da: saved(prev.da) }));
+    void patch(saved);
   }, [patch]);
+  const viewData = useMemo<DaWorkbookData | null>(() => (data === null ? null : { ...data, da: daViewOf(data.da, upstream) }), [data, upstream]);
+  const unavailableLinks = (upstream.unavailable ?? []).join(", ");
 
   const actions = useMemo<DaWorkbenchActions | undefined>(() => {
     if (id === undefined) return undefined;
@@ -186,7 +203,7 @@ function DaWorkbookPage(): JSX.Element {
   if (error !== null) {
     return <div className="posw"><main className="posmain"><p className="pws-status pws-status--error">{error}</p></main></div>;
   }
-  if (data === null || id === undefined) {
+  if (data === null || viewData === null || id === undefined) {
     return <div className="posw"><main className="posmain"><p className="pws-status">Loading workbook…</p></main></div>;
   }
 
@@ -209,9 +226,9 @@ function DaWorkbookPage(): JSX.Element {
   const canUnloadExample = canLoadExample && hasPreviousMef;
 
   return (
-    <DaWorkbookProvider data={data} editable={editable} mutateDa={mutateDa} upstream={upstream}>
+    <DaWorkbookProvider data={viewData} editable={editable} mutateDa={mutateDa} upstream={upstream}>
       <DaWorkbench
-        data={data}
+        data={viewData}
         persona={persona}
         setPersona={setPersona}
         showPersonaPicker={availablePersonas.length > 1}
@@ -235,6 +252,12 @@ function DaWorkbookPage(): JSX.Element {
         renderRoster={() => <WorkbookRoster workbookId={id} refreshSignal={approvalRefresh} />}
         renderDocuments={() => <DaDocumentsCard workbookId={id} canEdit={canEdit} />}
       />
+      {unavailableLinks.length > 0 && dismissedUnavailable !== unavailableLinks && (
+        <div className="ie-savebar" role="alert">
+          <span>Could not load a linked workbook: {unavailableLinks}</span>
+          <button type="button" className="ie-savebar__dismiss" onClick={() => setDismissedUnavailable(unavailableLinks)}>Dismiss</button>
+        </div>
+      )}
       {saveError !== null && (
         <div className="ie-savebar" role="alert">
           <span>Could not save changes: {saveError}</span>

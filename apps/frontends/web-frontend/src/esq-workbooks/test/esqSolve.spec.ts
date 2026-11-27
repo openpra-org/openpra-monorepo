@@ -31,7 +31,7 @@ const WORKED_MCUB = [
 const WORKED_KEPT = [6, 14, 33, 37, 79, 128, 196, 258, 309];
 
 function importedEsq(): EventSequenceQuantification {
-  return withModelImported(linkedEsq(), modelUpstream(), NOW);
+  return withModelImported(linkedEsq(), modelUpstream());
 }
 
 function sweepOf(values: readonly number[], counts: readonly number[] = values.map((_, index) => index + 1)): { cutOff: number; count: number; annualFrequency: number }[] {

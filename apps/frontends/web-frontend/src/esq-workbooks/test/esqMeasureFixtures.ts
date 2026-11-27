@@ -43,7 +43,7 @@ function measureUpstream(): EsqUpstream {
 }
 
 function measureEsq(): EventSequenceQuantification {
-  const esq = liveImport(linkedEsq(), measureUpstream(), NOW);
+  const esq = liveImport(linkedEsq(), measureUpstream());
   return withRunOfRecord(esq, modelSummary(esq, RELEASE));
 }
 

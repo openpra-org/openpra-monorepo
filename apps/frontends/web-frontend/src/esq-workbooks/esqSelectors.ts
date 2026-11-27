@@ -8,7 +8,6 @@ import {
   type ModelIntegration,
 } from "interfaces-mef-types/esq/event-sequence-quantification";
 import { type EventSequenceAnalysis } from "interfaces-mef-types/es/event-sequence-analysis";
-import { type RiskIntegration } from "interfaces-mef-types/ri/risk-integration";
 import { EMPTY_UPSTREAM, type EsqUpstream } from "./esqLinks";
 import { modelComplete, sameItem, transferEntryInitiators, typedInitiatorsOf } from "./esqModel";
 import { logicComplete } from "./esqLogic";
@@ -289,15 +288,10 @@ function planValues(esq: EventSequenceQuantification): EsqPlanValues {
 }
 
 function planChanged(esq: EventSequenceQuantification, key: EsqPlanKey): boolean {
-  if (key === "reportingFloorPerYear" && esq.quantificationPlan?.reportingFloorPerYear?.link !== undefined) return false;
+  const floor = esq.quantificationPlan?.reportingFloorPerYear;
+  if (key === "reportingFloorPerYear" && floor?.link !== undefined) return false;
+  if (key === "reportingFloorPerYear" && floor?.reason !== undefined) return true;
   return planValues(esq)[key] !== ESQ_PLAN_DEFAULTS[key];
-}
-
-function riReportingFloor(esq: EventSequenceQuantification, ri: RiskIntegration | undefined): number | undefined {
-  if (ri === undefined) return undefined;
-  const perPlantYear = ri.reportingThresholds.minimumReportingFrequencyPerPlantYear;
-  if (!(perPlantYear > 0)) return undefined;
-  return perPlantYear / Math.max(1, esq.quantificationPlan?.modulesPerPlant?.value ?? 1);
 }
 
 function planReason(esq: EventSequenceQuantification, key: EsqPlanKey): string {
@@ -343,7 +337,9 @@ function scopeItemsToComplete(esq: EventSequenceQuantification, upstream: EsqUps
   const values = planValues(esq);
   if (!(values.reportingFloorPerYear > 0)) items.push("Set a reporting floor above zero.");
   if (!(values.convergenceStepPercent > 0 && values.convergenceStepPercent < 100)) items.push("Set a convergence step between 0 and 100%.");
-  if (esq.quantificationPlan?.modulesPerPlant === undefined) items.push("Set the number of modules per plant.");
+  const modules = esq.quantificationPlan?.modulesPerPlant;
+  if (modules === undefined) items.push("Set the number of modules per plant.");
+  else if (modules.link === undefined && modules.reason !== undefined && modules.reason.trim().length === 0) items.push("Give a reason for the modules per plant typed over the IE value.");
   if (!esq.modelIntegration.multiReactorSequencesIncluded && (esq.modelIntegration.multiReactorInclusionBasis ?? "").trim().length === 0) {
     items.push("Give the basis for leaving out sequences with several reactors.");
   }
@@ -496,7 +492,6 @@ export {
   planValues,
   planChanged,
   planReason,
-  riReportingFloor,
   withPlan,
   withPlanReason,
   withPlanDefault,

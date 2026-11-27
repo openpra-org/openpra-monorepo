@@ -1,4 +1,4 @@
-import { isComponentModel, type DataAnalysis, type DataAnalysisParameter, type CcfParameterEstimation } from "interfaces-mef-types/da/data-analysis";
+import { isComponentModel, type DataAnalysis, type DataAnalysisParameter } from "interfaces-mef-types/da/data-analysis";
 import { canonicalJson, expressionReferences, type CcfFactorModel, type UncertainExpression } from "interfaces-mef-types/core/uncertainty";
 import { carriesUncertainExpression, type CommonCauseFailureGroup, type SystemBasicEvent } from "interfaces-mef-types/sy/systems-analysis";
 import type { InitiatingEventGroup } from "interfaces-mef-types/ie/initiating-event-analysis";
@@ -355,22 +355,6 @@ function handoffsComplete(da: DataAnalysis, upstream: DaUpstream): boolean {
   return !handoffFindings(da, upstream).some((finding) => finding.severity === "error");
 }
 
-function withImportanceFromEsq(da: DataAnalysis, upstream: DaUpstream, now: string): DataAnalysis {
-  const measures = measuresByTarget(da, upstream);
-  if (measures.size === 0) return da;
-  const parameters = da.parameters.map((parameter): DataAnalysisParameter => {
-    const read = measures.get(parameter.uuid);
-    if (read === undefined) return parameter;
-    return { ...parameter, isRiskSignificant: significant(read.fv, read.raw), importance: { from: "ESQ", fussellVesely: read.fv, riskAchievementWorth: read.raw, entryIds: read.entries, importedAt: now } };
-  });
-  const estimates = (da.ccfParameterEstimations ?? []).map((estimate): CcfParameterEstimation => {
-    const read = measures.get(estimate.uuid);
-    if (read === undefined) return estimate;
-    return { ...estimate, isRiskSignificant: significant(read.fv, read.raw), importance: { from: "ESQ", fussellVesely: read.fv, riskAchievementWorth: read.raw, entryIds: read.entries, importedAt: now } };
-  });
-  return { ...da, parameters, ccfParameterEstimations: da.ccfParameterEstimations === undefined ? undefined : estimates };
-}
-
 export {
   FV_SIGNIFICANT,
   RAW_SIGNIFICANT,
@@ -379,8 +363,8 @@ export {
   handoffView,
   handoffsComplete,
   importanceFindings,
+  measuresByTarget,
   significant,
-  withImportanceFromEsq,
   type DaHandoffElement,
   type DaHandoffRow,
   type DaHandoffSection,

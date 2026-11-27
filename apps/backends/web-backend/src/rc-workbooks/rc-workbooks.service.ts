@@ -3,8 +3,11 @@ import { RC_PUBLISHED_SLUG } from "../example-workbooks/seeds/rc-published-input
 import { ConflictException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import { isDeepStrictEqual } from "util";
 import type { RadiologicalConsequenceAnalysis } from "interfaces-mef-types/rc/radiological-consequence-analysis";
+import type { RcSourceTerm } from "interfaces-mef-types/rc/source-term";
 import { withSourceTermSummary } from "interfaces-shared-types/rc-workbooks/source-term-summary";
 import { withRcFamilyConsequences } from "interfaces-shared-types/rc-workbooks/family-consequences";
+import { rcDerivesFamilyConsequences } from "interfaces-shared-types/rc-workbooks/linked-data";
+import { RcLinkedSourcesService } from "./rc-linked-sources.service";
 import { parseRcHealthInput } from "interfaces-shared-types/rc-workbooks/health-input-parser";
 import { parseRcSiteEconomy } from "interfaces-shared-types/rc-workbooks/economic-input-parser";
 import { rcEconomicCostCoverage, rcEconomicCostIssues } from "interfaces-shared-types/rc-workbooks/economic-costs";
@@ -37,6 +40,15 @@ interface ActingUser {
   username: string;
 }
 
+function sourceTermKept(previous: RcSourceTerm | undefined, next: RcSourceTerm | undefined): boolean {
+  if (next === undefined) return true;
+  if (previous === undefined) return false;
+  return previous.revision === next.revision
+    && isDeepStrictEqual(previous.values, next.values)
+    && isDeepStrictEqual(previous.originalFile, next.originalFile)
+    && (next.msSource === undefined || isDeepStrictEqual(previous.msSource, next.msSource));
+}
+
 function toResponse(doc: RcWorkbookDocument, myRoles: WorkbookRoleName[]): RcWorkbookResponse {
   return {
     workbookId: doc.workbookId,
@@ -59,6 +71,7 @@ export class RcWorkbooksService {
     private readonly rolesService: WorkbookRolesService,
     private readonly rcDocumentsService: RcDocumentsService,
     private readonly publishedExample: RcPublishedExampleService,
+    private readonly linkedSources: RcLinkedSourcesService,
   ) {}
 
   private async loadMyRoles(workbookId: string, username: string): Promise<WorkbookRoleName[]> {
@@ -131,12 +144,12 @@ export class RcWorkbooksService {
         throw new ForbiddenException("Only preparers can edit source terms in a draft workbook");
       for (const category of nextCategories) {
         const previous = oldCategories.find((c) => c.releaseCategory === category.releaseCategory);
-        if (!isDeepStrictEqual(previous?.sourceTerm, category.sourceTerm))
+        if (!sourceTermKept(previous?.sourceTerm, category.sourceTerm))
           throw new ConflictException("Source data must be saved using the source-term editor. Reload if it changed");
       }
     }
     parsed.data.releaseCategoryToConsequence.releaseCategoryInputs = nextCategories.map(withSourceTermSummary);
-    doc.mef = JSON.parse(JSON.stringify(withRcFamilyConsequences(parsed.data)));
+    doc.mef = JSON.parse(JSON.stringify(rcDerivesFamilyConsequences(parsed.data, {}) ? withRcFamilyConsequences(parsed.data) : parsed.data));
     try { await doc.save(); } catch (error) {
       if (error instanceof Error && error.name === "VersionError") throw new ConflictException("The workbook changed. Reload before saving");
       throw error;
@@ -158,7 +171,7 @@ export class RcWorkbooksService {
     const parsed = RadiologicalConsequenceAnalysisSchema.safeParse(stripNulls(example.rc.mef));
     if (!parsed.success) throw new ForbiddenException(`Example MEF failed validation: ${parsed.error.message}`);
     const materialize = example.rc.slug === RC_PUBLISHED_SLUG || Boolean(parsed.data.consequenceQuantification.caseRecords?.snapshots.length);
-    const prepared = materialize ? await this.publishedExample.prepare(workbookId, parsed.data, doc.__v + 1, acting) : undefined;
+    const prepared = materialize ? await this.publishedExample.prepare(workbookId, parsed.data, doc.__v + 1, acting, await this.linkedSources.linked(parsed.data, doc.projectId)) : undefined;
     const cleaned = {
       ...(prepared?.mef ?? parsed.data),
       workflowState: "DRAFT",

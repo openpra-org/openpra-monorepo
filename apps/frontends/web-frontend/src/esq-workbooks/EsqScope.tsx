@@ -14,6 +14,7 @@ import { DialogHead, DialogShell } from "../es-workbooks/EsScope";
 import { Badge, FormRow, sciText } from "./esqShared";
 import { useEsqWorkbook } from "./esqWorkbookContext";
 import { withLinkedWorkbook } from "./esqLinks";
+import { esqIeModules, esqRiFloor } from "interfaces-mef-types/esq/esq-linked-data";
 import {
   CAPABILITY_CATEGORIES,
   ESQ_LINK_TILES,
@@ -30,7 +31,6 @@ import {
   planChanged,
   planReason,
   planValues,
-  riReportingFloor,
   scopeRowsView,
   withPlan,
   withPlanDefault,
@@ -66,10 +66,6 @@ function scopeStateOf(value: string): EsqScopeState {
 
 function withArticle(noun: string): string {
   return `${"aeiou".includes(noun.charAt(0)) ? "an" : "a"} ${noun}`;
-}
-
-function sameValue(left: number, right: number): boolean {
-  return Math.abs(left - right) <= Math.abs(right) * 1e-9;
 }
 
 function EsqInterfaces({ request, onBack }: { request: EsqLinkRequest | null; onBack?: () => void }): JSX.Element {
@@ -122,6 +118,7 @@ function EsqInterfaces({ request, onBack }: { request: EsqLinkRequest | null; on
               {linkedId !== undefined && linked === undefined && exampleLabel === undefined && <option value={linkedId}>{`${tile.label} workbook not in this project`}</option>}
             </select>
           </div>
+          {linkedId !== undefined && (upstream.unavailable ?? []).includes(tile.code) && <p className="esq-scope-error" role="alert">Linked workbook unavailable</p>}
           {request !== null && tile.code === "SY" && (
             <div className="esq-scope-request" role="status">
               <span>{`Step 02 needs an SY workbook to link ${request.name} to a fault tree. Pick it here, then go back.`}</span>
@@ -312,16 +309,16 @@ function PlanCard(): JSX.Element {
   const values = planValues(esq);
   const plan: EsqQuantificationPlan = esq.quantificationPlan ?? {};
   const ieId = esq.linkedWorkbooks?.IE;
-  const ieModules = upstream.ie?.metadata.plantIdentity?.numberOfModules;
+  const ieModules = esqIeModules(upstream.ie);
   const modules = plan.modulesPerPlant;
-  const moduleLink = modules?.link;
-  const modulesFromCurrent = moduleLink !== undefined && moduleLink.workbookId === ieId;
+  const modulesLinked = modules?.link !== undefined;
+  const modulesTypedOver = !modulesLinked && ieId !== undefined && ieModules !== undefined && modules !== undefined;
   const ieName = ieId === undefined ? undefined : linkedWorkbookLabel(ieId, upstream.options.IE);
   const riId = esq.linkedWorkbooks?.RI;
-  const riFloor = riReportingFloor(esq, upstream.ri);
+  const riFloor = esqRiFloor(upstream.ri, modules?.value);
   const floor = plan.reportingFloorPerYear;
-  const floorLink = floor?.link;
-  const floorFromCurrent = floorLink !== undefined && floorLink.workbookId === riId;
+  const floorLinked = floor?.link !== undefined;
+  const floorFromRi = riId !== undefined && (floorLinked || riFloor !== undefined);
   const riName = riId === undefined ? undefined : linkedWorkbookLabel(riId, upstream.options.RI);
   const multiIncluded = esq.modelIntegration.multiReactorSequencesIncluded;
   const multiBasis = esq.modelIntegration.multiReactorInclusionBasis ?? "";
@@ -340,18 +337,21 @@ function PlanCard(): JSX.Element {
   function onReportingFloor(text: string): void {
     const value = Number(text);
     if (text.trim().length === 0 || !Number.isFinite(value)) return;
-    patchPlan((current) => ({ ...current, reportingFloorPerYear: value === ESQ_PLAN_DEFAULTS.reportingFloorPerYear ? undefined : { value, reason: current.reportingFloorPerYear?.reason } }));
+    patchPlan((current) => {
+      const reason = current.reportingFloorPerYear?.reason;
+      if (floorFromRi) return { ...current, reportingFloorPerYear: { value, reason: reason ?? "" } };
+      return { ...current, reportingFloorPerYear: value === ESQ_PLAN_DEFAULTS.reportingFloorPerYear ? undefined : { value, reason } };
+    });
   }
   function onFloorSource(value: string): void {
-    if (value === "imported" && riId !== undefined && riFloor !== undefined) {
-      patchPlan((current) => ({ ...current, reportingFloorPerYear: { value: riFloor, link: { element: "RI", workbookId: riId, field: "minimumReportingFrequencyPerPlantYear" } } }));
+    if (value === "linked") {
+      patchPlan((current) => {
+        const { reportingFloorPerYear: _typed, ...rest } = current;
+        return rest;
+      });
       return;
     }
-    if (value !== "typed") return;
-    patchPlan((current) => {
-      const typed = current.reportingFloorPerYear?.value;
-      return { ...current, reportingFloorPerYear: typed === undefined || typed === ESQ_PLAN_DEFAULTS.reportingFloorPerYear ? undefined : { value: typed } };
-    });
+    patchPlan((current) => ({ ...current, reportingFloorPerYear: { value: current.reportingFloorPerYear?.value ?? values.reportingFloorPerYear, reason: "" } }));
   }
   function onConvergence(text: string): void {
     const value = Number(text);
@@ -359,11 +359,14 @@ function PlanCard(): JSX.Element {
     patchPlan((current) => ({ ...current, convergenceStepPercent: value === ESQ_PLAN_DEFAULTS.convergenceStepPercent ? undefined : { value, reason: current.convergenceStepPercent?.reason } }));
   }
   function onModulesSource(value: string): void {
-    if (value === "imported" && ieId !== undefined && ieModules !== undefined) {
-      patchPlan((current) => ({ ...current, modulesPerPlant: { value: ieModules, link: { element: "IE", workbookId: ieId, field: "numberOfModules" } } }));
+    if (value === "linked") {
+      patchPlan((current) => {
+        const { modulesPerPlant: _typed, ...rest } = current;
+        return rest;
+      });
       return;
     }
-    if (value === "typed") patchPlan((current) => ({ ...current, modulesPerPlant: current.modulesPerPlant === undefined ? undefined : { value: current.modulesPerPlant.value } }));
+    patchPlan((current) => (current.modulesPerPlant === undefined ? current : { ...current, modulesPerPlant: { value: current.modulesPerPlant.value, reason: "" } }));
   }
   function onModulesTyped(text: string): void {
     const value = Number(text);
@@ -371,7 +374,10 @@ function PlanCard(): JSX.Element {
       patchPlan((current) => ({ ...current, modulesPerPlant: undefined }));
       return;
     }
-    if (Number.isInteger(value) && value >= 1) patchPlan((current) => ({ ...current, modulesPerPlant: { value } }));
+    if (Number.isInteger(value) && value >= 1) patchPlan((current) => ({ ...current, modulesPerPlant: current.modulesPerPlant?.reason === undefined ? { value } : { value, reason: current.modulesPerPlant.reason } }));
+  }
+  function onModulesReason(text: string): void {
+    patchPlan((current) => (current.modulesPerPlant === undefined ? current : { ...current, modulesPerPlant: { ...current.modulesPerPlant, reason: text } }));
   }
   function onMultiReactor(value: string): void {
     if (!editable) return;
@@ -394,33 +400,28 @@ function PlanCard(): JSX.Element {
         </FormRow>
         <PlanReasonRow planKey="stateWeighting" id={`${fieldId}-weighting-reason`} />
         <FormRow label="Modules per plant" htmlFor={`${fieldId}-modules`}>
-          {moduleLink === undefined ? (
+          {modulesLinked ? (
+            <span id={`${fieldId}-modules`} className="posmono esq-form__value">{modules?.value}</span>
+          ) : (
             <WorkbookInput id={`${fieldId}-modules`} className="posfield__input posmono esq-form__number" type="number" min="1" step="1" value={modules?.value ?? ""} disabled={!editable}
               onChange={(event) => onModulesTyped(event.target.value)} />
-          ) : (
-            <span id={`${fieldId}-modules`} className="posmono esq-form__value">{modules?.value}</span>
           )}
-          {ieId === undefined && moduleLink === undefined ? (
-            <span className="esq-form__unit">Typed</span>
-          ) : (
-            <select className="posfield__select" aria-label="Modules per plant source" value={moduleLink === undefined ? "typed" : "imported"} disabled={!editable} onChange={(event) => onModulesSource(event.target.value)}>
-              <option value="typed">Typed</option>
-              {(moduleLink !== undefined || (ieId !== undefined && ieModules !== undefined)) && <option value="imported">Imported from IE · {moduleLink !== undefined && !modulesFromCurrent ? linkedWorkbookLabel(moduleLink.workbookId, upstream.options.IE) : ieName}</option>}
+          {ieId !== undefined && (modulesLinked || ieModules !== undefined) ? (
+            <select className="posfield__select" aria-label="Modules per plant from" value={modulesLinked ? "linked" : "typed"} disabled={!editable} onChange={(event) => onModulesSource(event.target.value)}>
+              <option value="linked">IE · {ieName}</option>
+              <option value="typed">Typed in ESQ</option>
             </select>
+          ) : (
+            <span className="esq-form__unit">Typed</span>
           )}
           {modules === undefined && <span className="esq-form__error" role="alert">Required</span>}
         </FormRow>
-        {moduleLink !== undefined && !modulesFromCurrent && (
-          <p className="esq-form__warn" role="status">
-            This value comes from an IE workbook that ESQ no longer links.
-            {editable && ieId !== undefined && ieModules !== undefined && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => onModulesSource("imported")}>Import from {ieName} ({ieModules})</button>}
-          </p>
-        )}
-        {modulesFromCurrent && ieModules !== undefined && modules !== undefined && ieModules !== modules.value && (
-          <p className="esq-form__warn" role="status">
-            The IE workbook now gives {ieModules} modules.
-            {editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => onModulesSource("imported")}>Use {ieModules}</button>}
-          </p>
+        {modulesTypedOver && (
+          <FormRow label="Reason" htmlFor={`${fieldId}-modules-reason`} top>
+            <WorkbookTextarea id={`${fieldId}-modules-reason`} className="posfield__textarea" rows={2} fitContent aria-invalid={(modules.reason ?? "").trim().length === 0} value={modules.reason ?? ""} disabled={!editable}
+              onChange={(event) => onModulesReason(event.target.value)} />
+            {(modules.reason ?? "").trim().length === 0 && <span className="esq-form__error" role="alert">Reason required</span>}
+          </FormRow>
         )}
         <FormRow label="Sequences with several reactors" htmlFor={`${fieldId}-multi`}>
           <select id={`${fieldId}-multi`} className="posfield__select" value={multiIncluded ? "included" : "excluded"} disabled={!editable} onChange={(event) => onMultiReactor(event.target.value)}>
@@ -433,34 +434,22 @@ function PlanCard(): JSX.Element {
           {!multiIncluded && multiBasis.trim().length === 0 && <span className="esq-form__error" role="alert">Basis required</span>}
         </FormRow>
         <FormRow label="Reporting floor" htmlFor={`${fieldId}-floor`}>
-          {floorLink === undefined ? (
+          {floorLinked ? (
+            <span id={`${fieldId}-floor`} className="posmono esq-form__value">{sciText(values.reportingFloorPerYear)}</span>
+          ) : (
             <WorkbookInput id={`${fieldId}-floor`} className="posfield__input posmono esq-form__number" type="number" step="any" min="0" value={values.reportingFloorPerYear} disabled={!editable}
               onChange={(event) => onReportingFloor(event.target.value)} />
-          ) : (
-            <span id={`${fieldId}-floor`} className="posmono esq-form__value">{sciText(values.reportingFloorPerYear)}</span>
           )}
           <span className="esq-form__unit">per reactor-year</span>
-          {(floorLink !== undefined || (riId !== undefined && riFloor !== undefined)) && (
-            <select className="posfield__select" aria-label="Reporting floor source" value={floorLink === undefined ? "typed" : "imported"} disabled={!editable} onChange={(event) => onFloorSource(event.target.value)}>
-              <option value="typed">Typed</option>
-              <option value="imported">Imported from RI · {floorLink !== undefined && !floorFromCurrent ? linkedWorkbookLabel(floorLink.workbookId, upstream.options.RI) : riName}</option>
+          {floorFromRi && (
+            <select className="posfield__select" aria-label="Reporting floor from" value={floorLinked ? "linked" : "typed"} disabled={!editable} onChange={(event) => onFloorSource(event.target.value)}>
+              <option value="linked">RI · {riName}</option>
+              <option value="typed">Typed in ESQ</option>
             </select>
           )}
-          {floorLink === undefined && <PlanDefault planKey="reportingFloorPerYear" changed={planChanged(esq, "reportingFloorPerYear")} editable={editable} onRestore={() => restore("reportingFloorPerYear")} />}
+          {!floorFromRi && <PlanDefault planKey="reportingFloorPerYear" changed={planChanged(esq, "reportingFloorPerYear")} editable={editable} onRestore={() => restore("reportingFloorPerYear")} />}
           {!(values.reportingFloorPerYear > 0) && <span className="esq-form__error" role="alert">Enter a value above zero</span>}
         </FormRow>
-        {floorLink !== undefined && !floorFromCurrent && (
-          <p className="esq-form__warn" role="status">
-            This value comes from an RI workbook that ESQ no longer links.
-            {editable && riId !== undefined && riFloor !== undefined && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => onFloorSource("imported")}>Import from {riName} ({sciText(riFloor)})</button>}
-          </p>
-        )}
-        {floorFromCurrent && riFloor !== undefined && floor !== undefined && !sameValue(floor.value, riFloor) && (
-          <p className="esq-form__warn" role="status">
-            The RI workbook now gives {sciText(riFloor)} per reactor-year.
-            {editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => onFloorSource("imported")}>Use {sciText(riFloor)}</button>}
-          </p>
-        )}
         <PlanReasonRow planKey="reportingFloorPerYear" id={`${fieldId}-floor-reason`} />
         <FormRow label="Convergence step" htmlFor={`${fieldId}-convergence`}>
           <WorkbookInput id={`${fieldId}-convergence`} className="posfield__input posmono esq-form__number" type="number" step="any" min="0" max="100" value={values.convergenceStepPercent} disabled={!editable}

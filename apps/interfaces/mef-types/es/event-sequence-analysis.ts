@@ -95,6 +95,7 @@ export interface SequenceTiming extends Unique {
   deterministicAnalysisReferences?: string[];
   uncertaintyRange?: [number, number];
   importedFrom?: EsTimingSource[];
+  overridesLink?: boolean;
 }
 
 export type FeasibilityState = "OK" | "MARGINAL" | "NOT_MET";
@@ -133,7 +134,23 @@ export interface OperatorActionWindow extends Unique {
   applicablePlantOperatingStates?: PlantOperatingStateReference[];
   note?: string;
   importedFrom?: EsTimingSource[];
+  overridesLink?: boolean;
+  overrideReason?: string;
   implementsSrs: SRReference[];
+}
+
+export interface LinkedOperatorActionDetail {
+  humanActionId: HumanActionReference;
+  cue?: string;
+  cueMinutes?: number;
+  windowStartMinutes?: number;
+  windowEndMinutes?: number;
+  requiredMinutes?: number;
+  hepPointEstimate?: number;
+  feasibility?: Record<string, FeasibilityState>;
+  applicableInitiatingEvents?: InitiatingEventReference[];
+  applicablePlantOperatingStates?: PlantOperatingStateReference[];
+  note?: string;
 }
 
 export type DependencyModeling = "SPLIT" | "BRANCH_REMOVED" | "SHARED_EVENT" | "JOINT_PROBABILITY" | "NOT_MODELED";
@@ -318,7 +335,18 @@ export interface PhenomenologicalDependencyModel extends Unique, Named {
   systemSpecificImpacts?: Record<SystemReference, string>;
   deterministicAnalysisReferences?: string[];
   importedFrom?: EsTimingSource[];
+  overridesLink?: boolean;
+  overrideReason?: string;
   implementsSrs: SRReference[];
+}
+
+export interface LinkedPhenomenonDetail {
+  conditionId: string;
+  description?: string;
+  onsetTiming?: string;
+  affectedSystems?: SystemReference[];
+  environmentalConditions?: string[];
+  systemSpecificImpacts?: Record<SystemReference, string>;
 }
 
 export interface OperationalDependencyModel extends Unique, Named {
@@ -536,8 +564,10 @@ export interface EventSequenceAnalysis
   dynamicRuns?: DynamicRun[];
 
   operatorActionWindows?: OperatorActionWindow[];
+  linkedOperatorActionDetails?: LinkedOperatorActionDetail[];
 
   dependencyModels?: DependencyModels;
+  linkedPhenomenonDetails?: LinkedPhenomenonDetail[];
   releaseCategoryMappings?: ReleaseCategoryMapping[];
   endStateDefinitions?: EsEndStateDefinition[];
 

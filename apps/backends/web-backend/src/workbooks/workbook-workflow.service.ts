@@ -7,6 +7,7 @@ import { WorkbookSignoff, type WorkbookSignoffDocument, type WorkbookSignoffRole
 import { WorkbookRolesService, type WorkbookRoleName } from "./workbook-roles.service";
 import { WorkbookElementRegistry } from "./workbook-element-registry";
 import { workbookStatusOf } from "./workbook-status";
+import { WorkbookLinkedRevisionsService } from "./workbook-linked-revisions.service";
 
 interface MefShape {
   workflowState: string;
@@ -53,6 +54,7 @@ export class WorkbookWorkflowService {
     private readonly projectsService: ProjectsService,
     private readonly rolesService: WorkbookRolesService,
     private readonly registry: WorkbookElementRegistry,
+    private readonly linkedRevisions: WorkbookLinkedRevisionsService,
   ) {}
 
   private async requireWorkbook(workbookId: string): Promise<WorkbookDocument> {
@@ -198,7 +200,8 @@ export class WorkbookWorkflowService {
     if (mef.workflowState !== "INTERNAL_APPROVAL") throw new BadRequestException("Preparer signoffs are collected during internal approval");
     const existing = await this.signoffModel.findOne({ workbookId, username: acting.username, role }).exec();
     if (!existing) {
-      await this.signoffModel.create({ workbookId, username: acting.username, role, workflowState: mef.workflowState, signatureDataUrl: signatureDataUrl ?? null });
+      const linkedRevisions = await this.linkedRevisions.record(workbookId, "SIGNED");
+      await this.signoffModel.create({ workbookId, username: acting.username, role, workflowState: mef.workflowState, signatureDataUrl: signatureDataUrl ?? null, linkedRevisions });
     }
     return this.maybeAdvanceFromInternalApproval(wb, mef, workbookId, acting.username, revision);
   }
@@ -216,7 +219,7 @@ export class WorkbookWorkflowService {
     const reviewers = await this.assignedUsernames(workbookId, "reviewer");
     if (reviewers.length === 0) throw new BadRequestException("Assign at least one reviewer before submitting");
     await this.signoffModel.deleteMany({ workbookId }).exec();
-    return this.transition(
+    const submitted = await this.transition(
       wb,
       mef,
       "INTERNAL_TECHNICAL_REVIEW",
@@ -224,6 +227,8 @@ export class WorkbookWorkflowService {
       "Submitted for internal technical review",
       revision,
     );
+    await this.linkedRevisions.record(workbookId, "SUBMITTED");
+    return submitted;
   }
 
   async signReview(workbookId: string, acting: ActingUser, signatureDataUrl?: string): Promise<unknown> {
@@ -234,7 +239,8 @@ export class WorkbookWorkflowService {
     if (openMine > 0) throw new BadRequestException(`You have ${openMine} unresolved comment${openMine === 1 ? "" : "s"} to address before signing`);
     const existing = await this.signoffModel.findOne({ workbookId, username: acting.username, role: "reviewer" }).exec();
     if (existing) throw new BadRequestException("You already signed off as a reviewer");
-    await this.signoffModel.create({ workbookId, username: acting.username, role: "reviewer", workflowState: mef.workflowState, signatureDataUrl: signatureDataUrl ?? null });
+    const linkedRevisions = await this.linkedRevisions.record(workbookId, "SIGNED");
+    await this.signoffModel.create({ workbookId, username: acting.username, role: "reviewer", workflowState: mef.workflowState, signatureDataUrl: signatureDataUrl ?? null, linkedRevisions });
     return mef;
   }
 
@@ -246,7 +252,8 @@ export class WorkbookWorkflowService {
     if (openMine > 0) throw new BadRequestException(`You have ${openMine} unresolved comment${openMine === 1 ? "" : "s"} to address before signing`);
     const existing = await this.signoffModel.findOne({ workbookId, username: acting.username, role: "approver" }).exec();
     if (!existing) {
-      await this.signoffModel.create({ workbookId, username: acting.username, role: "approver", workflowState: mef.workflowState, signatureDataUrl: signatureDataUrl ?? null });
+      const linkedRevisions = await this.linkedRevisions.record(workbookId, "SIGNED");
+      await this.signoffModel.create({ workbookId, username: acting.username, role: "approver", workflowState: mef.workflowState, signatureDataUrl: signatureDataUrl ?? null, linkedRevisions });
     }
     return this.maybeAdvanceFromInternalApproval(wb, mef, workbookId, acting.username, revision);
   }
@@ -281,6 +288,7 @@ export class WorkbookWorkflowService {
       throw new BadRequestException("Revision can only be requested during review or approval");
     }
     await this.signoffModel.deleteMany({ workbookId }).exec();
+    await this.linkedRevisions.clear(workbookId);
     return this.transition(
       wb,
       mef,

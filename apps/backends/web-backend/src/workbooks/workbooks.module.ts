@@ -11,6 +11,7 @@ import { WorkbooksService } from "./workbooks.service";
 import { WorkbookReviewController } from "./workbook-review.controller";
 import { WorkbookRolesService } from "./workbook-roles.service";
 import { WorkbookWorkflowService } from "./workbook-workflow.service";
+import { WorkbookLinkedRevisionsService } from "./workbook-linked-revisions.service";
 import { WorkbookCommentsService } from "./workbook-comments.service";
 import { WorkbookElementRegistry } from "./workbook-element-registry";
 import { WorkbookModelAccessService } from "./workbook-model-access.service";
@@ -62,6 +63,7 @@ import { UncertaintyService } from "../newly-developed-methods/shared/uncertaint
     WorkbooksService,
     WorkbookRolesService,
     WorkbookWorkflowService,
+    WorkbookLinkedRevisionsService,
     WorkbookCommentsService,
     WorkbookElementRegistry,
     WorkbookModelAccessService,

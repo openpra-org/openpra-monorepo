@@ -191,7 +191,7 @@ function assertSnapshotMatches(sy: SystemsAnalysis, model: EsqModel, modelIds: r
     const live = sy.systemLogicModels.find((candidate) => candidate.uuid === modelId);
     const top = model.tops.find((candidate) => candidate.modelId === modelId);
     if (live === undefined || top === undefined) {
-      throw new EsqRunBuildError(`The SY fault tree ${top?.code ?? live?.code ?? modelId} changed after the Step 02 import. Re-import the model in Step 02.`);
+      throw new EsqRunBuildError(`The SY fault tree ${top?.code ?? live?.code ?? modelId} no longer matches the linked SY workbook.`);
     }
     const transfers = live.leafNodes.flatMap((leaf) => (leaf.kind === "TRANSFER_REFERENCE" ? [leaf.target.modelId] : []));
     const houses = live.leafNodes.flatMap((leaf) => (leaf.kind === "HOUSE_EVENT" ? [leaf.id] : []));
@@ -200,7 +200,7 @@ function assertSnapshotMatches(sy: SystemsAnalysis, model: EsqModel, modelIds: r
       && sameSet(transfers, top.transferModelIds)
       && (top.gates === undefined || sameSet(live.gates.map((gate) => gate.id), top.gates.map((gate) => gate.id)))
       && (top.houseEvents === undefined || sameSet(houses, top.houseEvents.map((house) => house.id)));
-    if (!same) throw new EsqRunBuildError(`The SY fault tree ${top.code} changed after the Step 02 import. Re-import the model in Step 02.`);
+    if (!same) throw new EsqRunBuildError(`The SY fault tree ${top.code} no longer matches the linked SY workbook.`);
   }
 }
 
@@ -486,7 +486,7 @@ function referencedParameters(tables: EsqRunTables, expression: UncertainExpress
       continue;
     }
     const parameter = model.parameters.find((entry) => entry.id === reference.entityId.trim());
-    if (parameter === undefined) throw new EsqRunBuildError(`${code} reads DA parameter ${reference.entityId}, which the linked DA workbook does not hold. Import the model again in Step 02.`);
+    if (parameter === undefined) throw new EsqRunBuildError(`${code} reads DA parameter ${reference.entityId}, which the linked DA workbook does not hold.`);
     const law = parameterLaw(parameter);
     if (law === undefined) throw new EsqRunBuildError(`${code} reads ${parameter.name}, which has no value in DA.`);
     found.set(key, { reference, expression: law });
@@ -509,7 +509,7 @@ function eventValue(tables: EsqRunTables, eventId: string, code: string): EventV
   }
   if (heldBy === "DA") {
     const parameter = model.parameters.find((entry) => entry.id === holderId);
-    if (parameter === undefined) throw new EsqRunBuildError(`${code} takes its value from DA parameter ${holderId ?? ""}, which the linked DA workbook does not hold. Import the model again in Step 02.`);
+    if (parameter === undefined) throw new EsqRunBuildError(`${code} takes its value from DA parameter ${holderId ?? ""}, which the linked DA workbook does not hold.`);
     const own = daReference(tables, parameter.id, code);
     if (isComponentModel(parameter.quantificationModel)) {
       if (!component) throw new EsqRunBuildError(`${parameter.name} is a component estimate. It cannot set ${code}.`);
@@ -532,7 +532,7 @@ function eventValue(tables: EsqRunTables, eventId: string, code: string): EventV
   }
   if (heldBy === "HRA") {
     const human = model.humanEvents.find((entry) => entry.id === holderId);
-    if (human === undefined) throw new EsqRunBuildError(`${code} takes its value from HR event ${holderId ?? ""}, which the Step 02 import does not hold.`);
+    if (human === undefined) throw new EsqRunBuildError(`${code} takes its value from HR event ${holderId ?? ""}, which the linked HRA workbook does not hold.`);
     if (human.hep === undefined) throw new EsqRunBuildError(`${code} takes its value from ${human.name}, which has no HEP in HR.`);
     return resolved(ownReference(tables, `HFE:${human.id}`, human.hep));
   }
@@ -600,7 +600,7 @@ function runCcfVectors(model: EsqModel, groups: readonly CatalogueCcfGroup[], la
     const vector = ccfFactorVector(group.factors);
     if (vector?.node !== "PARAMETER") return [];
     if (!vectors.has(parameterReferenceKey(vector.reference))) {
-      throw new EsqRunBuildError(`The common cause group ${labels.get(group.id) ?? group.id} takes its factors from ${vector.reference.entityId}, which the Step 02 import does not hold. Import the model again.`);
+      throw new EsqRunBuildError(`The common cause group ${labels.get(group.id) ?? group.id} takes its factors from ${vector.reference.entityId}, which the linked workbooks do not hold.`);
     }
     return [vector.reference];
   });
@@ -620,7 +620,7 @@ function runCcfGroups(tables: EsqRunTables, sy: SystemsAnalysis, reached: Readon
       const label = record?.name ?? group.id;
       labels.set(group.id, label);
       const factors = record === undefined ? group.factors : record.factors;
-      if (factors === undefined) throw new EsqRunBuildError(`The common cause group ${label} has no factors in the Step 02 import. Complete it in SY and import again.`);
+      if (factors === undefined) throw new EsqRunBuildError(`The common cause group ${label} has no factors in the linked SY workbook. Complete it in SY.`);
       if (!ccfModelTakesTotal(factors)) {
         for (const expression of ccfFactorExpressions(factors)) parameters.push(...referencedParameters(tables, expression, `The common cause group ${label}`));
         return { id: group.id, members: group.members, factors };
@@ -629,7 +629,7 @@ function runCcfGroups(tables: EsqRunTables, sy: SystemsAnalysis, reached: Readon
       const [first] = members;
       const shared = first !== undefined && members.every((expression) => expression !== undefined && canonicalJson(expression) === canonicalJson(first));
       const total = shared ? first : record === undefined ? group.total : record.total;
-      if (total === undefined) throw new EsqRunBuildError(`The common cause group ${label} has no total in the Step 02 import. Complete it in SY and import again.`);
+      if (total === undefined) throw new EsqRunBuildError(`The common cause group ${label} has no total in the linked SY workbook. Complete it in SY.`);
       for (const expression of [total, ...ccfFactorExpressions(factors)]) parameters.push(...referencedParameters(tables, expression, `The common cause group ${label}`));
       return { id: group.id, members: group.members, factors, total };
     });
@@ -639,10 +639,10 @@ function runCcfGroups(tables: EsqRunTables, sy: SystemsAnalysis, reached: Readon
 function buildEsqEventTreeRun(input: EsqRunBuildInput): EsqRunBuild {
   const { esq } = input;
   const model = esq.model;
-  if (model?.importedAt === undefined) throw new EsqRunBuildError("Import the model in Step 02 before running.");
+  if (model === undefined) throw new EsqRunBuildError("Link the ES and SY workbooks in Step 01 before running.");
   const tables: EsqRunTables = { esq, model, missionTimes: input.missionTimes, external: input.external ?? new Map(), esqWorkbookId: input.esqWorkbookId, own: new Map() };
   const root = model.trees.find((tree) => tree.id === input.treeId);
-  if (root === undefined) throw new EsqRunBuildError(`Event tree ${input.treeId} is not in the imported model.`);
+  if (root === undefined) throw new EsqRunBuildError(`Event tree ${input.treeId} is not in the model.`);
   if (root.transferEntry) throw new EsqRunBuildError(`${root.code} is entered by transfer. Run the tree that transfers into it.`);
   if (!treesInScope(esq, model).some((tree) => tree.id === root.id)) throw new EsqRunBuildError(`Step 01 leaves ${root.code} out of scope.`);
   const frequency = treeFrequency(esq, model, root);

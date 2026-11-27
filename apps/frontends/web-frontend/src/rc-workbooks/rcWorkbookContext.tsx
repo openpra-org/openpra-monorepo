@@ -4,9 +4,10 @@ import { type RadiologicalConsequenceAnalysis } from "interfaces-mef-types/rc/ra
 import { type PRAConfigurationControl } from "interfaces-mef-types/cross-cutting/pra-configuration-control";
 import { type NewlyDevelopedMethod } from "interfaces-mef-types/cross-cutting/newly-developed-methods";
 import type { RcStepLinks } from "interfaces-shared-types/rc-workbooks/step-checks";
-import { NO_RC_LINKS, rcStepLinks, type RcLinks } from "./rcLinks";
+import type { RcLinkedData } from "interfaces-shared-types/rc-workbooks/linked-data";
+import { NO_RC_LINKED_DATA, NO_RC_LINKS, rcStepLinks, type RcLinks } from "./rcLinks";
 import type { ReleaseCategoryInputs } from "interfaces-mef-types/rc/radiological-consequence-analysis";
-import type { RcSourceTermMsLink, RcSourceTermValues } from "interfaces-mef-types/rc/source-term";
+import type { RcSourceTermValues } from "interfaces-mef-types/rc/source-term";
 import type { RcSiteReceptors, RcSiteSettings } from "interfaces-mef-types/rc/site-receptors";
 import type { RcEarlyResponseModel } from "interfaces-mef-types/rc/early-response";
 import type { RcWeatherInputs, RcWeatherModel, RcWeatherSettings, RcWeatherPage, RcWeatherTrialPage } from "interfaces-mef-types/rc/weather";
@@ -77,7 +78,8 @@ interface SiteReceptorDraft { baseRevision: number; settings: RcSiteSettings }
 
 export interface RcSourceTermActions {
   importFile: (categoryId: string, revision: number, file: File) => Promise<ReleaseCategoryInputs>;
-  saveValues: (categoryId: string, revision: number, values: RcSourceTermValues, msSource?: RcSourceTermMsLink) => Promise<ReleaseCategoryInputs>;
+  saveValues: (categoryId: string, revision: number, values: RcSourceTermValues) => Promise<ReleaseCategoryInputs>;
+  typeOver: (categoryId: string, values: RcSourceTermValues) => Promise<ReleaseCategoryInputs>;
   downloadOriginal: (documentId: string) => Promise<void>;
 }
 interface SourceTermDraft { baseRevision: number; values: RcSourceTermValues }
@@ -115,16 +117,18 @@ interface RcWorkbookContextValue extends RcWorkbookData {
   editable: boolean;
   mutateRc: (mutator: RcMutator) => void;
   links: RcLinks;
+  linked: RcLinkedData;
   stepLinks: RcStepLinks;
 }
 
 const RcWorkbookContext = createContext<RcWorkbookContextValue | null>(null);
 
-function RcWorkbookProvider({ data, editable, mutateRc, links = NO_RC_LINKS, sourceTerms, siteReceptors, earlyResponse, weather, transport, doseInputs, caseRecords, consequenceRuns, children }: {
+function RcWorkbookProvider({ data, editable, mutateRc, links = NO_RC_LINKS, linked = NO_RC_LINKED_DATA, sourceTerms, siteReceptors, earlyResponse, weather, transport, doseInputs, caseRecords, consequenceRuns, children }: {
   data: RcWorkbookData;
   editable: boolean;
   mutateRc: (mutator: RcMutator) => void;
   links?: RcLinks;
+  linked?: RcLinkedData;
   sourceTerms?: RcSourceTermActions;
   siteReceptors?: RcSiteReceptorActions;
   earlyResponse?: RcEarlyResponseActions;
@@ -158,11 +162,11 @@ function RcWorkbookProvider({ data, editable, mutateRc, links = NO_RC_LINKS, sou
     window.addEventListener("beforeunload", warn);
     return () => window.removeEventListener("beforeunload", warn);
   }, [sourceTermDrafts, siteReceptorDraft, weatherDraft, weatherDates, transportDrafts, resultDraft]);
-  const stepLinks = useMemo(() => rcStepLinks(data.rc, links), [data.rc, links]);
+  const stepLinks = useMemo(() => rcStepLinks(data.rc, links, linked), [data.rc, links, linked]);
   const value = useMemo<RcWorkbookContextValue>(
-    () => ({ ...data, caseRecords, consequenceRuns, resultDraft, setResultDraft, editable, mutateRc, links, stepLinks, sourceTerms, sourceTermDrafts, setSourceTermDraft, siteReceptors, earlyResponse, siteReceptorDraft, setSiteReceptorDraft,
+    () => ({ ...data, caseRecords, consequenceRuns, resultDraft, setResultDraft, editable, mutateRc, links, linked, stepLinks, sourceTerms, sourceTermDrafts, setSourceTermDraft, siteReceptors, earlyResponse, siteReceptorDraft, setSiteReceptorDraft,
       weather, weatherDraft, setWeatherDraft, weatherDates, setWeatherDates, transport, transportDrafts, setTransportDraft, rebaseTransportDrafts, doseInputs }),
-    [data, caseRecords, consequenceRuns, resultDraft, editable, mutateRc, links, stepLinks, sourceTerms, sourceTermDrafts, setSourceTermDraft, siteReceptors, earlyResponse, siteReceptorDraft, weather, weatherDraft, weatherDates, transport, transportDrafts, setTransportDraft, rebaseTransportDrafts, doseInputs],
+    [data, caseRecords, consequenceRuns, resultDraft, editable, mutateRc, links, linked, stepLinks, sourceTerms, sourceTermDrafts, setSourceTermDraft, siteReceptors, earlyResponse, siteReceptorDraft, weather, weatherDraft, weatherDates, transport, transportDrafts, setTransportDraft, rebaseTransportDrafts, doseInputs],
   );
   return <RcWorkbookContext.Provider value={value}>{children}</RcWorkbookContext.Provider>;
 }

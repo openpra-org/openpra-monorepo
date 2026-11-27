@@ -17,6 +17,7 @@ export interface WorkbookElementAdapter {
   } | null>;
   save(workbookId: string, mef: unknown, expectedRevision?: number): Promise<unknown>;
   validateForReview?(mef: object): string[];
+  linkedWorkbookIds?(workbookId: string): Promise<Record<string, string>>;
   exampleVariants?(): WorkbookExampleVariant[];
   loadExample?(workbookId: string, acting: { username: string }, exampleId: string): Promise<void>;
 }

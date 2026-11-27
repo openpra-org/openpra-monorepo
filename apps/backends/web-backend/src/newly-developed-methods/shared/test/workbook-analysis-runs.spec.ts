@@ -122,6 +122,7 @@ import { SyWorkbook, SyWorkbookSchema } from "../../../sy-workbooks/sy-workbook.
 import { SyWorkbooksController } from "../../../sy-workbooks/sy-workbooks.controller";
 import { SyWorkbooksService } from "../../../sy-workbooks/sy-workbooks.service";
 import { WorkbookModelAccessService } from "../../../workbooks/workbook-model-access.service";
+import { WorkbookElementRegistry } from "../../../workbooks/workbook-element-registry";
 import {
   AnalysisRunRecord,
   AnalysisRunRecordSchema,
@@ -1085,6 +1086,7 @@ const createEsqMef = () => {
     },
   ];
   mef.model = esqModelFrom({ es: createEsMef(), esWorkbookId: ES_WORKBOOK_ID, sy: createSyMef(), syWorkbookId: SY_WORKBOOK_ID });
+  mef.linkedWorkbooks = { ...mef.linkedWorkbooks, ES: ES_WORKBOOK_ID, SY: SY_WORKBOOK_ID };
   return mef;
 };
 
@@ -1245,6 +1247,7 @@ describe("workbook-owned analysis-run APIs", () => {
         { provide: EsWorkbooksService, useValue: {} },
         { provide: EsqWorkbooksService, useValue: {} },
         EsqModelRunsService,
+        WorkbookElementRegistry,
         { provide: ExampleWorkbooksService, useValue: { findBySlug: jest.fn() } },
       ],
     })
@@ -3939,6 +3942,7 @@ describe("workbook-owned analysis-run APIs", () => {
     es.eventTrees![0]!.transfers = { [ET_FAILURE]: { targetEventTreeId: ET_HCL } };
     const workbookId = "es-multistate-oracle";
     esq.model = esqModelFrom({ es, esWorkbookId: workbookId, sy: createSyMef(), syWorkbookId: SY_WORKBOOK_ID });
+    esq.linkedWorkbooks = { ...esq.linkedWorkbooks, ES: workbookId, SY: SY_WORKBOOK_ID };
     try {
       await workbooks.updateOne({ workbookId: ESQ_WORKBOOK_ID }, { $set: { mef: esq } }).exec();
       await api
@@ -4180,6 +4184,7 @@ describe("workbook-owned analysis-run APIs", () => {
       es.eventTrees![0]!.transfers = { [ET_FAILURE]: { targetEventTreeId: ET_HCL } };
       const esId = `es-source-uq-${sampler}`;
       esq.model = esqModelFrom({ es, esWorkbookId: esId, sy, syWorkbookId: SY_WORKBOOK_ID });
+      esq.linkedWorkbooks = { ...esq.linkedWorkbooks, ES: esId, SY: SY_WORKBOOK_ID };
       const checkSummary = (actual: PopulationSummary & { seed: number }, samples: number[], label: string) => {
         expect(actual.sampleCount).toBe(source.settings.sample_count);
         expect(actual.seed).toBe(source.settings.seed);

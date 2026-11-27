@@ -6,6 +6,7 @@ import { type NewlyDevelopedMethod } from "interfaces-mef-types/cross-cutting/ne
 import { type Workbook } from "interfaces-shared-types";
 import { fetchJson } from "../api/client";
 import { getProject } from "../projects/projectApi";
+import { useLinkedWorkbookRefresh } from "../workbooks/useLinkedWorkbookRefresh";
 import { WorkbookRolesModal } from "../workbooks/workbookRolesModal";
 import { WorkbookApprovalTable } from "../workbooks/workbookApprovalTable";
 import { WorkbookSignCard } from "../workbooks/workbookSignCard";
@@ -23,6 +24,7 @@ import {
 } from "./riWorkbookApi";
 import { RiWorkbench, type RiWorkbenchActions } from "./riWorkbench";
 import { RiWorkbookProvider, EMPTY_UPSTREAM, useRiUpstream, type RiWorkbookData } from "./riWorkbookContext";
+import { riShowsSavedCopies, riWithLinkedData, riWithoutLinkedData } from "./riLinkedData";
 import { useRiMefPatch } from "./useRiMefPatch";
 import { LoadExampleModal, UnloadExampleModal } from "../workbooks/exampleWorkbookModal";
 import { RiDocumentsCard } from "./riDocumentsCard";
@@ -66,6 +68,7 @@ function RiWorkbookPage(): JSX.Element {
   const [approvalRefresh, setApprovalRefresh] = useState(0);
   const [projectName, setProjectName] = useState<string>("");
   const [linkOptions, setLinkOptions] = useState<Record<RiLinkCode, Workbook[]>>(EMPTY_UPSTREAM.options);
+  const [dismissedUnavailable, setDismissedUnavailable] = useState<string | null>(null);
   const workbookName = data?.ri.name ?? "";
   const workbookVersion = data?.ri.version ?? "1";
 
@@ -108,7 +111,8 @@ function RiWorkbookPage(): JSX.Element {
     return () => { cancelled = true; };
   }, [id]);
 
-  const upstream = useRiUpstream(data?.ri, linkOptions);
+  const { upstream, refresh } = useRiUpstream(data?.ri.applicationContext?.linkedWorkbooks, linkOptions);
+  useLinkedWorkbookRefresh(refresh);
 
   const updateRi = useCallback((ri: RiskIntegration): void => {
     setData((prev) => (prev === null ? prev : { ...prev, ri }));
@@ -118,9 +122,17 @@ function RiWorkbookPage(): JSX.Element {
   const handleSaveErr = useCallback((message: string): void => { setSaveError(message); }, []);
   const { patch } = useRiMefPatch(id ?? "", data?.ri ?? null, handleSaveOk, handleSaveErr);
   const mutateRi = useCallback((mutator: (ri: RiskIntegration) => RiskIntegration): void => {
-    setData((prev) => (prev === null ? prev : { ...prev, ri: mutator(prev.ri) }));
-    void patch(mutator);
-  }, [patch]);
+    const saved = (current: RiskIntegration): RiskIntegration => riWithoutLinkedData(mutator(riWithLinkedData(current, upstream)), upstream);
+    setData((prev) => (prev === null ? prev : { ...prev, ri: saved(prev.ri) }));
+    void patch(saved);
+  }, [patch, upstream]);
+
+  const savedRi = data?.ri;
+  const viewData = useMemo<RiWorkbookData | null>(() => {
+    if (data === null || savedRi === undefined) return null;
+    return riShowsSavedCopies(savedRi) ? data : { ...data, ri: riWithLinkedData(savedRi, upstream) };
+  }, [data, savedRi, upstream]);
+  const unavailableLinks = (upstream.unavailable ?? []).join(", ");
 
   const actions = useMemo<RiWorkbenchActions | undefined>(() => {
     if (id === undefined) return undefined;
@@ -161,7 +173,7 @@ function RiWorkbookPage(): JSX.Element {
   if (error !== null) {
     return <div className="posw"><main className="posmain"><p className="pws-status pws-status--error">{error}</p></main></div>;
   }
-  if (data === null || id === undefined) {
+  if (data === null || viewData === null || id === undefined) {
     return <div className="posw"><main className="posmain"><p className="pws-status">Loading workbook…</p></main></div>;
   }
 
@@ -184,9 +196,9 @@ function RiWorkbookPage(): JSX.Element {
   const canUnloadExample = canLoadExample && hasPreviousMef;
 
   return (
-    <RiWorkbookProvider data={data} editable={editable} mutateRi={mutateRi} upstream={upstream}>
+    <RiWorkbookProvider data={viewData} editable={editable} mutateRi={mutateRi} upstream={upstream}>
       <RiWorkbench
-        data={data}
+        data={viewData}
         persona={persona}
         setPersona={setPersona}
         showPersonaPicker={availablePersonas.length > 1}
@@ -210,6 +222,12 @@ function RiWorkbookPage(): JSX.Element {
         renderRoster={() => <WorkbookRoster workbookId={id} refreshSignal={approvalRefresh} />}
         renderDocuments={() => <RiDocumentsCard workbookId={id} canEdit={canEdit} />}
       />
+      {unavailableLinks.length > 0 && dismissedUnavailable !== unavailableLinks && (
+        <div className="ie-savebar" role="alert">
+          <span>Could not load a linked workbook: {unavailableLinks}</span>
+          <button type="button" className="ie-savebar__dismiss" onClick={() => setDismissedUnavailable(unavailableLinks)}>Dismiss</button>
+        </div>
+      )}
       {saveError !== null && (
         <div className="ie-savebar" role="alert">
           <span>Could not save changes: {saveError}</span>

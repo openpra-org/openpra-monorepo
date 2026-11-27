@@ -1,40 +1,26 @@
 import {
   type DaBasicEventNeed,
-  type DaCcfGroupNeed,
   type DaDataNeeds,
-  type DaHumanErrorNeed,
-  type DaInitiatorNeed,
   type DaLinkCode,
   type DaManualEntry,
   type DaNeedChange,
   type DaNeedElement,
   type DaNeedKind,
-  type DaNeedSource,
+  type DaNeedList,
   type DaQuantificationModel,
   type DaScopeDecision,
   type DaScopeKind,
-  type DaStateNeed,
-  type DaValueHolder,
   type DataAnalysis,
   type DataAnalysisParameter,
   type ParameterType,
 } from "interfaces-mef-types/da/data-analysis";
-import { carriesUncertainExpression, type SystemBasicEvent, type SystemsAnalysis } from "interfaces-mef-types/sy/systems-analysis";
-import { canonicalJson, expressionReferences, lawBounds, modelArguments, unitBounds, type UncertainExpression, type UncertainUnit, type UncertainValue } from "interfaces-mef-types/core/uncertainty";
+import { NEED_ELEMENTS, daLinkedDetailMissing, daNeedsLinked, linkedEstimate, mappableNeeds, parameterStates, type DaMapElement, type DaMappableNeed } from "interfaces-mef-types/da/da-linked-needs";
+import { canonicalJson, lawBounds, modelArguments, unitBounds, type UncertainExpression, type UncertainValue } from "interfaces-mef-types/core/uncertainty";
 import { familyText } from "../newly-developed-methods/shared/uncertainText";
 import { holdsEstimate } from "interfaces-mef-types/da/data-analysis";
 import { FrequencyUnit } from "interfaces-mef-types/core/events";
 import { componentUnit, daMissionTimes, lawParameter, parameterPoint, pointState, readyNumber } from "./daLaws";
 import { type WorkbookParameterReference } from "interfaces-mef-types/modeling/references";
-import { legacyExpression } from "interfaces-mef-types/core/legacy-uncertainty-adapter";
-import { basicEventMissionTime } from "../sy-workbooks/syMissionTimes";
-import { systemFaultTreeBasicEventIds } from "interfaces-mef-types/sy/system-models";
-import { type InitiatingEventsAnalysis } from "interfaces-mef-types/ie/initiating-event-analysis";
-import { type HumanReliabilityAnalysis } from "interfaces-mef-types/hr/human-reliability-analysis";
-import { type PlantOperatingStatesAnalysis } from "interfaces-mef-types/pos/plant-operating-state-analysis";
-import { type QuantificationTimeUnit } from "interfaces-mef-types/modeling";
-import { type Workbook } from "interfaces-shared-types";
-import { type DaUpstream } from "./daWorkbookContext";
 import { sourcesComplete } from "./daSourcing";
 import { failuresComplete } from "./daFailures";
 import { unavailabilityComplete } from "./daUnavailability";
@@ -49,7 +35,6 @@ import {
   NEED_ELEMENT_LABELS,
   MODELS_FOR_KIND,
   QUANTIFICATION_MODELS,
-  exampleLinkLabel,
   type DaModelSpec,
   type ConformanceItem,
   type DaPersona,
@@ -147,32 +132,6 @@ function scopeItemsToComplete(da: DataAnalysis): string[] {
   return items;
 }
 
-const NEED_ELEMENTS: DaNeedElement[] = ["SY", "IE", "HRA", "POS"];
-
-const HOURS_PER_UNIT: Record<QuantificationTimeUnit, number> = {
-  SECOND: 1 / 3600,
-  MINUTE: 1 / 60,
-  HOUR: 1,
-  DAY: 24,
-  YEAR: 8760,
-};
-
-const HOURS_PER_TIME_UNIT: Partial<Record<UncertainUnit, number>> = {
-  HOURS: 1,
-  MINUTES: 1 / 60,
-  YEARS: 8760,
-};
-
-const KIND_BY_FAILURE_MODE: Record<string, DaNeedKind> = {
-  FAILURE_TO_START: "DEMAND",
-  FAILURE_TO_RUN: "RUNNING",
-  TEST_MAINTENANCE: "UNAVAILABILITY",
-  HUMAN_ERROR: "HUMAN_ERROR",
-  COMMON_CAUSE_FAILURE: "COMMON_CAUSE",
-  EXTERNAL_EVENT: "OTHER",
-  OTHER: "OTHER",
-};
-
 const KIND_SCOPE: Partial<Record<DaNeedKind, DaScopeKind>> = {
   UNAVAILABILITY: "TEST_MAINTENANCE",
   HUMAN_ERROR: "HUMAN_ERROR",
@@ -193,25 +152,6 @@ function nextNeedId(prefix: string, ids: readonly string[]): string {
   let n = ids.length + 1;
   while (taken.has(`${prefix}-${String(n).padStart(2, "0")}`.toLowerCase())) n += 1;
   return `${prefix}-${String(n).padStart(2, "0")}`;
-}
-
-function failureModeOf(event: SystemBasicEvent): string | undefined {
-  const mode = event.failureMode;
-  return typeof mode === "string" && mode.trim().length > 0 ? mode : undefined;
-}
-
-function timeHours(expression: UncertainExpression): number | undefined {
-  if (expression.node !== "VALUE" || expression.value.law.family !== "POINT") return undefined;
-  const factor = HOURS_PER_TIME_UNIT[expression.value.unit];
-  return factor === undefined ? undefined : expression.value.law.value * factor;
-}
-
-function modelTimes(expression: UncertainExpression | undefined): { kind?: DaNeedKind; testIntervalHours?: number } {
-  if (expression?.node !== "MODEL") return {};
-  const model = expression.model;
-  if (model.form === "MISSION") return { kind: "RUNNING" };
-  if (model.form === "STANDBY") return { kind: "STANDBY", testIntervalHours: timeHours(model.testInterval) };
-  return {};
 }
 
 function missionModelTime(estimate: UncertainExpression | undefined): UncertainExpression | undefined {
@@ -254,294 +194,6 @@ function missionTimeDiffers(estimate: UncertainExpression | undefined, need: Unc
   if (estimate.node === "PARAMETER" && need.node === "PARAMETER") return { need: missionTimeText(need, theirs), estimate: missionTimeText(estimate, ours) };
   if (ours === undefined || theirs === undefined || ours === theirs) return undefined;
   return { need: missionTimeText(need, theirs), estimate: missionTimeText(estimate, ours) };
-}
-
-function expressionValueUnit(expression: UncertainExpression | undefined): "PROBABILITY" | "PER_HOUR" | undefined {
-  if (expression === undefined) return undefined;
-  if (expression.node === "MODEL") return expression.model.form === "MISSION" || expression.model.form === "STANDBY" ? "PER_HOUR" : "PROBABILITY";
-  if (expression.node === "VALUE") return expression.value.unit === "PER_HOUR" || expression.value.unit === "PER_YEAR" ? "PER_HOUR" : "PROBABILITY";
-  return "PROBABILITY";
-}
-
-function linkedEstimate(expression: UncertainExpression, unit: UncertainUnit | undefined): UncertainExpression {
-  if (unit !== "PER_HOUR" || expression.node !== "MODEL") return expression;
-  const model = expression.model;
-  return model.form === "MISSION" || model.form === "STANDBY" ? model.rate : expression;
-}
-
-function importedKindOf(event: SystemBasicEvent): DaNeedKind | undefined {
-  if (carriesUncertainExpression(event.failureMode)) {
-    const kind = modelTimes(event.expression).kind;
-    if (kind !== undefined) return kind;
-  }
-  if (event.quantificationBasis?.kind === "FAILURE_RATE") return "RUNNING";
-  const mode = failureModeOf(event);
-  return mode === undefined ? undefined : KIND_BY_FAILURE_MODE[mode];
-}
-
-function eventValue(event: SystemBasicEvent): Pick<DaBasicEventNeed, "value" | "valueUnit" | "expression"> {
-  if (carriesUncertainExpression(event.failureMode)) return event.expression === undefined ? {} : { expression: event.expression };
-  const basis = event.quantificationBasis;
-  if (basis?.kind === "FAILURE_RATE") return { value: basis.failureRate.value / HOURS_PER_UNIT[basis.failureRate.unit], valueUnit: "PER_HOUR" };
-  return typeof event.probability === "number" && Number.isFinite(event.probability) ? { value: event.probability, valueUnit: "PROBABILITY" } : {};
-}
-
-function eventHolder(event: SystemBasicEvent, parameterIds: ReadonlySet<string>, hfeIds: ReadonlySet<string>): Pick<DaBasicEventNeed, "valueHeldBy" | "valueHolderId"> {
-  if (carriesUncertainExpression(event.failureMode)) {
-    const held = (event.expression === undefined ? [] : expressionReferences(event.expression)).find((reference) => parameterIds.has(reference.entityId.trim()));
-    return held === undefined ? { valueHeldBy: "TYPED" } : { valueHeldBy: "DA", valueHolderId: held.entityId.trim() };
-  }
-  const source = event.controlledDataSource;
-  if (source?.referenceType === "WORKBOOK_PARAMETER") return { valueHeldBy: "DA", valueHolderId: source.entityId };
-  if (source?.referenceType === "HUMAN_FAILURE_EVENT") return { valueHeldBy: "HRA", valueHolderId: source.entityId };
-  const legacy = event.dataAnalysisBasicEventRef;
-  if (typeof legacy === "string" && parameterIds.has(legacy)) return { valueHeldBy: "DA", valueHolderId: legacy };
-  if (typeof legacy === "string" && hfeIds.has(legacy)) return { valueHeldBy: "HRA", valueHolderId: legacy };
-  return { valueHeldBy: "TYPED" };
-}
-
-function basicEventNeeds(sy: SystemsAnalysis, parameterIds: ReadonlySet<string>, hfeIds: ReadonlySet<string>): DaBasicEventNeed[] {
-  const systemOf = new Map<string, string>();
-  for (const model of sy.systemLogicModels) {
-    for (const id of systemFaultTreeBasicEventIds(model)) {
-      if (!systemOf.has(id)) systemOf.set(id, model.systemReference);
-    }
-  }
-  const definitions = new Map(sy.systemDefinitions.map((definition) => [definition.uuid, definition]));
-  return sy.systemBasicEvents.map((event) => {
-    const systemId = systemOf.get(event.uuid);
-    const definition = systemId === undefined ? undefined : definitions.get(systemId);
-    const basis = event.quantificationBasis;
-    const times = carriesUncertainExpression(event.failureMode) ? modelTimes(event.expression) : {};
-    const missionTime = basicEventMissionTime(sy, event) ?? (basis?.kind === "FAILURE_RATE" ? legacyExpression("HOURS", basis.missionTime.value * HOURS_PER_UNIT[basis.missionTime.unit]) : undefined);
-    const kind = importedKindOf(event);
-    const mode = failureModeOf(event);
-    const need: DaBasicEventNeed = { id: event.uuid, code: event.code, name: event.name, included: true, ...eventValue(event), ...eventHolder(event, parameterIds, hfeIds) };
-    if (systemId !== undefined) need.systemId = systemId;
-    if (definition !== undefined) need.systemName = definition.abbreviation ?? definition.name;
-    if (mode !== undefined) need.failureMode = mode;
-    if (kind !== undefined) {
-      need.importedKind = kind;
-      need.kind = kind;
-    }
-    if (missionTime !== undefined) {
-      need.importedMissionTime = structuredClone(missionTime);
-      need.missionTime = structuredClone(missionTime);
-    }
-    if (times.testIntervalHours !== undefined && Number.isFinite(times.testIntervalHours)) need.testIntervalHours = times.testIntervalHours;
-    if (event.repairModeled === true) {
-      need.repairCredited = true;
-      if (typeof event.meanTimeToRepair === "number") need.meanTimeToRepairHours = event.meanTimeToRepair;
-    }
-    return need;
-  });
-}
-
-function initiatorNeeds(ie: InitiatingEventsAnalysis): DaInitiatorNeed[] {
-  return ie.initiatingEventGroups.map((group) => {
-    const need: DaInitiatorNeed = { id: group.uuid, name: group.name, stateIds: [...group.applicableStates], memberIds: [...group.memberInitiatorIds], included: true };
-    if (group.frequency !== undefined) need.frequency = { expression: group.frequency.expression, basis: group.frequency.basis };
-    const basis = ie.quantifications.find((quantification) => quantification.initiatorOrGroupId === group.uuid)?.basis;
-    if (basis !== undefined) need.frequencyBasis = basis;
-    const source = group.controlledDataSource;
-    need.valueHeldBy = source === undefined ? "TYPED" : "DA";
-    if (source !== undefined) need.valueHolderId = source.entityId;
-    return need;
-  });
-}
-
-function humanErrorNeeds(hr: HumanReliabilityAnalysis): DaHumanErrorNeed[] {
-  const events = new Map(hr.humanFailureEvents.map((event) => [event.uuid, event]));
-  const recoveries = new Map((hr.recoveryActions ?? []).map((recovery) => [recovery.hepQuantificationId, recovery]));
-  const quantified = new Set<string>();
-  const rows = hr.hepQuantifications.map((quantification): DaHumanErrorNeed => {
-    quantified.add(quantification.hfeId);
-    const event = events.get(quantification.hfeId);
-    const recovery = recoveries.get(quantification.uuid);
-    const need: DaHumanErrorNeed = {
-      id: quantification.uuid,
-      hfeId: quantification.hfeId,
-      name: recovery?.name ?? event?.name ?? quantification.hfeId,
-      kind: recovery === undefined ? "HUMAN_ERROR" : "RECOVERY",
-      stateIds: [...(event?.applicablePlantOperatingStates ?? [])],
-      method: quantification.methodology,
-      included: true,
-    };
-    if (event !== undefined) need.timing = event.hfeTiming;
-    const hep = quantification.hep;
-    const source = hep?.node === "PARAMETER" ? hep.reference : undefined;
-    need.valueHeldBy = source === undefined ? "TYPED" : "DA";
-    if (source !== undefined) need.valueHolderId = source.entityId;
-    const held = hep?.node === "VALUE" ? hep.value.law : undefined;
-    const law = held?.family === "TRUNCATED" && held.lower === null && held.upper === 1 ? held.law : held;
-    if (law?.family === "POINT") {
-      need.value = law.value;
-      need.valueKind = "POINT_ESTIMATE";
-    } else if (law !== undefined && "mean" in law) {
-      need.value = law.mean;
-      need.valueKind = "MEAN";
-    }
-    return need;
-  });
-  const unquantified = hr.humanFailureEvents
-    .filter((event) => !quantified.has(event.uuid))
-    .map((event): DaHumanErrorNeed => ({ id: event.uuid, hfeId: event.uuid, name: event.name, timing: event.hfeTiming, kind: "HUMAN_ERROR", stateIds: [...event.applicablePlantOperatingStates], included: true }));
-  return [...rows, ...unquantified];
-}
-
-function ccfGroupNeeds(sy: SystemsAnalysis): DaCcfGroupNeed[] {
-  return sy.commonCauseFailureGroups.map((group) => {
-    const need: DaCcfGroupNeed = { id: group.uuid, name: group.name, systemIds: [...group.affectedSystems], memberIds: (group.members?.basicEvents ?? []).map((member) => member.id), included: true, factors: group.factors, total: group.total };
-    const reference = group.dataAnalysisCCFParameterRef;
-    if (typeof reference === "string" && reference.length > 0) need.estimateRef = reference;
-    return need;
-  });
-}
-
-function stateNeeds(pos: PlantOperatingStatesAnalysis): DaStateNeed[] {
-  return pos.plantOperatingStates.map((state) => {
-    const need: DaStateNeed = { id: state.uuid, name: state.name, mode: state.operatingMode, included: true };
-    if (Number.isFinite(state.meanDurationHours)) need.durationHours = state.meanDurationHours;
-    const entries = typeof state.meanEntryFrequency === "number" ? state.meanEntryFrequency : state.meanEntryFrequency.value;
-    if (Number.isFinite(entries)) need.entriesPerYear = entries;
-    need.valueHeldBy = state.outageSource === undefined ? "TYPED" : "DA";
-    return need;
-  });
-}
-
-function upstreamLoaded(upstream: DaUpstream, element: DaNeedElement): boolean {
-  switch (element) {
-    case "SY": return upstream.sy !== undefined;
-    case "IE": return upstream.ie !== undefined;
-    case "HRA": return upstream.hr !== undefined;
-    case "POS": return upstream.pos !== undefined;
-  }
-}
-
-function daNeedsLinked(da: DataAnalysis): DaNeedElement[] {
-  const links = da.linkedWorkbooks ?? {};
-  return NEED_ELEMENTS.filter((element) => links[element] !== undefined);
-}
-
-function daNeedsImportReady(da: DataAnalysis, upstream: DaUpstream): boolean {
-  const linked = daNeedsLinked(da);
-  return linked.length > 0 && linked.every((element) => upstreamLoaded(upstream, element));
-}
-
-function daImportNeeds(da: DataAnalysis, upstream: DaUpstream, now: string): DaDataNeeds {
-  const links = da.linkedWorkbooks ?? {};
-  const sources: DaNeedSource[] = [];
-  for (const element of NEED_ELEMENTS) {
-    const id = links[element];
-    if (id === undefined || !upstreamLoaded(upstream, element)) continue;
-    const option = upstream.options[element].find((workbook) => workbook.id === id);
-    const source: DaNeedSource = { element, workbookId: id, workbookName: option?.name ?? exampleLinkLabel(id) ?? id };
-    if (option !== undefined) source.updatedAt = option.updatedAt;
-    sources.push(source);
-  }
-  const parameterIds = new Set(da.parameters.map((parameter) => parameter.uuid));
-  const hfeIds = new Set((upstream.hr?.humanFailureEvents ?? []).map((event) => event.uuid));
-  const sy = links.SY === undefined ? undefined : upstream.sy;
-  const ie = links.IE === undefined ? undefined : upstream.ie;
-  const hr = links.HRA === undefined ? undefined : upstream.hr;
-  const pos = links.POS === undefined ? undefined : upstream.pos;
-  return {
-    importedAt: now,
-    sources,
-    basicEvents: sy === undefined ? [] : basicEventNeeds(sy, parameterIds, hfeIds),
-    initiators: ie === undefined ? [] : initiatorNeeds(ie),
-    humanErrors: hr === undefined ? [] : humanErrorNeeds(hr),
-    ccfGroups: sy === undefined ? [] : ccfGroupNeeds(sy),
-    states: pos === undefined ? [] : stateNeeds(pos),
-  };
-}
-
-function basicEventKey(need: DaBasicEventNeed): string {
-  return JSON.stringify([need.code, need.name, need.systemId, need.failureMode, need.importedKind, need.importedMissionTime === undefined ? null : canonicalJson(need.importedMissionTime), need.value, need.valueUnit, need.expression === undefined ? null : canonicalJson(need.expression), need.valueHeldBy, need.valueHolderId, need.repairCredited, need.meanTimeToRepairHours]);
-}
-
-function initiatorKey(need: DaInitiatorNeed): string {
-  return JSON.stringify([need.name, need.stateIds, need.memberIds, need.frequency === undefined ? null : canonicalJson(need.frequency), need.frequencyBasis, need.valueHeldBy, need.valueHolderId]);
-}
-
-function humanErrorKey(need: DaHumanErrorNeed): string {
-  return JSON.stringify([need.hfeId, need.name, need.timing, need.kind, need.value, need.valueKind, need.method, need.stateIds, need.valueHeldBy, need.valueHolderId]);
-}
-
-function ccfGroupKey(need: DaCcfGroupNeed): string {
-  return JSON.stringify([need.name, need.systemIds, need.memberIds, need.factors === undefined ? null : canonicalJson(need.factors), need.total === undefined ? null : canonicalJson(need.total), need.estimateRef]);
-}
-
-function stateKey(need: DaStateNeed): string {
-  return JSON.stringify([need.name, need.mode, need.durationHours, need.entriesPerYear, need.valueHeldBy]);
-}
-
-function mergeBasicEvents(previous: readonly DaBasicEventNeed[], next: readonly DaBasicEventNeed[], changes: DaNeedChange[]): DaBasicEventNeed[] {
-  const before = new Map(previous.filter((need) => need.manual === undefined).map((need) => [need.id, need]));
-  const nextIds = new Set(next.map((need) => need.id));
-  const merged = next.map((need) => {
-    const old = before.get(need.id);
-    if (old === undefined) {
-      changes.push({ element: "SY", id: need.id, change: "ADDED" });
-      return need;
-    }
-    if (basicEventKey(old) !== basicEventKey(need)) changes.push({ element: "SY", id: need.id, change: "CHANGED" });
-    const kind = old.kind !== old.importedKind ? old.kind : need.importedKind;
-    const missionTime = sameMissionTime(old.missionTime, old.importedMissionTime) ? need.importedMissionTime : old.missionTime;
-    const { kind: _kind, missionTime: _missionTime, ...base } = need;
-    const result: DaBasicEventNeed = { ...base, included: old.included };
-    if (kind !== undefined) result.kind = kind;
-    if (missionTime !== undefined) result.missionTime = missionTime;
-    if (old.testIntervalHours !== undefined) result.testIntervalHours = old.testIntervalHours;
-    else if (need.testIntervalHours !== undefined) result.testIntervalHours = need.testIntervalHours;
-    if (old.changeReason !== undefined) result.changeReason = old.changeReason;
-    if (old.exclusionReason !== undefined) result.exclusionReason = old.exclusionReason;
-    if (old.parameterId !== undefined) result.parameterId = old.parameterId;
-    return result;
-  });
-  for (const old of before.values()) {
-    if (!nextIds.has(old.id)) changes.push({ element: "SY", id: old.id, change: "REMOVED", label: old.code });
-  }
-  return [...merged, ...previous.filter((need) => need.manual !== undefined)];
-}
-
-function mergeRows<T extends { id: string; included: boolean; exclusionReason?: string; parameterId?: string; manual?: DaManualEntry }>(
-  element: DaNeedElement,
-  previous: readonly T[],
-  next: readonly T[],
-  keyOf: (row: T) => string,
-  changes: DaNeedChange[],
-): T[] {
-  const before = new Map(previous.filter((row) => row.manual === undefined).map((row) => [row.id, row]));
-  const nextIds = new Set(next.map((row) => row.id));
-  const merged = next.map((row): T => {
-    const old = before.get(row.id);
-    if (old === undefined) {
-      changes.push({ element, id: row.id, change: "ADDED" });
-      return row;
-    }
-    if (keyOf(old) !== keyOf(row)) changes.push({ element, id: row.id, change: "CHANGED" });
-    const kept = old.parameterId === undefined ? { ...row, included: old.included } : { ...row, included: old.included, parameterId: old.parameterId };
-    return old.exclusionReason === undefined ? kept : { ...kept, exclusionReason: old.exclusionReason };
-  });
-  for (const old of before.values()) {
-    if (!nextIds.has(old.id)) changes.push({ element, id: old.id, change: "REMOVED" });
-  }
-  return [...merged, ...previous.filter((row) => row.manual !== undefined)];
-}
-
-function withNeedsMerged(previous: DaDataNeeds | undefined, next: DaDataNeeds): DaDataNeeds {
-  if (previous === undefined) return next;
-  const changes: DaNeedChange[] = [];
-  const merged: DaDataNeeds = {
-    ...next,
-    basicEvents: mergeBasicEvents(previous.basicEvents, next.basicEvents, changes),
-    initiators: mergeRows("IE", previous.initiators, next.initiators, initiatorKey, changes),
-    humanErrors: mergeRows("HRA", previous.humanErrors, next.humanErrors, humanErrorKey, changes),
-    ccfGroups: mergeRows("SY", previous.ccfGroups, next.ccfGroups, ccfGroupKey, changes),
-    states: mergeRows("POS", previous.states, next.states, stateKey, changes),
-  };
-  return previous.importedAt === undefined ? merged : { ...merged, changes };
 }
 
 function sameMissionTime(left: UncertainExpression | undefined, right: UncertainExpression | undefined): boolean {
@@ -616,27 +268,18 @@ function manualFindings(row: { name: string; manual?: DaManualEntry }, item: str
   return findings;
 }
 
-function sourceFindings(da: DataAnalysis, needs: DaDataNeeds, options?: Record<DaLinkCode, Workbook[]>): DaNeedFinding[] {
+const NEED_LIST_LABELS: Record<DaNeedList, string> = { BASIC_EVENT: "Basic event", INITIATOR: "Initiator group", HUMAN_ERROR: "Human error", CCF_GROUP: "Common cause group", STATE: "Operating state" };
+
+function sourceFindings(da: DataAnalysis, needs: DaDataNeeds, unavailable: readonly DaLinkCode[]): DaNeedFinding[] {
   const findings: DaNeedFinding[] = [];
   const links = da.linkedWorkbooks ?? {};
-  for (const source of needs.sources) {
-    const label = NEED_ELEMENT_LABELS[source.element];
-    const linkedId = links[source.element];
-    if (linkedId !== source.workbookId) {
-      findings.push({ severity: "warning", check: "Link changed", item: label, detail: linkedId === undefined ? `${label} is no longer linked. Its items stay until you import again.` : `Step 01 now links a different ${label} workbook. Import again to use it.` });
-      continue;
-    }
-    const option = options?.[source.element].find((workbook) => workbook.id === source.workbookId);
-    if (option !== undefined && source.updatedAt !== undefined && option.updatedAt > source.updatedAt) {
-      findings.push({ severity: "warning", check: "Source changed", item: label, detail: `The ${label} workbook changed after the import. Import again to bring in the changes.` });
-    }
+  for (const element of NEED_ELEMENTS) {
+    if (links[element] === undefined || !unavailable.includes(element)) continue;
+    const label = NEED_ELEMENT_LABELS[element];
+    findings.push({ severity: "error", check: "Linked workbook unavailable", item: label, detail: `The linked ${label} workbook could not be read. Its rows do not show until it can be read again.` });
   }
-  if (needs.importedAt !== undefined) {
-    for (const element of NEED_ELEMENTS) {
-      if (links[element] !== undefined && !needs.sources.some((source) => source.element === element)) {
-        findings.push({ severity: "warning", check: "Not imported", item: NEED_ELEMENT_LABELS[element], detail: `${NEED_ELEMENT_LABELS[element]} is linked, but nothing was imported from it. Import again.` });
-      }
-    }
+  for (const detail of daLinkedDetailMissing(needs)) {
+    findings.push({ severity: "warning", check: "Linked row not found", item: `${NEED_LIST_LABELS[detail.list]} ${detail.id}`, detail: "The linked workbook no longer holds this row. DA keeps the work entered for it." });
   }
   return findings;
 }
@@ -694,7 +337,7 @@ function initiatorFindings(da: DataAnalysis, needs: DaDataNeeds): DaNeedFinding[
   }
   const listed = needs.initiators.filter((need) => need.included).length;
   if (scopeIsExcluded(da, "INITIATING_EVENT") && listed > 0) findings.push({ severity: "warning", check: "Out of scope", item: "Initiators", detail: `Step 01 leaves initiating event frequencies out of scope, but ${listed} ${listed === 1 ? "group is" : "groups are"} listed.` });
-  if (scopeIsIncluded(da, "INITIATING_EVENT") && needs.initiators.length === 0) findings.push({ severity: "warning", check: "Nothing listed", item: "Initiators", detail: "Step 01 includes initiating event frequencies, but no initiator group is listed. Link IE and import, or add them by hand." });
+  if (scopeIsIncluded(da, "INITIATING_EVENT") && needs.initiators.length === 0) findings.push({ severity: "warning", check: "Nothing listed", item: "Initiators", detail: "Step 01 includes initiating event frequencies, but no initiator group is listed. Link IE in Step 01, or add them by hand." });
   return findings;
 }
 
@@ -715,7 +358,7 @@ function humanErrorFindings(da: DataAnalysis, needs: DaDataNeeds): DaNeedFinding
   }
   const listed = needs.humanErrors.filter((need) => need.included).length;
   if (scopeIsExcluded(da, "HUMAN_ERROR") && listed > 0) findings.push({ severity: "warning", check: "Out of scope", item: "Human errors", detail: `Step 01 leaves human error probabilities out of scope, but ${listed} ${listed === 1 ? "row is" : "rows are"} listed.` });
-  if (scopeIsIncluded(da, "HUMAN_ERROR") && needs.humanErrors.length === 0) findings.push({ severity: "warning", check: "Nothing listed", item: "Human errors", detail: "Step 01 includes human error probabilities, but no human failure event is listed. Link HR and import, or add them by hand." });
+  if (scopeIsIncluded(da, "HUMAN_ERROR") && needs.humanErrors.length === 0) findings.push({ severity: "warning", check: "Nothing listed", item: "Human errors", detail: "Step 01 includes human error probabilities, but no human failure event is listed. Link HR in Step 01, or add them by hand." });
   if (scopeIsIncluded(da, "REPAIR_RECOVERY") && !needs.basicEvents.some((need) => need.included && (need.repairCredited === true || need.kind === "RECOVERY")) && !needs.humanErrors.some((need) => need.included && need.kind === "RECOVERY")) {
     findings.push({ severity: "note", check: "Nothing listed", item: "Repair and recovery", detail: "Step 01 includes repair and recovery, but no event credits repair or recovery." });
   }
@@ -743,7 +386,7 @@ function ccfGroupFindings(da: DataAnalysis, needs: DaDataNeeds): DaNeedFinding[]
   }
   const listed = needs.ccfGroups.filter((need) => need.included).length;
   if (scopeIsExcluded(da, "COMMON_CAUSE") && listed > 0) findings.push({ severity: "warning", check: "Out of scope", item: "Common cause groups", detail: `Step 01 leaves common cause failures out of scope, but ${listed} ${listed === 1 ? "group is" : "groups are"} listed.` });
-  if (scopeIsIncluded(da, "COMMON_CAUSE") && needs.ccfGroups.length === 0) findings.push({ severity: "warning", check: "Nothing listed", item: "Common cause groups", detail: "Step 01 includes common cause failures, but no group is listed. Link SY and import, or add them by hand." });
+  if (scopeIsIncluded(da, "COMMON_CAUSE") && needs.ccfGroups.length === 0) findings.push({ severity: "warning", check: "Nothing listed", item: "Common cause groups", detail: "Step 01 includes common cause failures, but no group is listed. Link SY in Step 01, or add them by hand." });
   return findings;
 }
 
@@ -761,15 +404,56 @@ function stateFindings(da: DataAnalysis, needs: DaDataNeeds): DaNeedFinding[] {
     }
     if (need.durationHours === undefined || need.durationHours <= 0) findings.push({ severity: "warning", check: "No duration", item: need.id, detail: "Enter the hours the plant spends in this state.", target });
   }
-  if (scopeIsIncluded(da, "OUTAGE") && needs.states.length === 0) findings.push({ severity: "warning", check: "Nothing listed", item: "Operating states", detail: "Step 01 includes outage data, but no operating state is listed. Link POS and import, or add them by hand." });
+  if (scopeIsIncluded(da, "OUTAGE") && needs.states.length === 0) findings.push({ severity: "warning", check: "Nothing listed", item: "Operating states", detail: "Step 01 includes outage data, but no operating state is listed. Link POS in Step 01, or add them by hand." });
   return findings;
 }
 
-function daNeedChecks(da: DataAnalysis, options?: Record<DaLinkCode, Workbook[]>): DaNeedFinding[] {
+function isNeedElement(code: DaLinkCode): code is DaNeedElement {
+  return NEED_ELEMENTS.some((element) => element === code);
+}
+
+function countTyped<T extends { manual?: DaManualEntry }>(rows: readonly T[]): number {
+  return rows.filter((row) => row.manual !== undefined).length;
+}
+
+function typedNeedCount(needs: DaDataNeeds | undefined, code: DaLinkCode): number {
+  if (needs === undefined) return 0;
+  switch (code) {
+    case "SY": return countTyped(needs.basicEvents) + countTyped(needs.ccfGroups);
+    case "IE": return countTyped(needs.initiators);
+    case "HRA": return countTyped(needs.humanErrors);
+    case "POS": return countTyped(needs.states);
+    default: return 0;
+  }
+}
+
+function keptRows<T extends { manual?: DaManualEntry }>(rows: T[], dropLinked: boolean, dropTyped: boolean): T[] {
+  return rows.filter((row) => (row.manual === undefined ? !dropLinked : !dropTyped));
+}
+
+function withLinkChanged(da: DataAnalysis, code: DaLinkCode, before: string | undefined): DataAnalysis {
+  const needs = da.dataNeeds;
+  const after = da.linkedWorkbooks?.[code];
+  if (needs === undefined || !isNeedElement(code) || before === after) return da;
+  const typed = after !== undefined;
+  return {
+    ...da,
+    dataNeeds: {
+      ...needs,
+      basicEvents: code === "SY" ? keptRows(needs.basicEvents, true, typed) : needs.basicEvents,
+      ccfGroups: code === "SY" ? keptRows(needs.ccfGroups, true, typed) : needs.ccfGroups,
+      initiators: code === "IE" ? keptRows(needs.initiators, true, typed) : needs.initiators,
+      humanErrors: code === "HRA" ? keptRows(needs.humanErrors, true, typed) : needs.humanErrors,
+      states: code === "POS" ? keptRows(needs.states, true, typed) : needs.states,
+    },
+  };
+}
+
+function daNeedChecks(da: DataAnalysis, unavailable: readonly DaLinkCode[] = []): DaNeedFinding[] {
   const needs = da.dataNeeds;
   if (needs === undefined) return [];
   const findings = [
-    ...sourceFindings(da, needs, options),
+    ...sourceFindings(da, needs, unavailable),
     ...basicEventFindings(da, needs),
     ...initiatorFindings(da, needs),
     ...humanErrorFindings(da, needs),
@@ -789,88 +473,12 @@ function needsComplete(da: DataAnalysis): boolean {
   return listed > 0 && !daNeedChecks(da).some((finding) => finding.severity === "error");
 }
 
-type DaMapElement = "SY" | "IE" | "HRA";
-
-interface DaMappableNeed {
-  element: DaMapElement;
-  id: string;
-  code: string;
-  name: string;
-  kind?: DaNeedKind;
-  included: boolean;
-  value?: number;
-  expression?: UncertainExpression;
-  valueType: "MEAN" | "POINT_ESTIMATE";
-  ownerTyped: boolean;
-  heldBy?: DaValueHolder;
-  parameterId?: string;
-  missionTime?: UncertainExpression;
-  valueUnit?: "PROBABILITY" | "PER_HOUR";
-  stateIds: string[];
-  systemId?: string;
-  systemName?: string;
-}
-
 const COMPONENT_MODELS: ReadonlySet<DaQuantificationModel> = new Set(["DEMAND_PROBABILITY", "RUNNING_RATE", "MISSION_PROBABILITY", "STANDBY_RATE"]);
 
 const PROBABILITY_MODELS_SET: ReadonlySet<DaQuantificationModel> = new Set(["DEMAND_PROBABILITY", "MISSION_PROBABILITY", "UNAVAILABILITY", "HUMAN_ERROR", "NON_RECOVERY", "OTHER_PROBABILITY"]);
 
 function modelSpecOf(model: DaQuantificationModel | undefined): DaModelSpec | undefined {
   return model === undefined ? undefined : QUANTIFICATION_MODELS.find((spec) => spec.model === model);
-}
-
-function mappableNeeds(needs: DaDataNeeds | undefined): DaMappableNeed[] {
-  if (needs === undefined) return [];
-  const events = needs.basicEvents
-    .filter((need) => need.kind !== "COMMON_CAUSE")
-    .map((need): DaMappableNeed => ({
-      element: "SY",
-      id: need.id,
-      code: need.code,
-      name: need.name,
-      kind: need.kind,
-      included: need.included,
-      value: need.value,
-      expression: need.expression,
-      valueType: "POINT_ESTIMATE",
-      ownerTyped: need.manual === undefined && need.valueHeldBy === "TYPED" && (need.value !== undefined || need.expression !== undefined),
-      heldBy: need.valueHeldBy,
-      parameterId: need.parameterId,
-      missionTime: need.missionTime,
-      valueUnit: need.valueUnit ?? expressionValueUnit(need.expression),
-      stateIds: [],
-      systemId: need.systemId,
-      systemName: need.systemName,
-    }));
-  const initiators = needs.initiators.map((need): DaMappableNeed => ({
-    element: "IE",
-    id: need.id,
-    code: need.id,
-    name: need.name,
-    included: need.included,
-    expression: need.frequency?.expression,
-    valueType: "MEAN",
-    ownerTyped: need.manual === undefined && need.valueHeldBy !== "DA" && need.frequency !== undefined,
-    heldBy: need.valueHeldBy,
-    parameterId: need.parameterId,
-    stateIds: need.stateIds,
-  }));
-  const humanErrors = needs.humanErrors.map((need): DaMappableNeed => ({
-    element: "HRA",
-    id: need.id,
-    code: need.hfeId,
-    name: need.name,
-    kind: need.kind,
-    included: need.included,
-    value: need.value,
-    expression: need.value === undefined ? undefined : { node: "VALUE", value: { unit: "PROBABILITY", law: { family: "POINT", value: need.value } } },
-    valueType: need.valueKind === "MEAN" ? "MEAN" : "POINT_ESTIMATE",
-    ownerTyped: need.manual === undefined && need.valueHeldBy !== "DA" && need.value !== undefined,
-    heldBy: need.valueHeldBy,
-    parameterId: need.parameterId,
-    stateIds: need.stateIds,
-  }));
-  return [...events, ...initiators, ...humanErrors];
 }
 
 function modelsForNeed(need: DaMappableNeed): DaQuantificationModel[] {
@@ -882,11 +490,6 @@ function defaultModelFor(need: DaMappableNeed, parameterType?: ParameterType): D
   if (need.element === "IE") return "FREQUENCY";
   if (need.kind === "RUNNING") return parameterType === "FAILURE_RATE" || need.valueUnit === "PER_HOUR" ? "RUNNING_RATE" : "MISSION_PROBABILITY";
   return need.kind === undefined ? undefined : MODELS_FOR_KIND[need.kind][0];
-}
-
-function parameterStates(parameter: DataAnalysisParameter): string[] {
-  if (parameter.stateIds !== undefined) return parameter.stateIds;
-  return parameter.plantOperatingStateRef === undefined ? [] : [parameter.plantOperatingStateRef];
 }
 
 function withNeedParameter(da: DataAnalysis, element: DaMapElement, needId: string, parameterId: string | undefined): DataAnalysis {
@@ -956,97 +559,8 @@ function linkedParameter(id: string, need: DaMappableNeed, model: DaQuantificati
   return parameter;
 }
 
-function withAutoMapping(da: DataAnalysis): DataAnalysis {
-  const needs = da.dataNeeds;
-  if (needs === undefined) return da;
-  const parameters = [...da.parameters];
-  const ids = new Set(parameters.map((parameter) => parameter.uuid));
-  const create = (need: DaMappableNeed, model: DaQuantificationModel): string => {
-    const id = nextParameterId(ids);
-    ids.add(id);
-    parameters.push(linkedParameter(id, need, model));
-    return id;
-  };
-  const views = mappableNeeds(needs);
-  const viewOf = (element: DaMapElement, id: string): DaMappableNeed | undefined => views.find((view) => view.element === element && view.id === id);
-
-  const humanErrors = needs.humanErrors.map((need) => {
-    const view = viewOf("HRA", need.id);
-    if (!need.included || need.parameterId !== undefined || view === undefined) return need;
-    if (need.valueHeldBy === "DA" && need.valueHolderId !== undefined && ids.has(need.valueHolderId)) return { ...need, parameterId: need.valueHolderId };
-    const existing = parameters.find((parameter) => parameter.basicEventRef === need.hfeId && parameter.parameterType === "HUMAN_ERROR_PROBABILITY");
-    if (existing !== undefined) return { ...need, parameterId: existing.uuid };
-    if (!view.ownerTyped) return need;
-    return { ...need, parameterId: create(view, need.kind === "RECOVERY" ? "NON_RECOVERY" : "HUMAN_ERROR") };
-  });
-  const hepByHfe = new Map(humanErrors.flatMap((need) => (need.kind === "HUMAN_ERROR" && need.parameterId !== undefined ? [[need.hfeId, need.parameterId] as const] : [])));
-
-  const initiators = needs.initiators.map((need) => {
-    const view = viewOf("IE", need.id);
-    if (!need.included || need.parameterId !== undefined || view === undefined) return need;
-    if (need.valueHeldBy === "DA" && need.valueHolderId !== undefined && ids.has(need.valueHolderId)) return { ...need, parameterId: need.valueHolderId };
-    const only = need.memberIds.length === 1 ? need.memberIds[0] : undefined;
-    const existing = parameters.find((parameter) => parameter.parameterType === "FREQUENCY" && parameter.basicEventRef !== undefined && (parameter.basicEventRef === need.id || parameter.basicEventRef === only));
-    if (existing !== undefined) return { ...need, parameterId: existing.uuid };
-    if (!view.ownerTyped) return need;
-    return { ...need, parameterId: create(view, "FREQUENCY") };
-  });
-
-  const basicEvents = needs.basicEvents.map((need) => {
-    const view = viewOf("SY", need.id);
-    if (!need.included || need.parameterId !== undefined || view === undefined) return need;
-    const holder = need.valueHolderId;
-    if (need.valueHeldBy === "DA" && holder !== undefined && ids.has(holder)) return { ...need, parameterId: holder };
-    if (need.valueHeldBy === "HRA" && holder !== undefined) {
-      const hep = hepByHfe.get(holder);
-      if (hep !== undefined) return { ...need, parameterId: hep };
-    }
-    const model = defaultModelFor(view);
-    if (!view.ownerTyped || model === undefined) return need;
-    return { ...need, parameterId: create(view, model) };
-  });
-
-  const nextNeeds: DaDataNeeds = { ...needs, basicEvents, initiators, humanErrors };
-  const mapped = mappableNeeds(nextNeeds);
-  const withModels = parameters.map((parameter) => {
-    if (parameter.quantificationModel !== undefined) return parameter;
-    const first = mapped.find((need) => need.parameterId === parameter.uuid);
-    return first === undefined ? parameter : withModel(parameter, defaultModelFor(first, parameter.parameterType));
-  });
-  return { ...da, parameters: withModels, dataNeeds: nextNeeds };
-}
-
-function sameList(a: readonly string[], b: readonly string[]): boolean {
-  return a.length === b.length && a.every((item) => b.includes(item));
-}
-
 function sameValue(a: number, b: number): boolean {
   return Math.abs(a - b) <= 1e-9 * Math.max(Math.abs(a), Math.abs(b));
-}
-
-function withLinkedValuesSynced(da: DataAnalysis): DataAnalysis {
-  const views = mappableNeeds(da.dataNeeds);
-  let changed = false;
-  const parameters = da.parameters.map((parameter) => {
-    const link = parameter.valueLink;
-    if (parameter.valueMode !== "LINKED" || link === undefined) return parameter;
-    const need = views.find((view) => view.element === link.element && view.id === link.needId);
-    if (need === undefined || need.heldBy === "DA") return parameter;
-    let next = parameter;
-    if (lawParameter(parameter)) {
-      const expression = need.expression === undefined ? undefined : linkedEstimate(need.expression, componentUnit(parameter));
-      if (expression !== undefined && (parameter.estimate === undefined || canonicalJson(parameter.estimate) !== canonicalJson(expression) || parameter.value !== undefined || parameter.valueType !== undefined || parameter.uncertainty !== undefined)) {
-        next = { ...next, estimate: expression };
-        delete next.value;
-        delete next.valueType;
-        delete next.uncertainty;
-      }
-    } else if (need.value !== undefined && (need.value !== parameter.value || need.valueType !== parameter.valueType)) next = { ...next, value: need.value, valueType: need.valueType };
-    if (need.stateIds.length > 0 && !sameList(need.stateIds, parameterStates(parameter))) next = { ...next, stateIds: [...need.stateIds] };
-    if (next !== parameter) changed = true;
-    return next;
-  });
-  return changed ? { ...da, parameters } : da;
 }
 
 function parameterNeeds(da: DataAnalysis, parameterId: string): DaMappableNeed[] {
@@ -1317,7 +831,9 @@ function stepsFromMef(da: DataAnalysis, persona: DaPersona, handoffDone = false)
 
 export {
   COMPONENT_MODELS,
+  defaultModelFor,
   linkedEstimate,
+  linkedParameter,
   mappableNeeds,
   modelSpecOf,
   modelsForNeed,
@@ -1325,8 +841,6 @@ export {
   parameterNeeds,
   parameterStates,
   parameterValueText,
-  withAutoMapping,
-  withLinkedValuesSynced,
   withModel,
   withNeedParameter,
   withOutlierGroup,
@@ -1335,17 +849,16 @@ export {
   type DaMappableNeed,
   NEED_ELEMENTS,
   basicEventEdited,
-  daImportNeeds,
   daNeedChecks,
-  daNeedsImportReady,
   daNeedsLinked,
   emptyNeeds,
   needChangeOf,
   needManualCount,
   nextNeedId,
   stateShares,
+  typedNeedCount,
+  withLinkChanged,
   withNeeds,
-  withNeedsMerged,
   type DaFindingSeverity,
   type DaNeedFinding,
   type DaNeedWindowKind,

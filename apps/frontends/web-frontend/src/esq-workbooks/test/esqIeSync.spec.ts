@@ -49,7 +49,7 @@ function only<T>(items: readonly T[]): T {
 
 function esqWith(typed: EsqTypedInitiator[]): EventSequenceQuantification {
   const esq: EventSequenceQuantification = { ...blankEsq(), linkedWorkbooks: { IE: "ie-1" }, modelDecisions: { typedInitiators: typed } };
-  return withTypedTrees(esq, [{ ...createEmptyEventTree("IEG-ESQ-01"), label: "ET-ESQ-01" }], EMPTY_UPSTREAM, NOW);
+  return withTypedTrees(esq, [{ ...createEmptyEventTree("IEG-ESQ-01"), label: "ET-ESQ-01" }], EMPTY_UPSTREAM);
 }
 
 describe("ESQ initiating events written to the linked IE workbook", () => {

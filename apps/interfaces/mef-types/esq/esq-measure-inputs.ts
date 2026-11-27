@@ -206,7 +206,7 @@ function sampledInputsOf(esq: EventSequenceQuantification): EsqSampledInput[] {
       continue;
     }
     if (group.total === undefined || group.factors === undefined) {
-      use({ ...input, missing: "SY gives this group no total or no factors. Complete the group in SY and import again." }, `ccf:${group.id}`);
+      use({ ...input, missing: "SY gives this group no total or no factors. Complete the group in SY." }, `ccf:${group.id}`);
       continue;
     }
     const next: EsqSampledInput = { ...input, expression: group.total, uncertain: hasUncertainty(group.total) || factorsUncertain(group.factors), source: "SY" };

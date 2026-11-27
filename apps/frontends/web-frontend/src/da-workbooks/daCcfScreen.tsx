@@ -21,11 +21,12 @@ import { WorkbookSectionHeading } from "../workbooks/workbookSectionHeading";
 import { WorkbookInput } from "../workbooks/commitOnDeactivateFields";
 import { DaProvenanceChip, DaTabs, DetailRow, DetailToggle, FieldList, FormFoot, FormRow, ModalHead, PlotToggle } from "./daShared";
 import { DistributionChart, useElementWidth, type DistributionSeries } from "./daDistributionChart";
-import { BFR_PARTS, KIND_LABELS, preciseText, MODEL_LABELS, ccfEventCount, ccfFindings, ccfLabelOf, ccfResult, ccfVectorLabel, factorsText, inlineFactors, kindOf, memberParameterIds, modelOfEstimate, shareFromNeeds, type DaCcfLevel, type DaCcfResult } from "./daCcf";
+import { BFR_PARTS, KIND_LABELS, preciseText, MODEL_LABELS, ccfEventCount, ccfFindings, ccfLabelOf, ccfResult, ccfVectorLabel, factorsText, inlineFactors, kindOf, modelOfEstimate, shareFromNeeds, type DaCcfLevel, type DaCcfResult } from "./daCcf";
 import { KIND_MODEL, ccfSurvey, evidenceChoiceRows, rowIdsFor, sizesFit, sizesText, type DaCcfEvidenceChoice, type DaCcfModel, type DaCcfSurvey } from "./daCcfRows";
 import { hasSpread, lawSummary } from "./daLaws";
 import { libraryEntries, nextCode, withStoredEntry } from "./daSourcing";
 import { useDaWorkbook } from "./daWorkbookContext";
+import { newEstimate } from "./daLinkedData";
 import { BOUNDARY_MATCH_LABELS, CCF_METHOD_LABELS, CCF_TESTING_LABELS, EVIDENCE_ORIGIN_LABELS } from "./daViewData";
 import { AreaRow, NEED_PAGE, NeedChecksTable, NeedPager, numberFrom, statText, waitNote, type DaDrawerContext } from "./daScreens";
 import { EstimatePicker, NumberInput, TextRow, useBuiltInEntries, waitingSources, type EstimateChoice } from "./daSourcesScreen";
@@ -333,32 +334,6 @@ function CcfTable({ tab, selected, onSelect, openDrawer }: { tab: Exclude<CcfTab
   );
 }
 
-function newEstimate(da: DataAnalysis, id: string, groupId: string, name: string, size: number | undefined, memberParameterId: string | undefined): CcfParameterEstimation {
-  const estimate: CcfParameterEstimation = {
-    uuid: id,
-    ccfGroupReference: groupId,
-    name,
-    parameterSource: da.plantStage === "OPERATIONAL" ? "PLANT_EXPERIENCE_CONSISTENT" : "GENERIC",
-    componentBoundaryConsistencyBasis: "",
-    implementsSrs: [{ sr: "DA-D7", hlr: "D" }, { sr: "DA-D8", hlr: "D" }],
-  };
-  if (size !== undefined) estimate.groupSize = size;
-  if (memberParameterId !== undefined) estimate.memberParameterId = memberParameterId;
-  return estimate;
-}
-
-function missingGroups(da: DataAnalysis): { id: string; name: string; size: number; estimateRef?: string; parameterId?: string }[] {
-  const needs = da.dataNeeds;
-  if (needs === undefined) return [];
-  const estimates = da.ccfParameterEstimations ?? [];
-  const byGroup = new Set(estimates.map((estimate) => estimate.ccfGroupReference));
-  const byId = new Set(estimates.map((estimate) => estimate.uuid));
-  return needs.ccfGroups.filter((need) => need.included && !byGroup.has(need.id) && (need.estimateRef === undefined || !byId.has(need.estimateRef))).map((need) => {
-    const parameterIds = memberParameterIds(needs, need.memberIds);
-    return { id: need.id, name: need.name, size: need.memberIds.length, estimateRef: need.estimateRef, parameterId: parameterIds.length === 1 ? parameterIds[0] : undefined };
-  });
-}
-
 function CcfScreen({ openDrawer }: { openDrawer: (ctx: DaDrawerContext) => void }): JSX.Element {
   const { da, editable, mutateDa } = useDaWorkbook();
   useUncertaintyVersion();
@@ -367,7 +342,6 @@ function CcfScreen({ openDrawer }: { openDrawer: (ctx: DaDrawerContext) => void 
   const tabId = useId();
   const estimates = da.ccfParameterEstimations ?? [];
   const findings = ccfFindings(da);
-  const missing = missingGroups(da);
   const computed = estimates.filter((estimate) => { const result = ccfResult(da, estimate); return result.problem === undefined && !result.pending; }).length;
   const events = estimates.reduce((total, estimate) => total + ccfEventCount(estimate), 0);
   const tabs: { id: CcfTab; label: string }[] = [
@@ -384,18 +358,6 @@ function CcfScreen({ openDrawer }: { openDrawer: (ctx: DaDrawerContext) => void 
     mutateDa((draft) => ({ ...draft, ccfParameterEstimations: [...(draft.ccfParameterEstimations ?? []), newEstimate(draft, id, "", "", undefined, undefined)] }));
     openDrawer({ kind: "daCcfGroup", id });
   }
-  function addImported(): void {
-    if (!editable || missing.length === 0) return;
-    mutateDa((draft) => {
-      const taken = (draft.ccfParameterEstimations ?? []).map((estimate) => estimate.uuid);
-      const added = missing.map((group) => {
-        const id = group.estimateRef !== undefined && !taken.includes(group.estimateRef) ? group.estimateRef : nextCode("DA-CCF", taken);
-        taken.push(id);
-        return newEstimate(draft, id, group.id, group.name, group.size, group.parameterId);
-      });
-      return { ...draft, ccfParameterEstimations: [...(draft.ccfParameterEstimations ?? []), ...added] };
-    });
-  }
   return (
     <div className="da-step">
       <DaTabs label="Common cause sections" tabs={tabs} active={tab} onChange={setTab} idBase={tabId} className="da-step__tabs" />
@@ -405,7 +367,6 @@ function CcfScreen({ openDrawer }: { openDrawer: (ctx: DaDrawerContext) => void 
             <WorkbookSectionHeading title={head.title} level={3} />
             <div className="da-card-actions">
               <DaProvenanceChip>{head.sr}</DaProvenanceChip>
-              {editable && tab === "groups" && missing.length > 0 && <button type="button" className="posnav__btn posnav__btn--sm" onClick={addImported}>Add {missing.length} imported {missing.length === 1 ? "group" : "groups"}</button>}
               {editable && tab === "groups" && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addEstimate}>Add estimate</button>}
             </div>
           </div>

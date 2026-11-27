@@ -72,7 +72,7 @@ function applySensitivityCase(source: EventSequenceQuantification, entry: EsqSen
   const esq: EventSequenceQuantification = structuredClone(source);
   const applied: EsqAppliedCase = { esq, logic: { ...(entry.logic ?? {}) }, overrides: { events: [], ccfGroups: [] }, failedEvents: [], kept: [] };
   const model = esq.model;
-  if (model === undefined) return { ...applied, problem: "Import the model in Step 02 first." };
+  if (model === undefined) return { ...applied, problem: "Link the ES and SY workbooks in Step 01 first." };
   const fail = (problem: string): EsqAppliedCase => ({ ...applied, problem });
   switch (entry.kind) {
     case "PARAMETER": {

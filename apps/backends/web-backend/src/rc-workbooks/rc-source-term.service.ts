@@ -5,7 +5,8 @@ import { createHash } from "crypto";
 import { z } from "zod";
 import type { ReleaseCategoryInputs, RadiologicalConsequenceAnalysis } from "interfaces-mef-types/rc/radiological-consequence-analysis";
 import type { RcSourceTerm, RcSourceTermValues } from "interfaces-mef-types/rc/source-term";
-import { RcSourceTermMsLinkSchema, RcSourceTermValuesSchema } from "interfaces-mef-types/zod/rc/source-term";
+import { RcSourceTermValuesSchema } from "interfaces-mef-types/zod/rc/source-term";
+import { rcSourceWithoutLink } from "interfaces-shared-types/rc-workbooks/linked-data";
 import { decodeRcText, parseRcSource } from "interfaces-shared-types/rc-workbooks/source-term-parser";
 import { withSourceTermSummary } from "interfaces-shared-types/rc-workbooks/source-term-summary";
 import { ProjectsService } from "../projects/projects.service";
@@ -37,8 +38,10 @@ export class RcSourceTermService {
     const mef = doc.mef as RadiologicalConsequenceAnalysis;
     if (!["DRAFT", "REVISION_REQUIRED"].includes(mef.workflowState ?? "DRAFT"))
       throw new ForbiddenException("Source terms are locked during review and approval");
-    const category = mef.releaseCategoryToConsequence.releaseCategoryInputs.find((c) => c.releaseCategory === categoryId);
-    if (!category) throw new NotFoundException("Save the release category before importing its source term");
+    const saved = mef.releaseCategoryToConsequence.releaseCategoryInputs.find((c) => c.releaseCategory === categoryId);
+    const listedByLink = (mef.linkedWorkbooks?.ES ?? "").length > 0 && categoryId.trim().length > 0;
+    if (!saved && !listedByLink) throw new NotFoundException("Save the release category before importing its source term");
+    const category: ReleaseCategoryInputs = saved ?? { releaseCategory: categoryId, releaseCharacteristics: {} };
     if ((category.sourceTerm?.revision ?? 0) !== baseRevision)
       throw new ConflictException("This source term changed. Reload the workbook before saving");
     return { doc, mef, category };
@@ -47,9 +50,12 @@ export class RcSourceTermService {
   private async persist(loaded: Awaited<ReturnType<RcSourceTermService["load"]>>, sourceTerm: RcSourceTerm): Promise<ReleaseCategoryInputs> {
     const { doc, mef, category } = loaded;
     const next = withSourceTermSummary({ ...category, sourceTerm });
+    const categories = mef.releaseCategoryToConsequence.releaseCategoryInputs;
     const nextMef = { ...mef, releaseCategoryToConsequence: { ...mef.releaseCategoryToConsequence,
       releaseCategoryAndSourceTermReviewed: false,
-      releaseCategoryInputs: mef.releaseCategoryToConsequence.releaseCategoryInputs.map((c) => c.releaseCategory === category.releaseCategory ? next : c),
+      releaseCategoryInputs: categories.some((c) => c.releaseCategory === category.releaseCategory)
+        ? categories.map((c) => c.releaseCategory === category.releaseCategory ? next : c)
+        : [...categories, next],
     } };
     // Mixed Mongo fields otherwise turn undefined optional quantities into null.
     const saved = await this.workbooks.updateOne({ _id: doc._id, __v: doc.__v }, {
@@ -88,12 +94,10 @@ export class RcSourceTermService {
   }
 
   async save(workbookId: string, categoryId: string, body: unknown, actor: Actor): Promise<ReleaseCategoryInputs> {
-    const parsed = z.object({ baseRevision: revisionSchema, values: RcSourceTermValuesSchema, msSource: RcSourceTermMsLinkSchema.optional() }).strict().safeParse(body);
+    const parsed = z.object({ baseRevision: revisionSchema, values: RcSourceTermValuesSchema }).strict().safeParse(body);
     if (!parsed.success) throw new BadRequestException(parsed.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; "));
     const loaded = await this.load(workbookId, categoryId, parsed.data.baseRevision, actor);
-    const revision = loaded.doc.__v + 1;
-    return this.persist(loaded, parsed.data.msSource
-      ? { revision, values: parsed.data.values, msSource: parsed.data.msSource }
-      : { ...loaded.category.sourceTerm, revision, values: parsed.data.values });
+    const held = loaded.category.sourceTerm;
+    return this.persist(loaded, { ...(held === undefined ? {} : rcSourceWithoutLink(held)), revision: loaded.doc.__v + 1, values: parsed.data.values });
   }
 }

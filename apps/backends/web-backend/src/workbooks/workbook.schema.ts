@@ -1,6 +1,7 @@
 import { Prop, Schema, SchemaFactory } from "@nestjs/mongoose";
 import { HydratedDocument } from "mongoose";
 import type { WorkbookStatus } from "interfaces-shared-types";
+import type { WorkbookSignedAgainst } from "interfaces-shared-types/workbooks";
 
 export type WorkbookDocument = HydratedDocument<Workbook> & { createdAt: Date; updatedAt: Date };
 
@@ -29,6 +30,9 @@ export class Workbook {
 
   @Prop({ type: String, required: true })
   ownerFullName!: string;
+
+  @Prop({ type: Object, default: null })
+  signedAgainst?: WorkbookSignedAgainst | null;
 }
 
 export const WorkbookSchema = SchemaFactory.createForClass(Workbook);

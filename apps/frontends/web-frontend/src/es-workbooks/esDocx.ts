@@ -10,6 +10,7 @@ import {
   WidthType,
   BorderStyle,
 } from "docx";
+import type { WorkbookLinkedRevision } from "interfaces-shared-types/workbooks";
 import { type EventSequenceAnalysis } from "interfaces-mef-types/es/event-sequence-analysis";
 import { ES_LBE_CLASSES } from "./esViewData";
 import { lbeView } from "./esSelectors";
@@ -193,8 +194,18 @@ function buildChildren(a: EventSequenceAnalysis, final: boolean): (Paragraph | T
   return out;
 }
 
-async function generateEsReport(es: EventSequenceAnalysis, final: boolean): Promise<void> {
-  const doc = new Document({ sections: [{ children: buildChildren(es, final) }] });
+function linkedSection(linked: readonly WorkbookLinkedRevision[]): (Paragraph | Table)[] {
+  if (linked.length === 0) return [];
+  const stamp = new Date().toLocaleString();
+  return [
+    heading("Linked workbooks", HeadingLevel.HEADING_1),
+    new Paragraph({ children: [new TextRun("This draft uses these linked workbooks as they stood when it was made.")], spacing: { after: 120 } }),
+    dataTable(["Element", "Workbook", "Revision"], linked.map((entry) => [entry.code, entry.name, entry.revision === undefined ? `Read ${stamp}` : String(entry.revision)])),
+  ];
+}
+
+async function generateEsReport(es: EventSequenceAnalysis, final: boolean, linked: readonly WorkbookLinkedRevision[] = []): Promise<void> {
+  const doc = new Document({ sections: [{ children: [...buildChildren(es, final), ...linkedSection(linked)] }] });
   const blob = await Packer.toBlob(doc);
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");

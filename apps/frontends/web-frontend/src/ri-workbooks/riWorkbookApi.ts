@@ -7,6 +7,7 @@ import { type EventSequenceQuantification } from "interfaces-mef-types/esq/event
 import { type RadiologicalConsequenceAnalysis } from "interfaces-mef-types/rc/radiological-consequence-analysis";
 import { type MechanisticSourceTermAnalysis } from "interfaces-mef-types/ms/mechanistic-source-term-analysis";
 import { type Workbook } from "interfaces-shared-types";
+import { rcWithLinkedData } from "interfaces-shared-types/rc-workbooks/linked-data";
 import { listWorkbooks } from "../workbooks/workbookApi";
 import { getPosWorkbook } from "../pos-workbooks/posWorkbookApi";
 import { getEsWorkbook } from "../es-workbooks/esWorkbookApi";
@@ -95,10 +96,32 @@ async function loadLinkedMs(id: string): Promise<MechanisticSourceTermAnalysis> 
   return (await getMsWorkbook(id)).mef;
 }
 
+async function loadLinkedRi(id: string): Promise<RiskIntegration> {
+  const variant = exampleLinkVariant(id);
+  if (variant !== undefined) return (await fetchJson<{ ri: { mef: RiskIntegration } }>(`/api/example-workbooks/ri-bundle?example=${variant}`)).ri.mef;
+  return (await getRiWorkbook(id)).mef;
+}
+
+async function loadLinkedPart<T>(id: string | undefined, load: (id: string) => Promise<T>): Promise<{ workbookId: string; analysis: T } | undefined> {
+  if (id === undefined || id.length === 0) return undefined;
+  try {
+    return { workbookId: id, analysis: await load(id) };
+  } catch {
+    return undefined;
+  }
+}
+
 async function loadLinkedRc(id: string): Promise<RadiologicalConsequenceAnalysis> {
   const variant = exampleLinkVariant(id);
-  if (variant !== undefined) return (await fetchJson<{ rc: { mef: RadiologicalConsequenceAnalysis } }>(`/api/example-workbooks/rc-bundle?example=${variant}`)).rc.mef;
-  return (await getRcWorkbook(id)).mef;
+  const saved = variant !== undefined
+    ? (await fetchJson<{ rc: { mef: RadiologicalConsequenceAnalysis } }>(`/api/example-workbooks/rc-bundle?example=${variant}`)).rc.mef
+    : (await getRcWorkbook(id)).mef;
+  const [es, ms, ri] = await Promise.all([
+    loadLinkedPart(saved.linkedWorkbooks?.ES, loadLinkedEs),
+    loadLinkedPart(saved.linkedWorkbooks?.MS, loadLinkedMs),
+    loadLinkedPart(saved.linkedWorkbooks?.RI, loadLinkedRi),
+  ]);
+  return rcWithLinkedData(saved, { ...(es === undefined ? {} : { es }), ...(ms === undefined ? {} : { ms }), ...(ri === undefined ? {} : { ri }) });
 }
 
 interface RiDocumentEntry {

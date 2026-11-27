@@ -47,18 +47,36 @@ describe("RC Step 01 source-term HTTP and storage", () => {
     expect([...testApp.storage.values()][0]).toEqual(sourceFixture);
   });
 
-  it("records the MS source term it came from and drops the earlier file link", async () => {
+  it("saves only typed source values and never a copy of an MS source term", async () => {
     const category = await importSource();
     const msSource = { workbookId: "ms-1", sourceTermId: "ST-3", inventoryIds: ["SRC-H1", "SRC-H2"] };
-    const saved = (await request(http()).patch(sourceUrl).send({ baseRevision: 1, values: category.sourceTerm!.values, msSource }).expect(200)).body;
-    expect(saved.sourceTerm.msSource).toEqual(msSource);
-    expect(saved.sourceTerm.originalFile).toBeUndefined();
-    const edited = structuredClone(saved.sourceTerm.values);
+    await request(http()).patch(sourceUrl).send({ baseRevision: 1, values: category.sourceTerm!.values, msSource }).expect(400);
+    await testApp.workbooks.updateOne({ workbookId: "rc-test" }, { $set: { "mef.releaseCategoryToConsequence.releaseCategoryInputs.0.sourceTerm.msSource": msSource } }).exec();
+    const edited = structuredClone(category.sourceTerm!.values);
     edited.inventory[0].activityBq = 2e16;
-    const kept = (await request(http()).patch(sourceUrl).send({ baseRevision: 2, values: edited }).expect(200)).body;
-    expect(kept.sourceTerm.msSource).toEqual(msSource);
-    await request(http()).patch(sourceUrl).send({ baseRevision: 3, values: edited, msSource: { ...msSource, inventoryIds: [] } }).expect(400);
-    expect((await importSource(sourceUrl, 3)).sourceTerm!.msSource).toBeUndefined();
+    const typed = (await request(http()).patch(sourceUrl).send({ baseRevision: 1, values: edited }).expect(200)).body;
+    expect(typed.sourceTerm.msSource).toBeUndefined();
+    expect(typed.sourceTerm.values.inventory[0].activityBq).toBe(2e16);
+    expect((await mef()).releaseCategoryToConsequence.releaseCategoryInputs[0].sourceTerm!.msSource).toBeUndefined();
+  });
+
+  it("lets the general save drop a source term but not change one", async () => {
+    await importSource();
+    await request(http()).patch(url).send({ operations: [{ op: "remove", path: ["releaseCategoryToConsequence", "releaseCategoryInputs", 0, "sourceTerm"] }] }).expect(200);
+    expect((await mef()).releaseCategoryToConsequence.releaseCategoryInputs[0].sourceTerm).toBeUndefined();
+    await importSource(`${url}/source-terms/RC-2`, 0);
+    await request(http()).patch(url).send({ operations: [{ op: "replace", path: ["releaseCategoryToConsequence", "releaseCategoryInputs", 1, "sourceTerm", "revision"], value: 99 }] }).expect(409);
+  });
+
+  it("records a typed source for a category that only the linked ES workbook lists", async () => {
+    const values = { groups: [{ id: 1, name: "Cs" }], inventory: [{ name: "Cs-137", activityBq: 1e12, group: 1 }],
+      releases: [{ id: 1, startSeconds: 60, durationSeconds: 3600, heightMetres: 10, fractions: [0.01] }] };
+    await request(http()).patch(`${url}/source-terms/RC-9`).send({ baseRevision: 0, values }).expect(404);
+    await testApp.workbooks.updateOne({ workbookId: "rc-test" }, { $set: { "mef.linkedWorkbooks": { ES: "es-1" } } }).exec();
+    const saved = (await request(http()).patch(`${url}/source-terms/RC-9`).send({ baseRevision: 0, values }).expect(200)).body;
+    expect(saved.releaseCategory).toBe("RC-9");
+    expect(saved.sourceTerm.values).toEqual(values);
+    expect((await mef()).releaseCategoryToConsequence.releaseCategoryInputs.map((entry) => entry.releaseCategory)).toEqual(["RC-1", "RC-2", "RC-9"]);
   });
 
   it("saves manually entered source data without requiring a file", async () => {

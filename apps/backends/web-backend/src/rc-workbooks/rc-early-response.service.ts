@@ -14,13 +14,15 @@ import { ProjectsService } from "../projects/projects.service";
 import { WorkbookRolesService } from "../workbooks/workbook-roles.service";
 import { RcWorkbook, type RcWorkbookDocument } from "./rc-workbook.schema";
 import { RcDocumentsService } from "./rc-documents.service";
+import { RcLinkedSourcesService } from "./rc-linked-sources.service";
 
 interface Actor { username: string }
 @Injectable()
 export class RcEarlyResponseService {
   private readonly logger = new Logger(RcEarlyResponseService.name);
   constructor(@InjectModel(RcWorkbook.name) private readonly workbooks: Model<RcWorkbookDocument>,
-    private readonly projects: ProjectsService, private readonly roles: WorkbookRolesService, private readonly documents: RcDocumentsService) {}
+    private readonly projects: ProjectsService, private readonly roles: WorkbookRolesService, private readonly documents: RcDocumentsService,
+    private readonly linkedSources: RcLinkedSourcesService) {}
 
   private async load(id: string, baseRevision: unknown, actor: Actor) {
     const doc = await this.workbooks.findOne({ workbookId: id }).exec();
@@ -110,7 +112,8 @@ export class RcEarlyResponseService {
     const mef = doc.mef as RadiologicalConsequenceAnalysis, model = mef.protectiveActionParameters.earlyResponseModel;
     const site = mef.protectiveActionParameters.siteAndReceptors;
     if (!model || !site) throw new BadRequestException("Save Step 02 site and response inputs before calculating response");
-    const source = mef.releaseCategoryToConsequence.releaseCategoryInputs.find(category => category.releaseCategory === categoryId)?.sourceTerm;
+    const view = await this.linkedSources.viewFor(mef, doc.projectId, categoryId);
+    const source = view.releaseCategoryToConsequence.releaseCategoryInputs.find(category => category.releaseCategory === categoryId)?.sourceTerm;
     const dose = mef.dosimetry.doseInputs?.categories.find(category => category.categoryId === categoryId);
     if (!source || dose?.savedForSourceRevision !== source.revision)
       throw new BadRequestException("Confirm current Step 01 and Step 05 inputs for this release category first");

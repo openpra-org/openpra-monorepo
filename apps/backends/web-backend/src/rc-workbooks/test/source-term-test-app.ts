@@ -1,4 +1,5 @@
 import { RcPublishedExampleService } from "../rc-published-example.service";
+import { RcLinkedSourcesService } from "../rc-linked-sources.service";
 import { RcCaseRecordsService } from "../rc-case-records.service";
 import { RcCaseRecordsController } from "../rc-case-records.controller";
 import { readFileSync } from "fs";
@@ -51,8 +52,12 @@ export async function createSourceTermTestApp(extra: { features?: ModelDefinitio
       ...(extra.features ?? []),
     ])],
     controllers: [RcCaseRecordsController, RcSourceTermController, RcWorkbooksController, RcDocumentsController, RcSiteReceptorsController, RcEarlyResponseController, RcWeatherController, RcTransportController, RcDoseInputsController, ...(extra.controllers ?? [])],
-    providers: [...(extra.providers ?? []), RcPublishedExampleService, RcCaseRecordsService, RcSourceTermService, RcDocumentsService, RcWorkbooksService, RcMefAdapter, WorkbookElementRegistry, RcSiteReceptorsService, RcEarlyResponseService, RcWeatherService, RcTransportService, RcDoseInputsService,
-      { provide: ExampleWorkbooksService, useValue: { getRcBundle: async () => ({ rc: { mef: createBlankRc("Example", "preparer") } }) } },
+    providers: [...(extra.providers ?? []), RcLinkedSourcesService, RcPublishedExampleService, RcCaseRecordsService, RcSourceTermService, RcDocumentsService, RcWorkbooksService, RcMefAdapter, WorkbookElementRegistry, RcSiteReceptorsService, RcEarlyResponseService, RcWeatherService, RcTransportService, RcDoseInputsService,
+      { provide: ExampleWorkbooksService, useValue: {
+        getRcBundle: async () => ({ rc: { mef: createBlankRc("Example", "preparer") } }),
+        getMsExamples: (): { id: string; label: string }[] => [],
+        getMsBundle: async (): Promise<{ ms: { mef: unknown } }> => { throw new Error("No MS example in this test"); },
+      } },
       { provide: ProjectsService, useValue: { resolveAccess: async (_id: string, actor: { username: string }) => {
         if (actor.username === "outsider") throw new ForbiddenException();
         return { role: actor.username === "viewer" ? "viewer" : "editor" };

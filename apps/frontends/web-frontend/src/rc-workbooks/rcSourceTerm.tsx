@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type JSX } from "react";
 import type { ReleaseCategoryInputs } from "interfaces-mef-types/rc/radiological-consequence-analysis";
 import type { RcSourceTermValues } from "interfaces-mef-types/rc/source-term";
 import { RcSourceTermValuesSchema } from "interfaces-mef-types/zod/rc/source-term";
+import { rcSourceIsLinked } from "interfaces-shared-types/rc-workbooks/linked-data";
 import { WorkbookInput } from "../workbooks/commitOnDeactivateFields";
 import { useRcWorkbook } from "./rcWorkbookContext";
 import { RCIcon } from "./rcIcons";
@@ -14,7 +15,7 @@ export function RcSourceTermImport({ category, onImported, disabled = false, com
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const input = useRef<HTMLInputElement>(null);
-  if (!editable || !sourceTerms) return null;
+  if (!editable || !sourceTerms || rcSourceIsLinked(category)) return null;
   return <div>
     <button type="button" className="posnav__btn posnav__btn--sm" disabled={disabled || busy} onClick={() => input.current?.click()}>
       {category.sourceTerm?.originalFile ? <RCIcon.Refresh /> : <RCIcon.Plus />} {busy ? "Importing…" : compact ? category.sourceTerm?.originalFile ? "Replace file" : "Import file" : "Import source-term file"}
@@ -34,7 +35,8 @@ export function RcSourceTermImport({ category, onImported, disabled = false, com
 
 /** Shared source fields; the MS interface opts into the inline layout. */
 export function RcSourceTermEditor({ category, inline = false }: { category: ReleaseCategoryInputs; inline?: boolean }): JSX.Element {
-  const { editable, sourceTerms, sourceTermDrafts, setSourceTermDraft } = useRcWorkbook();
+  const { editable: workbookEditable, sourceTerms, sourceTermDrafts, setSourceTermDraft } = useRcWorkbook();
+  const editable = workbookEditable && !rcSourceIsLinked(category);
   const source = category.sourceTerm;
   const draft = Object.prototype.hasOwnProperty.call(sourceTermDrafts, category.releaseCategory) ? sourceTermDrafts[category.releaseCategory] : undefined;
   const [values, setValues] = useState<RcSourceTermValues>(() => draft?.values ?? source?.values ?? { groups: [], inventory: [], releases: [] });

@@ -15,8 +15,10 @@ import {
 import { TechnicalElementTypes } from "interfaces-mef-types/technical-element";
 import { rcMsBoundingMember, rcSourceTermFromMs } from "interfaces-shared-types/rc-workbooks/ms-source-term";
 import { withSourceTermSummary } from "interfaces-shared-types/rc-workbooks/source-term-summary";
+import { rcSavedForm, rcSourceFingerprint, type RcLinkedData } from "interfaces-shared-types/rc-workbooks/linked-data";
 import { MS_ANALYSIS } from "./ms-seed";
 import { ES_ANALYSIS } from "./es-seed";
+import { RI_ANALYSIS } from "./ri-seed";
 import { withExampleCaseRecords } from "./rc-example-results";
 import { DistributionType } from "interfaces-mef-types/core/events";
 import { type SRReference, type SRConformance, type SRStatus } from "interfaces-mef-types/core/pra-common";
@@ -86,6 +88,7 @@ const conformanceMatrix: SRConformance[] = Object.keys(RC_SR_CATALOG).flatMap((c
 });
 
 const MS_INVENTORY_IDS = ["SRC-1", "SRC-2"];
+const RC_LINKS_SFR = { ES: "example-es-sfr", MS: "example-ms-sfr", RI: "example-ri-sfr" };
 
 function msCategory(releaseCategory: string, sourceTermDefinitionRef: string, releaseCharacteristics: ReleaseCharacteristics): ReleaseCategoryInputs {
   const definition = MS_ANALYSIS.sourceTermDefinitions.find((entry) => entry.uuid === sourceTermDefinitionRef)!;
@@ -94,10 +97,10 @@ function msCategory(releaseCategory: string, sourceTermDefinitionRef: string, re
   return withSourceTermSummary({
     releaseCategory,
     sourceTermDefinitionRef,
-    sourceTerm: { revision: 1, values: converted.values, msSource: { workbookId: "example-ms-sfr", sourceTermId: sourceTermDefinitionRef, inventoryIds: MS_INVENTORY_IDS } },
+    sourceTerm: { revision: rcSourceFingerprint(converted.values), values: converted.values, msSource: { workbookId: RC_LINKS_SFR.MS, sourceTermId: sourceTermDefinitionRef, inventoryIds: MS_INVENTORY_IDS } },
     eventSequenceFamilyReferences: ES_ANALYSIS.eventSequenceFamilies
       .filter((family) => family.releaseCategoryIds?.includes(releaseCategory) === true)
-      .map((family) => ({ referenceType: "EVENT_SEQUENCE_FAMILY" as const, workbookId: "example-es-sfr", entityId: family.uuid })),
+      .map((family) => ({ referenceType: "EVENT_SEQUENCE_FAMILY" as const, workbookId: RC_LINKS_SFR.ES, entityId: family.uuid })),
     boundingMember: rcMsBoundingMember(MS_ANALYSIS, releaseCategory),
     releaseCharacteristics,
   });
@@ -807,6 +810,7 @@ const BASE_ANALYSIS: RadiologicalConsequenceAnalysis = {
   workflowHistory: [{ state: "DRAFT", enteredAt: CREATED, actor: "praman" }],
   capabilityCategory: "CC-II",
   plantStage: "PRE_OPERATIONAL",
+  linkedWorkbooks: RC_LINKS_SFR,
   metadata: {
     versionInfo: { version: "1", lastUpdated: NOW, schemaVersion: "0.0.1" },
     analysisDate: NOW,
@@ -972,4 +976,10 @@ const BASE_ANALYSIS: RadiologicalConsequenceAnalysis = {
   newlyDevelopedMethodIds: ["NM-091", "NM-094", "NM-097"],
 };
 
-export const RC_ANALYSIS: RadiologicalConsequenceAnalysis = withExampleCaseRecords(BASE_ANALYSIS, ES_ANALYSIS, "Generic SFR", NOW);
+export const RC_LINKED_SFR: RcLinkedData = {
+  es: { workbookId: RC_LINKS_SFR.ES, analysis: ES_ANALYSIS },
+  ms: { workbookId: RC_LINKS_SFR.MS, analysis: MS_ANALYSIS },
+  ri: { workbookId: RC_LINKS_SFR.RI, analysis: RI_ANALYSIS },
+};
+
+export const RC_ANALYSIS: RadiologicalConsequenceAnalysis = rcSavedForm(withExampleCaseRecords(BASE_ANALYSIS, ES_ANALYSIS, "Generic SFR", NOW), RC_LINKED_SFR);

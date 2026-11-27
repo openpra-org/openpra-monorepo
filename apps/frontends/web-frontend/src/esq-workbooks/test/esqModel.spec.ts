@@ -38,7 +38,6 @@ import { PUMP_ESTIMATE, daParameter, dependencyNetwork, fanMission, linkedEsq, l
 
 jest.mock("../../newly-developed-methods/shared/uncertaintyApi", () => ({ evaluateUncertainty: jest.fn() }));
 
-const NOW = "2026-10-05T12:00:00.000Z";
 
 beforeEach(() => {
   jest.mocked(evaluateUncertainty).mockImplementation(praxisUncertainty);
@@ -54,11 +53,11 @@ function hours(value: number): UncertainExpression {
 }
 
 function storedImport(esq: EventSequenceQuantification = linkedEsq()): EventSequenceQuantification {
-  return withModelImported(esq, modelUpstream(), NOW);
+  return withModelImported(esq, modelUpstream());
 }
 
 function imported(esq: EventSequenceQuantification = linkedEsq()): EventSequenceQuantification {
-  return liveImport(esq, modelUpstream(), NOW);
+  return liveImport(esq, modelUpstream());
 }
 
 function checks(esq: EventSequenceQuantification): string[] {
@@ -74,7 +73,7 @@ function withDivision(expression: UncertainExpression): EventSequenceQuantificat
   const sy = upstream.sy;
   if (sy === undefined) throw new Error("SY fixture missing");
   sy.systemBasicEvents = sy.systemBasicEvents.map((event) => (event.uuid === "E-4" ? { ...event, expression } : event));
-  return linkCooling(liveImport(linkedEsq(), upstream, NOW));
+  return linkCooling(liveImport(linkedEsq(), upstream));
 }
 
 function resolvedEsq(): EventSequenceQuantification {
@@ -96,7 +95,7 @@ describe("ESQ Step 02 common cause checks", () => {
     da.ccfVectors = [{ id: vectorReference.entityId, sourceId: "SRC-06", kind: "ALPHA_DIRICHLET", template: "CCF-DEM", groupSize: 3, rowIds: [], vector: { family: "DIRICHLET", concentrations: [3, 2, 1] } }];
     da.ccfFactors = [{ id: "ccff/SRC-21/EB-T7-36-BETAN-N2", sourceId: "SRC-21", rowId: "EB-T7-36-BETAN-N2", expression: { node: "VALUE", value: { unit: "FACTOR", law: { family: "POINT", value: 0.1 } } } }];
     sy.commonCauseFailureGroups = [{ uuid: "CCF-1", name: "Pump and division", description: "", scope: "INTERSYSTEM", affectedComponents: [], affectedSystems: ["SYS-COOL", "SYS-RPS"], factors, members: { basicEvents: [{ id: "E-1" }, { id: "E-4" }] }, implementsSrs: [] }];
-    let esq = linkCooling(liveImport(linkedEsq(), upstream, NOW));
+    let esq = linkCooling(liveImport(linkedEsq(), upstream));
     esq = withFunctionLink(esq, "COOL", { functionId: "COOL", rules: [{ id: "R-1", groupIds: ["IEG-01"], stateIds: ["POS-02"], target: { kind: "FAULT_TREE", top: { workbookId: "sy-1", modelId: "M-COOL", gateId: "G-COOL" } }, reason: "Shutdown uses the same cooling train." }] });
     return esq;
   }
@@ -188,7 +187,7 @@ describe("ESQ Step 02 model import", () => {
 
   it("gives a tree drawn in a new project its typed frequency when no operating state exists", () => {
     const typed: UncertainExpression = { node: "VALUE", value: { unit: "PER_YEAR", law: { family: "POINT", value: 0.5 } } };
-    let esq = withTypedTrees(linkedEsq(), [{ ...createEmptyEventTree("IE-1"), label: "ET-ESQ-01" }], EMPTY_UPSTREAM, NOW);
+    let esq = withTypedTrees(linkedEsq(), [{ ...createEmptyEventTree("IE-1"), label: "ET-ESQ-01" }], EMPTY_UPSTREAM);
     esq = withInitiatorChoice(esq, "IE-1", { groupId: "IE-1", source: "TYPED", expression: typed, unit: FrequencyUnit.PER_REACTOR_YEAR, basis: "Fleet data." });
     const model = esq.model;
     const tree = model?.trees.find((candidate) => candidate.code === "ET-ESQ-01");
@@ -259,7 +258,7 @@ describe("ESQ Step 02 model import", () => {
     const sy = upstream.sy;
     if (sy === undefined) throw new Error("SY fixture missing");
     sy.systemBasicEvents = sy.systemBasicEvents.map((event) => (event.uuid === "E-3" ? { ...event, expression: fanMission(daParameter("P-OLD")) } : event));
-    let esq = withValueBinding(linkCooling(liveImport(linkedEsq(), upstream, NOW)), "E-3", { eventId: "E-3", heldBy: "DA", holderId: "P-FR", reason: "Fleet data for the fan." });
+    let esq = withValueBinding(linkCooling(liveImport(linkedEsq(), upstream)), "E-3", { eventId: "E-3", heldBy: "DA", holderId: "P-FR", reason: "Fleet data for the fan." });
     const fan = modelViewOf(esq)?.values.find((value) => value.code === "SUP-FAN-FR");
     expect(fan?.expression).toEqual(fanMission(daParameter("P-FR")));
     expect(fan?.missionTime).toEqual(hours(24));
@@ -297,7 +296,7 @@ describe("ESQ Step 02 model import", () => {
     const es = untimedUpstream.es;
     if (es === undefined) throw new Error("ES fixture missing");
     untimedUpstream.es = { ...es, eventTrees: (es.eventTrees ?? []).map(({ missionTime: _hours, ...tree }) => tree) };
-    expect(await missionChecks(liveImport(linkedEsq(), untimedUpstream, NOW), new Map())).toEqual(["note:No tree mission time:ET-A, ET-B and ET-T"]);
+    expect(await missionChecks(liveImport(linkedEsq(), untimedUpstream), new Map())).toEqual(["note:No tree mission time:ET-A, ET-B and ET-T"]);
     const base = imported();
     expect(base.model?.trees.map((tree) => tree.esMissionTime)).toEqual([hours(72), hours(72), hours(72)]);
     expect(await missionChecks(base, new Map())).toEqual(["warning:Mission time:COOL"]);
@@ -314,14 +313,13 @@ describe("ESQ Step 02 model import", () => {
     expect((await missionChecks(linked, new Map())).map((entry) => entry.split(":").slice(0, 2).join(":"))).toEqual(["warning:Mission time not checked"]);
   });
 
-  it("keeps a tree mission time across a new import", () => {
+  it("keeps a tree mission time when the linked model is read again", () => {
     const first = withTreeMissionTime(storedImport(), "ET-A", hours(72));
-    const again = withModelImported(first, modelUpstream(), NOW);
+    const again = withModelImported(first, modelUpstream());
     expect(again.model?.trees.find((tree) => tree.id === "ET-A")?.missionTime).toEqual(hours(72));
-    expect(again.model?.changes).toEqual([]);
   });
 
-  it("records what changed on a new import and keeps the ESQ choices", () => {
+  it("shows the linked model as it is now and keeps the ESQ choices", () => {
     const first = withFamilyChoice(storedImport(), "F-REL", { familyId: "F-REL", groupingReason: "Kept." });
     const upstream = modelUpstream();
     const es = upstream.es;
@@ -332,20 +330,11 @@ describe("ESQ Step 02 model import", () => {
       eventTrees: (es.eventTrees ?? []).filter((tree) => tree.uuid !== "ET-B"),
       eventSequences: es.eventSequences.filter((sequence) => sequence.eventTreeId !== "ET-B"),
     };
-    const next = withModelImported(first, upstream, "2026-10-06T12:00:00.000Z");
-    const changes = (next.model?.changes ?? []).map((change) => `${change.table}:${change.id}:${change.change}`);
-    expect(changes).toEqual(expect.arrayContaining(["TREE:ET-B:REMOVED", "SEQUENCE:B-1:REMOVED", "FAMILY:F-OK:CHANGED"]));
+    const next = withModelImported(first, upstream);
+    expect(next.model?.trees.some((tree) => tree.id === "ET-B")).toBe(false);
+    expect(next.model?.sequences.some((sequence) => sequence.id === "B-1")).toBe(false);
+    expect(next.model?.families.find((family) => family.id === "F-OK")?.name).toBe("Safe and stable");
     expect(next.modelDecisions?.familyChoices?.[0]?.groupingReason).toBe("Kept.");
-    expect(withModelImported(next, upstream, "2026-10-07T12:00:00.000Z").model?.changes).toEqual([]);
-  });
-
-  it("reports no change when the stored rows differ from a new import only in key order", () => {
-    const first = storedImport();
-    const model = first.model;
-    if (model === undefined) throw new Error("Model missing");
-    const reordered = <T extends object>(row: T): T => Object.fromEntries(Object.entries(row).reverse()) as T;
-    const stored = { ...first, model: { ...model, trees: model.trees.map(reordered), sequences: model.sequences.map(reordered), events: model.events.map(reordered) } };
-    expect(withModelImported(stored, modelUpstream(), "2026-10-06T12:00:00.000Z").model?.changes).toEqual([]);
   });
 
   it("drops null fields that stored workbooks carry", () => {
@@ -354,7 +343,7 @@ describe("ESQ Step 02 model import", () => {
     const es = upstream.es;
     if (es === undefined) throw new Error("ES fixture missing");
     upstream.es = nulled({ ...es, eventSequences: es.eventSequences.map((sequence) => ({ ...sequence, releaseCategoryId: undefined, eventTreeId: sequence.eventTreeId })) });
-    const esq = withModelImported(linkedEsq(), upstream, NOW);
+    const esq = withModelImported(linkedEsq(), upstream);
     expect(JSON.stringify({ ...esq.model, parameters: [] })).not.toContain("null");
     expect(esq.model?.parameters.find((parameter) => parameter.id === "P-1")).toEqual({ id: "P-1", name: "Pump fails to start", parameterType: "PROBABILITY" });
     expect(esq.model?.sequences.find((sequence) => sequence.id === "A-2")?.releaseCategoryId).toBeUndefined();
@@ -461,11 +450,11 @@ describe("ESQ Step 02 initiating events typed in ESQ", () => {
   const frequency: UncertainFrequency = { expression: { node: "VALUE", value: { unit: "PER_YEAR", law: { family: "POINT", value: 0.02 } } }, basis: FrequencyUnit.PER_REACTOR_YEAR };
 
   function drawn(stateId?: string): EventSequenceQuantification {
-    return withTypedTrees(linkedEsq(), [{ ...createEmptyEventTree("IEG-ESQ-01", stateId), label: "ET-ESQ-01" }], EMPTY_UPSTREAM, NOW);
+    return withTypedTrees(linkedEsq(), [{ ...createEmptyEventTree("IEG-ESQ-01", stateId), label: "ET-ESQ-01" }], EMPTY_UPSTREAM);
   }
 
   function typedHere(stateIds: string[] = []): EventSequenceQuantification {
-    return withTypedInitiator(drawn(stateIds[0]), { id: "IEG-ESQ-01", name: "Loss of forced cooling", stateIds, frequency, heldBy: "TYPED" }, EMPTY_UPSTREAM, NOW);
+    return withTypedInitiator(drawn(stateIds[0]), { id: "IEG-ESQ-01", name: "Loss of forced cooling", stateIds, frequency, heldBy: "TYPED" }, EMPTY_UPSTREAM);
   }
 
   it("quantifies a drawn tree from the initiating event typed in its tree", () => {
@@ -484,10 +473,10 @@ describe("ESQ Step 02 initiating events typed in ESQ", () => {
     let esq = withInitiatorChoice(imported(), "IEG-01", { groupId: "IEG-01", source: "TYPED", expression: frequency.expression, unit: FrequencyUnit.PER_REACTOR_YEAR, basis: "Fleet data.", shares });
     const record = initiatorRecordOf(esq, "IEG-01");
     expect(record).toMatchObject({ id: "IEG-01", name: "Loss of cooling", heldBy: "TYPED", frequency });
-    esq = withTypedInitiator(esq, { ...record, name: "Loss of cooling in both loops" }, modelUpstream(), NOW);
+    esq = withTypedInitiator(esq, { ...record, name: "Loss of cooling in both loops" }, modelUpstream());
     expect(esq.modelDecisions?.initiatorChoices).toEqual([{ groupId: "IEG-01", source: "IE", shares }]);
     expect(esq.model?.initiators.filter((entry) => entry.id === "IEG-01")).toEqual([expect.objectContaining({ name: "Loss of cooling in both loops", typed: true, frequency })]);
-    expect(withModelImported(esq, modelUpstream(), NOW).model?.initiators.filter((entry) => entry.id === "IEG-01")).toEqual([expect.objectContaining({ name: "Loss of cooling in both loops", typed: true })]);
+    expect(withModelImported(esq, modelUpstream()).model?.initiators.filter((entry) => entry.id === "IEG-01")).toEqual([expect.objectContaining({ name: "Loss of cooling in both loops", typed: true })]);
   });
 
   it("picks the next ESQ code that no tree, coverage item or IE group uses", () => {
@@ -510,7 +499,7 @@ describe("ESQ Step 02 initiating events typed in ESQ", () => {
       logic: { flags: [{ id: "FL-1", name: "Long outage", state: true, groupIds: ["IEG-ESQ-01"], stateIds: [], basis: "" }] },
       modelDecisions: { ...esq.modelDecisions, typedInitiators: (esq.modelDecisions?.typedInitiators ?? []).map((entry) => ({ ...entry, synced: { workbookId: "ie-1", fingerprint: "pushed" } })) },
     };
-    const renamed = withInitiatorCode(esq, "IEG-ESQ-01", "IEG-LOFC", EMPTY_UPSTREAM, NOW);
+    const renamed = withInitiatorCode(esq, "IEG-ESQ-01", "IEG-LOFC", EMPTY_UPSTREAM);
     expect(renamed.modelDecisions?.typedTrees?.map((tree) => tree.initiatingEventId)).toEqual(["IEG-LOFC"]);
     expect(renamed.model?.trees.find((tree) => tree.code === "ET-ESQ-01")?.initiatorId).toBe("IEG-LOFC");
     expect(renamed.model?.initiators.map((record) => record.id)).toEqual(["IEG-LOFC"]);
@@ -521,8 +510,8 @@ describe("ESQ Step 02 initiating events typed in ESQ", () => {
   });
 
   it("moves a name that was only the code along with the code", () => {
-    const esq = withTypedTrees(linkedEsq(), [{ ...createEmptyEventTree("IE-1"), label: "ET-ESQ-01" }], EMPTY_UPSTREAM, NOW);
-    const renamed = withInitiatorCode(esq, "IE-1", "LOFC", EMPTY_UPSTREAM, NOW);
+    const esq = withTypedTrees(linkedEsq(), [{ ...createEmptyEventTree("IE-1"), label: "ET-ESQ-01" }], EMPTY_UPSTREAM);
+    const renamed = withInitiatorCode(esq, "IE-1", "LOFC", EMPTY_UPSTREAM);
     expect(renamed.modelDecisions?.typedInitiators).toEqual([expect.objectContaining({ id: "LOFC", name: "LOFC" })]);
     expect(renamed.model?.trees.find((tree) => tree.code === "ET-ESQ-01")?.initiatorId).toBe("LOFC");
   });
@@ -535,7 +524,7 @@ describe("ESQ Step 02 initiating events typed in ESQ", () => {
     const fromIe = imported();
     expect(initiatorCodeLock(fromIe, "IEG-01")).toBe("IE");
     expect(withTypedInitiatorRecord(fromIe, initiatorRecordOf(fromIe, "IEG-01")).modelDecisions?.typedInitiators?.[0]?.ieOwned).toBe(true);
-    expect(initiatorCodeLock(liveImport(linkedEsq(), { ...modelUpstream(), ie: undefined }, NOW), "IEG-01")).toBe("ES");
+    expect(initiatorCodeLock(liveImport(linkedEsq(), { ...modelUpstream(), ie: undefined }), "IEG-01")).toBe("ES");
   });
 
   it("lists the typed frequency as a value made in ESQ until the IE workbook holds it", () => {

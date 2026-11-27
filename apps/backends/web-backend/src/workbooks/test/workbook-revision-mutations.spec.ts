@@ -15,6 +15,11 @@ import {
   type WorkbookElementAdapter,
 } from "../workbook-element-registry";
 import { WorkbookWorkflowService } from "../workbook-workflow.service";
+import { WorkbookLinkedRevisionsService } from "../workbook-linked-revisions.service";
+
+function linkedRevisionsMock(): WorkbookLinkedRevisionsService {
+  return Object.assign(Object.create(WorkbookLinkedRevisionsService.prototype), { record: jest.fn().mockResolvedValue([]), clear: jest.fn().mockResolvedValue(undefined) });
+}
 
 interface MockContentDocument {
   workbookId: string;
@@ -223,6 +228,7 @@ describe("generic workbook mutation revision plumbing", () => {
         assignedUsernamesFor: jest.fn().mockResolvedValue(["reviewer"]),
       } as never,
       registry as never,
+      linkedRevisionsMock(),
     );
 
     await service.submitForReview(workbookId, { username: "analyst" });
@@ -273,6 +279,7 @@ describe("generic workbook mutation revision plumbing", () => {
         { resolveAccess: jest.fn().mockResolvedValue({ role: "member" }) } as never,
         roles as never,
         registry as never,
+        linkedRevisionsMock(),
       );
 
       if (role === "approver") {

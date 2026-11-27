@@ -84,9 +84,24 @@ export const RcBoundingMemberSchema = z.object({
   basis: z.string(),
 });
 
+export const RcLinkedSourceTermSchema = z.object({
+  sourceTermId: z.string(),
+  inventoryIds: z.array(z.string()),
+  revision: z.number().optional(),
+  fingerprint: z.number().optional(),
+});
+
+export const RcFamilyMapOverrideSchema = z.object({
+  familyId: z.string(),
+  releaseCategory: z.string().optional(),
+  reason: z.string().optional(),
+});
+
 export const ReleaseCategoryInputsSchema = z.object({
   releaseCategory: z.string(),
   sourceTerm: RcSourceTermSchema.optional(),
+  linkedSourceTerm: RcLinkedSourceTermSchema.optional(),
+  sourceTermOverrideReason: z.string().optional(),
   sourceTermDefinitionRef: z.string().optional(),
   eventSequenceFamilyReferences: z.array(EventSequenceFamilyWorkbookReferenceSchema).optional(),
   boundingMember: RcBoundingMemberSchema.optional(),
@@ -128,6 +143,7 @@ export const ReleaseCategoryToConsequenceAnalysisSchema = z.object({
     }),
   ]),
   releaseCategoryInputs: z.array(ReleaseCategoryInputsSchema),
+  familyMapOverrides: z.array(RcFamilyMapOverrideSchema).optional(),
   releaseCategoryAndSourceTermReviewed: z.boolean(),
   reviewBasis: z.string().optional(),
   implementsSrs: z.array(SRReferenceSchema),

@@ -79,9 +79,24 @@ export interface RcBoundingMember {
   basis: string;
 }
 
+export interface RcLinkedSourceTerm {
+  sourceTermId: string;
+  inventoryIds: string[];
+  revision?: number;
+  fingerprint?: number;
+}
+
+export interface RcFamilyMapOverride {
+  familyId: string;
+  releaseCategory?: ReleaseCategoryReference;
+  reason?: string;
+}
+
 export interface ReleaseCategoryInputs {
   releaseCategory: ReleaseCategoryReference;
   sourceTerm?: RcSourceTerm;
+  linkedSourceTerm?: RcLinkedSourceTerm;
+  sourceTermOverrideReason?: string;
   sourceTermDefinitionRef?: SourceTermDefinitionReference;
   eventSequenceFamilyReferences?: EventSequenceFamilyWorkbookReference[];
   boundingMember?: RcBoundingMember;
@@ -128,6 +143,7 @@ export interface ReleaseCategoryToConsequenceAnalysis {
         boundingSite: BoundingSite;
       };
   releaseCategoryInputs: ReleaseCategoryInputs[];
+  familyMapOverrides?: RcFamilyMapOverride[];
   releaseCategoryAndSourceTermReviewed: boolean;
   reviewBasis?: string;
   implementsSrs: SRReference[];

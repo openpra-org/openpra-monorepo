@@ -142,9 +142,9 @@ describe("ESQ examples Steps 02 to 10", () => {
     expect(registerEntryId("ESQ", "SOURCE", "Cavity-cooling duct blockage mode")).not.toBe(registerEntryId("ESQ", "SOURCE", "Graphite-oxidation phenomena model"));
   });
 
-  it.each(variants)("explains why each $name case cannot run before Step 02 imports the model", ({ esq }) => {
+  it.each(variants)("explains why each $name case cannot run before ES and SY are linked", ({ esq }) => {
     for (const entry of esq.sensitivityWork?.cases ?? []) {
-      expect(applySensitivityCase(esq, entry).problem).toBe("Import the model in Step 02 first.");
+      expect(applySensitivityCase(esq, entry).problem).toBe("Link the ES and SY workbooks in Step 01 first.");
     }
   });
 });

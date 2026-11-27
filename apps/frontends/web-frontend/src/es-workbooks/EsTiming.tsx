@@ -9,27 +9,27 @@ import type {
   SequenceTiming,
   SequenceTimingCategory,
 } from "interfaces-mef-types/es/event-sequence-analysis";
-import type { UncertainParameter } from "interfaces-mef-types/core/uncertainty";
-import type { HumanReliabilityAnalysis } from "interfaces-mef-types/hr/human-reliability-analysis";
-import type { SuccessCriteriaDevelopment } from "interfaces-mef-types/sc/success-criteria-development";
 import { WorkbookInput, WorkbookTextarea } from "../workbooks/commitOnDeactivateFields";
 import { readableId } from "../workbooks/workbookHandoff";
-import { pointsOf } from "../newly-developed-methods/shared/uncertaintyPoints";
 import { ChoiceEditor, DialogHead, DialogShell } from "./EsScope";
 import { FEASIBILITY_CRITERIA } from "./esViewData";
 import { useEsWorkbook } from "./esWorkbookContext";
+import { esConditionIsLinked, esMilestoneIsLinked, esWindowLink, type EsLinkedSources, type EsWindowField } from "./esLinkedTiming";
 import "./css/esTiming.css";
 
 type TimingDialog = { kind: "timeline"; id: string } | { kind: "window"; id: string } | { kind: "condition"; id: string } | { kind: "repair"; id: string };
 
 type TimingTab = "timelines" | "windows" | "phenomena" | "repair" | "checks";
 
+type TimingLeftover = { kind: "action"; id: string } | { kind: "condition"; id: string };
+
 interface TimingFinding {
   severity: "error" | "warning";
   check: string;
   item: string;
   detail: string;
-  target: TimingDialog;
+  target?: TimingDialog;
+  leftover?: TimingLeftover;
 }
 
 interface PagedRows {
@@ -60,8 +60,6 @@ const CATEGORY_TEXT: Record<SequenceTimingCategory, string> = {
   MISSION_TIME: "Mission time",
 };
 
-const NO_PARAMETERS: ReadonlyMap<string, UncertainParameter> = new Map();
-
 const FEASIBILITY_STATES: { id: FeasibilityState; label: string }[] = [
   { id: "OK", label: "Met" },
   { id: "MARGINAL", label: "Marginal" },
@@ -70,15 +68,9 @@ const FEASIBILITY_STATES: { id: FeasibilityState; label: string }[] = [
 
 const SOURCE_TEXT: Record<EsTimingSource, string> = { HRA: "HR", SC: "SC" };
 
-const UNIT_MINUTES: { prefix: string; minutes: number }[] = [
-  { prefix: "day", minutes: 1440 },
-  { prefix: "hour", minutes: 60 },
-  { prefix: "hr", minutes: 60 },
-  { prefix: "h", minutes: 60 },
-  { prefix: "min", minutes: 1 },
-  { prefix: "sec", minutes: 1 / 60 },
-  { prefix: "s", minutes: 1 / 60 },
-];
+const NO_LINKED_SOURCES: EsLinkedSources = {};
+
+const NO_LINKED_FIELDS: ReadonlySet<EsWindowField> = new Set();
 
 function rounded(value: number): string {
   return String(Math.round(value * 10) / 10);
@@ -103,122 +95,12 @@ function paged(total: number, page: number): PagedRows {
   return { current, pages, total, start: current * PAGE };
 }
 
-function parseMinutes(text: string): number | undefined {
-  const tokens = text.toLowerCase().split(" ").map((token) => token.trim()).filter((token) => token.length > 0);
-  for (let index = 0; index < tokens.length - 1; index += 1) {
-    const value = Number((tokens[index] ?? "").split(",").join(""));
-    if (!Number.isFinite(value)) continue;
-    const unit = tokens[index + 1] ?? "";
-    const match = UNIT_MINUTES.find((entry) => unit.startsWith(entry.prefix));
-    if (match !== undefined) return value * match.minutes;
-  }
-  return undefined;
-}
-
-function withSource<T extends { importedFrom?: EsTimingSource[] }>(record: T, source: EsTimingSource): T {
-  return { ...record, importedFrom: [...new Set([...(record.importedFrom ?? []), source])] };
-}
-
-function blankWindow(humanActionId: string, action: string): OperatorActionWindow {
-  return { uuid: crypto.randomUUID(), humanActionId, action, windowStartMinutes: 0, windowEndMinutes: 0, requiredMinutes: 0, implementsSrs: [] };
-}
-
-function upsertWindow(list: readonly OperatorActionWindow[], humanActionId: string, action: string, source: EsTimingSource, fill: (current: OperatorActionWindow, added: boolean) => OperatorActionWindow): OperatorActionWindow[] {
-  const index = list.findIndex((entry) => entry.humanActionId === humanActionId);
-  const current = list[index];
-  const next = withSource(fill(current ?? blankWindow(humanActionId, action), current === undefined), source);
-  return current === undefined ? [...list, next] : list.map((entry, position) => (position === index ? next : entry));
-}
-
-function withHrWindows(es: EventSequenceAnalysis, hr: HumanReliabilityAnalysis): EventSequenceAnalysis {
-  const recoveries = new Set((hr.recoveryActions ?? []).map((recovery) => recovery.hepQuantificationId));
-  let list: OperatorActionWindow[] = es.operatorActionWindows ?? [];
-  for (const hfe of hr.humanFailureEvents.filter((candidate) => candidate.hfeTiming === "POST_INITIATOR")) {
-    const quantification = hr.hepQuantifications.find((candidate) => candidate.hfeId === hfe.uuid && !recoveries.has(candidate.uuid));
-    const sequenceCues = (hfe.responseDetail?.cueTimingBySequence ?? []).flatMap((entry) => (entry.cueTimeMinutes === undefined ? [] : [entry.cueTimeMinutes]));
-    const cueMinutes = quantification?.cueArrivalTimeMinutes ?? (sequenceCues.length === 0 ? undefined : Math.min(...sequenceCues));
-    const cue = hfe.responseDetail?.cueDescription ?? "";
-    list = upsertWindow(list, hfe.uuid, hfe.name, "HRA", (current) => {
-      const start = cueMinutes ?? current.windowStartMinutes;
-      const available = quantification?.timeAvailableMinutes;
-      return {
-        ...current,
-        action: hfe.name,
-        ...(cue.length > 0 ? { cue } : {}),
-        ...(cueMinutes === undefined ? {} : { cueMinutes }),
-        windowStartMinutes: start,
-        windowEndMinutes: available === undefined ? Math.max(current.windowEndMinutes, start) : start + available,
-        requiredMinutes: quantification?.timeRequiredMinutes ?? current.requiredMinutes,
-        ...(hfe.applicableInitiatingEvents === undefined ? {} : { applicableInitiatingEvents: hfe.applicableInitiatingEvents }),
-        applicablePlantOperatingStates: hfe.applicablePlantOperatingStates,
-      };
-    });
-  }
-  return { ...es, operatorActionWindows: list };
-}
-
-function withScWindows(es: EventSequenceAnalysis, sc: SuccessCriteriaDevelopment): EventSequenceAnalysis {
-  let list: OperatorActionWindow[] = es.operatorActionWindows ?? [];
-  for (const criterion of sc.humanActionSuccessCriteria ?? []) {
-    const available = parseMinutes(criterion.timeAvailable);
-    list = upsertWindow(list, criterion.humanActionId, criterion.description, "SC", (current) => ({
-      ...current,
-      ...(available === undefined ? {} : { windowEndMinutes: current.windowStartMinutes + available }),
-    }));
-  }
-  return { ...es, operatorActionWindows: list };
-}
-
-function withScConditions(es: EventSequenceAnalysis, sc: SuccessCriteriaDevelopment): EventSequenceAnalysis {
-  let list: PhenomenologicalDependencyModel[] = es.dependencyModels?.phenomenologicalDependencies ?? [];
-  for (const barrier of sc.radionuclideBarrierCriteria) {
-    barrier.challengeLoads.forEach((load, index) => {
-      const uuid = `${barrier.uuid}-load-${String(index + 1)}`;
-      const current = list.find((entry) => entry.uuid === uuid);
-      const base: PhenomenologicalDependencyModel = current ?? { uuid, name: load.loadDescription, description: "", phenomenon: "", affectedSystems: [], implementsSrs: [] };
-      const next = withSource({
-        ...base,
-        name: load.loadDescription,
-        phenomenon: load.physicalAttributes.join(", "),
-        deterministicAnalysisReferences: barrier.engineeringAnalysisReferences,
-      }, "SC");
-      list = current === undefined ? [...list, next] : list.map((entry) => (entry.uuid === uuid ? next : entry));
-    });
-  }
-  return { ...es, dependencyModels: { ...es.dependencyModels, phenomenologicalDependencies: list } };
-}
-
 function commaList(text: string): string[] {
   return text.split(",").map((part) => part.trim()).filter((part) => part.length > 0);
 }
 
-async function scMissionHours(es: EventSequenceAnalysis, sc: SuccessCriteriaDevelopment): Promise<Map<string, number>> {
-  const sequenceIds = new Set(es.eventSequences.map((sequence) => sequence.uuid));
-  const entries = sc.missionTimes
-    .filter((entry) => sequenceIds.has(entry.eventSequenceReference))
-    .map((entry) => ({ key: entry.uuid, expression: entry.missionTime, unit: "HOURS" as const }));
-  return pointsOf(entries, NO_PARAMETERS);
-}
-
-function withScTimeLines(es: EventSequenceAnalysis, sc: SuccessCriteriaDevelopment, hours: ReadonlyMap<string, number>): EventSequenceAnalysis {
-  const missionBySequence = new Map(sc.missionTimes.map((entry) => [entry.eventSequenceReference, entry]));
-  const analyses = sc.thermalFluidAnalyses ?? [];
-  return {
-    ...es,
-    eventSequences: es.eventSequences.map((sequence) => {
-      const mission = missionBySequence.get(sequence.uuid);
-      const point = mission === undefined ? undefined : hours.get(mission.uuid);
-      if (mission === undefined || point === undefined) return sequence;
-      const uuid = `sc-mission-${mission.uuid}`;
-      const references = [...new Set([
-        ...mission.analysisReferences,
-        ...analyses.filter((analysis) => analysis.eventSequencesAnalyzed.includes(sequence.uuid)).map((analysis) => analysis.engineeringAnalysisId),
-      ])];
-      const entry: SequenceTiming = { uuid, event: "Mission time", timeAfterInitiator: point * 60, category: "MISSION_TIME", basis: mission.basis, deterministicAnalysisReferences: references, importedFrom: ["SC"] };
-      const timing = sequence.timing ?? [];
-      return { ...sequence, timing: timing.some((candidate) => candidate.uuid === uuid) ? timing.map((candidate) => (candidate.uuid === uuid ? entry : candidate)) : [...timing, entry] };
-    }),
-  };
+function linkedRow(row: { importedFrom?: EsTimingSource[]; overridesLink?: boolean }): boolean {
+  return row.importedFrom !== undefined && row.overridesLink !== true;
 }
 
 function askedFunctions(es: EventSequenceAnalysis): Set<string> {
@@ -236,7 +118,7 @@ function askedFunctions(es: EventSequenceAnalysis): Set<string> {
   return asked;
 }
 
-function timingFindings(es: EventSequenceAnalysis): TimingFinding[] {
+function timingFindings(es: EventSequenceAnalysis, sources: EsLinkedSources): TimingFinding[] {
   const findings: TimingFinding[] = [];
   for (const item of es.operatorActionWindows ?? []) {
     const length = item.windowEndMinutes - item.windowStartMinutes;
@@ -262,6 +144,27 @@ function timingFindings(es: EventSequenceAnalysis): TimingFinding[] {
     if (record.repairCredited && (record.timeMinutes === undefined || (record.access ?? "").trim().length === 0)) {
       findings.push({ severity: "error", check: "Repair credit without time and access", item: sequenceName.get(record.eventSequenceId) ?? (record.equipment !== undefined && record.equipment.length > 0 ? record.equipment : "Repair credit"), detail: "Record the time to repair and how the crew reaches the equipment (ES-C9).", target: { kind: "repair", id: record.uuid } });
     }
+  }
+  for (const sequence of es.eventSequences) {
+    if ((sequence.timing ?? []).some((entry) => entry.overridesLink === true && (entry.basis ?? "").trim().length === 0 && esMilestoneIsLinked(sequence.uuid, entry.uuid, sources))) {
+      findings.push({ severity: "warning", check: "Typed over a linked value without a reason", item: sequence.name, detail: "The mission time is typed in place of the SC value. Give the reason as its basis.", target: { kind: "timeline", id: sequence.uuid } });
+    }
+  }
+  for (const item of es.operatorActionWindows ?? []) {
+    if (item.overridesLink === true && (item.overrideReason ?? "").trim().length === 0 && esWindowLink(item.humanActionId, sources) !== undefined) {
+      findings.push({ severity: "warning", check: "Typed over a linked value without a reason", item: item.action, detail: "The window is typed in place of the linked values. Give the reason.", target: { kind: "window", id: item.uuid } });
+    }
+  }
+  for (const condition of es.dependencyModels?.phenomenologicalDependencies ?? []) {
+    if (condition.overridesLink === true && (condition.overrideReason ?? "").trim().length === 0 && esConditionIsLinked(condition.uuid, sources)) {
+      findings.push({ severity: "warning", check: "Typed over a linked value without a reason", item: condition.name, detail: "The condition is typed in place of the SC values. Give the reason.", target: { kind: "condition", id: condition.uuid } });
+    }
+  }
+  for (const detail of es.linkedOperatorActionDetails ?? []) {
+    findings.push({ severity: "warning", check: "Linked row not found", item: readableId(detail.humanActionId) ?? "Operator action", detail: "No linked workbook lists this action. What was typed for it is kept.", leftover: { kind: "action", id: detail.humanActionId } });
+  }
+  for (const detail of es.linkedPhenomenonDetails ?? []) {
+    findings.push({ severity: "warning", check: "Linked row not found", item: detail.description ?? "Phenomenological condition", detail: "No linked workbook lists this condition. What was typed for it is kept.", leftover: { kind: "condition", id: detail.conditionId } });
   }
   return findings;
 }
@@ -318,27 +221,14 @@ function TabBar<T extends string>({ tabs, tab, label, findings, onTab }: { tabs:
 }
 
 function TimeLinesPanel({ treeId, setTreeId, onOpen }: { treeId: string; setTreeId: (id: string) => void; onOpen: (id: string) => void }): JSX.Element {
-  const { es, upstream, editable, mutateEs } = useEsWorkbook();
+  const { es, editable } = useEsWorkbook();
   const [page, setPage] = useState(0);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const fieldId = useId();
   const trees = es.eventTrees ?? [];
   const tree = trees.find((candidate) => candidate.uuid === treeId) ?? trees[0];
   const sequences = es.eventSequences.filter((sequence) => tree !== undefined && sequence.eventTreeId === tree.uuid);
   const rows = paged(sequences.length, page);
   const actionLabel = editable ? "Edit" : "View";
-  const sc = upstream?.sc;
-
-  function importSc(): void {
-    if (!editable || sc === undefined) return;
-    setBusy(true);
-    setError(null);
-    scMissionHours(es, sc)
-      .then((hours) => mutateEs((draft) => withScTimeLines(draft, sc, hours)))
-      .catch((failure: Error) => setError(failure.message))
-      .finally(() => setBusy(false));
-  }
 
   return (
     <>
@@ -355,10 +245,8 @@ function TimeLinesPanel({ treeId, setTreeId, onOpen }: { treeId: string; setTree
         </div>
         <div className="es-records__actions">
           <Pager rows={rows} noun="sequence" onPage={setPage} />
-          {editable && sc !== undefined && <button type="button" className="posnav__btn posnav__btn--sm" disabled={busy} onClick={importSc}>Import from SC</button>}
         </div>
       </div>
-      {error !== null && <p className="es-timing-error" role="alert">{error}</p>}
       {sequences.length > 0 && (
         <div className="es-timing-table">
           <table className="postable es-records" aria-label="Timelines">
@@ -376,8 +264,8 @@ function TimeLinesPanel({ treeId, setTreeId, onOpen }: { treeId: string; setTree
               {sequences.slice(rows.start, rows.start + PAGE).map((sequence) => {
                 const timing = sequence.timing ?? [];
                 const limits = timing.filter((entry) => entry.category === "DAMAGE_LIMIT").map((entry) => entry.timeAfterInitiator);
-                const mission = timing.find((entry) => entry.category === "MISSION_TIME");
-                const sources = [...new Set(timing.flatMap((entry) => entry.importedFrom ?? []))];
+                const mission = timing.find((entry) => entry.category === "MISSION_TIME" && linkedRow(entry)) ?? timing.find((entry) => entry.category === "MISSION_TIME");
+                const sources = [...new Set(timing.flatMap((entry) => (linkedRow(entry) ? entry.importedFrom ?? [] : [])))];
                 return (
                   <tr key={sequence.uuid}>
                     <td><span className="postable__name">{sequence.name}</span></td>
@@ -398,17 +286,16 @@ function TimeLinesPanel({ treeId, setTreeId, onOpen }: { treeId: string; setTree
 }
 
 function WindowsPanel({ onOpen }: { onOpen: (id: string) => void }): JSX.Element {
-  const { es, upstream, editable, mutateEs } = useEsWorkbook();
+  const { es, editable, mutateEs } = useEsWorkbook();
   const [page, setPage] = useState(0);
   const windows = es.operatorActionWindows ?? [];
   const rows = paged(windows.length, page);
   const actionLabel = editable ? "Edit" : "View";
-  const hr = upstream?.hr;
-  const sc = upstream?.sc;
+  const typedHere = es.linkedWorkbooks?.HRA === undefined && es.linkedWorkbooks?.SC === undefined;
 
   function addWindow(): void {
     if (!editable) return;
-    const added = blankWindow("", "New operator action");
+    const added: OperatorActionWindow = { uuid: crypto.randomUUID(), humanActionId: "", action: "New operator action", windowStartMinutes: 0, windowEndMinutes: 0, requiredMinutes: 0, implementsSrs: [] };
     setPage(Math.floor(windows.length / PAGE));
     mutateEs((draft) => ({ ...draft, operatorActionWindows: [...(draft.operatorActionWindows ?? []), added] }));
     onOpen(added.uuid);
@@ -420,9 +307,7 @@ function WindowsPanel({ onOpen }: { onOpen: (id: string) => void }): JSX.Element
         <div className="es-records__filters" />
         <div className="es-records__actions">
           <Pager rows={rows} noun="action" onPage={setPage} />
-          {editable && hr !== undefined && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => mutateEs((draft) => withHrWindows(draft, hr))}>Import from HR</button>}
-          {editable && sc !== undefined && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => mutateEs((draft) => withScWindows(draft, sc))}>Import from SC</button>}
-          {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addWindow}>Add action</button>}
+          {editable && typedHere && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addWindow}>Add action</button>}
         </div>
       </div>
       {windows.length > 0 && (
@@ -460,12 +345,11 @@ function WindowsPanel({ onOpen }: { onOpen: (id: string) => void }): JSX.Element
 }
 
 function PhenomenaPanel({ onOpen }: { onOpen: (id: string) => void }): JSX.Element {
-  const { es, upstream, editable, mutateEs } = useEsWorkbook();
+  const { es, editable, mutateEs } = useEsWorkbook();
   const [page, setPage] = useState(0);
   const conditions = es.dependencyModels?.phenomenologicalDependencies ?? [];
   const rows = paged(conditions.length, page);
   const actionLabel = editable ? "Edit" : "View";
-  const sc = upstream?.sc;
 
   function addCondition(): void {
     if (!editable) return;
@@ -481,7 +365,6 @@ function PhenomenaPanel({ onOpen }: { onOpen: (id: string) => void }): JSX.Eleme
         <div className="es-records__filters" />
         <div className="es-records__actions">
           <Pager rows={rows} noun="condition" onPage={setPage} />
-          {editable && sc !== undefined && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => mutateEs((draft) => withScConditions(draft, sc))}>Import from SC</button>}
           {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addCondition}>Add condition</button>}
         </div>
       </div>
@@ -575,8 +458,18 @@ function RepairPanel({ onOpen }: { onOpen: (id: string) => void }): JSX.Element 
 }
 
 function ChecksPanel({ findings, onOpen }: { findings: readonly TimingFinding[]; onOpen: (dialog: TimingDialog) => void }): JSX.Element {
+  const { editable, mutateEs } = useEsWorkbook();
   const [page, setPage] = useState(0);
   const rows = paged(findings.length, page);
+  const removable = editable && findings.some((finding) => finding.leftover !== undefined);
+
+  function removeLeftover(leftover: TimingLeftover): void {
+    if (!editable) return;
+    mutateEs((draft) => (leftover.kind === "action"
+      ? { ...draft, linkedOperatorActionDetails: (draft.linkedOperatorActionDetails ?? []).filter((detail) => detail.humanActionId !== leftover.id) }
+      : { ...draft, linkedPhenomenonDetails: (draft.linkedPhenomenonDetails ?? []).filter((detail) => detail.conditionId !== leftover.id) }));
+  }
+
   return (
     <>
       <div className="es-records__bar">
@@ -586,16 +479,21 @@ function ChecksPanel({ findings, onOpen }: { findings: readonly TimingFinding[];
       {findings.length > 0 && (
       <div className="es-timing-table">
         <table className="postable es-records" aria-label="Checks">
-          <thead><tr><th scope="col">Severity</th><th scope="col">Check</th><th scope="col">Item</th><th scope="col">Detail</th></tr></thead>
+          <thead><tr><th scope="col">Severity</th><th scope="col">Check</th><th scope="col">Item</th><th scope="col">Detail</th>{removable && <th scope="col" className="es-records__act" aria-label="Actions" />}</tr></thead>
           <tbody>
-            {findings.slice(rows.start, rows.start + PAGE).map((finding, index) => (
-              <tr key={`${finding.check}:${finding.target.id}:${String(rows.start + index)}`}>
-                <td className={`es-severity es-severity--${finding.severity}`}>{finding.severity === "error" ? "Error" : "Warning"}</td>
-                <td>{finding.check}</td>
-                <td><button type="button" className="es-records__link" onClick={() => onOpen(finding.target)}>{finding.item}</button></td>
-                <td>{finding.detail}</td>
-              </tr>
-            ))}
+            {findings.slice(rows.start, rows.start + PAGE).map((finding, index) => {
+              const target = finding.target;
+              const leftover = finding.leftover;
+              return (
+                <tr key={`${finding.check}:${target?.id ?? leftover?.id ?? ""}:${String(rows.start + index)}`}>
+                  <td className={`es-severity es-severity--${finding.severity}`}>{finding.severity === "error" ? "Error" : "Warning"}</td>
+                  <td>{finding.check}</td>
+                  <td>{target === undefined ? finding.item : <button type="button" className="es-records__link" onClick={() => onOpen(target)}>{finding.item}</button>}</td>
+                  <td>{finding.detail}</td>
+                  {removable && <td className="es-records__act">{leftover !== undefined && <button type="button" className="posnav__btn posnav__btn--sm" aria-label={`Remove what was typed for ${finding.item}`} onClick={() => removeLeftover(leftover)}>Remove</button>}</td>}
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
@@ -605,10 +503,12 @@ function ChecksPanel({ findings, onOpen }: { findings: readonly TimingFinding[];
 }
 
 function TimeLineDialog({ id, onClose }: { id: string; onClose: () => void }): JSX.Element | null {
-  const { es, editable, mutateEs } = useEsWorkbook();
+  const { es, upstream, editable, mutateEs } = useEsWorkbook();
   const sequence = es.eventSequences.find((candidate) => candidate.uuid === id);
   if (sequence === undefined) return null;
   const timing = [...(sequence.timing ?? [])].sort((left, right) => left.timeAfterInitiator - right.timeAfterInitiator);
+  const sources = upstream ?? NO_LINKED_SOURCES;
+  const mission = timing.find((entry) => esMilestoneIsLinked(sequence.uuid, entry.uuid, sources));
 
   function setTiming(update: (list: SequenceTiming[]) => SequenceTiming[]): void {
     if (!editable) return;
@@ -617,11 +517,31 @@ function TimeLineDialog({ id, onClose }: { id: string; onClose: () => void }): J
   function patchEntry(uuid: string, fields: Partial<SequenceTiming>): void {
     setTiming((list) => list.map((entry) => (entry.uuid === uuid ? { ...entry, ...fields } : entry)));
   }
+  function setValuesFrom(uuid: string, value: string): void {
+    if (value === "linked") {
+      setTiming((list) => list.filter((entry) => entry.uuid !== uuid));
+      return;
+    }
+    setTiming((list) => list.map((entry) => {
+      if (entry.uuid !== uuid) return entry;
+      const { importedFrom: _from, basis: _basis, ...rest } = entry;
+      return { ...rest, basis: "", overridesLink: true };
+    }));
+  }
 
   return (
     <DialogShell label="Timeline" onClose={onClose} fit>
       <DialogHead cap="Timeline · ES-A6, A10" title={sequence.name} onClose={onClose} />
       <div className="modal__body">
+        {mission !== undefined && (
+          <div className="es-records__filter">
+            <label className="posfield__label">Mission time from</label>
+            <select className="posfield__select" aria-label="Mission time from" value={linkedRow(mission) ? "linked" : "typed"} disabled={!editable} onChange={(event) => setValuesFrom(mission.uuid, event.target.value)}>
+              <option value="linked">SC</option>
+              <option value="typed">Typed in ES</option>
+            </select>
+          </div>
+        )}
         {timing.length > 0 && (
           <div className="es-timeline-fields">
             <table className="postable es-records" aria-label="Milestones">
@@ -636,29 +556,37 @@ function TimeLineDialog({ id, onClose }: { id: string; onClose: () => void }): J
                 </tr>
               </thead>
               <tbody>
-                {timing.map((entry) => (
-                  <tr key={entry.uuid}>
-                    <td>{editable ? <WorkbookInput className="posfield__input es-timing-fit es-timing-fit--milestone" aria-label="Milestone" size={Math.max(8, entry.event.length + 2)} value={entry.event} onChange={(event) => { if (event.target.value.trim().length > 0) patchEntry(entry.uuid, { event: event.target.value }); }} /> : entry.event}</td>
-                    <td className="es-timing-num">{editable ? (
-                      <WorkbookInput className="posfield__input posmono es-timing-time" aria-label="Time after the initiator in minutes" inputMode="decimal" value={String(entry.timeAfterInitiator)} onChange={(event) => {
-                        const text = event.target.value.trim();
-                        const value = Number(text);
-                        if (text.length > 0 && Number.isFinite(value)) patchEntry(entry.uuid, { timeAfterInitiator: value });
-                      }} />
-                    ) : minutesText(entry.timeAfterInitiator)}</td>
-                    <td>
-                      <select className="posfield__select es-timing-fit" aria-label="Kind" value={entry.category ?? "AUTOMATIC"} disabled={!editable} onChange={(event) => {
-                        const kind = TIMING_KINDS.find((candidate) => candidate === event.target.value);
-                        if (kind !== undefined) patchEntry(entry.uuid, { category: kind });
-                      }}>
-                        {TIMING_KINDS.map((kind) => <option key={kind} value={kind}>{CATEGORY_TEXT[kind]}</option>)}
-                      </select>
-                    </td>
-                    <td>{editable ? <WorkbookInput className="posfield__input es-timing-fit es-timing-fit--basis" aria-label="Basis" size={Math.max(8, (entry.basis ?? "").length + 2)} value={entry.basis ?? ""} onChange={(event) => patchEntry(entry.uuid, { basis: event.target.value })} /> : entry.basis === undefined || entry.basis.length === 0 ? "None" : entry.basis}</td>
-                    <td>{editable ? <WorkbookInput className="posfield__input es-timing-fit es-timing-fit--references" aria-label="Analysis references" size={Math.max(8, (entry.deterministicAnalysisReferences ?? []).join(", ").length + 2)} value={(entry.deterministicAnalysisReferences ?? []).join(", ")} onChange={(event) => patchEntry(entry.uuid, { deterministicAnalysisReferences: commaList(event.target.value) })} /> : listText(entry.deterministicAnalysisReferences)}</td>
-                    {editable && <td className="es-records__act"><button type="button" className="posnav__btn posnav__btn--sm" onClick={() => setTiming((list) => list.filter((candidate) => candidate.uuid !== entry.uuid))}>Remove</button></td>}
-                  </tr>
-                ))}
+                {timing.map((entry) => {
+                  const linked = linkedRow(entry);
+                  const typed = editable && !linked;
+                  return (
+                    <tr key={entry.uuid}>
+                      <td>{typed ? <WorkbookInput className="posfield__input es-timing-fit es-timing-fit--milestone" aria-label="Milestone" size={Math.max(8, entry.event.length + 2)} value={entry.event} onChange={(event) => { if (event.target.value.trim().length > 0) patchEntry(entry.uuid, { event: event.target.value }); }} /> : entry.event}</td>
+                      <td className="es-timing-num">{typed ? (
+                        <WorkbookInput className="posfield__input posmono es-timing-time" aria-label="Time after the initiator in minutes" inputMode="decimal" value={String(entry.timeAfterInitiator)} onChange={(event) => {
+                          const text = event.target.value.trim();
+                          const value = Number(text);
+                          if (text.length > 0 && Number.isFinite(value)) patchEntry(entry.uuid, { timeAfterInitiator: value });
+                        }} />
+                      ) : minutesText(entry.timeAfterInitiator)}</td>
+                      <td>
+                        <select className="posfield__select es-timing-fit" aria-label="Kind" value={entry.category ?? "AUTOMATIC"} disabled={!typed} onChange={(event) => {
+                          const kind = TIMING_KINDS.find((candidate) => candidate === event.target.value);
+                          if (kind !== undefined) patchEntry(entry.uuid, { category: kind });
+                        }}>
+                          {TIMING_KINDS.map((kind) => <option key={kind} value={kind}>{CATEGORY_TEXT[kind]}</option>)}
+                        </select>
+                      </td>
+                      <td>{typed ? <WorkbookInput className="posfield__input es-timing-fit es-timing-fit--basis" aria-label="Basis" size={Math.max(8, (entry.basis ?? "").length + 2)} value={entry.basis ?? ""} onChange={(event) => patchEntry(entry.uuid, { basis: event.target.value })} /> : entry.basis === undefined || entry.basis.length === 0 ? "None" : entry.basis}</td>
+                      <td>{typed ? <WorkbookInput className="posfield__input es-timing-fit es-timing-fit--references" aria-label="Analysis references" size={Math.max(8, (entry.deterministicAnalysisReferences ?? []).join(", ").length + 2)} value={(entry.deterministicAnalysisReferences ?? []).join(", ")} onChange={(event) => patchEntry(entry.uuid, { deterministicAnalysisReferences: commaList(event.target.value) })} /> : listText(entry.deterministicAnalysisReferences)}</td>
+                      {editable && (
+                        <td className="es-records__act">
+                          {entry !== mission && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => setTiming((list) => list.filter((candidate) => candidate.uuid !== entry.uuid))}>Remove</button>}
+                        </td>
+                      )}
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -779,10 +707,25 @@ function WindowDialog({ id, onClose }: { id: string; onClose: () => void }): JSX
   const groupChoices = [...new Set([...es.scopeDefinition.initiatingEventIds, ...ieLink.groups.map((group) => group.id)])].map((groupId) => ({ id: groupId, label: ieLink.groups.find((group) => group.id === groupId)?.name ?? "" }));
   const stateChoices = [...new Set([...es.scopeDefinition.plantOperatingStateIds, ...posLink.states.map((state) => state.id)])].map((stateId) => ({ id: stateId, label: posLink.states.find((state) => state.id === stateId)?.name ?? "" }));
   const hfeKnown = hfes.some((hfe) => hfe.uuid === item.humanActionId);
+  const link = esWindowLink(item.humanActionId, upstream ?? NO_LINKED_SOURCES);
+  const followsLink = link !== undefined && item.overridesLink !== true;
+  const linkedFields = link !== undefined && item.overridesLink !== true ? link.provided : NO_LINKED_FIELDS;
+  const typed = (field: EsWindowField): boolean => editable && !linkedFields.has(field);
 
   function patch(fields: Partial<OperatorActionWindow>): void {
     if (!editable) return;
     mutateEs((draft) => ({ ...draft, operatorActionWindows: (draft.operatorActionWindows ?? []).map((candidate) => (candidate.uuid === id ? { ...candidate, ...fields } : candidate)) }));
+  }
+  function setValuesFrom(value: string): void {
+    if (!editable) return;
+    mutateEs((draft) => ({
+      ...draft,
+      operatorActionWindows: (draft.operatorActionWindows ?? []).map((candidate) => {
+        if (candidate.uuid !== id) return candidate;
+        const { importedFrom: _from, overridesLink: _flag, overrideReason: _reason, ...rest } = candidate;
+        return value === "typed" ? { ...rest, overridesLink: true, overrideReason: "" } : rest;
+      }),
+    }));
   }
   function patchOptional(field: "cueMinutes" | "hepPointEstimate", value: number | undefined): void {
     if (!editable) return;
@@ -810,28 +753,43 @@ function WindowDialog({ id, onClose }: { id: string; onClose: () => void }): JSX
       <DialogHead cap="Operator-action window · ES-A4" onClose={onClose} />
       <div className="modal__body">
         <div className="posfield-grid">
+          {link !== undefined && (
+            <div className="posfield posfield-grid--span2"><label className="posfield__label">Values from</label>
+              <select className="posfield__select" aria-label="Values from" value={followsLink ? "linked" : "typed"} disabled={!editable} onChange={(event) => setValuesFrom(event.target.value)}>
+                <option value="linked">{sourceText(link.row.importedFrom)}</option>
+                <option value="typed">Typed in ES</option>
+              </select>
+            </div>
+          )}
+          {link !== undefined && !followsLink && (
+            <div className="posfield posfield-grid--span2"><label className="posfield__label">Reason</label>
+              {editable ? <WorkbookTextarea className="posfield__textarea" rows={2} aria-label="Reason" value={item.overrideReason ?? ""} onChange={(event) => patch({ overrideReason: event.target.value })} /> : <div>{item.overrideReason === undefined || item.overrideReason.length === 0 ? "None" : item.overrideReason}</div>}
+            </div>
+          )}
           <div className="posfield posfield-grid--span2"><label className="posfield__label">Action</label>
-            {editable ? <WorkbookInput className="posfield__input" aria-label="Action" value={item.action} onChange={(event) => { if (event.target.value.trim().length > 0) patch({ action: event.target.value }); }} /> : <div>{item.action}</div>}
+            {typed("action") ? <WorkbookInput className="posfield__input" aria-label="Action" value={item.action} onChange={(event) => { if (event.target.value.trim().length > 0) patch({ action: event.target.value }); }} /> : <div>{item.action}</div>}
           </div>
           <div className="posfield posfield-grid--span2"><label className="posfield__label">Human failure event</label>
-            {hfes.length > 0 ? (
-              <select className="posfield__select" aria-label="Human failure event" value={item.humanActionId} disabled={!editable} onChange={(event) => patch({ humanActionId: event.target.value })}>
-                <option value="">None</option>
-                {hfes.map((hfe) => <option key={hfe.uuid} value={hfe.uuid}>{hfe.name}</option>)}
-                {item.humanActionId.length > 0 && !hfeKnown && <option value={item.humanActionId}>{readableId(item.humanActionId) ?? "HR event not in the linked workbook"}</option>}
-              </select>
-            ) : editable
-              ? <WorkbookInput className="posfield__input posmono" aria-label="Human failure event" value={readableId(item.humanActionId) ?? ""} onChange={(event) => patch({ humanActionId: event.target.value.trim() })} />
-              : <div className="posmono">{readableId(item.humanActionId) ?? "None"}</div>}
+            {link !== undefined
+              ? <div>{hfes.find((hfe) => hfe.uuid === item.humanActionId)?.name ?? readableId(item.humanActionId) ?? "None"}</div>
+              : hfes.length > 0 ? (
+                <select className="posfield__select" aria-label="Human failure event" value={item.humanActionId} disabled={!editable} onChange={(event) => patch({ humanActionId: event.target.value })}>
+                  <option value="">None</option>
+                  {hfes.map((hfe) => <option key={hfe.uuid} value={hfe.uuid}>{hfe.name}</option>)}
+                  {item.humanActionId.length > 0 && !hfeKnown && <option value={item.humanActionId}>{readableId(item.humanActionId) ?? "HR event not in the linked workbook"}</option>}
+                </select>
+              ) : editable
+                ? <WorkbookInput className="posfield__input posmono" aria-label="Human failure event" value={readableId(item.humanActionId) ?? ""} onChange={(event) => patch({ humanActionId: event.target.value.trim() })} />
+                : <div className="posmono">{readableId(item.humanActionId) ?? "None"}</div>}
           </div>
           <div className="posfield posfield-grid--span2"><label className="posfield__label">Cue</label>
-            {editable ? <WorkbookInput className="posfield__input" aria-label="Cue" value={item.cue ?? ""} onChange={(event) => patch({ cue: event.target.value })} /> : <div>{item.cue === undefined || item.cue.length === 0 ? "None" : item.cue}</div>}
+            {typed("cue") ? <WorkbookInput className="posfield__input" aria-label="Cue" value={item.cue ?? ""} onChange={(event) => patch({ cue: event.target.value })} /> : <div>{item.cue === undefined || item.cue.length === 0 ? "None" : item.cue}</div>}
           </div>
-          <NumberField label="Cue at (min)" value={item.cueMinutes} editable={editable} onCommit={(value) => patchOptional("cueMinutes", value)} />
+          <NumberField label="Cue at (min)" value={item.cueMinutes} editable={typed("cueMinutes")} onCommit={(value) => patchOptional("cueMinutes", value)} />
           <NumberField label="HEP" value={item.hepPointEstimate} editable={editable} onCommit={(value) => patchOptional("hepPointEstimate", value)} />
-          <NumberField label="Window opens (min)" value={item.windowStartMinutes} editable={editable} onCommit={(value) => { if (value !== undefined) patch({ windowStartMinutes: value }); }} />
-          <NumberField label="Window closes (min)" value={item.windowEndMinutes} editable={editable} onCommit={(value) => { if (value !== undefined) patch({ windowEndMinutes: value }); }} />
-          <NumberField label="Time required (min)" value={item.requiredMinutes} editable={editable} onCommit={(value) => { if (value !== undefined) patch({ requiredMinutes: value }); }} />
+          <NumberField label="Window opens (min)" value={item.windowStartMinutes} editable={typed("windowStartMinutes")} onCommit={(value) => { if (value !== undefined) patch({ windowStartMinutes: value }); }} />
+          <NumberField label="Window closes (min)" value={item.windowEndMinutes} editable={typed("windowEndMinutes")} onCommit={(value) => { if (value !== undefined) patch({ windowEndMinutes: value }); }} />
+          <NumberField label="Time required (min)" value={item.requiredMinutes} editable={typed("requiredMinutes")} onCommit={(value) => { if (value !== undefined) patch({ requiredMinutes: value }); }} />
         </div>
         <div className="posfield-grid es-timing-feasibility" role="group" aria-label="Feasibility">
           {FEASIBILITY_CRITERIA.map((criterion) => (
@@ -848,9 +806,9 @@ function WindowDialog({ id, onClose }: { id: string; onClose: () => void }): JSX
             {editable ? <WorkbookTextarea className="posfield__textarea" rows={2} aria-label="Feasibility note" value={item.note ?? ""} onChange={(event) => patch({ note: event.target.value })} /> : <div>{item.note === undefined || item.note.length === 0 ? "None" : item.note}</div>}
           </div>
         </div>
-        <ChoiceEditor label="Initiating event groups" choices={groupChoices} values={item.applicableInitiatingEvents ?? []} editable={editable} addLabel="Add an initiating event group ID" onChange={(applicableInitiatingEvents) => patch({ applicableInitiatingEvents })} />
-        <ChoiceEditor label="Operating states" choices={stateChoices} values={item.applicablePlantOperatingStates ?? []} editable={editable} addLabel="Add an operating state ID" onChange={(applicablePlantOperatingStates) => patch({ applicablePlantOperatingStates })} />
-        {editable && <div className="posrow es-dialog-actions"><button type="button" className="posnav__btn posnav__btn--sm" onClick={remove}>Remove action</button></div>}
+        <ChoiceEditor label="Initiating event groups" choices={groupChoices} values={item.applicableInitiatingEvents ?? []} editable={typed("applicableInitiatingEvents")} addLabel="Add an initiating event group ID" onChange={(applicableInitiatingEvents) => patch({ applicableInitiatingEvents })} />
+        <ChoiceEditor label="Operating states" choices={stateChoices} values={item.applicablePlantOperatingStates ?? []} editable={typed("applicablePlantOperatingStates")} addLabel="Add an operating state ID" onChange={(applicablePlantOperatingStates) => patch({ applicablePlantOperatingStates })} />
+        {editable && link === undefined && <div className="posrow es-dialog-actions"><button type="button" className="posnav__btn posnav__btn--sm" onClick={remove}>Remove action</button></div>}
       </div>
     </DialogShell>
   );
@@ -862,12 +820,29 @@ function ConditionDialog({ id, onClose }: { id: string; onClose: () => void }): 
   if (condition === undefined) return null;
   const systems = (upstream?.sy?.systemDefinitions ?? []).map((system) => ({ id: system.abbreviation === undefined || system.abbreviation.length === 0 ? system.name : system.abbreviation, label: system.name }));
   const asChoices = (values: readonly string[] | undefined): { id: string; label: string }[] => (values ?? []).map((value) => ({ id: value, label: "" }));
+  const linked = esConditionIsLinked(condition.uuid, upstream ?? NO_LINKED_SOURCES);
+  const followsLink = linked && condition.overridesLink !== true;
+  const typed = editable && !followsLink;
 
   function patch(fields: Partial<PhenomenologicalDependencyModel>): void {
     if (!editable) return;
     mutateEs((draft) => ({
       ...draft,
       dependencyModels: { ...draft.dependencyModels, phenomenologicalDependencies: (draft.dependencyModels?.phenomenologicalDependencies ?? []).map((candidate) => (candidate.uuid === id ? { ...candidate, ...fields } : candidate)) },
+    }));
+  }
+  function setValuesFrom(value: string): void {
+    if (!editable) return;
+    mutateEs((draft) => ({
+      ...draft,
+      dependencyModels: {
+        ...draft.dependencyModels,
+        phenomenologicalDependencies: (draft.dependencyModels?.phenomenologicalDependencies ?? []).map((candidate) => {
+          if (candidate.uuid !== id) return candidate;
+          const { importedFrom: _from, overridesLink: _flag, overrideReason: _reason, ...rest } = candidate;
+          return value === "typed" ? { ...rest, overridesLink: true, overrideReason: "" } : rest;
+        }),
+      },
     }));
   }
   function remove(): void {
@@ -884,14 +859,27 @@ function ConditionDialog({ id, onClose }: { id: string; onClose: () => void }): 
       <DialogHead cap="Phenomenological condition · ES-B3" onClose={onClose} />
       <div className="modal__body">
         <div className="posfield-grid">
+          {linked && (
+            <div className="posfield posfield-grid--span2"><label className="posfield__label">Values from</label>
+              <select className="posfield__select" aria-label="Values from" value={followsLink ? "linked" : "typed"} disabled={!editable} onChange={(event) => setValuesFrom(event.target.value)}>
+                <option value="linked">SC</option>
+                <option value="typed">Typed in ES</option>
+              </select>
+            </div>
+          )}
+          {linked && !followsLink && (
+            <div className="posfield posfield-grid--span2"><label className="posfield__label">Reason</label>
+              {editable ? <WorkbookTextarea className="posfield__textarea" rows={2} aria-label="Reason" value={condition.overrideReason ?? ""} onChange={(event) => patch({ overrideReason: event.target.value })} /> : <div>{condition.overrideReason === undefined || condition.overrideReason.length === 0 ? "None" : condition.overrideReason}</div>}
+            </div>
+          )}
           <div className="posfield posfield-grid--span2"><label className="posfield__label">Name</label>
-            {editable ? <WorkbookInput className="posfield__input" aria-label="Name" value={condition.name} onChange={(event) => { if (event.target.value.trim().length > 0) patch({ name: event.target.value }); }} /> : <div>{condition.name}</div>}
+            {typed ? <WorkbookInput className="posfield__input" aria-label="Name" value={condition.name} onChange={(event) => { if (event.target.value.trim().length > 0) patch({ name: event.target.value }); }} /> : <div>{condition.name}</div>}
           </div>
           <div className="posfield posfield-grid--span2"><label className="posfield__label">Description</label>
             {editable ? <WorkbookTextarea className="posfield__textarea" rows={2} aria-label="Description" value={condition.description} onChange={(event) => patch({ description: event.target.value })} /> : <div>{condition.description.length === 0 ? "None" : condition.description}</div>}
           </div>
           <div className="posfield"><label className="posfield__label">Phenomenon</label>
-            {editable ? <WorkbookInput className="posfield__input" aria-label="Phenomenon" value={condition.phenomenon} onChange={(event) => patch({ phenomenon: event.target.value })} /> : <div>{condition.phenomenon.length === 0 ? "None" : condition.phenomenon}</div>}
+            {typed ? <WorkbookInput className="posfield__input" aria-label="Phenomenon" value={condition.phenomenon} onChange={(event) => patch({ phenomenon: event.target.value })} /> : <div>{condition.phenomenon.length === 0 ? "None" : condition.phenomenon}</div>}
           </div>
           <div className="posfield"><label className="posfield__label">Onset</label>
             {editable ? <WorkbookInput className="posfield__input" aria-label="Onset" value={condition.onsetTiming ?? ""} onChange={(event) => patch({ onsetTiming: event.target.value })} /> : <div>{condition.onsetTiming === undefined || condition.onsetTiming.length === 0 ? "None" : condition.onsetTiming}</div>}
@@ -899,18 +887,18 @@ function ConditionDialog({ id, onClose }: { id: string; onClose: () => void }): 
         </div>
         <ChoiceEditor label="Affected systems" choices={systems} values={condition.affectedSystems} editable={editable} addLabel="Add an affected system" mono={false} onChange={(affectedSystems) => patch({ affectedSystems })} />
         <ChoiceEditor label="Harsh conditions" choices={asChoices(condition.environmentalConditions)} values={condition.environmentalConditions ?? []} editable={editable} addLabel="Add a harsh condition" mono={false} onChange={(environmentalConditions) => patch({ environmentalConditions })} />
-        <ChoiceEditor label="Analysis references" choices={asChoices(condition.deterministicAnalysisReferences)} values={condition.deterministicAnalysisReferences ?? []} editable={editable} addLabel="Add an analysis reference" mono={false} onChange={(deterministicAnalysisReferences) => patch({ deterministicAnalysisReferences })} />
-        {editable && <div className="posrow es-dialog-actions"><button type="button" className="posnav__btn posnav__btn--sm" onClick={remove}>Remove condition</button></div>}
+        <ChoiceEditor label="Analysis references" choices={asChoices(condition.deterministicAnalysisReferences)} values={condition.deterministicAnalysisReferences ?? []} editable={typed} addLabel="Add an analysis reference" mono={false} onChange={(deterministicAnalysisReferences) => patch({ deterministicAnalysisReferences })} />
+        {editable && !linked && <div className="posrow es-dialog-actions"><button type="button" className="posnav__btn posnav__btn--sm" onClick={remove}>Remove condition</button></div>}
       </div>
     </DialogShell>
   );
 }
 
 function EsTimingScreen({ treeId, setTreeId }: { treeId: string; setTreeId: (id: string) => void }): JSX.Element {
-  const { es } = useEsWorkbook();
+  const { es, upstream } = useEsWorkbook();
   const [tab, setTab] = useState<TimingTab>("timelines");
   const [dialog, setDialog] = useState<TimingDialog | null>(null);
-  const findings = useMemo(() => timingFindings(es), [es]);
+  const findings = useMemo(() => timingFindings(es, upstream ?? NO_LINKED_SOURCES), [es, upstream]);
   const close = (): void => setDialog(null);
   return (
     <>

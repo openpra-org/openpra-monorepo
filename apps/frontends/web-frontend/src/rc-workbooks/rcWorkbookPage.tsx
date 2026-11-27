@@ -3,12 +3,14 @@ import type { RcCaseActions, RcConsequenceRunActions } from "./rcWorkbookContext
 import { saveRcCaseSnapshot, saveRcCategoryResult, removeRcCategoryResult, readRcCaseTable, readRcCaseText, readRcCaseReview, readRcCaseOutput } from "./rcWorkbookApi";
 import { listRcConsequenceRuns, readRcConsequenceRunSetup, startRcConsequenceRun, readRcConsequenceRun, readRcConsequenceRunTrials, readRcConsequenceRunFile, cancelRcConsequenceRun, removeRcConsequenceRun, recordRcConsequenceRun } from "./rcWorkbookApi";
 import { WorkbookViewMemory } from "../workbooks/workbookViewMemory";
-import { JSX, useCallback, useEffect, useMemo, useState } from "react";
+import { useLinkedWorkbookRefresh } from "../workbooks/useLinkedWorkbookRefresh";
+import { JSX, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { type RadiologicalConsequenceAnalysis } from "interfaces-mef-types/rc/radiological-consequence-analysis";
 import type { ReleaseCategoryInputs } from "interfaces-mef-types/rc/radiological-consequence-analysis";
 import { withSourceTermSummary } from "interfaces-shared-types/rc-workbooks/source-term-summary";
 import { withRcFamilyConsequences } from "interfaces-shared-types/rc-workbooks/family-consequences";
+import { rcDerivesFamilyConsequences, rcLinkedDataFor, rcSavedForm, rcSavedSourceRevision, rcShowsSavedCopies, rcWithLinkedData } from "interfaces-shared-types/rc-workbooks/linked-data";
 import type { RcSiteReceptors } from "interfaces-mef-types/rc/site-receptors";
 import type { RcEarlyResponseModel } from "interfaces-mef-types/rc/early-response";
 import type { RcWeatherInputs } from "interfaces-mef-types/rc/weather";
@@ -53,7 +55,7 @@ import { useRcMefPatch } from "./useRcMefPatch";
 import { LoadExampleModal, UnloadExampleModal } from "../workbooks/exampleWorkbookModal";
 import { RcDocumentsCard } from "./rcDocumentsCard";
 import { type RcPersona } from "./rcViewData";
-import { NO_RC_LINKS, listRcLinkOptions, loadRcLinkedWorkbooks, type RcLinkedWorkbookData, type RcLinks } from "./rcLinks";
+import { NO_RC_LINKED_DATA, NO_RC_LINKS, listRcLinkOptions, useRcLinkedWorkbooks, type RcLinks } from "./rcLinks";
 
 const STEP_SR_HINT: Record<string, string | undefined> = {
   scope: "RCRE-A1",
@@ -96,7 +98,8 @@ function RcWorkbookPage(): JSX.Element {
   const [projectName, setProjectName] = useState<string>("");
   const [exampleOptions, setExampleOptions] = useState<RcExampleOption[]>([]);
   const [linkOptions, setLinkOptions] = useState<RcLinks["options"]>(NO_RC_LINKS.options);
-  const [linked, setLinked] = useState<RcLinkedWorkbookData>({});
+  const [dismissedUnavailable, setDismissedUnavailable] = useState<string | null>(null);
+  const [recordsAccepted, setRecordsAccepted] = useState(0);
   const workbookName = data?.rc.name ?? "";
   const workbookVersion = data?.rc.version ?? "1";
 
@@ -139,13 +142,8 @@ function RcWorkbookPage(): JSX.Element {
     return () => { cancelled = true; };
   }, [id]);
 
-  const linkedEs = data?.rc.linkedWorkbooks?.ES, linkedMs = data?.rc.linkedWorkbooks?.MS, linkedRi = data?.rc.linkedWorkbooks?.RI;
-  useEffect(() => {
-    let cancelled = false;
-    void loadRcLinkedWorkbooks({ ES: linkedEs, MS: linkedMs, RI: linkedRi }).then((next) => { if (!cancelled) setLinked(next); });
-    return () => { cancelled = true; };
-  }, [linkedEs, linkedMs, linkedRi]);
-  const links = useMemo<RcLinks>(() => ({ options: linkOptions, ...linked }), [linkOptions, linked]);
+  const { links, linked, refresh } = useRcLinkedWorkbooks(data?.rc.linkedWorkbooks, linkOptions);
+  useLinkedWorkbookRefresh(refresh);
 
   const updateRc = useCallback((rc: RadiologicalConsequenceAnalysis): void => {
     setData((prev) => (prev === null ? prev : { ...prev, rc }));
@@ -155,26 +153,54 @@ function RcWorkbookPage(): JSX.Element {
   const handleSaveErr = useCallback((message: string): void => { setSaveError(message); }, []);
   const { patch, enqueue } = useRcMefPatch(id ?? "", data?.rc ?? null, handleSaveOk, handleSaveErr);
   const mutateRc = useCallback((mutator: (rc: RadiologicalConsequenceAnalysis) => RadiologicalConsequenceAnalysis): void => {
-    const derive = (rc: RadiologicalConsequenceAnalysis) => withRcFamilyConsequences(mutator(rc));
-    setData((prev) => (prev === null ? prev : { ...prev, rc: derive(prev.rc) }));
-    void patch(derive);
-  }, [patch]);
+    const saved = (current: RadiologicalConsequenceAnalysis): RadiologicalConsequenceAnalysis => {
+      const read = rcLinkedDataFor(current, linked);
+      return rcSavedForm(mutator(rcWithLinkedData(current, read)), read);
+    };
+    setData((prev) => (prev === null ? prev : { ...prev, rc: saved(prev.rc) }));
+    void patch(saved);
+  }, [patch, linked]);
+
+  const savedRc = data?.rc;
+  const savedRcRef = useRef(savedRc);
+  savedRcRef.current = savedRc;
+  const latestMutateRc = useRef(mutateRc);
+  latestMutateRc.current = mutateRc;
+  const read = useMemo(() => (savedRc === undefined ? NO_RC_LINKED_DATA : rcLinkedDataFor(savedRc, linked)), [savedRc, linked]);
+  const viewData = useMemo<RcWorkbookData | null>(() => {
+    if (data === null || savedRc === undefined) return null;
+    return rcShowsSavedCopies(savedRc) ? data : { ...data, rc: rcWithLinkedData(savedRc, read) };
+  }, [data, savedRc, read]);
+  const unavailableLinks = (links.unavailable ?? []).join(", ");
+
+  useEffect(() => {
+    if (recordsAccepted === 0) return;
+    latestMutateRc.current((rc) => rc);
+  }, [recordsAccepted]);
 
   const sourceTerms = useMemo<RcSourceTermActions | undefined>(() => {
     if (!id) return undefined;
     const accept = (category: ReleaseCategoryInputs): ReleaseCategoryInputs => {
-      setData((previous) => previous === null ? previous : { ...previous, rc: { ...previous.rc,
-        releaseCategoryToConsequence: { ...previous.rc.releaseCategoryToConsequence,
-          releaseCategoryAndSourceTermReviewed: false,
-          releaseCategoryInputs: previous.rc.releaseCategoryToConsequence.releaseCategoryInputs.map((c) =>
-            c.releaseCategory === category.releaseCategory ? withSourceTermSummary({ ...c, sourceTerm: category.sourceTerm }) : c),
-        },
-      } });
+      setData((previous) => {
+        if (previous === null) return previous;
+        const held = previous.rc.releaseCategoryToConsequence.releaseCategoryInputs;
+        const next = held.some((c) => c.releaseCategory === category.releaseCategory)
+          ? held.map((c) => (c.releaseCategory === category.releaseCategory ? withSourceTermSummary({ ...c, sourceTerm: category.sourceTerm }) : c))
+          : [...held, category];
+        return { ...previous, rc: { ...previous.rc,
+          releaseCategoryToConsequence: { ...previous.rc.releaseCategoryToConsequence, releaseCategoryAndSourceTermReviewed: false, releaseCategoryInputs: next },
+        } };
+      });
       return category;
     };
     return {
       importFile: (category, revision, file) => enqueue(async () => accept(await importRcSourceTerm(id, category, revision, file))),
-      saveValues: (category, revision, values, msSource) => enqueue(async () => accept(await saveRcSourceTerm(id, category, revision, values, msSource))),
+      saveValues: (category, revision, values) => enqueue(async () => accept(await saveRcSourceTerm(id, category, revision, values))),
+      typeOver: (category, values) => {
+        const held = savedRcRef.current;
+        const revision = held === undefined ? 0 : rcSavedSourceRevision(held, category);
+        return enqueue(async () => accept(await saveRcSourceTerm(id, category, revision, values)));
+      },
       downloadOriginal: async (documentId) => {
         const result = await getRcDocumentDownload(id, documentId);
         window.open(result.url, "_blank", "noopener");
@@ -245,7 +271,12 @@ function RcWorkbookPage(): JSX.Element {
   }, [id, enqueue]);
 
   const acceptCaseRecords = useCallback((records: RcCaseRecords): RcCaseRecords => {
-    setData(previous => previous === null ? previous : { ...previous, rc: withRcFamilyConsequences({ ...previous.rc, consequenceQuantification: { ...previous.rc.consequenceQuantification, caseRecords: records } }) });
+    setData(previous => {
+      if (previous === null) return previous;
+      const recorded = { ...previous.rc, consequenceQuantification: { ...previous.rc.consequenceQuantification, caseRecords: records } };
+      return { ...previous, rc: rcDerivesFamilyConsequences(previous.rc, NO_RC_LINKED_DATA) ? withRcFamilyConsequences(recorded) : recorded };
+    });
+    setRecordsAccepted(count => count + 1);
     return records;
   }, []);
 
@@ -315,7 +346,7 @@ function RcWorkbookPage(): JSX.Element {
   if (error !== null) {
     return <div className="posw"><main className="posmain"><p className="pws-status pws-status--error">{error}</p></main></div>;
   }
-  if (data === null || id === undefined) {
+  if (data === null || viewData === null || id === undefined) {
     return <div className="posw"><main className="posmain"><p className="pws-status">Loading workbook…</p></main></div>;
   }
 
@@ -338,10 +369,10 @@ function RcWorkbookPage(): JSX.Element {
   const canUnloadExample = canLoadExample && hasPreviousMef;
 
   return (
-    <RcWorkbookProvider key={id} data={data} editable={editable} mutateRc={mutateRc} links={links} sourceTerms={sourceTerms} siteReceptors={siteReceptors} earlyResponse={earlyResponse} weather={weather} transport={transport} doseInputs={doseInputs} caseRecords={caseRecords} consequenceRuns={consequenceRuns}>
+    <RcWorkbookProvider key={id} data={viewData} editable={editable} mutateRc={mutateRc} links={links} linked={read} sourceTerms={sourceTerms} siteReceptors={siteReceptors} earlyResponse={earlyResponse} weather={weather} transport={transport} doseInputs={doseInputs} caseRecords={caseRecords} consequenceRuns={consequenceRuns}>
       <WorkbookViewMemory scope={`rc.${id}`}>
       <RcWorkbench
-        data={data}
+        data={viewData}
         persona={persona}
         setPersona={setPersona}
         showPersonaPicker={availablePersonas.length > 1}
@@ -366,6 +397,12 @@ function RcWorkbookPage(): JSX.Element {
         renderDocuments={() => <RcDocumentsCard workbookId={id} canEdit={canEdit} />}
       />
       </WorkbookViewMemory>
+      {unavailableLinks.length > 0 && dismissedUnavailable !== unavailableLinks && (
+        <div className="ie-savebar" role="alert">
+          <span>Could not load a linked workbook: {unavailableLinks}</span>
+          <button type="button" className="ie-savebar__dismiss" onClick={() => setDismissedUnavailable(unavailableLinks)}>Dismiss</button>
+        </div>
+      )}
       {saveError !== null && (
         <div className="ie-savebar" role="alert">
           <span>Could not save changes: {saveError}</span>

@@ -1,4 +1,4 @@
-import { JSX, useCallback, useEffect, useMemo, useState } from "react";
+import { JSX, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { type EventSequenceQuantification, type EsqLinkCode } from "interfaces-mef-types/esq/event-sequence-quantification";
 import { type Workbook } from "interfaces-shared-types";
@@ -22,7 +22,10 @@ import {
 import { EsqWorkbench, type EsqWorkbenchActions } from "./esqWorkbench";
 import { EsqWorkbookProvider, useEsqUpstream, type EsqWorkbookData } from "./esqWorkbookContext";
 import { NO_LINK_OPTIONS, listEsqLinkOptions } from "./esqLinks";
-import { loadEsqDaLinks } from "./esqDaLinks";
+import { caseOptions, loadEsqDaLinks } from "./esqDaLinks";
+import { esqSavedOf, esqViewOf } from "./esqLinkedData";
+import { useLinkedWorkbookRefresh } from "../workbooks/useLinkedWorkbookRefresh";
+import { useUncertaintyVersion } from "../newly-developed-methods/shared/useUncertainty";
 import { useEsqMefPatch } from "./useEsqMefPatch";
 import { useEsqIeSync } from "./esqIeSync";
 import { LoadExampleModal, UnloadExampleModal } from "../workbooks/exampleWorkbookModal";
@@ -68,6 +71,7 @@ function EsqWorkbookPage(): JSX.Element {
   const [projectId, setProjectId] = useState<string | null>(null);
   const [exampleOptions, setExampleOptions] = useState<EsqExampleOption[]>([]);
   const [linkOptions, setLinkOptions] = useState<Record<EsqLinkCode, Workbook[]>>(NO_LINK_OPTIONS);
+  const [dismissedUnavailable, setDismissedUnavailable] = useState<string | null>(null);
   const workbookName = data?.esq.name ?? "";
   const workbookVersion = data?.esq.version ?? "1";
 
@@ -102,13 +106,14 @@ function EsqWorkbookPage(): JSX.Element {
   }, [id]);
 
   const linkedDaId = data?.esq.linkedWorkbooks?.DA;
+  const [daReading, setDaReading] = useState(0);
   useEffect(() => {
     let cancelled = false;
     void loadEsqDaLinks(linkedDaId).then((daLinks) => {
       if (!cancelled) setData((prev) => (prev === null ? prev : { ...prev, daLinks }));
     });
     return () => { cancelled = true; };
-  }, [linkedDaId]);
+  }, [linkedDaId, daReading]);
 
   useEffect(() => {
     let cancelled = false;
@@ -118,7 +123,12 @@ function EsqWorkbookPage(): JSX.Element {
     return () => { cancelled = true; };
   }, []);
 
-  const upstream = useEsqUpstream(data?.esq, linkOptions);
+  const { upstream, refresh } = useEsqUpstream(data?.esq, linkOptions);
+  const refreshLinked = useCallback((): Promise<void> => {
+    setDaReading((count) => count + 1);
+    return refresh();
+  }, [refresh]);
+  useLinkedWorkbookRefresh(refreshLinked);
 
   const updateEsq = useCallback((esq: EventSequenceQuantification): void => {
     setData((prev) => (prev === null ? prev : { ...prev, esq }));
@@ -147,9 +157,16 @@ function EsqWorkbookPage(): JSX.Element {
     handleSaveErr,
     handleSaveResync,
   );
+  const uncertaintyVersion = useUncertaintyVersion();
+  const daLinks = data?.daLinks;
+  const daCases = useMemo(() => (uncertaintyVersion < 0 ? [] : caseOptions(daLinks ?? [])), [daLinks, uncertaintyVersion]);
+  const viewUpstream = useRef(upstream);
+  const viewCases = useRef(daCases);
+  viewCases.current = daCases;
   const mutateEsq = useCallback((mutator: (esq: EventSequenceQuantification) => EventSequenceQuantification): void => {
-    setData((prev) => (prev === null ? prev : { ...prev, esq: mutator(prev.esq) }));
-    void patch(mutator);
+    const saved = (current: EventSequenceQuantification): EventSequenceQuantification => esqSavedOf(mutator(esqViewOf(current, viewUpstream.current, viewCases.current)));
+    setData((prev) => (prev === null ? prev : { ...prev, esq: saved(prev.esq) }));
+    void patch(saved);
   }, [patch]);
 
   const actions = useMemo<EsqWorkbenchActions | undefined>(() => {
@@ -199,11 +216,14 @@ function EsqWorkbookPage(): JSX.Element {
     const sy = latestSy !== null && latestSy.workbookId === linkedSyId ? latestSy.mef : upstream.sy;
     return ieSync.ie === upstream.ie && sy === upstream.sy ? upstream : { ...upstream, ie: ieSync.ie, sy };
   }, [ieSync.ie, latestSy, linkedSyId, upstream]);
+  viewUpstream.current = syncedUpstream;
+  const viewData = useMemo<EsqWorkbookData | null>(() => (data === null ? null : { ...data, esq: esqViewOf(data.esq, syncedUpstream, daCases) }), [data, syncedUpstream, daCases]);
+  const unavailableLinks = (upstream.unavailable ?? []).join(", ");
 
   if (error !== null) {
     return <div className="posw"><main className="posmain"><p className="pws-status pws-status--error">{error}</p></main></div>;
   }
-  if (data === null || id === undefined) {
+  if (data === null || viewData === null || id === undefined) {
     return <div className="posw"><main className="posmain"><p className="pws-status">Loading workbook…</p></main></div>;
   }
 
@@ -227,7 +247,7 @@ function EsqWorkbookPage(): JSX.Element {
 
   return (
     <EsqWorkbookProvider
-      data={data}
+      data={viewData}
       editable={editable}
       runtime={{ workbookId: id, projectId, revision, saveStatus }}
       mutateEsq={mutateEsq}
@@ -237,7 +257,7 @@ function EsqWorkbookPage(): JSX.Element {
     >
       <WorkbookViewMemory scope={`esq.${id}`}>
         <EsqWorkbench
-          data={data}
+          data={viewData}
           persona={persona}
           setPersona={setPersona}
           showPersonaPicker={availablePersonas.length > 1}
@@ -267,6 +287,12 @@ function EsqWorkbookPage(): JSX.Element {
           renderDocuments={() => <EsqDocumentsCard workbookId={id} canEdit={canEdit} />}
         />
       </WorkbookViewMemory>
+      {unavailableLinks.length > 0 && dismissedUnavailable !== unavailableLinks && (
+        <div className="ie-savebar" role="alert">
+          <span>Could not load a linked workbook: {unavailableLinks}</span>
+          <button type="button" className="ie-savebar__dismiss" onClick={() => setDismissedUnavailable(unavailableLinks)}>Dismiss</button>
+        </div>
+      )}
       {saveError !== null && (
         <div className="ie-savebar" role="alert">
           <span>Could not save changes: {saveError}</span>

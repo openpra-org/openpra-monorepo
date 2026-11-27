@@ -10,6 +10,7 @@ import {
   WidthType,
   BorderStyle,
 } from "docx";
+import type { WorkbookLinkedRevision } from "interfaces-shared-types/workbooks";
 import { type RiskIntegration } from "interfaces-mef-types/ri/risk-integration";
 
 function heading(text: string, level: (typeof HeadingLevel)[keyof typeof HeadingLevel]): Paragraph {
@@ -158,8 +159,18 @@ function buildChildren(a: RiskIntegration, final: boolean): (Paragraph | Table)[
   return out;
 }
 
-async function generateRiReport(ri: RiskIntegration, final: boolean): Promise<void> {
-  const doc = new Document({ sections: [{ children: buildChildren(ri, final) }] });
+function linkedSection(linked: readonly WorkbookLinkedRevision[]): (Paragraph | Table)[] {
+  if (linked.length === 0) return [];
+  const stamp = new Date().toLocaleString();
+  return [
+    heading("Linked workbooks", HeadingLevel.HEADING_1),
+    new Paragraph({ children: [new TextRun("This draft uses these linked workbooks as they stood when it was made.")], spacing: { after: 120 } }),
+    dataTable(["Element", "Workbook", "Revision"], linked.map((entry) => [entry.code, entry.name, entry.revision === undefined ? `Read ${stamp}` : String(entry.revision)])),
+  ];
+}
+
+async function generateRiReport(ri: RiskIntegration, final: boolean, linked: readonly WorkbookLinkedRevision[] = []): Promise<void> {
+  const doc = new Document({ sections: [{ children: [...buildChildren(ri, final), ...linkedSection(linked)] }] });
   const blob = await Packer.toBlob(doc);
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");

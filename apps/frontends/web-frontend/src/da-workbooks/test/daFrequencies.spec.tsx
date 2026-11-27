@@ -13,7 +13,7 @@ import { IE_ANALYSIS } from "../../../../../backends/web-backend/src/example-wor
 import { POS_ANALYSIS } from "../../../../../backends/web-backend/src/example-workbooks/seeds/pos-seed";
 import { evaluateUncertainty } from "../../newly-developed-methods/shared/uncertaintyApi";
 import { praxisUncertainty, settledWithPraxis } from "../../newly-developed-methods/shared/test/praxisUncertainty";
-import { daImportNeeds, withAutoMapping, withLinkedValuesSynced, withNeedsMerged } from "../daSelectors";
+import { daViewOf } from "../daLinkedData";
 import { withEstimates } from "../daFailures";
 import { withUnavailability } from "../daUnavailability";
 import { withCcf } from "../daCcf";
@@ -67,8 +67,7 @@ function close(actual: number | undefined, expected: number, tolerance = 1e-9): 
 }
 
 function imported(seed: DataAnalysis): DataAnalysis {
-  const merged = withLinkedValuesSynced({ ...seed, dataNeeds: withNeedsMerged(seed.dataNeeds, daImportNeeds(seed, UPSTREAM, NOW)) });
-  return withCcf(withFrequencies(withUnavailability(withEstimates(withAutoMapping(merged)))));
+  return withCcf(withFrequencies(withUnavailability(withEstimates(daViewOf(seed, UPSTREAM)))));
 }
 
 function parameterOf(da: DataAnalysis, id: string): DataAnalysisParameter {

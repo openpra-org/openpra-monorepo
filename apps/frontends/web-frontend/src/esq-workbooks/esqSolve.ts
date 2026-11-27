@@ -87,7 +87,7 @@ const QUANTIFIER_LABELS: Record<EsqCutSetQuantifier, string> = { MCUB: "Upper bo
 
 const BASIS_LABELS: Record<EsqCutOffBasis, string> = { FREQUENCY: "Frequency per year", PROBABILITY: "Probability" };
 
-const SOURCE_LABELS: Record<EsqFamilyValueSource, string> = { RUN: "PRAXIS run", TYPED: "Typed", IMPORTED: "Imported from ES" };
+const SOURCE_LABELS: Record<EsqFamilyValueSource, string> = { RUN: "PRAXIS run", TYPED: "Typed", IMPORTED: "ES" };
 
 const QUANTIFIER_CUES: Record<EsqCutSetQuantifier, string> = { MCUB: "the min cut upper bound", EXACT: "the exact union", RARE_EVENT: "the rare event sum" };
 
@@ -196,7 +196,7 @@ function solveFindings(view: Omit<EsqSolveView, "findings">): EsqSolveFinding[] 
   for (const family of view.families) {
     const target = { kind: "esqSolveFamily" as const, id: family.id };
     if (family.needsValue && family.value === undefined) {
-      findings.push({ severity: "error", check: "No value of record", item: family.id, detail: "Use a run, type a value with its source, or import one.", target });
+      findings.push({ severity: "error", check: "No value of record", item: family.id, detail: "Use a run, type a value with its source, or take the linked ES value.", target });
     }
     const solve = family.solve;
     if (solve?.ofRecord === "TYPED" && blank(solve.typed?.source)) {
@@ -430,6 +430,8 @@ function summaryProblem(summary: EsqModelRunResult, change: string | undefined):
 }
 
 export {
+  familyQuantificationsOf,
+  frequencyValue,
   BASIS_LABELS,
   CALCULATION_LABELS,
   QUANTIFIER_LABELS,

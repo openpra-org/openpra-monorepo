@@ -63,8 +63,7 @@ function EsqInitiatingEventEditor({ tree, drawn, states, frequencyOptions, label
 
   function save(change: (current: EsqInitiatorRecord) => EsqInitiatorRecord): void {
     if (!editable) return;
-    const now = new Date().toISOString();
-    mutateEsq((draft) => withTypedInitiator(draft, change(initiatorRecordOf(draft, id)), upstream, now));
+    mutateEsq((draft) => withTypedInitiator(draft, change(initiatorRecordOf(draft, id)), upstream));
   }
 
   function setSource(value: string): void {
@@ -88,8 +87,7 @@ function EsqInitiatingEventEditor({ tree, drawn, states, frequencyOptions, label
       return;
     }
     setCodeProblem(null);
-    const now = new Date().toISOString();
-    mutateEsq((draft) => withInitiatorCode(draft, id, code, upstream, now));
+    mutateEsq((draft) => withInitiatorCode(draft, id, code, upstream));
   }
 
   function toggleState(stateId: string, on: boolean): void {
@@ -98,12 +96,11 @@ function EsqInitiatingEventEditor({ tree, drawn, states, frequencyOptions, label
 
   function createInitiator(): void {
     if (!editable || !drawn) return;
-    const now = new Date().toISOString();
     mutateEsq((draft) => {
       const code = nextTypedInitiatorCode(draft, upstream.ie);
       const withRecord = withTypedInitiatorRecord(draft, newTypedInitiator(code, tree.stateId));
       const trees = typedTreesOf(withRecord).map((candidate) => (candidate.uuid === tree.id ? applyEventTreeOperation(candidate, { kind: "UPDATE_TREE", changes: { initiatingEventId: code } }) : candidate));
-      return withTypedTrees(withRecord, trees, upstream, now);
+      return withTypedTrees(withRecord, trees, upstream);
     });
   }
 

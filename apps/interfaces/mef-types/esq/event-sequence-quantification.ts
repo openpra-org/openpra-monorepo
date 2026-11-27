@@ -128,6 +128,7 @@ export interface EsqModuleCountLink {
 
 export interface EsqModuleCount {
   value: number;
+  reason?: string;
   link?: EsqModuleCountLink;
 }
 
@@ -603,6 +604,11 @@ export interface EsqValueBinding {
   reason: string;
 }
 
+export interface EsqTreeMissionTime {
+  treeId: string;
+  missionTime: UncertainExpression;
+}
+
 export interface EsqModelDecisions {
   functionLinks?: EsqFunctionLink[];
   initiatorChoices?: EsqInitiatorChoice[];
@@ -611,6 +617,7 @@ export interface EsqModelDecisions {
   valueBindings?: EsqValueBinding[];
   typedTrees?: EventTree[];
   typedInitiators?: EsqTypedInitiator[];
+  treeMissionTimes?: EsqTreeMissionTime[];
 }
 
 export type EsqFlagTargetKind = "HOUSE" | "EVENT" | "GATE";
@@ -1131,10 +1138,16 @@ export interface EsqManualPreOperational {
   limitation: string;
 }
 
+export interface EsqLinkedCaseRun {
+  caseId: string;
+  run: EsqCaseRun;
+}
+
 export interface EsqSensitivityWork {
   decisions?: EsqRegisterDecision[];
   manual?: EsqManualRegisterEntry[];
   cases?: EsqSensitivityCase[];
+  linkedCaseRuns?: EsqLinkedCaseRun[];
   preOperational?: EsqPreOperationalDecision[];
   manualPreOperational?: EsqManualPreOperational[];
 }

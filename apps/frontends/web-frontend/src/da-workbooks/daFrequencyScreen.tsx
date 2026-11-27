@@ -24,7 +24,6 @@ import { DistributionChart, useElementWidth, type DistributionSeries } from "./d
 import { frequencyEstimate, frequencyFindings, frequencyParameters, modulesOf, perLabel, shareOf, stateShares, type DaFrequencyComputation, type DaFrequencyEstimate, type DaFrequencyPartEstimate } from "./daFrequencies";
 import { expressionSpread, lawSummary, parameterPoint, pointState, quantileOf } from "./daLaws";
 import { libraryEntries, nextCode, withStoredEntry } from "./daSourcing";
-import { nextParameterId } from "./daSelectors";
 import { useDaWorkbook } from "./daWorkbookContext";
 import {
   BOUNDARY_MATCH_LABELS,
@@ -324,20 +323,14 @@ function FrequencyTable({ tab, selected, onSelect, openDrawer }: { tab: Exclude<
   );
 }
 
-function unmappedGroups(da: DataAnalysis): DaInitiatorNeed[] {
-  const ids = new Set(da.parameters.map((parameter) => parameter.uuid));
-  return (da.dataNeeds?.initiators ?? []).filter((need) => need.included && (need.parameterId === undefined || !ids.has(need.parameterId)));
-}
-
 function FrequencyScreen({ openDrawer }: { openDrawer: (ctx: DaDrawerContext) => void }): JSX.Element {
-  const { da, editable, mutateDa } = useDaWorkbook();
+  const { da } = useDaWorkbook();
   useUncertaintyVersion();
   const [tab, setTab] = useState<FrequencyTab>("groups");
   const [keys, setKeys] = useState<Record<string, string>>({});
   const tabId = useId();
   const parameters = frequencyParameters(da);
   const findings = frequencyFindings(da);
-  const missing = unmappedGroups(da);
   const estimated = parameters.filter((parameter) => { if (parameter.valueMode !== "CALCULATED") return false; const estimate = frequencyEstimate(da, parameter); return estimate.problem === undefined && !estimate.pending; }).length;
   const events = parameters.reduce((total, parameter) => total + (parameter.valueMode === "CALCULATED" ? evidenceTotals(frequencyEstimate(da, parameter)).events : 0), 0);
   const tabs: { id: FrequencyTab; label: string }[] = [
@@ -348,25 +341,6 @@ function FrequencyScreen({ openDrawer }: { openDrawer: (ctx: DaDrawerContext) =>
     { id: "checks", label: `Checks (${findings.length})` },
   ];
   const head = TAB_HEADS[tab];
-  function addImported(): void {
-    if (!editable || missing.length === 0) return;
-    mutateDa((draft) => {
-      const ids = new Set(draft.parameters.map((parameter) => parameter.uuid));
-      const created = new Map<string, string>();
-      const added = missing.map((need): DataAnalysisParameter => {
-        const id = nextParameterId(ids);
-        ids.add(id);
-        created.set(need.id, id);
-        return { uuid: id, name: need.name, parameterType: "FREQUENCY", quantificationModel: "FREQUENCY", valueMode: "CALCULATED", stateIds: [...need.stateIds], basicEventRef: need.id, frequency: { parts: [] }, implementsSrs: [{ sr: "DA-D1", hlr: "D" }, { sr: "DA-D3", hlr: "D" }] };
-      });
-      const needs = draft.dataNeeds;
-      return {
-        ...draft,
-        parameters: [...draft.parameters, ...added],
-        dataNeeds: needs === undefined ? needs : { ...needs, initiators: needs.initiators.map((need) => (created.has(need.id) ? { ...need, parameterId: created.get(need.id) } : need)) },
-      };
-    });
-  }
   return (
     <div className="da-step">
       <DaTabs label="Initiating event sections" tabs={tabs} active={tab} onChange={setTab} idBase={tabId} className="da-step__tabs" />
@@ -376,7 +350,6 @@ function FrequencyScreen({ openDrawer }: { openDrawer: (ctx: DaDrawerContext) =>
             <WorkbookSectionHeading title={head.title} level={3} />
             <div className="da-card-actions">
               <DaProvenanceChip>{head.sr}</DaProvenanceChip>
-              {editable && tab === "groups" && missing.length > 0 && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addImported}>Add {missing.length} {missing.length === 1 ? "parameter" : "parameters"} for imported groups</button>}
             </div>
           </div>
           {tab === "checks" ? (

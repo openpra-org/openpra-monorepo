@@ -29,6 +29,7 @@ import { PraetorConsequenceClient } from "./praetor-consequence.client";
 import { RcConsequenceRunRecord, RcConsequenceRunSchema } from "./rc-consequence-run.schema";
 import { RcConsequenceRunsController } from "./rc-consequence-runs.controller";
 import { RcConsequenceRunsService } from "./rc-consequence-runs.service";
+import { RcLinkedSourcesService } from "./rc-linked-sources.service";
 
 @Module({
   imports: [
@@ -42,7 +43,7 @@ import { RcConsequenceRunsService } from "./rc-consequence-runs.service";
     WorkbooksModule,
   ],
   controllers: [RcCaseRecordsController, RcConsequenceRunsController, RcWorkbooksController, RcDocumentsController, RcSourceTermController, RcSiteReceptorsController, RcEarlyResponseController, RcWeatherController, RcTransportController, RcDoseInputsController],
-  providers: [RcPublishedExampleService, RcCaseRecordsService, RcWorkbooksService, RcMefAdapter, RcDocumentsService, RcSourceTermService, RcSiteReceptorsService, RcEarlyResponseService, RcWeatherService, RcTransportService, RcDoseInputsService, PraetorConsequenceClient, RcConsequenceRunsService],
+  providers: [RcLinkedSourcesService, RcPublishedExampleService, RcCaseRecordsService, RcWorkbooksService, RcMefAdapter, RcDocumentsService, RcSourceTermService, RcSiteReceptorsService, RcEarlyResponseService, RcWeatherService, RcTransportService, RcDoseInputsService, PraetorConsequenceClient, RcConsequenceRunsService],
   exports: [RcWorkbooksService, RcDocumentsService, PraetorConsequenceClient],
 })
 export class RcWorkbooksModule {}

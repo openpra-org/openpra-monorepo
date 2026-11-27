@@ -7,8 +7,9 @@ import type { RcTransportSettings } from "interfaces-mef-types/rc/transport";
 import type { RcWeatherTrial } from "interfaces-mef-types/rc/weather";
 import { RcResultStatisticsSchema } from "interfaces-mef-types/zod/rc/case-records";
 import { currentRcCase } from "interfaces-shared-types/rc-workbooks/case-records";
-import { RC_ANALYSIS } from "../../example-workbooks/seeds/rc-seed";
-import { RC_ANALYSIS_HTGR } from "../../example-workbooks/seeds/rc-seed-htgr";
+import { rcWithLinkedData } from "interfaces-shared-types/rc-workbooks/linked-data";
+import { RC_ANALYSIS as RC_SAVED_SFR, RC_LINKED_SFR } from "../../example-workbooks/seeds/rc-seed";
+import { RC_ANALYSIS_HTGR as RC_SAVED_HTGR, RC_LINKED_HTGR } from "../../example-workbooks/seeds/rc-seed-htgr";
 import {
   WorkbookOpenRcAdapterError,
   adaptOpenRcMissingDoseCoefficients,
@@ -38,6 +39,9 @@ import {
   trial,
   type PublishedOpenRcCase,
 } from "./openrc-test-cases";
+
+const RC_ANALYSIS = rcWithLinkedData(RC_SAVED_SFR, RC_LINKED_SFR);
+const RC_ANALYSIS_HTGR = rcWithLinkedData(RC_SAVED_HTGR, RC_LINKED_HTGR);
 
 interface ReferenceDoses {
   tede_sv?: number;

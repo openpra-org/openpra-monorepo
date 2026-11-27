@@ -10,6 +10,7 @@ import {
   WidthType,
   BorderStyle,
 } from "docx";
+import type { WorkbookLinkedRevision } from "interfaces-shared-types/workbooks";
 import { holdsEstimate, type DataAnalysis, type DataAnalysisParameter } from "interfaces-mef-types/da/data-analysis";
 import { uncertaintyIdle } from "../newly-developed-methods/shared/useUncertainty";
 import { expressionText } from "../newly-developed-methods/shared/uncertainText";
@@ -231,11 +232,21 @@ function buildChildren(a: DataAnalysis, final: boolean): (Paragraph | Table)[] {
   return out;
 }
 
-async function generateDaReport(da: DataAnalysis, final: boolean): Promise<void> {
+function linkedSection(linked: readonly WorkbookLinkedRevision[]): (Paragraph | Table)[] {
+  if (linked.length === 0) return [];
+  const stamp = new Date().toLocaleString();
+  return [
+    heading("Linked workbooks", HeadingLevel.HEADING_1),
+    new Paragraph({ children: [new TextRun("This draft uses these linked workbooks as they stood when it was made.")], spacing: { after: 120 } }),
+    dataTable(["Element", "Workbook", "Revision"], linked.map((entry) => [entry.code, entry.name, entry.revision === undefined ? `Read ${stamp}` : String(entry.revision)])),
+  ];
+}
+
+async function generateDaReport(da: DataAnalysis, final: boolean, linked: readonly WorkbookLinkedRevision[] = []): Promise<void> {
   await settled(() => {
     buildChildren(da, final);
   });
-  const doc = new Document({ sections: [{ children: buildChildren(da, final) }] });
+  const doc = new Document({ sections: [{ children: [...buildChildren(da, final), ...linkedSection(linked)] }] });
   const blob = await Packer.toBlob(doc);
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");

@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { expressionReferences, parameterReferenceKey, type UncertainExpression, type UncertainParameter } from "interfaces-mef-types/core/uncertainty";
-import { systemFaultTreeBasicEventIds } from "interfaces-mef-types/sy/system-models";
-import type { SystemBasicEvent, SystemDefinition, SystemsAnalysis } from "interfaces-mef-types/sy/systems-analysis";
+import { basicEventMissionTime, ownerSystem } from "interfaces-mef-types/sy/system-models";
+import type { SystemDefinition, SystemsAnalysis } from "interfaces-mef-types/sy/systems-analysis";
 import type { ParameterOption, VectorOption } from "../newly-developed-methods/shared/uncertainEditor";
 import { useHoursPoints, type HoursState } from "../sc-workbooks/scMissionTimePoints";
 import { scMissionTimeTable, type ScMissionTimes } from "../sc-workbooks/scMissionTimeLinks";
@@ -56,19 +56,6 @@ function linkedMissionTimes(expression: UncertainExpression | undefined, options
 function useSyValueSources(): SyValueSources {
   const { controlledParameters, links, controlledCcfVectors, controlledCcfFactors } = useSyWorkbook();
   return useMemo(() => syValueSources(controlledParameters, links, { vectors: controlledCcfVectors, factors: controlledCcfFactors }), [controlledParameters, links, controlledCcfVectors, controlledCcfFactors]);
-}
-
-function ownerSystem(sy: Pick<SystemsAnalysis, "systemDefinitions" | "systemLogicModels">, eventId: string): SystemDefinition | undefined {
-  const owner = sy.systemLogicModels.find((model) => systemFaultTreeBasicEventIds(model).includes(eventId))?.systemReference;
-  return sy.systemDefinitions.find((system) => system.uuid === owner);
-}
-
-function modelMissionTime(expression: UncertainExpression | undefined): UncertainExpression | undefined {
-  return expression?.node === "MODEL" && expression.model.form === "MISSION" ? expression.model.missionTime : undefined;
-}
-
-function basicEventMissionTime(sy: Pick<SystemsAnalysis, "systemDefinitions" | "systemLogicModels">, event: SystemBasicEvent): UncertainExpression | undefined {
-  return modelMissionTime(event.expression) ?? ownerSystem(sy, event.uuid)?.missionTime;
 }
 
 function useReferencedScSources(sy: SystemsAnalysis | null, parameters: readonly SyControlledParameterOption[], linkedScId: string | undefined, linkedSc: ScMissionTimes | undefined): ScMissionTimeSource[] {

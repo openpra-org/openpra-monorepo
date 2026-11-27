@@ -11,6 +11,7 @@ import { RCIcon } from "./rcIcons";
 import { RcProvenanceChip } from "./rcShared";
 import { useRcWorkbook } from "./rcWorkbookContext";
 import { generateRcReport } from "./rcDocx";
+import { useLinkedRevisionsReader } from "../workbooks/useLinkedRevisionsReader";
 import {
   MU_SR,
   BS_SR,
@@ -27,6 +28,7 @@ import { RcMetricDrawer } from "./rcMetrics";
 import { RcRiFeedbackCard } from "./rcRiFeedback";
 import { RcFamilyConsequences } from "./rcFamilyConsequences";
 import { rcFamilyReferenceMatches } from "interfaces-shared-types/rc-workbooks/step-checks";
+import { rcCategoryIsListed, rcSourceIsLinked } from "interfaces-shared-types/rc-workbooks/linked-data";
 import { rcConsequenceMatchesFamily } from "interfaces-shared-types/rc-workbooks/family-consequences";
 import {
   DrawerHead,
@@ -372,6 +374,7 @@ function DraftScreen({ cc, scores, site, conformance, onSubmitDraft, canSubmit }
   canSubmit: boolean;
 }): JSX.Element {
   const { rc } = useRcWorkbook();
+  const readLinked = useLinkedRevisionsReader();
   function downloadJson(): void {
     const blob = new Blob([JSON.stringify(rc, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
@@ -411,7 +414,7 @@ function DraftScreen({ cc, scores, site, conformance, onSubmitDraft, canSubmit }
           <WorkbookSectionHeading title="Draft submission" level={3} className="posgen__readout-h" />
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {canSubmit && <button type="button" className="posnav__btn posnav__btn--primary" onClick={onSubmitDraft}><RCIcon.Send /> Submit draft to internal review</button>}
-            <button type="button" className="posnav__btn" onClick={() => { void generateRcReport(rc, false, conformance); }}><RCIcon.Download /> Download draft (.docx)</button>
+            <button type="button" className="posnav__btn" onClick={() => { void readLinked().then((linked) => generateRcReport(rc, false, conformance, linked)); }}><RCIcon.Download /> Download draft (.docx)</button>
             <button type="button" className="posnav__btn" onClick={downloadJson}><RCIcon.Download /> Download JSON</button>
           </div>
         </div>
@@ -422,7 +425,7 @@ function DraftScreen({ cc, scores, site, conformance, onSubmitDraft, canSubmit }
 
 // ─── Drawer content — every editable RC entity ─────────────────────────────
 function DrawerContent({ context, onClose, centered = false }: { context: RcDrawerContext; onClose: () => void; centered?: boolean }): JSX.Element | null {
-  const { rc, editable, mutateRc, sourceTermDrafts, setSourceTermDraft, links } = useRcWorkbook();
+  const { rc, editable, mutateRc, sourceTermDrafts, setSourceTermDraft, links, linked } = useRcWorkbook();
   const dis = !editable;
   const rcc = rc.releaseCategoryToConsequence;
   const pa = rc.protectiveActionParameters;
@@ -439,14 +442,15 @@ function DrawerContent({ context, onClose, centered = false }: { context: RcDraw
     const esId = rc.linkedWorkbooks?.ES;
     const members = esId && links.es ? links.es.eventSequenceFamilies.filter((family) => (c.eventSequenceFamilyReferences ?? []).some((reference) => rcFamilyReferenceMatches(reference, esId, family.uuid))) : [];
     const remove = (): void => { setSourceTermDraft(c.releaseCategory, undefined); mutateRc((d) => ({ ...d, releaseCategoryToConsequence: { ...d.releaseCategoryToConsequence, releaseCategoryInputs: d.releaseCategoryToConsequence.releaseCategoryInputs.filter((x) => x.releaseCategory !== c.releaseCategory) } })); onClose(); };
+    const listedByEs = rcCategoryIsListed(c.releaseCategory, linked);
     return (
       <>
         <DrawerHead cap="Release category" title={c.releaseCategory} onClose={onClose} centered />
         <div className="modal__body">
           <div className="posfield-grid rc-category-main-fields">
-            <RcTextField label="Category ID" value={c.releaseCategory} onChange={(v) => patch({ releaseCategory: v })} disabled={dis || Boolean(c.sourceTerm) || Boolean(Object.prototype.hasOwnProperty.call(sourceTermDrafts, c.releaseCategory) && sourceTermDrafts[c.releaseCategory])} />
-            <RcTextField label="Source-term reference" value={c.sourceTermDefinitionRef ?? ""} onChange={(v) => patch({ sourceTermDefinitionRef: v })} disabled={dis} />
-            {editable && <button type="button" className="posnav__btn posnav__btn--sm rcbtn-danger rc-category-remove" onClick={remove}>Remove category</button>}
+            <RcTextField label="Category ID" value={c.releaseCategory} onChange={(v) => patch({ releaseCategory: v })} disabled={dis || listedByEs || Boolean(c.sourceTerm) || Boolean(Object.prototype.hasOwnProperty.call(sourceTermDrafts, c.releaseCategory) && sourceTermDrafts[c.releaseCategory])} />
+            <RcTextField label="Source-term reference" value={c.sourceTermDefinitionRef ?? ""} onChange={(v) => patch({ sourceTermDefinitionRef: v })} disabled={dis || rcSourceIsLinked(c)} />
+            {editable && !listedByEs && <button type="button" className="posnav__btn posnav__btn--sm rcbtn-danger rc-category-remove" onClick={remove}>Remove category</button>}
           </div>
           <div className="posfield-grid">
             {members.length ? <RcSelectField label="Bounding sequence" value={bounding.sequenceId} disabled={dis}
@@ -1199,9 +1203,14 @@ function DrawerContent({ context, onClose, centered = false }: { context: RcDraw
   }
 
   if (context.kind === "rifeedback") {
-    const f = rc.riskIntegrationFeedback;
+    const fromRi = linked.ri !== undefined;
+    const unrecorded: NonNullable<typeof rc.riskIntegrationFeedback> | undefined = linked.ri === undefined ? undefined : { analysisRef: linked.ri.analysis.uuid };
+    const f = rc.riskIntegrationFeedback ?? unrecorded;
     if (f === undefined) return null;
-    const patch = (next: Partial<NonNullable<typeof rc.riskIntegrationFeedback>>): void => mutateRc((d) => (d.riskIntegrationFeedback === undefined ? d : { ...d, riskIntegrationFeedback: { ...d.riskIntegrationFeedback, ...next } }));
+    const patch = (next: Partial<NonNullable<typeof rc.riskIntegrationFeedback>>): void => mutateRc((d) => {
+      const current = d.riskIntegrationFeedback ?? unrecorded;
+      return current === undefined ? d : { ...d, riskIntegrationFeedback: { ...current, ...next } };
+    });
     const rcf = f.releaseCategoryFeedback ?? [];
     const mf = f.metricFeedback ?? [];
     const resp = f.response ?? { description: "", changes: [], status: "IN_PROGRESS" as const };
@@ -1210,11 +1219,11 @@ function DrawerContent({ context, onClose, centered = false }: { context: RcDraw
       <>
         <DrawerHead cap="Risk-integration feedback" title="Risk-integration feedback" onClose={onClose} centered={centered} />
         <div className={centered ? "modal__body" : "posdrawer__body"}>
-          <div className="posfield-grid">
+          {!fromRi && <div className="posfield-grid">
             <RcTextField label="Analysis reference" value={f.analysisRef} onChange={(v) => patch({ analysisRef: v })} disabled={dis} />
             <RcTextField label="Feedback date" value={f.feedbackDate ?? ""} onChange={(v) => patch({ feedbackDate: v })} disabled={dis} />
-          </div>
-          <RcAreaField label="General feedback" value={f.generalFeedback ?? ""} onChange={(v) => patch({ generalFeedback: v })} disabled={dis} rows={2} />
+          </div>}
+          {!fromRi && <RcAreaField label="General feedback" value={f.generalFeedback ?? ""} onChange={(v) => patch({ generalFeedback: v })} disabled={dis} rows={2} />}
           <div className="posfield">
             <label className="posfield__label">Release-category feedback</label>
             <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
@@ -1234,7 +1243,7 @@ function DrawerContent({ context, onClose, centered = false }: { context: RcDraw
               {editable && <button type="button" className="posnav__btn posnav__btn--sm" style={{ alignSelf: "flex-start" }} onClick={() => patch({ releaseCategoryFeedback: [...rcf, { releaseCategoryReference: catOptions[0]?.[0] ?? "", riskSignificance: ImportanceLevel.MEDIUM, insights: [], recommendations: [], status: "PENDING" }] })}><RCIcon.Plus /> Add category feedback</button>}
             </div>
           </div>
-          <div className="posfield">
+          {!fromRi && <div className="posfield">
             <label className="posfield__label">Metric feedback</label>
             <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
               {mf.map((m, i) => (
@@ -1251,7 +1260,7 @@ function DrawerContent({ context, onClose, centered = false }: { context: RcDraw
               ))}
               {editable && <button type="button" className="posnav__btn posnav__btn--sm" style={{ alignSelf: "flex-start" }} onClick={() => patch({ metricFeedback: [...mf, { metric: "New metric", riskSignificance: ImportanceLevel.MEDIUM, insights: [], recommendations: [] }] })}><RCIcon.Plus /> Add metric feedback</button>}
             </div>
-          </div>
+          </div>}
           <div className="posfield">
             <label className="posfield__label">RC response</label>
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>

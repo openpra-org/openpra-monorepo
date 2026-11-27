@@ -12,7 +12,8 @@ import { POS_ANALYSIS_SFR } from "../../../../../backends/web-backend/src/exampl
 import { evaluateUncertainty } from "../../newly-developed-methods/shared/uncertaintyApi";
 import { uncertaintyIdle } from "../../newly-developed-methods/shared/useUncertainty";
 import { praxisUncertainty, settledWithPraxis } from "../../newly-developed-methods/shared/test/praxisUncertainty";
-import { daImportNeeds, withAutoMapping, withLinkedValuesSynced, withNeedsMerged } from "../daSelectors";
+import { daViewOf } from "../daLinkedData";
+import { type DaUpstream } from "../daWorkbookContext";
 import { withEstimates } from "../daFailures";
 import { withUnavailability } from "../daUnavailability";
 import { withCcf } from "../daCcf";
@@ -53,9 +54,8 @@ const CC: PRAConfigurationControl = {
 
 const OPTIONS = { SY: [], IE: [], HRA: [], POS: [], SC: [], ESQ: [] };
 
-function imported(seed: DataAnalysis, upstream: Parameters<typeof daImportNeeds>[1]): DataAnalysis {
-  const merged = withLinkedValuesSynced({ ...seed, dataNeeds: withNeedsMerged(seed.dataNeeds, daImportNeeds(seed, upstream, NOW)) });
-  return withCcf(withFrequencies(withUnavailability(withEstimates(withAutoMapping(merged)))));
+function imported(seed: DataAnalysis, upstream: DaUpstream): DataAnalysis {
+  return withCcf(withFrequencies(withUnavailability(withEstimates(daViewOf(seed, upstream)))));
 }
 
 let HTGR: DataAnalysis = DA_ANALYSIS_HTGR;

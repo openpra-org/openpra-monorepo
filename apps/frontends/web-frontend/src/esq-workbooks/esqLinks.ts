@@ -11,8 +11,8 @@ import type { SuccessCriteriaDevelopment } from "interfaces-mef-types/sc/success
 import type { SystemsAnalysis } from "interfaces-mef-types/sy/systems-analysis";
 import { fetchJson } from "../api/client";
 import { listWorkbooks } from "../workbooks/workbookApi";
-import { getDaWorkbook } from "../da-workbooks/daWorkbookApi";
-import { getEsWorkbook } from "../es-workbooks/esWorkbookApi";
+import { daWithLinkedSources, getDaWorkbook } from "../da-workbooks/daWorkbookApi";
+import { loadEsWithLinkedTiming } from "../es-workbooks/esLinkedTiming";
 import { getHsaWorkbook } from "../hazards-screening-analysis-workbooks/hsaWorkbookApi";
 import { getHrWorkbook } from "../hr-workbooks/hrWorkbookApi";
 import { getIeWorkbook } from "../ie-workbooks/ieWorkbookApi";
@@ -41,6 +41,7 @@ interface EsqUpstream {
   ri?: RiskIntegration;
   hs?: HazardsScreeningAnalysis;
   scReferenced: ScMissionTimeSource[];
+  unavailable?: readonly EsqLinkCode[];
 }
 
 const NO_LINK_OPTIONS: Record<EsqLinkCode, Workbook[]> = { ES: [], SY: [], DA: [], HRA: [], IE: [], POS: [], SC: [], RI: [], HS: [] };
@@ -73,7 +74,7 @@ async function listEsqLinkOptions(projectId: string): Promise<Record<EsqLinkCode
 async function loadLinkedEs(id: string): Promise<EventSequenceAnalysis> {
   const variant = exampleLinkVariant(id);
   if (variant !== undefined) return (await fetchJson<{ es: { mef: EventSequenceAnalysis } }>(`/api/example-workbooks/es-bundle?example=${variant}`)).es.mef;
-  return (await getEsWorkbook(id)).mef;
+  return loadEsWithLinkedTiming(id);
 }
 
 async function loadLinkedSy(id: string): Promise<SystemsAnalysis> {
@@ -84,9 +85,9 @@ async function loadLinkedSy(id: string): Promise<SystemsAnalysis> {
 
 async function loadLinkedDa(id: string): Promise<EsqLinkedDa> {
   const variant = exampleLinkVariant(id);
-  if (variant !== undefined) return { mef: (await fetchJson<{ da: { mef: DataAnalysis } }>(`/api/example-workbooks/da-bundle?example=${variant}`)).da.mef, revision: 1 };
+  if (variant !== undefined) return { mef: await daWithLinkedSources((await fetchJson<{ da: { mef: DataAnalysis } }>(`/api/example-workbooks/da-bundle?example=${variant}`)).da.mef), revision: 1 };
   const workbook = await getDaWorkbook(id);
-  return { mef: workbook.mef, revision: workbook.revision };
+  return { mef: await daWithLinkedSources(workbook.mef), revision: workbook.revision };
 }
 
 async function loadLinkedHr(id: string): Promise<HumanReliabilityAnalysis> {

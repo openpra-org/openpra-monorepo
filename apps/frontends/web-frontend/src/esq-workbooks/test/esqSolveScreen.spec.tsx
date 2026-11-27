@@ -10,6 +10,7 @@ import type { EsqUpstream } from "../esqLinks";
 import { EsqSolveTabs, SolveDialogs } from "../EsqSolveTabs";
 import { type EsqWindowContext } from "../esqShared";
 import { withModelImported } from "../esqModel";
+import { esqSavedOf, esqViewOf } from "../esqLinkedData";
 import { AS_SET, MODEL_AS_SET } from "../esqLogic";
 import { withRunOfRecord } from "../esqSolve";
 import { getEsqModelRunResult, getEsqRunWorkbook, listEsqModelRuns, runEsqModel } from "../esqWorkbookApi";
@@ -35,7 +36,7 @@ const CUT_OFFS = [1e-6, 1e-7, 1e-8, 1e-9, 1e-10, 1e-11, 1e-12, 1e-13, 1e-14];
 const RELEASE = [7.22e-5, 7.54e-5, 7.6075e-5, 7.6091e-5, 7.6107e-5, 7.61085e-5, 7.610863e-5, 7.6108643e-5, 7.61086450e-5];
 
 function importedEsq(): EventSequenceQuantification {
-  return withModelImported(linkedEsq(), modelUpstream(), NOW);
+  return withModelImported(linkedEsq(), modelUpstream());
 }
 
 function summaryOf(esq: EventSequenceQuantification): EsqModelRunResult {
@@ -92,19 +93,19 @@ function summaryOf(esq: EventSequenceQuantification): EsqModelRunResult {
 function Harness({ initial, window: context, upstream, onChange }: { initial: EventSequenceQuantification; window: EsqWindowContext; upstream: EsqUpstream; onChange: (esq: EventSequenceQuantification) => void }): JSX.Element {
   const [esq, setEsq] = useState(initial);
   const mutateEsq = useCallback((mutator: (current: EventSequenceQuantification) => EventSequenceQuantification): void => setEsq((current) => {
-    const next = mutator(current);
+    const next = esqSavedOf(mutator(esqViewOf(current, upstream, [])));
     onChange(next);
     return next;
-  }), [onChange]);
+  }), [onChange, upstream]);
   return (
-    <EsqWorkbookProvider data={{ esq }} editable mutateEsq={mutateEsq} upstream={upstream}>
+    <EsqWorkbookProvider data={{ esq: esqViewOf(esq, upstream, []) }} editable mutateEsq={mutateEsq} upstream={upstream}>
       <SolveDialogs context={context} onClose={() => undefined} />
     </EsqWorkbookProvider>
   );
 }
 
 describe("ESQ Step 05 solve dialogs", () => {
-  it("keeps typed and imported family values and picks the value of record in the family dialog", () => {
+  it("keeps typed and linked family values and picks the value of record in the family dialog", () => {
     const base = importedEsq();
     const recorded = withRunOfRecord(base, summaryOf(base));
     const upstream = modelUpstream();
@@ -121,14 +122,13 @@ describe("ESQ Step 05 solve dialogs", () => {
     fireEvent.focus(source);
     fireEvent.change(source, { target: { value: "Hand calculation" } });
     fireEvent.blur(source);
-    fireEvent.click(screen.getByRole("button", { name: "Import from ES · 4.32E-5" }));
     fireEvent.change(screen.getByLabelText("Value of record"), { target: { value: "IMPORTED" } });
     const last = onChange.mock.calls[onChange.mock.calls.length - 1]?.[0] as EventSequenceQuantification;
     expect(last.solve?.families.find((entry) => entry.familyId === "F-REL")).toMatchObject({
       ofRecord: "IMPORTED",
       typed: { annualFrequency: 7.5e-5, source: "Hand calculation" },
-      imported: { annualFrequency: 4.323e-5, element: "ES", workbookId: "es-1" },
     });
+    expect(last.solve?.families.find((entry) => entry.familyId === "F-REL")?.imported).toBeUndefined();
     expect(last.familyQuantifications.find((record) => record.eventSequenceFamilyRef === "F-REL")?.meanFrequency).toBe(4.323e-5);
   });
 });

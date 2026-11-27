@@ -52,7 +52,7 @@ function result(cutSets: HclDependencyCutSets | undefined): EventTreeAnalysisRes
 }
 
 function show(study: Omit<DependencyStudy, "inputs">): void {
-  const esq: EventSequenceQuantification = withModelImported(linkedEsq(), modelUpstream(), NOW);
+  const esq: EventSequenceQuantification = withModelImported(linkedEsq(), modelUpstream());
   const model = esq.model;
   if (model === undefined) throw new Error("fixture has no model");
   window.localStorage.clear();

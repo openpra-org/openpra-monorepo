@@ -63,7 +63,7 @@ function daReferenceProblem(esq: EventSequenceQuantification, expressions: reado
     if (table.has(key)) continue;
     if (workbookId === undefined || reference.workbookId.trim() !== workbookId) return `The ${label} reads ${reference.entityId} from a workbook that Step 01 does not link as DA.`;
     const parameter = esq.model?.parameters.find((entry) => entry.id === reference.entityId.trim());
-    if (parameter === undefined) return `The ${label} reads DA parameter ${reference.entityId}, which the Step 02 import does not hold.`;
+    if (parameter === undefined) return `The ${label} reads DA parameter ${reference.entityId}, which the linked DA workbook does not hold.`;
     if (!holdsEstimate(parameter.quantificationModel) || parameter.estimate === undefined) return `The ${label} reads ${parameter.name}, which has no estimate in DA.`;
     table.set(key, { reference, expression: parameter.estimate });
     pending.push(...expressionReferences(parameter.estimate));
@@ -102,7 +102,7 @@ function resolveSide(esq: EventSequenceQuantification, side: EsqCellSide | undef
   }
   if (side.source === "DA") {
     const parameter = esq.model?.parameters.find((entry) => entry.id === side.parameterId);
-    if (parameter === undefined) return { problem: `The ${label} takes ${side.parameterId}, which the Step 02 import does not hold.` };
+    if (parameter === undefined) return { problem: `The ${label} takes ${side.parameterId}, which the linked DA workbook does not hold.` };
     if (!holdsEstimate(parameter.quantificationModel) || parameter.estimate === undefined) return { problem: `The ${label} takes ${parameter.name}, which has no estimate in DA.` };
     if (parameter.estimate.node !== "VALUE") return { problem: `The ${label} takes ${parameter.name}, whose DA estimate is not one law.` };
     return { side: { kind: "VARIABLE", variable: { law: parameter.estimate.value.law, fields: [] } } };

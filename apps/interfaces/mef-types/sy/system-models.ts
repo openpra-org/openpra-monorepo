@@ -5,7 +5,8 @@ import type {
   FaultTreeGateInput,
   FaultTreeLeafNode,
 } from "../modeling/fault-tree";
-import { carriesUncertainExpression, type SystemBasicEvent, type SystemLogicModel, type SystemsAnalysis } from "./systems-analysis";
+import { carriesUncertainExpression, type SystemBasicEvent, type SystemDefinition, type SystemLogicModel, type SystemsAnalysis } from "./systems-analysis";
+import type { UncertainExpression } from "../core/uncertainty";
 import { legacyExpression } from "../core/legacy-uncertainty-adapter";
 
 type UnknownRecord = Record<string, unknown>;
@@ -553,6 +554,19 @@ function systemFaultTreeBasicEventIds(
   return ids;
 }
 
+function ownerSystem(sy: Pick<SystemsAnalysis, "systemDefinitions" | "systemLogicModels">, eventId: string): SystemDefinition | undefined {
+  const owner = sy.systemLogicModels.find((model) => systemFaultTreeBasicEventIds(model).includes(eventId))?.systemReference;
+  return sy.systemDefinitions.find((system) => system.uuid === owner);
+}
+
+function modelMissionTime(expression: UncertainExpression | undefined): UncertainExpression | undefined {
+  return expression?.node === "MODEL" && expression.model.form === "MISSION" ? expression.model.missionTime : undefined;
+}
+
+function basicEventMissionTime(sy: Pick<SystemsAnalysis, "systemDefinitions" | "systemLogicModels">, event: SystemBasicEvent): UncertainExpression | undefined {
+  return modelMissionTime(event.expression) ?? ownerSystem(sy, event.uuid)?.missionTime;
+}
+
 function systemLogicModelBasicEvents(
   analysis: Pick<SystemsAnalysis, "systemBasicEvents">,
   model: Pick<SystemLogicModel, "leafNodes">,
@@ -628,8 +642,10 @@ function applyFaultTreeBasicEventToSystemBasicEvent(
 
 export {
   applyFaultTreeBasicEventToSystemBasicEvent,
+  basicEventMissionTime,
   normalizeSystemLogicModel,
   normalizeSystemsAnalysisModels,
+  ownerSystem,
   systemBasicEventToFaultTreeBasicEvent,
   systemFaultTreeBasicEventIds,
   systemLogicModelBasicEvents,

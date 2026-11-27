@@ -40,7 +40,6 @@ import {
   pageOf,
   type EsqWindowContext,
 } from "./esqShared";
-import { caseOptions } from "./esqDaLinks";
 import {
   CASE_KINDS,
   CASE_KIND_LABELS,
@@ -50,6 +49,7 @@ import {
   caseCurrentOf,
   caseRunProblem,
   caseRunRequest,
+  linkedCaseOf,
   nextCaseId,
   nextManualId,
   nextManualPreOpId,
@@ -57,7 +57,6 @@ import {
   withCase,
   withCaseRun,
   withDecision,
-  withImportedDaCases,
   withManualEntry,
   withManualPreOperational,
   withPreOperational,
@@ -140,7 +139,7 @@ function useCaseRunner(view: EsqSensitivityView) {
     const workbookId = runtime.workbookId;
     const revision = runtime.revision;
     if (workbookId === null || revision === null || request === undefined) return undefined;
-    const response = await runEsqSensitivity(workbookId, caseId, revision, request.logic, request.calculation, request.cutSets, runner.progress);
+    const response = await runEsqSensitivity(workbookId, caseId, revision, request.logic, request.calculation, request.cutSets, runner.progress, linkedCaseOf(esq, caseId));
     if (response.run.status !== "SUCCEEDED") {
       await runner.failRun(workbookId, response.run, view.model, caseId);
       return undefined;
@@ -421,11 +420,10 @@ function PreOpPanel({ view, openWindow }: { view: EsqSensitivityView; openWindow
 }
 
 function SensScreen({ openWindow }: { openWindow: (ctx: EsqWindowContext) => void }): JSX.Element {
-  const { esq, editable, mutateEsq, upstream, daLinks } = useEsqWorkbook();
+  const { esq, editable, mutateEsq, upstream } = useEsqWorkbook();
   const view = useMemo(() => sensitivityViewOf(esq, upstream), [esq, upstream]);
   const [tab, setTab] = useState<SensTab>("register");
   const tabId = useId();
-  const daCases = useMemo(() => caseOptions(daLinks ?? []), [daLinks]);
   const count = (n: number): string => (view === undefined ? "" : ` (${n})`);
   const tabs: { id: SensTab; label: string }[] = [
     { id: "register", label: `Register${count(view?.register.length ?? 0)}` },
@@ -464,15 +462,12 @@ function SensScreen({ openWindow }: { openWindow: (ctx: EsqWindowContext) => voi
             <div className="esq-card-actions">
               <EsqProvenanceChip>{head.sr}</EsqProvenanceChip>
               {view !== undefined && tab === "register" && editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={addEntry}>Add entry</button>}
-              {view !== undefined && tab === "cases" && editable && daCases.length > 0 && (
-                <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => mutateEsq((draft) => withImportedDaCases(draft, daCases))}>Import DA cases</button>
-              )}
               {view !== undefined && tab === "cases" && editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={addCase}>Add case</button>}
               {view !== undefined && tab === "preop" && editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={addAssumption}>Add assumption</button>}
             </div>
           </div>
           {view === undefined ? (
-            <p className="posmuted">Nothing is imported yet. Import the model in Step 02.</p>
+            <p className="posmuted">Nothing to show yet. Link the ES and SY workbooks in Step 01.</p>
           ) : tab === "register" ? (
             <RegisterPanel view={view} openWindow={openWindow} />
           ) : tab === "cases" ? (

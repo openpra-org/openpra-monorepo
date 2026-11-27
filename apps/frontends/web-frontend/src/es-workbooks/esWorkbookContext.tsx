@@ -11,10 +11,14 @@ interface EsFaultTreeSource {
   mef: SystemsAnalysis;
 }
 
+type EsUnavailableLink = "SC" | "SY" | "HRA";
+
 interface EsUpstream {
   sc?: SuccessCriteriaDevelopment;
   sy?: SystemsAnalysis;
   hr?: HumanReliabilityAnalysis;
+  scMissionHours?: ReadonlyMap<string, number>;
+  unavailable?: readonly EsUnavailableLink[];
 }
 
 interface EsWorkbookData {
@@ -62,4 +66,4 @@ function useEsWorkbook(): EsWorkbookContextValue {
   return ctx;
 }
 
-export { EsWorkbookProvider, useEsWorkbook, type EsFaultTreeSource, type EsUpstream, type EsWorkbookData, type EsMutator, type EsWorkbookRuntime };
+export { EsWorkbookProvider, useEsWorkbook, type EsFaultTreeSource, type EsUnavailableLink, type EsUpstream, type EsWorkbookData, type EsMutator, type EsWorkbookRuntime };

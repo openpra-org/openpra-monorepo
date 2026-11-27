@@ -363,18 +363,7 @@ export class WorkbooksService {
       const mef = loaded.mef as RadiologicalConsequenceAnalysis;
       const links = { ES: idFor("ES"), MS: idFor("MS"), RI: idFor("RI") };
       const linkedWorkbooks = Object.fromEntries(Object.entries(links).filter(([, id]) => id !== undefined));
-      const msId = links.MS;
-      await rcAdapter.save(rcId, {
-        ...mef,
-        linkedWorkbooks,
-        releaseCategoryToConsequence: {
-          ...mef.releaseCategoryToConsequence,
-          releaseCategoryInputs: mef.releaseCategoryToConsequence.releaseCategoryInputs.map((category) =>
-            msId !== undefined && category.sourceTerm?.msSource?.workbookId.startsWith("example-") === true
-              ? { ...category, sourceTerm: { ...category.sourceTerm, msSource: { ...category.sourceTerm.msSource, workbookId: msId } } }
-              : category),
-        },
-      }, loaded.revision);
+      await rcAdapter.save(rcId, { ...mef, linkedWorkbooks }, loaded.revision);
     }
   }
 

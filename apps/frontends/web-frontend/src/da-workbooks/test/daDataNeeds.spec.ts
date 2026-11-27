@@ -9,7 +9,9 @@ import type { UncertainExpression, UncertainUnit } from "interfaces-mef-types/co
 import { FrequencyUnit } from "interfaces-mef-types/core/events";
 import { evaluateUncertainty } from "../../newly-developed-methods/shared/uncertaintyApi";
 import { praxisUncertainty, settledWithPraxis } from "../../newly-developed-methods/shared/test/praxisUncertainty";
-import { daNeedChecks, parameterFindings, withAutoMapping, withLinkedValuesSynced, withNeedParameter, withNeedsMerged, withOutlierGroup } from "../daSelectors";
+import { daNeedChecks, parameterFindings, withNeedParameter, withOutlierGroup } from "../daSelectors";
+import { daLinkedDetailMissing, daNeedsSaved, daNeedsView, daWithLinkedValues, type DaNeedRows } from "interfaces-mef-types/da/da-linked-needs";
+import { daMappedView } from "../daLinkedData";
 import { entriesFromRows, guessMapping, libraryCount, libraryEntries, parseDelimited, sourceFindings, withStoredEntry } from "../daSourcing";
 import { elicitationLaw, lawSummary, parameterPriorLaw } from "../daLaws";
 import { linkScExamples } from "./daScExamples";
@@ -109,52 +111,45 @@ function needs(fields: Partial<DaDataNeeds>): DaDataNeeds {
   return { importedAt: NOW, sources: [], basicEvents: [], initiators: [], humanErrors: [], ccfGroups: [], states: [], ...fields };
 }
 
-describe("withNeedsMerged", () => {
-  it("keeps DA decisions and hand entries, and reports what the new import changed", () => {
-    const previous = needs({
+function rows(fields: Partial<DaNeedRows>): DaNeedRows {
+  return { basicEvents: [], initiators: [], humanErrors: [], ccfGroups: [], states: [], ...fields };
+}
+
+describe("linked needs", () => {
+  it("keeps own work by row id, drops copied rows, and keeps the work of a row that is gone", () => {
+    const saved = needs({
       basicEvents: [
         event("a", { kind: "STANDBY", testIntervalHours: 720, changeReason: "Tested monthly" }),
-        event("b", { importedKind: "RUNNING", kind: "RUNNING", importedMissionTime: point("HOURS", 24), missionTime: point("HOURS", 1), changeReason: "First hour only" }),
         event("c", { included: false, exclusionReason: "Duplicate of A" }),
-        event("gone"),
+        event("gone", { included: false, exclusionReason: "Retired" }),
         event("hand", { manual: { source: "Walkdown" } }),
       ],
-      states: [{ id: "POS-01", name: "Full power", durationHours: 7300, included: false, exclusionReason: "Out of scope" }],
     });
-    const next = needs({
-      basicEvents: [
-        event("a"),
-        event("b", { importedKind: "RUNNING", kind: "RUNNING", importedMissionTime: point("HOURS", 24), missionTime: point("HOURS", 24) }),
-        event("c", { expression: point("PROBABILITY", 2e-3) }),
-        event("new"),
-      ],
-      states: [{ id: "POS-01", name: "Full power", durationHours: 7300, included: true }],
-    });
+    const live = rows({ basicEvents: [event("a"), event("c", { expression: point("PROBABILITY", 2e-3) }), event("new")] });
+    const view = daNeedsView(saved, live, []);
+    const byId = new Map(view.basicEvents.map((need) => [need.id, need]));
 
-    const merged = withNeedsMerged(previous, next);
-    const byId = new Map(merged.basicEvents.map((need) => [need.id, need]));
-
-    expect(byId.get("a")?.kind).toBe("STANDBY");
-    expect(byId.get("a")?.testIntervalHours).toBe(720);
-    expect(byId.get("b")?.missionTime).toEqual(point("HOURS", 1));
-    expect(byId.get("b")?.changeReason).toBe("First hour only");
-    expect(byId.get("c")?.included).toBe(false);
-    expect(byId.get("c")?.exclusionReason).toBe("Duplicate of A");
-    expect(byId.get("c")?.expression).toEqual(point("PROBABILITY", 2e-3));
+    expect(byId.get("a")).toMatchObject({ kind: "STANDBY", testIntervalHours: 720, changeReason: "Tested monthly" });
+    expect(byId.get("c")).toMatchObject({ included: false, exclusionReason: "Duplicate of A", expression: point("PROBABILITY", 2e-3) });
+    expect(byId.has("new")).toBe(true);
     expect(byId.has("gone")).toBe(false);
     expect(byId.get("hand")?.manual?.source).toBe("Walkdown");
-    expect(merged.states[0]?.included).toBe(false);
-    expect(merged.changes).toEqual([
-      { element: "SY", id: "c", change: "CHANGED" },
-      { element: "SY", id: "new", change: "ADDED" },
-      { element: "SY", id: "gone", change: "REMOVED", label: "GONE" },
-    ]);
+    expect(daLinkedDetailMissing(view).map((detail) => detail.id)).toEqual(["gone"]);
+
+    const stored = daNeedsSaved(view, { rows: live, derivedParameterOf: () => undefined });
+    expect(stored?.basicEvents.map((need) => need.id)).toEqual(["hand"]);
+    expect(stored?.importedAt).toBeUndefined();
+    expect(stored?.linkedDetails).toHaveLength(3);
+    expect(stored?.linkedDetails).toEqual(expect.arrayContaining([
+      { list: "BASIC_EVENT", id: "a", changeReason: "Tested monthly", kind: "STANDBY", testIntervalHours: 720 },
+      { list: "BASIC_EVENT", id: "c", included: false, exclusionReason: "Duplicate of A" },
+      { list: "BASIC_EVENT", id: "gone", included: false, exclusionReason: "Retired" },
+    ]));
   });
 
-  it("reports no changes on the first import", () => {
-    const merged = withNeedsMerged(needs({ importedAt: undefined, basicEvents: [event("hand", { manual: { source: "Drawing" } })] }), needs({ basicEvents: [event("a")] }));
-    expect(merged.changes).toBeUndefined();
-    expect(merged.basicEvents.map((need) => need.id)).toEqual(["a", "hand"]);
+  it("saves nothing when no row holds own work", () => {
+    const live = rows({ basicEvents: [event("a")] });
+    expect(daNeedsSaved(daNeedsView(undefined, live, []), { rows: live, derivedParameterOf: () => undefined })).toBeUndefined();
   });
 });
 
@@ -210,7 +205,7 @@ function component(uuid: string, fields: Partial<DataAnalysisParameter> = {}): D
   return { uuid, name: `Parameter ${uuid}`, parameterType: "PROBABILITY", estimate: point("PROBABILITY", 1e-3), implementsSrs: [], ...fields };
 }
 
-describe("withAutoMapping", () => {
+describe("linked mapping", () => {
   it("maps each event to the parameter its owner names and links the typed values", () => {
     const da = {
       ...blankDa(needs({
@@ -229,7 +224,7 @@ describe("withAutoMapping", () => {
       parameters: [parameter("DA-BE-1", { basicEventRef: "HELD" }), parameter("DA-IE-1", { parameterType: "FREQUENCY", basicEventRef: "IE-LOOP", value: 2e-2 }), parameter("DA-IE-2", { parameterType: "FREQUENCY", basicEventRef: "IE-A", value: 0.1 })],
     };
 
-    const mapped = withAutoMapping(da);
+    const mapped = daMappedView(da);
     const events = new Map((mapped.dataNeeds?.basicEvents ?? []).map((need) => [need.id, need.parameterId]));
     const byId = new Map(mapped.parameters.map((p) => [p.uuid, p]));
 
@@ -264,8 +259,8 @@ describe("withAutoMapping", () => {
     expect(byId.get(initiators.get("IG-3") ?? "")).toMatchObject({ estimate: perYear(0.3, 3), valueMode: "LINKED", valueLink: { element: "IE", needId: "IG-3" } });
     expect(byId.get("DA-IE-2")?.quantificationModel).toBeUndefined();
 
-    expect(mapped.parameters.filter((p) => p.uuid.startsWith("DA-P-")).map((p) => p.uuid)).toEqual(["DA-P-001", "DA-P-002", "DA-P-003", "DA-P-004", "DA-P-005", "DA-P-006"]);
-    expect(withAutoMapping(mapped)).toEqual(mapped);
+    expect(mapped.parameters.filter((p) => p.valueMode === "LINKED").map((p) => p.uuid)).toEqual(["DA-HRA-HFE-A", "DA-HRA-REC-1", "DA-IE-IG-1", "DA-IE-IG-3", "DA-SY-RATE", "DA-SY-MISSION"]);
+    expect(daMappedView(mapped)).toEqual(mapped);
   });
 });
 
@@ -398,22 +393,22 @@ describe("parameterFindings", () => {
 });
 
 describe("parameter links", () => {
-  it("refreshes linked values on import and keeps the map", () => {
+  it("reads linked values live and keeps the map", () => {
     const linked = component("DA-P-001", { quantificationModel: "DEMAND_PROBABILITY", valueMode: "LINKED", valueLink: { element: "SY", needId: "a" } });
     const typed = component("DA-P-002", { quantificationModel: "DEMAND_PROBABILITY", estimate: point("PROBABILITY", 4e-3) });
     const before = { ...blankDa(needs({ basicEvents: [event("a", { parameterId: "DA-P-001" }), event("b", { parameterId: "DA-P-002" })] })), parameters: [linked, typed] };
-    const merged = withNeedsMerged(before.dataNeeds, needs({ basicEvents: [event("a", { expression: point("PROBABILITY", 2e-3) }), event("b", { expression: point("PROBABILITY", 9e-3) })] }));
-    const after = withLinkedValuesSynced({ ...before, dataNeeds: merged });
+    const live = rows({ basicEvents: [event("a", { expression: point("PROBABILITY", 2e-3) }), event("b", { expression: point("PROBABILITY", 9e-3) })] });
+    const after = daWithLinkedValues({ ...before, dataNeeds: daNeedsView(before.dataNeeds, live, []) });
 
     expect(after.dataNeeds?.basicEvents.map((need) => need.parameterId)).toEqual(["DA-P-001", "DA-P-002"]);
-    const states = withLinkedValuesSynced({
+    const states = daWithLinkedValues({
       ...blankDa(needs({ initiators: [initiator("IG-1", { stateIds: ["POS-01", "POS-04"], parameterId: "DA-F" })] })),
       parameters: [component("DA-F", { quantificationModel: "FREQUENCY", parameterType: "FREQUENCY", valueMode: "LINKED", valueLink: { element: "IE", needId: "IG-1" }, estimate: point("PER_YEAR", 0.2), stateIds: ["POS-01"] })],
     });
     expect(states.parameters[0]?.stateIds).toEqual(["POS-01", "POS-04"]);
     expect(states.parameters[0]?.estimate).toEqual(point("PER_YEAR", 0.1));
     expect(after.parameters.map((p) => p.estimate)).toEqual([point("PROBABILITY", 2e-3), point("PROBABILITY", 4e-3)]);
-    expect(withLinkedValuesSynced(after)).toBe(after);
+    expect(daWithLinkedValues(after)).toBe(after);
   });
 
   it("unmaps an event and sets a new parameter's model from its event", () => {

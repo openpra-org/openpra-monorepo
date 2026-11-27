@@ -30,7 +30,7 @@ jest.mock("../esqLinks", () => ({
   loadLinkedSc: jest.fn(),
   loadLinkedRi: jest.fn(),
 }));
-jest.mock("../esqDaLinks", () => ({ loadEsqDaLinks: jest.fn(async () => []) }));
+jest.mock("../esqDaLinks", () => ({ loadEsqDaLinks: jest.fn(async () => []), caseOptions: () => [] }));
 jest.mock("../useEsqMefPatch", () => ({ useEsqMefPatch: () => ({ patch: jest.fn(), saveStatus: "saved" }) }));
 jest.mock("../esqWorkbench", () => ({
   EsqWorkbench: ({ data, onLoadExample, onUnloadExample }: {
@@ -62,7 +62,7 @@ function response(uuid: string, linkedWorkbooks?: EsqLinkedWorkbooks): EsqWorkbo
   };
 }
 
-const HCL_EXAMPLE_ES = { name: "HCL example ES" } as EventSequenceAnalysis;
+const HCL_EXAMPLE_ES = { name: "HCL example ES", eventSequences: [], eventSequenceFamilies: [] } as EventSequenceAnalysis;
 
 describe("ESQ linked workbooks", () => {
   beforeEach(() => {

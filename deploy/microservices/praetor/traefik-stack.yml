@@ -28,7 +28,7 @@ services:
       # Let's Encrypt Configuration
       - "--certificatesresolvers.le.acme.httpchallenge=true"
       - "--certificatesresolvers.le.acme.httpchallenge.entrypoint=web"
-      - "--certificatesresolvers.le.acme.email=hrashee@ncsu.edu" # <--- CHANGE THIS EMAIL
+      - "--certificatesresolvers.le.acme.email=admin@openpra.org"
       - "--certificatesresolvers.le.acme.storage=/letsencrypt/acme.json"
     ports:
       - "80:80"

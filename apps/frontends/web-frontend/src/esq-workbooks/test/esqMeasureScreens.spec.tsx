@@ -235,7 +235,7 @@ describe("ESQ Steps 06 to 09 screens", () => {
     expect(screen.queryByLabelText("Error factor")).not.toBeInTheDocument();
     unmount();
     render(<WindowHarness initial={esq} context={{ kind: "esqUncertInput", id: "HFE:HFE-1" }} />);
-    expect(screen.getByText("Give the HEP a law in HR and import again in Step 02.")).toBeInTheDocument();
+    expect(screen.getByText("Give the HEP a law in HR.")).toBeInTheDocument();
     expect(screen.queryByLabelText("Error factor")).not.toBeInTheDocument();
   });
 

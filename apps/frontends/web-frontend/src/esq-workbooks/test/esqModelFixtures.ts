@@ -144,6 +144,7 @@ const HR = {
 } as HumanReliabilityAnalysis;
 
 const IE = {
+  metadata: {},
   initiatingEventGroups: [{
     uuid: "IEG-01",
     name: "Loss of cooling",

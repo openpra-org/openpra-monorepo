@@ -72,7 +72,7 @@ describe("ESQ Step 03 barriers and phenomena", () => {
     })]);
     expect(model?.parameters.find((parameter) => parameter.id === "P-WIN")?.estimate).toEqual(quantity({ family: "LOGNORMAL", mean: 33.74468539677077, errorFactor: 1.287, level: 0.95 }));
     const again = withModelImported(barrierStored(), barrierUpstream());
-    expect(again.model?.changes).toEqual([]);
+    expect(again.model).toEqual(barrierStored().model);
   });
 
   it("flags each barrier until a cell covers it and it has gross and localized modes", () => {

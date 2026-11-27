@@ -286,7 +286,7 @@ describe("ESQ Step 02 model import", () => {
     const product: UncertainExpression = { node: "OPERATION", operation: "MULTIPLY", operands: [daParameter("P-9"), daParameter("P-SF"), foreign] };
     const esq = withDivision(product);
     const findings = (modelViewOf(esq)?.findings ?? []).filter((finding) => finding.item === "RPS-DIV-FS" && finding.severity === "error").map((finding) => `${finding.check}:${finding.detail}`);
-    expect(findings).toEqual(["DA parameter missing:RPS-DIV-FS reads DA parameter P-9, which the Step 02 import does not hold."]);
+    expect(findings).toEqual(["DA parameter missing:RPS-DIV-FS reads DA parameter P-9, which the linked DA workbook does not hold."]);
   });
 
   it("warns through PRAXIS points when a tree lasts longer than the running events under its functions", async () => {

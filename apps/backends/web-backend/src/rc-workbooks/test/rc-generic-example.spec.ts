@@ -162,6 +162,6 @@ describe("Generic HTGR consequence example", () => {
     const moved = rows.find((row) => row.eventSequenceFamily === "ESF-ATWS")!;
     expect(moved).toMatchObject({ uuid: "RCQ-ESF-ATWS", releaseCategoryReference: "RC-2", origin: "CATEGORY_RESULT", riskSignificance: "HIGH" });
     expect(moved.consequenceResults).toEqual(rows.find((row) => row.eventSequenceFamily === "ESF-LATE")!.consequenceResults);
-    expect(shown(next).releaseCategoryToConsequence.releaseCategoryInputs[1].eventSequenceFamilyReferences?.map((reference) => reference.entityId)).toEqual(["ESF-ATWS", "ESF-LATE"]);
+    expect(shown(next).releaseCategoryToConsequence.releaseCategoryInputs[1].eventSequenceFamilyReferences?.map((reference) => reference.entityId)).toEqual(["ESF-LATE", "ESF-ATWS"]);
   });
 });

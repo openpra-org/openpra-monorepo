@@ -24,7 +24,7 @@ import { daCcfFactorParameters, type DataAnalysis } from "interfaces-mef-types/d
 import { DataAnalysisSchema } from "interfaces-mef-types/zod/da/data-analysis";
 import { expressionReferences, parameterReferenceKey, type UncertainExpression, type UncertainParameter } from "interfaces-mef-types/core/uncertainty";
 import type { WorkbookParameterReference } from "interfaces-mef-types/modeling/references";
-import { esqParameterLinks, esqSequenceRunId, esqTreeRunId, transferTreeIds, treesInScope, withLiveDa } from "interfaces-mef-types/esq/esq-run-inputs";
+import { esqParameterRecord, esqSequenceRunId, esqTreeRunId, transferTreeIds, treesInScope, withLiveDa } from "interfaces-mef-types/esq/esq-run-inputs";
 import { esqCellRunId } from "interfaces-mef-types/esq/esq-barrier-inputs";
 import { esqModelRunId, sequenceFamilyOf, solveInputsKey } from "interfaces-mef-types/esq/esq-solve-inputs";
 import { esqPostRunId, hfeEventIds, recoveryInputKey, resolvedRecoveries } from "interfaces-mef-types/esq/esq-post-inputs";
@@ -558,7 +558,7 @@ export class EsqModelRunsService {
         references.missionTimes.set(parameterReferenceKey(key), { reference: key, expression: entry.missionTime });
       }
     } else {
-      for (const record of esqParameterLinks(source.workbook.mef)) {
+      for (const record of source.workbook.mef.parameters.map(esqParameterRecord)) {
         const law = parameterLaw(record);
         if (law === undefined) continue;
         const key: WorkbookParameterReference = { referenceType: "WORKBOOK_PARAMETER", workbookId, entityId: record.id };

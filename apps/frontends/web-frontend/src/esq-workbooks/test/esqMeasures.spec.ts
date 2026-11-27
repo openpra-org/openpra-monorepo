@@ -176,7 +176,7 @@ describe("ESQ Steps 06 to 09", () => {
     if (model === undefined) throw new Error("no model");
     const broken: EventSequenceQuantification = { ...esq, model: { ...model, events: model.events.map((event) => (event.id === "E-4" ? { ...event, expression: daParameter("P-9") } : event)) } };
     const stopped = withCase(broken, "SC-E4", { id: "SC-E4", name: "Division doubled", kind: "EVENT", target: "E-4", factor: 2, basis: "Doubled for the test." });
-    expect(sensitivityViewOf(stopped, measureUpstream())?.cases[0]?.problem).toBe("RPS-DIV-FS reads DA parameter P-9, which the Step 02 import does not hold.");
+    expect(sensitivityViewOf(stopped, measureUpstream())?.cases[0]?.problem).toBe("RPS-DIV-FS reads DA parameter P-9, which the linked DA workbook does not hold.");
   });
 
   it("publishes the family package that RI and DA read and flags a stale publication", () => {

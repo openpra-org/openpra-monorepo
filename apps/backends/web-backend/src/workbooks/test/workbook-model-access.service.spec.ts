@@ -19,12 +19,12 @@ const ALLOWED_CASES = (["owner", "editor"] as const).flatMap((projectRole) =>
 );
 
 describe("WorkbookModelAccessService", () => {
-  let projectsService: { resolveAccess: jest.Mock };
+  let projectsService: { resolveAccess: jest.Mock; casualAccess: jest.Mock };
   let rolesService: { resolveEffectiveRoles: jest.Mock };
   let service: WorkbookModelAccessService;
 
   beforeEach(() => {
-    projectsService = { resolveAccess: jest.fn() };
+    projectsService = { resolveAccess: jest.fn(), casualAccess: jest.fn().mockResolvedValue(null) };
     rolesService = { resolveEffectiveRoles: jest.fn() };
     service = new WorkbookModelAccessService(
       projectsService as unknown as ProjectsService,
@@ -75,6 +75,24 @@ describe("WorkbookModelAccessService", () => {
     projectsService.resolveAccess.mockResolvedValue({ role: "editor" });
     const workbookRoles: WorkbookRoleName[] = workbookRole === undefined ? [] : [workbookRole];
     rolesService.resolveEffectiveRoles.mockResolvedValue(workbookRoles);
+
+    await expect(authorize(operation, "DRAFT")).rejects.toThrow(ForbiddenException);
+  });
+
+  it.each(["edit", "execute"] as const)("lets a person the workbook is shared with %s it without a role", async (operation) => {
+    projectsService.resolveAccess.mockResolvedValue({ role: "editor" });
+    rolesService.resolveEffectiveRoles.mockResolvedValue([]);
+    projectsService.casualAccess.mockResolvedValue("edit");
+
+    await expect(authorize(operation, "DRAFT")).resolves.toEqual({ projectRole: "editor", workbookRoles: [], workflowState: "DRAFT" });
+    expect(projectsService.resolveAccess).toHaveBeenCalledWith("project-1", { username: "analyst" }, "workbook-1");
+    expect(projectsService.casualAccess).toHaveBeenCalledWith("project-1", "analyst", "workbook-1");
+  });
+
+  it.each(["edit", "execute"] as const)("blocks %s for a person the workbook is shared with to view", async (operation) => {
+    projectsService.resolveAccess.mockResolvedValue({ role: "editor" });
+    rolesService.resolveEffectiveRoles.mockResolvedValue([]);
+    projectsService.casualAccess.mockResolvedValue("view");
 
     await expect(authorize(operation, "DRAFT")).rejects.toThrow(ForbiddenException);
   });

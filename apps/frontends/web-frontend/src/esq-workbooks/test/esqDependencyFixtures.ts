@@ -48,7 +48,7 @@ function dependencyConfiguration(patch: Partial<EsqHclConfiguration> = {}): EsqH
 }
 
 function dependencyEsq(configurations: EsqHclConfiguration[] = [dependencyConfiguration()], networks: EsqBayesianNetwork[] = [testNetwork()]): EventSequenceQuantification {
-  return { ...withModelImported(linkedEsq(), modelUpstream(), NOW), bayesianNetworks: networks, hclConfigurations: configurations };
+  return { ...withModelImported(linkedEsq(), modelUpstream()), bayesianNetworks: networks, hclConfigurations: configurations };
 }
 
 export {

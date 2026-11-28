@@ -4,11 +4,13 @@ import { JSX } from "react";
 import { ESQIcon } from "./esqIcons";
 import { useEsqWorkbook } from "./esqWorkbookContext";
 import { generateEsqReport } from "./esqDocx";
+import { useLinkedRevisionsReader } from "../workbooks/useLinkedRevisionsReader";
 import { ESQ_TOC, type Stage, type CapabilityCategory } from "./esqViewData";
 import { type CcScore } from "./esqSelectors";
 
 function DraftScreen({ cc, scores, stage, onSubmitDraft, canSubmit }: { cc: CapabilityCategory; scores: CcScore; stage: Stage; onSubmitDraft: () => void; canSubmit: boolean }): JSX.Element {
   const { esq } = useEsqWorkbook();
+  const readLinked = useLinkedRevisionsReader();
   const ready = scores.blocked === 0 && scores.warn === 0;
   function downloadJson(): void {
     const blob = new Blob([stringifyJson(esq, 2)!], { type: "application/json" });
@@ -54,7 +56,7 @@ function DraftScreen({ cc, scores, stage, onSubmitDraft, canSubmit }: { cc: Capa
           </p>
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {canSubmit && <button type="button" className="posnav__btn posnav__btn--primary" onClick={onSubmitDraft}><ESQIcon.Send /> Submit draft to internal review</button>}
-            <button type="button" className="posnav__btn" onClick={() => { void generateEsqReport(esq, false); }}><ESQIcon.Download /> Download draft (.docx)</button>
+            <button type="button" className="posnav__btn" onClick={() => { void readLinked().then((linked) => generateEsqReport(esq, false, linked)); }}><ESQIcon.Download /> Download draft (.docx)</button>
             <button type="button" className="posnav__btn" onClick={downloadJson}><ESQIcon.Download /> Download JSON</button>
           </div>
         </div>

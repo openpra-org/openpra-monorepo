@@ -1,4 +1,5 @@
 import { type JSX, type ReactNode, useMemo, useState } from "react";
+import { WorkbookShareButton } from "../workbooks/workbookSharing";
 import { useNavigate } from "react-router-dom";
 import { POSIcon } from "../pos-workbooks/posIcons";
 import {
@@ -75,7 +76,7 @@ function Header({ persona, setPersona, availablePersonas, showPersonaPicker, onO
     <div className="poshd__actions">
       {exampleOptions !== undefined && exampleOptions.length > 1 && onSelectExample !== undefined && <label className="poshd__perspective" title="Switch the worked example"><span className="poshd__perspective-label">Example</span><select className="poshd__perspective-select" value={selectedExample} onChange={(event) => onSelectExample(event.target.value)}>{exampleOptions.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}</select></label>}
       {showPersonaPicker && availablePersonas.length > 1 && <label className="poshd__perspective"><span className="poshd__perspective-label">View as</span><select className="poshd__perspective-select" value={persona} onChange={(event) => setPersona(event.target.value as SeismicPraPersona)}>{availablePersonas.map((item) => <option value={item} key={item}>{item.charAt(0).toUpperCase() + item.slice(1)}</option>)}</select></label>}
-      {onOpenRoles !== undefined && <button type="button" className="posnav__btn posnav__btn--sm" onClick={onOpenRoles} title="Manage roles"><POSIcon.Settings /> Roles</button>}
+      <WorkbookShareButton />{onOpenRoles !== undefined && <button type="button" className="posnav__btn posnav__btn--sm" onClick={onOpenRoles} title="Manage roles"><POSIcon.Settings /> Roles</button>}
       {onLoadExample !== undefined && <button type="button" className="posnav__btn posnav__btn--sm" onClick={onLoadExample} title="Replace contents with the Generic HTGR example workbook"><POSIcon.Sparkle /> Load example</button>}
       {onUnloadExample !== undefined && <button type="button" className="posnav__btn posnav__btn--sm" onClick={onUnloadExample} title="Restore the workbook contents that existed before the example was loaded"><POSIcon.Close /> Unload example</button>}
       <span className="poshd__save-pill"><span className="poshd__save-pill-dot" />Autosaved · v{headerMeta.workbookVersion}</span>

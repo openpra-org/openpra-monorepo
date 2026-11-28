@@ -125,7 +125,7 @@ export class EsIeLinkService {
     const es = await this.requireEs(workbookId, acting);
     const expectedRevision = readWorkbookRevision(es);
     const myRoles = await this.rolesService.resolveEffectiveRoles(workbookId, acting.username);
-    if (!myRoles.includes("preparer") && !myRoles.includes("co_preparer")) throw new ForbiddenException("Only preparers can link an IE workbook");
+    if (!myRoles.includes("preparer") && !myRoles.includes("co_preparer") && !(await this.rolesService.canAuthor(workbookId, acting.username))) throw new ForbiddenException("Only preparers can link an IE workbook");
     const ie = await this.ieWorkbookModel.findOne({ workbookId: ieWorkbookId }).exec();
     if (!ie) throw new NotFoundException("IE workbook not found");
     if (ie.projectId !== es.projectId) throw new BadRequestException("IE workbook is in a different project");
@@ -160,7 +160,7 @@ export class EsIeLinkService {
     const es = await this.requireEs(workbookId, acting);
     const expectedRevision = readWorkbookRevision(es);
     const myRoles = await this.rolesService.resolveEffectiveRoles(workbookId, acting.username);
-    if (!myRoles.includes("preparer") && !myRoles.includes("co_preparer")) throw new ForbiddenException("Only preparers can unlink an IE workbook");
+    if (!myRoles.includes("preparer") && !myRoles.includes("co_preparer") && !(await this.rolesService.canAuthor(workbookId, acting.username))) throw new ForbiddenException("Only preparers can unlink an IE workbook");
     const currentMef = es.mef as EsScopeShape;
     const nextMef = {
       ...currentMef,

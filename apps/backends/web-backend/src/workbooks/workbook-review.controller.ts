@@ -17,6 +17,8 @@ import { WorkbookRolesService, type WorkbookRolesResponse, type WorkbookRoleName
 import { WorkbookWorkflowService, type WorkbookWorkflowStatus } from "./workbook-workflow.service";
 import { WorkbookCommentsService, type AddCommentBody, type UpdateCommentBody } from "./workbook-comments.service";
 import { type WorkbookSignoffRole } from "./workbook-signoff.schema";
+import { WorkbookLinkedRevisionsService } from "./workbook-linked-revisions.service";
+import type { WorkbookLinkedRevisionStatus } from "interfaces-shared-types/workbooks";
 
 const VALID_ROLES: WorkbookRoleName[] = ["preparer", "co_preparer", "reviewer", "approver"];
 const VALID_SIGNOFF_ROLES: WorkbookSignoffRole[] = ["preparer", "co_preparer", "reviewer", "approver"];
@@ -44,6 +46,7 @@ export class WorkbookReviewController {
     private readonly rolesService: WorkbookRolesService,
     private readonly workflowService: WorkbookWorkflowService,
     private readonly commentsService: WorkbookCommentsService,
+    private readonly linkedRevisionsService: WorkbookLinkedRevisionsService,
   ) {}
 
   @Get("awaiting-me")
@@ -97,6 +100,12 @@ export class WorkbookReviewController {
   @HttpCode(HttpStatus.OK)
   status(@Param("id") id: string, @Req() req: AuthenticatedRequest): Promise<WorkbookWorkflowStatus> {
     return this.workflowService.status(id, { username: req.user!.username });
+  }
+
+  @Get(":id/linked-revisions")
+  @HttpCode(HttpStatus.OK)
+  linkedRevisions(@Param("id") id: string, @Req() req: AuthenticatedRequest): Promise<WorkbookLinkedRevisionStatus> {
+    return this.linkedRevisionsService.status(id, { username: req.user!.username });
   }
 
   @Post(":id/workflow/submit-for-review")

@@ -2,7 +2,7 @@ import { WorkbookSectionHeading } from "../workbooks/workbookSectionHeading";
 import { WorkbookInput, WorkbookTextarea } from "../workbooks/commitOnDeactivateFields";
 import { HandoffImports } from "../workbooks/workbookHandoff";
 import { HANDOFF_ELEMENT_NAMES } from "interfaces-mef-types/technical-element-handoff";
-import { Fragment, JSX, type ReactNode, useId, useMemo, useState } from "react";
+import { Fragment, JSX, type ReactNode, useEffect, useId, useMemo, useRef, useState } from "react";
 import {
   PUBLISHED_REPORTING_FLOORS,
   PUBLISHED_RI_CRITERIA,
@@ -100,9 +100,9 @@ import {
   consequenceEdited,
   consequenceKey,
   frequencyEdited,
-  riImportInputs,
-  riImportReady,
+  cloneConsequenceStats,
   riInputChecks,
+  withLeftoverRemoved,
   withFrequencyStat,
   withInputs,
   familyCategories,
@@ -135,7 +135,6 @@ import {
   absoluteBar,
   metricCoverage,
   withInputsCreated,
-  withManualKept,
   manualCount,
   withFamilyRenamed,
   withSequenceRenamed,
@@ -153,10 +152,6 @@ import {
   sscGroups,
   importanceRows,
   nextId,
-  newRegisterCandidates,
-  withImportedRegister,
-  newScreeningCandidates,
-  withImportedScreening,
   sharedReleaseCategories,
   groupingIssues,
   registerIssues,
@@ -208,6 +203,7 @@ import {
   type ScopeRowView,
   type ScopeState,
 } from "./riSelectors";
+import { loadRiLinkReplacement, riRowsReplacedByLink, riScreenedItemLink, riUncertaintyLink, withScreenedItemLinked, withUncertaintyLinked } from "./riLinkedData";
 
 interface RiDrawerContext {
   kind: "measure" | "inputFamily" | "inputSequence" | "inputConsequence" | "inputContributor" | "inputImportance" | "inputGap" | "cliffEdge" | "aggregationNote" | "sscAssignment" | "uncertaintySource" | "screenedItem" | "uncertaintyAnalysis" | "sensitivityStudy";
@@ -235,9 +231,23 @@ const APPLICATION_TABS: { id: ApplicationTab; label: string }[] = [
   { id: "measures", label: "Measures and floors" },
 ];
 
+function withLinkedWorkbook(ri: RiskIntegration, code: RiLinkCode, id: string): RiskIntegration {
+  const context = applicationContextOf(ri);
+  const next: RiLinkedWorkbooks = {};
+  for (const candidate of RI_LINK_CODES) {
+    const value = candidate === code ? id : context.linkedWorkbooks[candidate];
+    if (value !== undefined && value.length > 0) next[candidate] = value;
+  }
+  return { ...ri, applicationContext: { ...context, linkedWorkbooks: next } };
+}
+
 function RiInterfaces(): JSX.Element {
   const { ri, editable, mutateRi, upstream } = useRiWorkbook();
   const [selected, setSelected] = useState<RiLinkCode | null>("POS");
+  const [busy, setBusy] = useState(false);
+  const [failed, setFailed] = useState<RiLinkCode | null>(null);
+  const [pending, setPending] = useState<{ code: RiLinkCode; workbookId: string } | null>(null);
+  const latestMutate = useRef(mutateRi);
   const selectId = useId();
   const links = applicationContextOf(ri).linkedWorkbooks;
   const tile = RI_LINK_CODES.find((code) => code === selected);
@@ -246,18 +256,41 @@ function RiInterfaces(): JSX.Element {
   const linked = options.find((w) => w.id === linkedId);
   const exampleLabel = linkedId === undefined ? undefined : exampleLinkLabel(linkedId);
   const nothingToLink = options.length === 0 && linkedId === undefined;
+  const replaced = tile === undefined ? undefined : riRowsReplacedByLink(ri, tile);
+  const unavailable = tile !== undefined && (failed === tile || (upstream.unavailable ?? []).includes(tile));
+
+  useEffect(() => {
+    latestMutate.current = mutateRi;
+  }, [mutateRi]);
+
+  function applyLink(code: RiLinkCode, id: string, replaces: boolean): void {
+    if (!editable) return;
+    setFailed(null);
+    if (id.length === 0) {
+      mutateRi((draft) => withLinkedWorkbook(draft, code, id));
+      return;
+    }
+    setBusy(true);
+    loadRiLinkReplacement(code, id)
+      .then((replace) => latestMutate.current((draft) => withLinkedWorkbook(replaces ? replace(draft) : draft, code, id)))
+      .catch(() => setFailed(code))
+      .finally(() => setBusy(false));
+  }
 
   function onLink(code: RiLinkCode, id: string): void {
     if (!editable) return;
-    mutateRi((draft) => {
-      const context = applicationContextOf(draft);
-      const next: RiLinkedWorkbooks = {};
-      for (const candidate of RI_LINK_CODES) {
-        const value = candidate === code ? id : context.linkedWorkbooks[candidate];
-        if (value !== undefined && value.length > 0) next[candidate] = value;
-      }
-      return { ...draft, applicationContext: { ...context, linkedWorkbooks: next } };
-    });
+    if (id.length > 0 && replaced !== undefined) {
+      setPending({ code, workbookId: id });
+      return;
+    }
+    setPending(null);
+    applyLink(code, id, false);
+  }
+
+  function confirmPending(): void {
+    if (pending === null) return;
+    setPending(null);
+    applyLink(pending.code, pending.workbookId, true);
   }
 
   return (
@@ -269,7 +302,7 @@ function RiInterfaces(): JSX.Element {
             type="button"
             aria-pressed={selected === code}
             className={`poshandoff__tile${selected === code ? " poshandoff__tile--active" : ""}`}
-            onClick={() => setSelected(selected === code ? null : code)}
+            onClick={() => { setSelected(selected === code ? null : code); setPending(null); setFailed(null); }}
           >
             <span className="poshandoff__tile-code">{code}</span>
             <span className="poshandoff__tile-name">{HANDOFF_ELEMENT_NAMES[code]}</span>
@@ -284,7 +317,7 @@ function RiInterfaces(): JSX.Element {
               id={selectId}
               className="posfield__select"
               value={linkedId ?? ""}
-              disabled={!editable || nothingToLink}
+              disabled={!editable || nothingToLink || busy}
               onChange={(e) => onLink(tile, e.target.value)}
             >
               <option value="">{nothingToLink ? `No ${tile} workbooks in this project` : "Not linked"}</option>
@@ -293,7 +326,15 @@ function RiInterfaces(): JSX.Element {
               {linkedId !== undefined && linked === undefined && exampleLabel === undefined && <option value={linkedId}>{`${tile} workbook not in this project`}</option>}
             </select>
           </div>
+          {pending !== null && pending.code === tile && replaced !== undefined && (
+            <div className="ri-link-confirm" role="group" aria-label="Confirm the link">
+              <span>Linking replaces the {replaced} entered in Step 02.</span>
+              <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" disabled={busy} onClick={confirmPending}>Link {options.find((w) => w.id === pending.workbookId)?.name ?? tile}</button>
+              <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => setPending(null)}>Cancel</button>
+            </div>
+          )}
           <HandoffImports consumer="RI" producer={tile} />
+          {unavailable && <p className="ri-link-error" role="alert">Linked workbook unavailable</p>}
         </div>
       )}
     </>
@@ -1430,6 +1471,7 @@ function probabilityText(value: number | undefined): string {
 
 function familySourceText(family: RiInputFamily): string {
   if (family.manual !== undefined) return "By hand";
+  if (family.overridesLink === true) return "Typed in RI";
   if (family.frequencySource === "ES") return "ES screening";
   if (family.quantificationIds.length === 1) return `ESQ ${family.quantificationIds[0] ?? ""}`;
   if (family.quantificationIds.length > 1) return `ESQ, ${family.quantificationIds.length} parts`;
@@ -1437,7 +1479,7 @@ function familySourceText(family: RiInputFamily): string {
 }
 
 function familySourceTitle(family: RiInputFamily): string | undefined {
-  if (family.quantificationIds.length > 1) return `Sum of ${family.quantificationIds.join(", ")}. The percentiles use a lognormal approximation.`;
+  if (family.overridesLink !== true && family.quantificationIds.length > 1) return `Sum of ${family.quantificationIds.join(", ")}. The percentiles use a lognormal approximation.`;
   return undefined;
 }
 
@@ -1454,71 +1496,51 @@ function thresholdText(threshold: number, unit: string): string {
   return unit === "Sv" ? `${Number((threshold * 100000).toPrecision(6))} mrem` : `${threshold} ${unit}`.trim();
 }
 
+const INPUT_SOURCES: { code: "ES" | "ESQ" | "RC"; provides: string }[] = [
+  { code: "ES", provides: "Families and sequences" },
+  { code: "ESQ", provides: "Frequencies, contributors and importance" },
+  { code: "RC", provides: "Consequences" },
+];
+
 function InputSourcesCard(): JSX.Element {
-  const { ri, editable, mutateRi, upstream } = useRiWorkbook();
+  const { ri, upstream } = useRiWorkbook();
   const inputs = ri.inputs;
   const links = applicationContextOf(ri).linkedWorkbooks;
-  const ready = riImportReady(upstream);
-  const linked = links.ES !== undefined || links.ESQ !== undefined || links.RC !== undefined;
-  const edits = inputs === undefined
+  const typed = inputs === undefined
     ? 0
     : inputs.families.filter(frequencyEdited).length + inputs.sequences.filter(frequencyEdited).length + inputs.consequences.filter(consequenceEdited).length;
   const byHand = manualCount(inputs);
-  const rows: { code: "ES" | "ESQ" | "RC"; provides: string; loaded: boolean }[] = [
-    { code: "ES", provides: "Families and sequences", loaded: upstream.es !== undefined },
-    { code: "ESQ", provides: "Frequencies", loaded: upstream.esq !== undefined },
-    { code: "RC", provides: "Consequences", loaded: upstream.rc !== undefined },
-  ];
-
-  function importNow(): void {
-    if (!editable) return;
-    const now = new Date().toISOString();
-    mutateRi((draft) => {
-      const next = riImportInputs(draft, upstream, now);
-      return next === undefined ? draft : { ...draft, inputs: withManualKept(draft.inputs, next) };
-    });
-  }
 
   return (
     <div className="poscard">
       <div className="poscard__head">
         <WorkbookSectionHeading title="Source workbooks" level={3} />
-        <div className="posrow" style={{ gap: 10 }}>
-          <RiProvenanceChip>RI-B1</RiProvenanceChip>
-          {editable && linked && (
-            <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" disabled={!ready} onClick={importNow}>
-              {inputs?.importedAt === undefined ? "Import from linked workbooks" : "Import again"}
-            </button>
-          )}
-        </div>
+        <RiProvenanceChip>RI-B1</RiProvenanceChip>
       </div>
       <div className="ricriteria__table-wrap">
         <table className="postable ri-rowtable" aria-label="Source workbooks">
-          <thead><tr><th>Element</th><th>Linked workbook</th><th>Provides</th><th>Imported from</th></tr></thead>
+          <thead><tr><th>Element</th><th>Linked workbook</th><th>Provides</th></tr></thead>
           <tbody>
-            {rows.map((row) => {
+            {INPUT_SOURCES.map((row) => {
               const id = links[row.code];
-              const name = id === undefined ? "Not linked" : upstream.options[row.code].find((w) => w.id === id)?.name ?? exampleLinkLabel(id) ?? id;
-              const source = inputs?.sources.find((s) => s.element === row.code);
+              const name = id === undefined ? "Not linked" : upstream.options[row.code].find((w) => w.id === id)?.name ?? exampleLinkLabel(id) ?? `${row.code} workbook not in this project`;
               return (
                 <tr key={row.code}>
                   <td>{row.code}</td>
-                  <td>{name}{id !== undefined && !row.loaded && <span className="ri-rowtable__tag">Not loaded</span>}</td>
+                  <td>{name}{(upstream.unavailable ?? []).includes(row.code) && <span className="ri-rowtable__tag">Unavailable</span>}</td>
                   <td>{row.provides}</td>
-                  <td>{source === undefined ? "—" : source.workbookName}</td>
                 </tr>
               );
             })}
           </tbody>
         </table>
       </div>
-      <p className="ri-inputs__meta">
-        {inputs?.importedAt !== undefined ? `Imported ${new Date(inputs.importedAt).toLocaleString()}. ` : ""}
-        {byHand > 0 ? `${byHand} ${byHand === 1 ? "item is" : "items are"} entered by hand. ` : ""}
-        {inputs?.importedAt !== undefined && edits > 0 ? `Importing again replaces ${edits} edited ${edits === 1 ? "value" : "values"}. ` : ""}
-        {inputs?.importedAt !== undefined && byHand > 0 ? "Hand-entered items stay. " : ""}
-        {!linked ? "No workbook is linked. Link ES, ESQ and RC in Step 01 to import, or add the inputs by hand below." : !ready ? "Link the ES and ESQ workbooks in Step 01 to import." : ""}
-      </p>
+      {(byHand > 0 || typed > 0) && (
+        <p className="ri-inputs__meta">
+          {byHand > 0 ? `${byHand} ${byHand === 1 ? "item is" : "items are"} entered by hand. ` : ""}
+          {typed > 0 ? `${typed} linked ${typed === 1 ? "value is" : "values are"} typed in RI.` : ""}
+        </p>
+      )}
     </div>
   );
 }
@@ -1528,7 +1550,7 @@ function ByHandTag({ manual }: { manual: RiManualEntry | undefined }): JSX.Eleme
 }
 
 function FamiliesTable({ inputs, openDrawer }: { inputs: RiInputs; openDrawer: (ctx: RiDrawerContext) => void }): JSX.Element {
-  if (inputs.families.length === 0) return <p className="posmuted">No family yet. Import them above or add them by hand.</p>;
+  if (inputs.families.length === 0) return <p className="posmuted">No family yet.</p>;
   return (
     <div className="ricriteria__table-wrap">
       <table className="postable ri-rowtable" aria-label="Event sequence families">
@@ -1540,7 +1562,7 @@ function FamiliesTable({ inputs, openDrawer }: { inputs: RiInputs; openDrawer: (
         </thead>
         <tbody>
           {inputs.families.map((f) => {
-            const tag = !f.included ? "Excluded" : frequencyEdited(f) ? "Edited" : undefined;
+            const tag = !f.included ? "Excluded" : frequencyEdited(f) ? "Typed" : undefined;
             return (
               <tr key={f.id} className={f.included ? undefined : "ri-rowtable__muted"}>
                 <td>
@@ -1570,7 +1592,7 @@ function SequencesTable({ inputs, openDrawer }: { inputs: RiInputs; openDrawer: 
   const [family, setFamily] = useState("");
   const [page, setPage] = useState(0);
   const filterId = useId();
-  if (inputs.sequences.length === 0) return <p className="posmuted">No sequence yet. Import them above or add them by hand.</p>;
+  if (inputs.sequences.length === 0) return <p className="posmuted">No sequence yet.</p>;
   const rows = family === "" ? inputs.sequences : inputs.sequences.filter((s) => s.familyId === family);
   const pages = Math.max(1, Math.ceil(rows.length / SEQUENCE_PAGE));
   const current = Math.min(page, pages - 1);
@@ -1602,7 +1624,7 @@ function SequencesTable({ inputs, openDrawer }: { inputs: RiInputs; openDrawer: 
               <tr key={s.id}>
                 <td title={s.name}>
                   <button type="button" className="ri-rowtable__name" onClick={() => openDrawer({ kind: "inputSequence", id: s.id })}>{s.id}</button>
-                  {frequencyEdited(s) && <span className="ri-rowtable__tag">Edited</span>}
+                  {frequencyEdited(s) && <span className="ri-rowtable__tag">Typed</span>}
                   <ByHandTag manual={s.manual} />
                 </td>
                 <td>{s.familyId ?? "—"}</td>
@@ -1640,7 +1662,7 @@ function ConsequencesTable({ inputs, measures, openDrawer }: { inputs: RiInputs;
   return (
     <>
       {rows.length === 0 ? (
-        <p className="posmuted">No result yet. Import them above or add them by hand.</p>
+        <p className="posmuted">No result yet.</p>
       ) : (
         <div className="ricriteria__table-wrap">
           <table className="postable ri-rowtable" aria-label="Consequences by release category">
@@ -1658,7 +1680,7 @@ function ConsequencesTable({ inputs, measures, openDrawer }: { inputs: RiInputs;
                   <tr key={consequenceKey(c)}>
                     <td>
                       <button type="button" className="ri-rowtable__name" onClick={() => openDrawer({ kind: "inputConsequence", id: consequenceKey(c) })}>{c.releaseCategoryId.trim().length > 0 ? c.releaseCategoryId : "No category"}</button>
-                      {consequenceEdited(c) && <span className="ri-rowtable__tag">Edited</span>}
+                      {consequenceEdited(c) && <span className="ri-rowtable__tag">Typed</span>}
                       <ByHandTag manual={c.manual} />
                     </td>
                     <td className="ri-rowtable__wrap">{c.measure}</td>
@@ -1705,7 +1727,7 @@ function ConsequencesTable({ inputs, measures, openDrawer }: { inputs: RiInputs;
 
 function ContributorInputsTable({ inputs, openDrawer }: { inputs: RiInputs; openDrawer: (ctx: RiDrawerContext) => void }): JSX.Element {
   const rows = inputs.contributors ?? [];
-  if (rows.length === 0) return <p className="posmuted">No contributor yet. Import them from ESQ above or add them by hand.</p>;
+  if (rows.length === 0) return <p className="posmuted">No contributor yet.</p>;
   return (
     <div className="ricriteria__table-wrap">
       <table className="postable ri-rowtable" aria-label="Contributors">
@@ -1732,7 +1754,7 @@ function ContributorInputsTable({ inputs, openDrawer }: { inputs: RiInputs; open
 
 function ImportanceInputsTable({ inputs, openDrawer }: { inputs: RiInputs; openDrawer: (ctx: RiDrawerContext) => void }): JSX.Element {
   const rows = inputs.importance ?? [];
-  if (rows.length === 0) return <p className="posmuted">No importance measure yet. Import them from ESQ above or add them by hand.</p>;
+  if (rows.length === 0) return <p className="posmuted">No importance measure yet.</p>;
   return (
     <div className="ricriteria__table-wrap">
       <table className="postable ri-rowtable" aria-label="Importance measures">
@@ -1759,6 +1781,7 @@ function ImportanceInputsTable({ inputs, openDrawer }: { inputs: RiInputs; openD
 }
 
 function ChecksTable({ findings, openDrawer }: { findings: RiInputFinding[]; openDrawer: (ctx: RiDrawerContext) => void }): JSX.Element {
+  const { editable, mutateRi } = useRiWorkbook();
   if (findings.length === 0) return <p className="posmuted">Every check passes.</p>;
   return (
     <div className="ricriteria__table-wrap">
@@ -1767,6 +1790,7 @@ function ChecksTable({ findings, openDrawer }: { findings: RiInputFinding[]; ope
         <tbody>
           {findings.map((f, index) => {
             const target = f.target;
+            const leftover = f.leftover;
             return (
               <tr key={`${f.check}:${f.item}:${index}`}>
                 <td className={`ri-severity ri-severity--${f.severity}`}>{SEVERITY_TEXT[f.severity]}</td>
@@ -1776,7 +1800,12 @@ function ChecksTable({ findings, openDrawer }: { findings: RiInputFinding[]; ope
                     <button type="button" className="ri-rowtable__name" onClick={() => openDrawer({ kind: target.kind, id: target.id })}>{f.item}</button>
                   )}
                 </td>
-                <td className="ri-rowtable__wrap">{f.detail}</td>
+                <td className="ri-rowtable__wrap">
+                  {f.detail}
+                  {editable && leftover !== undefined && (
+                    <button type="button" className="posnav__btn posnav__btn--sm ri-leftover__remove" onClick={() => mutateRi((d) => withLeftoverRemoved(d, leftover))}>Remove</button>
+                  )}
+                </td>
               </tr>
             );
           })}
@@ -1801,11 +1830,20 @@ function doseUnitOf(measure: ConsequenceMeasure | undefined): string {
 }
 
 function InputsScreen({ openDrawer }: { openDrawer: (ctx: RiDrawerContext) => void }): JSX.Element {
-  const { ri, editable, mutateRi, upstream } = useRiWorkbook();
+  const { ri, editable, mutateRi } = useRiWorkbook();
   const [tab, setTab] = useState<InputsTab>("families");
   const tabId = useId();
   const inputs = ri.inputs;
-  const findings = riInputChecks(ri, upstream.options);
+  const links = applicationContextOf(ri).linkedWorkbooks;
+  const owner: Record<InputsTab, string | undefined> = {
+    families: links.ES,
+    sequences: links.ES,
+    consequences: links.RC,
+    contributors: links.ESQ,
+    importance: links.ESQ,
+    checks: undefined,
+  };
+  const findings = riInputChecks(ri);
   const count = (n: number): string => (inputs === undefined ? "" : ` (${n})`);
   const tabs: { id: InputsTab; label: string }[] = [
     { id: "families", label: `Families${count(inputs?.families.length ?? 0)}` },
@@ -1859,13 +1897,13 @@ function InputsScreen({ openDrawer }: { openDrawer: (ctx: RiDrawerContext) => vo
             <WorkbookSectionHeading title={head.title} level={3} />
             <div className="posrow" style={{ gap: 10 }}>
               <RiProvenanceChip>{head.sr}</RiProvenanceChip>
-              {editable && head.add !== undefined && (
+              {editable && head.add !== undefined && owner[tab] === undefined && (
                 <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={add}><RIIcon.Plus /> {head.add}</button>
               )}
             </div>
           </div>
           {inputs === undefined ? (
-            <p className="posmuted">Nothing is imported or entered yet. Import from the linked workbooks above, or add the inputs by hand.</p>
+            <p className="posmuted">Nothing is linked or entered yet.</p>
           ) : tab === "families" ? (
             <FamiliesTable inputs={inputs} openDrawer={openDrawer} />
           ) : tab === "sequences" ? (
@@ -1953,6 +1991,18 @@ function ReasonRow({ value, disabled, onChange }: { value: string; disabled: boo
   );
 }
 
+function ValuesFromRow({ label, source, typed, disabled, onChange }: { label: string; source: string; typed: boolean; disabled: boolean; onChange: (typed: boolean) => void }): JSX.Element {
+  const id = useId();
+  return (
+    <FormRow label={label} htmlFor={id}>
+      <select id={id} className="posfield__select" value={typed ? "typed" : "linked"} disabled={disabled} onChange={(e) => onChange(e.target.value === "typed")}>
+        <option value="linked">{source}</option>
+        <option value="typed">Typed in RI</option>
+      </select>
+    </FormRow>
+  );
+}
+
 const DOSE_UNITS = ["Sv", "mSv", "rem", "mrem"];
 
 function linesOf(text: string): string[] {
@@ -1981,12 +2031,15 @@ function EndStateRow({ value, disabled, onChange }: { value: EndState; disabled:
 }
 
 function InputFamilyDrawer({ id, onClose, onRetarget }: { id: string; onClose: () => void; onRetarget: (ctx: RiDrawerContext) => void }): JSX.Element | null {
-  const { ri, editable, mutateRi } = useRiWorkbook();
+  const { ri, editable, mutateRi, upstream } = useRiWorkbook();
   const fieldId = useId();
   const family = ri.inputs?.families.find((f) => f.id === id);
   if (family === undefined) return null;
   const dis = !editable;
   const manual = family.manual !== undefined;
+  const linkedRow = !manual && upstream.es !== undefined;
+  const typed = family.overridesLink === true;
+  const frequencyOwner = family.frequencySource ?? (applicationContextOf(ri).linkedWorkbooks.ESQ === undefined ? "ES" : "ESQ");
   const fid = (name: string): string => `${fieldId}-${name}`;
   function patch(next: Partial<RiInputFamily>): void {
     if (!editable) return;
@@ -2057,14 +2110,22 @@ function InputFamilyDrawer({ id, onClose, onRetarget }: { id: string; onClose: (
             <WorkbookTextarea id={fid("exclusion")} className="posfield__textarea" rows={2} fitContent value={family.exclusionReason ?? ""} disabled={dis} onChange={(e) => patch({ exclusionReason: e.target.value })} />
           </FormRow>
         )}
-        <FrequencyGrid stats={family.frequency} disabled={dis} onChange={(key, value) => patch({ frequency: withFrequencyStat(family.frequency, key, value) })} />
-        {manual
-          ? <SourceRow value={family.manual?.source ?? ""} disabled={dis} onChange={(source) => patch({ manual: { source } })} />
-          : <ReasonRow value={family.changeReason ?? ""} disabled={dis} onChange={(changeReason) => patch({ changeReason })} />}
+        {linkedRow && (
+          <ValuesFromRow
+            label="Frequency from"
+            source={frequencyOwner}
+            typed={typed}
+            disabled={dis}
+            onChange={(next) => patch(next ? { overridesLink: true } : { overridesLink: undefined, frequency: family.imported === undefined ? undefined : { ...family.imported }, changeReason: undefined })}
+          />
+        )}
+        <FrequencyGrid stats={family.frequency} disabled={dis || (linkedRow && !typed)} onChange={(key, value) => patch({ frequency: withFrequencyStat(family.frequency, key, value) })} />
+        {manual && <SourceRow value={family.manual?.source ?? ""} disabled={dis} onChange={(source) => patch({ manual: { source } })} />}
+        {!manual && (typed || !linkedRow) && <ReasonRow value={family.changeReason ?? ""} disabled={dis} onChange={(changeReason) => patch({ changeReason })} />}
       </div>
       <FormFoot onClose={onClose}>
         {editable && manual && <button type="button" className="posnav__btn posnav__btn--sm" onClick={remove}>Remove family</button>}
-        {editable && !manual && frequencyEdited(family) && (
+        {editable && !manual && !linkedRow && frequencyEdited(family) && (
           <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => patch({ frequency: family.imported === undefined ? undefined : { ...family.imported }, changeReason: undefined })}>Restore imported values</button>
         )}
       </FormFoot>
@@ -2073,12 +2134,15 @@ function InputFamilyDrawer({ id, onClose, onRetarget }: { id: string; onClose: (
 }
 
 function InputSequenceDrawer({ id, onClose, onRetarget }: { id: string; onClose: () => void; onRetarget: (ctx: RiDrawerContext) => void }): JSX.Element | null {
-  const { ri, editable, mutateRi } = useRiWorkbook();
+  const { ri, editable, mutateRi, upstream } = useRiWorkbook();
   const fieldId = useId();
   const sequence = ri.inputs?.sequences.find((s) => s.id === id);
   if (sequence === undefined) return null;
   const dis = !editable;
   const manual = sequence.manual !== undefined;
+  const linkedRow = !manual && upstream.es !== undefined;
+  const typed = sequence.overridesLink === true;
+  const frequencyOwner = sequence.frequencySource ?? (applicationContextOf(ri).linkedWorkbooks.ESQ === undefined ? "ES" : "ESQ");
   const fid = (name: string): string => `${fieldId}-${name}`;
   function patch(next: Partial<RiInputSequence>): void {
     if (!editable) return;
@@ -2160,14 +2224,22 @@ function InputSequenceDrawer({ id, onClose, onRetarget }: { id: string; onClose:
             </FormRow>
           </>
         )}
-        <FrequencyGrid stats={sequence.frequency} disabled={dis} onChange={(key, value) => patch({ frequency: withFrequencyStat(sequence.frequency, key, value) })} />
-        {manual
-          ? <SourceRow value={sequence.manual?.source ?? ""} disabled={dis} onChange={(source) => patch({ manual: { source } })} />
-          : <ReasonRow value={sequence.changeReason ?? ""} disabled={dis} onChange={(changeReason) => patch({ changeReason })} />}
+        {linkedRow && (
+          <ValuesFromRow
+            label="Frequency from"
+            source={frequencyOwner}
+            typed={typed}
+            disabled={dis}
+            onChange={(next) => patch(next ? { overridesLink: true } : { overridesLink: undefined, frequency: sequence.imported === undefined ? undefined : { ...sequence.imported }, changeReason: undefined })}
+          />
+        )}
+        <FrequencyGrid stats={sequence.frequency} disabled={dis || (linkedRow && !typed)} onChange={(key, value) => patch({ frequency: withFrequencyStat(sequence.frequency, key, value) })} />
+        {manual && <SourceRow value={sequence.manual?.source ?? ""} disabled={dis} onChange={(source) => patch({ manual: { source } })} />}
+        {!manual && (typed || !linkedRow) && <ReasonRow value={sequence.changeReason ?? ""} disabled={dis} onChange={(changeReason) => patch({ changeReason })} />}
       </div>
       <FormFoot onClose={onClose}>
         {editable && manual && <button type="button" className="posnav__btn posnav__btn--sm" onClick={remove}>Remove sequence</button>}
-        {editable && !manual && frequencyEdited(sequence) && (
+        {editable && !manual && !linkedRow && frequencyEdited(sequence) && (
           <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => patch({ frequency: sequence.imported === undefined ? undefined : { ...sequence.imported }, changeReason: undefined })}>Restore imported values</button>
         )}
       </FormFoot>
@@ -2190,13 +2262,15 @@ function withChanceAbove100Mrem(stats: RiConsequenceStats, unit: string, value: 
 }
 
 function InputConsequenceDrawer({ id, onClose }: { id: string; onClose: () => void }): JSX.Element | null {
-  const { ri, editable, mutateRi } = useRiWorkbook();
+  const { ri, editable, mutateRi, upstream } = useRiWorkbook();
   const fieldId = useId();
   const item = ri.inputs?.consequences.find((c) => consequenceKey(c) === id);
   if (item === undefined) return null;
-  const dis = !editable;
   const stats = item.statistics;
   const manual = item.manual !== undefined;
+  const linkedRow = !manual && upstream.rc !== undefined;
+  const typed = item.overridesLink === true;
+  const dis = !editable || (linkedRow && !typed);
   const fid = (name: string): string => `${fieldId}-${name}`;
   const measures = ri.scopeDefinition.consequenceMeasures;
   const categories = [...new Set((ri.inputs?.families ?? []).flatMap((f) => f.releaseCategoryIds))];
@@ -2245,6 +2319,15 @@ function InputConsequenceDrawer({ id, onClose }: { id: string; onClose: () => vo
             )}
           </>
         )}
+        {linkedRow && (
+          <ValuesFromRow
+            label="Result from"
+            source="RC"
+            typed={typed}
+            disabled={!editable}
+            onChange={(next) => patch(next ? { overridesLink: true } : { overridesLink: undefined, statistics: item.imported === undefined ? item.statistics : cloneConsequenceStats(item.imported), changeReason: undefined })}
+          />
+        )}
         <StatGridRow
           label="Result"
           unit={item.unit}
@@ -2289,13 +2372,12 @@ function InputConsequenceDrawer({ id, onClose }: { id: string; onClose: () => vo
             }))}
           />
         )}
-        {manual
-          ? <SourceRow value={item.manual?.source ?? ""} disabled={dis} onChange={(source) => patch({ manual: { source } })} />
-          : <ReasonRow value={item.changeReason ?? ""} disabled={dis} onChange={(changeReason) => patch({ changeReason })} />}
+        {manual && <SourceRow value={item.manual?.source ?? ""} disabled={dis} onChange={(source) => patch({ manual: { source } })} />}
+        {!manual && (typed || !linkedRow) && <ReasonRow value={item.changeReason ?? ""} disabled={dis} onChange={(changeReason) => patch({ changeReason })} />}
       </div>
       <FormFoot onClose={onClose}>
         {editable && manual && <button type="button" className="posnav__btn posnav__btn--sm" onClick={remove}>Remove result</button>}
-        {editable && !manual && consequenceEdited(item) && item.imported !== undefined && (
+        {editable && !manual && !linkedRow && consequenceEdited(item) && item.imported !== undefined && (
           <button
             type="button"
             className="posnav__btn posnav__btn--sm"
@@ -2701,7 +2783,7 @@ function CategoriesScreen({ openDrawer }: { openDrawer: (ctx: RiDrawerContext) =
             <RiProvenanceChip>{head.sr}</RiProvenanceChip>
           </div>
           {!imported ? (
-            <p className="posmuted">Nothing is imported yet. Import the families in Step 02 first.</p>
+            <p className="posmuted">Step 02 has no inputs yet.</p>
           ) : tab === "categories" ? (
             <CategoriesTable views={views} labels={labels} openDrawer={openDrawer} />
           ) : tab === "dbe" ? (
@@ -3215,7 +3297,7 @@ function FcScreen({ openDrawer }: { openDrawer: (ctx: RiDrawerContext) => void }
             <RiProvenanceChip>{head.sr}</RiProvenanceChip>
           </div>
           {!imported ? (
-            <p className="posmuted">Nothing is imported yet. Import the families in Step 02 first.</p>
+            <p className="posmuted">Step 02 has no inputs yet.</p>
           ) : tab === "chart" ? (
             <>
               <p className="ri-step__note">Each LBE sits at its mean, with bars from the 5th to the 95th percentile. Families with no release sit on the frequency axis. Families below the BDBE floor are not LBEs and are not shown.</p>
@@ -3676,7 +3758,7 @@ function IntegratedRiskScreen({ openDrawer }: { openDrawer: (ctx: RiDrawerContex
               <RiProvenanceChip>{head.sr}</RiProvenanceChip>
             </div>
             {!imported ? (
-              <p className="posmuted">Nothing is imported yet. Import the families in Step 02 first.</p>
+              <p className="posmuted">Step 02 has no inputs yet.</p>
             ) : tab === "targets" ? (
               <RiskTotalsTable metrics={integratedRiskMetrics(ri)} measures={ri.scopeDefinition.consequenceMeasures} />
             ) : tab === "contributions" ? (
@@ -3831,7 +3913,7 @@ function BreakdownView({ metric }: { metric: RiIntegratedMetric }): JSX.Element 
 
 function ComponentGroupsView({ metric, openDrawer }: { metric: RiIntegratedMetric; openDrawer: (ctx: RiDrawerContext) => void }): JSX.Element {
   const { ri } = useRiWorkbook();
-  if (ri.inputs?.contributors === undefined) return <p className="posmuted">Import ESQ's contributors in Step 02 or add them by hand there.</p>;
+  if (ri.inputs?.contributors === undefined) return <p className="posmuted">Step 02 has no contributors yet.</p>;
   const contributors = sscContributors(ri);
   if (contributors.length === 0) return <p className="posmuted">ESQ reports no equipment or common-cause contributor to group.</p>;
   const groups = sscGroups(ri, metric);
@@ -3882,7 +3964,7 @@ function ComponentGroupsView({ metric, openDrawer }: { metric: RiIntegratedMetri
 
 function ImportanceView(): JSX.Element {
   const { ri } = useRiWorkbook();
-  if (ri.inputs?.importance === undefined) return <p className="posmuted">Import ESQ's importance measures in Step 02 or add them by hand there.</p>;
+  if (ri.inputs?.importance === undefined) return <p className="posmuted">Step 02 has no importance measures yet.</p>;
   const rows = importanceRows(ri);
   if (rows.length === 0) return <p className="posmuted">ESQ reports no importance measures.</p>;
   const relative = criteriaSetOf(ri).relative;
@@ -3972,7 +4054,7 @@ function ContributorsScreen({ openDrawer }: { openDrawer: (ctx: RiDrawerContext)
             <RiProvenanceChip>{head.sr}</RiProvenanceChip>
           </div>
           {!imported ? (
-            <p className="posmuted">Nothing is imported yet. Import the families in Step 02 first.</p>
+            <p className="posmuted">Step 02 has no inputs yet.</p>
           ) : tab === "importance" ? (
             <ImportanceView />
           ) : metric === undefined ? (
@@ -4002,16 +4084,16 @@ function quantityLabel(value: string): string {
 }
 
 function RegisterView({ openDrawer }: { openDrawer: (ctx: RiDrawerContext) => void }): JSX.Element {
-  const { ri, editable, mutateRi, upstream } = useRiWorkbook();
+  const { ri, editable, mutateRi } = useRiWorkbook();
   const sources = ri.modelUncertaintySources;
   const ledger = ri.screenedItemsLedger ?? [];
-  const newSources = newRegisterCandidates(ri, upstream).length;
-  const newItems = newScreeningCandidates(ri, upstream).length;
+  const lostSources = ri.linkedUncertaintyDetails ?? [];
+  const lostItems = ri.linkedScreenedItemDetails ?? [];
   const issues = registerIssues(ri);
 
   function addSource(): void {
     if (!editable) return;
-    const uuid = nextId("MU", sources.map((u) => u.uuid));
+    const uuid = nextId("MU", [...sources.map((u) => u.uuid), ...lostSources.map((u) => u.uuid)]);
     mutateRi((d) => ({
       ...d,
       modelUncertaintySources: [...d.modelUncertaintySources, {
@@ -4050,14 +4132,11 @@ function RegisterView({ openDrawer }: { openDrawer: (ctx: RiDrawerContext) => vo
           <WorkbookSectionHeading title="Model uncertainties" level={3} />
           <div className="posrow" style={{ gap: 10 }}>
             <RiProvenanceChip>RI-C1 · C3</RiProvenanceChip>
-            {editable && newSources > 0 && (
-              <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => mutateRi((d) => withImportedRegister(d, upstream))}>Import {newSources} from linked workbooks</button>
-            )}
             {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addSource}><RIIcon.Plus /> Add source</button>}
           </div>
         </div>
         <p className="ri-step__note">The key model uncertainties of every element. The frequency side arrives through ESQ's assessments (ESQ-E1), the consequence side through MS and RC. Each one needs the totals it affects and an assessment of its effect (RI-C3).</p>
-        {sources.length === 0 ? (
+        {sources.length === 0 && lostSources.length === 0 ? (
           <p className="posmuted">No model uncertainty is compiled yet.</p>
         ) : (
           <div className="ricriteria__table-wrap">
@@ -4069,10 +4148,38 @@ function RegisterView({ openDrawer }: { openDrawer: (ctx: RiDrawerContext) => vo
                   return (
                     <tr key={u.uuid}>
                       <td>{code}</td>
-                      <td className="ri-rowtable__wrap"><button type="button" className="ri-rowtable__name" onClick={() => openDrawer({ kind: "uncertaintySource", id: u.uuid })}>{u.name.trim().length > 0 ? u.name : "Untitled source"}</button></td>
+                      <td className="ri-rowtable__wrap">
+                        <button type="button" className="ri-rowtable__name" onClick={() => openDrawer({ kind: "uncertaintySource", id: u.uuid })}>{u.name.trim().length > 0 ? u.name : "Untitled source"}</button>
+                        {u.overridesLink === true && <span className="ri-rowtable__tag">Typed</span>}
+                      </td>
                       <td>{REGISTER_SIDE[code] ?? "Frequency side"}</td>
                       <td className="ri-rowtable__wrap">{u.affectedMetrics.length === 0 ? "Not set" : u.affectedMetrics.map(quantityLabel).join(", ")}</td>
                       <td className="ri-rowtable__wrap">{u.impactAssessment.trim().length === 0 ? "Not assessed yet" : u.impactAssessment}</td>
+                    </tr>
+                  );
+                })}
+                {lostSources.map((u) => {
+                  const code = ELEMENT_CODE_BY_TYPE[u.originatingElement] ?? "RI";
+                  const totals = u.affectedMetrics ?? [];
+                  return (
+                    <tr key={`lost:${u.uuid}`}>
+                      <td>{code}</td>
+                      <td className="ri-rowtable__wrap">
+                        {u.name}
+                        <span className="ri-rowtable__tag">Linked row not found</span>
+                        {editable && (
+                          <button
+                            type="button"
+                            className="posnav__btn posnav__btn--sm ri-leftover__remove"
+                            onClick={() => mutateRi((d) => ({ ...d, linkedUncertaintyDetails: (d.linkedUncertaintyDetails ?? []).filter((x) => x.uuid !== u.uuid) }))}
+                          >
+                            Remove
+                          </button>
+                        )}
+                      </td>
+                      <td>{REGISTER_SIDE[code] ?? "Frequency side"}</td>
+                      <td className="ri-rowtable__wrap">{totals.length === 0 ? "Not set" : totals.map(quantityLabel).join(", ")}</td>
+                      <td className="ri-rowtable__wrap">{u.impactAssessment ?? "Not assessed yet"}</td>
                     </tr>
                   );
                 })}
@@ -4086,14 +4193,11 @@ function RegisterView({ openDrawer }: { openDrawer: (ctx: RiDrawerContext) => vo
           <WorkbookSectionHeading title="Screened items" level={3} />
           <div className="posrow" style={{ gap: 10 }}>
             <RiProvenanceChip>RI-C1</RiProvenanceChip>
-            {editable && newItems > 0 && (
-              <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => mutateRi((d) => withImportedScreening(d, upstream))}>Import {newItems} screening decisions</button>
-            )}
             {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addItem}><RIIcon.Plus /> Add item</button>}
           </div>
         </div>
-        <p className="ri-step__note">Everything screened out of the PRA, with the reason and its effect on the results. The import takes the screened operating states from POS, the screened sequences from ES and the screened initiating events that ESQ assessed.</p>
-        {ledger.length === 0 ? (
+        <p className="ri-step__note">Everything screened out of the PRA, with the reason and its effect on the results. The screened operating states come from POS, the screened sequences from ES and the screened initiating events from ESQ.</p>
+        {ledger.length === 0 && lostItems.length === 0 ? (
           <p className="posmuted">No screened item is recorded yet.</p>
         ) : (
           <div className="ricriteria__table-wrap">
@@ -4103,10 +4207,34 @@ function RegisterView({ openDrawer }: { openDrawer: (ctx: RiDrawerContext) => vo
                 {ledger.map((s) => (
                   <tr key={s.uuid}>
                     <td>{s.screeningElementCode}</td>
-                    <td className="ri-rowtable__wrap"><button type="button" className="ri-rowtable__name" onClick={() => openDrawer({ kind: "screenedItem", id: s.uuid })}>{s.itemRef.trim().length > 0 ? s.itemRef : "Untitled item"}</button></td>
+                    <td className="ri-rowtable__wrap">
+                      <button type="button" className="ri-rowtable__name" onClick={() => openDrawer({ kind: "screenedItem", id: s.uuid })}>{s.itemRef.trim().length > 0 ? s.itemRef : "Untitled item"}</button>
+                      {s.overridesLink === true && <span className="ri-rowtable__tag">Typed</span>}
+                    </td>
                     <td>{labelOf(SCREENED_ITEM_TYPE_OPTIONS, s.itemType)}</td>
                     <td className="ri-rowtable__wrap">{s.screeningBasis.trim().length === 0 ? "No basis yet" : s.screeningBasis}</td>
                     <td className="ri-rowtable__wrap">{s.impactOnRiskMetrics ?? "—"}</td>
+                  </tr>
+                ))}
+                {lostItems.map((s) => (
+                  <tr key={`lost:${s.itemType}:${s.itemRef}`}>
+                    <td>—</td>
+                    <td className="ri-rowtable__wrap">
+                      {s.itemRef}
+                      <span className="ri-rowtable__tag">Linked row not found</span>
+                      {editable && (
+                        <button
+                          type="button"
+                          className="posnav__btn posnav__btn--sm ri-leftover__remove"
+                          onClick={() => mutateRi((d) => ({ ...d, linkedScreenedItemDetails: (d.linkedScreenedItemDetails ?? []).filter((x) => !(x.itemType === s.itemType && x.itemRef === s.itemRef)) }))}
+                        >
+                          Remove
+                        </button>
+                      )}
+                    </td>
+                    <td>{labelOf(SCREENED_ITEM_TYPE_OPTIONS, s.itemType)}</td>
+                    <td className="ri-rowtable__wrap">—</td>
+                    <td className="ri-rowtable__wrap">{s.impactOnRiskMetrics}</td>
                   </tr>
                 ))}
               </tbody>
@@ -4229,7 +4357,7 @@ function PropagationView({ openDrawer }: { openDrawer: (ctx: RiDrawerContext) =>
         </div>
         <p className="ri-step__note">{PROPAGATION_SAMPLES.toLocaleString()} samples with a fixed seed. Each family frequency and each release category value is lognormal, fitted to its 5th and 95th percentiles, or fixed when it has no spread. Families that share a release category share its sampled value. Families are otherwise sampled independently, so correlation between them is not captured. The chance above 100 mrem is each result's single reported value.</p>
         {results.length === 0 ? (
-          <p className="posmuted">{ri.inputs === undefined ? "Nothing is imported yet. Import the families in Step 02 first." : "No total to propagate yet."}</p>
+          <p className="posmuted">{ri.inputs === undefined ? "Step 02 has no inputs yet." : "No total to propagate yet."}</p>
         ) : (
           <div className="ricriteria__table-wrap">
             <table className="postable ri-rowtable" aria-label="Propagated totals">
@@ -4377,12 +4505,19 @@ function SensitivityView({ openDrawer }: { openDrawer: (ctx: RiDrawerContext) =>
 }
 
 function UncertaintySourceDrawer({ id, onClose }: { id: string; onClose: () => void }): JSX.Element | null {
-  const { ri, editable, mutateRi } = useRiWorkbook();
+  const { ri, editable, mutateRi, upstream } = useRiWorkbook();
   const fieldId = useId();
   const u = ri.modelUncertaintySources.find((x) => x.uuid === id);
   if (u === undefined) return null;
   const dis = !editable;
+  const link = riUncertaintyLink(u, upstream);
+  const typed = u.overridesLink === true;
+  const linkedRow = link !== undefined && !typed;
   const fid = (name: string): string => `${fieldId}-${name}`;
+  function setValuesFrom(next: boolean): void {
+    if (!editable || link === undefined) return;
+    mutateRi((d) => ({ ...d, modelUncertaintySources: d.modelUncertaintySources.map((x) => (x.uuid !== id ? x : next ? { ...x, overridesLink: true } : withUncertaintyLinked(x, link))) }));
+  }
   const quantities = [...new Set([
     ...ri.scopeDefinition.consequenceMeasures.map((m) => m.quantity).filter((q): q is RcMetricQuantity => q !== undefined),
     ...u.affectedMetrics,
@@ -4413,17 +4548,23 @@ function UncertaintySourceDrawer({ id, onClose }: { id: string; onClose: () => v
     <>
       <DrawerHead cap="Model uncertainty · RI-C1 · C3" title={u.name.trim().length > 0 ? u.name : "Untitled source"} onClose={onClose} />
       <div className="modal__body ri-form">
+        {link !== undefined && <ValuesFromRow label="Values from" source={link.from} typed={typed} disabled={dis} onChange={setValuesFrom} />}
+        {link !== undefined && typed && (
+          <FormRow label="Reason" htmlFor={fid("reason")} top>
+            <WorkbookTextarea id={fid("reason")} className="posfield__textarea" rows={2} fitContent value={u.overrideReason ?? ""} disabled={dis} onChange={(e) => patch({ overrideReason: e.target.value })} />
+          </FormRow>
+        )}
         <FormRow label="Name" htmlFor={fid("name")}>
-          <WorkbookInput id={fid("name")} className="posfield__input" value={u.name} disabled={dis} onChange={(e) => patch({ name: e.target.value })} />
+          <WorkbookInput id={fid("name")} className="posfield__input" value={u.name} disabled={dis || link !== undefined} onChange={(e) => patch({ name: e.target.value })} />
         </FormRow>
         <FormRow label="Element" htmlFor={fid("element")}>
-          <select id={fid("element")} className="posfield__select" value={u.originatingElement} disabled={dis}
+          <select id={fid("element")} className="posfield__select" value={u.originatingElement} disabled={dis || link !== undefined}
             onChange={(e) => { const type = Object.values(TechnicalElementTypes).find((t) => t === e.target.value); if (type !== undefined) patch({ originatingElement: type }); }}>
             {ELEMENT_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
           </select>
         </FormRow>
         <FormRow label="Description" htmlFor={fid("description")} top>
-          <WorkbookTextarea id={fid("description")} className="posfield__textarea" rows={2} fitContent value={u.description} disabled={dis} onChange={(e) => patch({ description: e.target.value })} />
+          <WorkbookTextarea id={fid("description")} className="posfield__textarea" rows={2} fitContent value={u.description} disabled={dis || linkedRow} onChange={(e) => patch({ description: e.target.value })} />
         </FormRow>
         <div className="ri-form__row ri-form__row--top">
           <span className="posfield__label ri-form__label">Affected totals</span>
@@ -4440,7 +4581,7 @@ function UncertaintySourceDrawer({ id, onClose }: { id: string; onClose: () => v
           <WorkbookTextarea id={fid("impact")} className="posfield__textarea" rows={2} fitContent value={u.impactAssessment} disabled={dis} onChange={(e) => patch({ impactAssessment: e.target.value })} />
         </FormRow>
         <FormRow label="Related assumptions" htmlFor={fid("assumptions")} top>
-          <WorkbookTextarea id={fid("assumptions")} className="posfield__textarea" rows={2} fitContent value={(u.relatedAssumptions ?? []).join("\n")} disabled={dis}
+          <WorkbookTextarea id={fid("assumptions")} className="posfield__textarea" rows={2} fitContent value={(u.relatedAssumptions ?? []).join("\n")} disabled={dis || linkedRow}
             onChange={(e) => patch({ relatedAssumptions: e.target.value.split("\n").map((a) => a.trim()).filter((a) => a.length > 0) })} />
         </FormRow>
         <FormRow label="How it is assessed" htmlFor={fid("method")}>
@@ -4448,19 +4589,27 @@ function UncertaintySourceDrawer({ id, onClose }: { id: string; onClose: () => v
         </FormRow>
       </div>
       <FormFoot onClose={onClose}>
-        {editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={remove}>Remove source</button>}
+        {editable && link === undefined && <button type="button" className="posnav__btn posnav__btn--sm" onClick={remove}>Remove source</button>}
       </FormFoot>
     </>
   );
 }
 
 function ScreenedItemDrawer({ id, onClose }: { id: string; onClose: () => void }): JSX.Element | null {
-  const { ri, editable, mutateRi } = useRiWorkbook();
+  const { ri, editable, mutateRi, upstream } = useRiWorkbook();
   const fieldId = useId();
   const s = (ri.screenedItemsLedger ?? []).find((x) => x.uuid === id);
   if (s === undefined) return null;
   const dis = !editable;
+  const link = riScreenedItemLink(s, upstream);
+  const typed = s.overridesLink === true;
+  const linkedRow = link !== undefined && !typed;
+  const effectLinked = link !== undefined && !typed && link.impact !== undefined;
   const fid = (name: string): string => `${fieldId}-${name}`;
+  function setValuesFrom(next: boolean): void {
+    if (!editable || link === undefined) return;
+    mutateRi((d) => ({ ...d, screenedItemsLedger: (d.screenedItemsLedger ?? []).map((x) => (x.uuid !== id ? x : next ? { ...x, overridesLink: true } : withScreenedItemLinked(x, link))) }));
+  }
   function patch(next: Partial<ScreenedItemLedgerEntry>): void {
     if (!editable) return;
     mutateRi((d) => ({ ...d, screenedItemsLedger: (d.screenedItemsLedger ?? []).map((x) => (x.uuid === id ? { ...x, ...next } : x)) }));
@@ -4474,30 +4623,36 @@ function ScreenedItemDrawer({ id, onClose }: { id: string; onClose: () => void }
     <>
       <DrawerHead cap="Screened item · RI-C1" title={s.itemRef.trim().length > 0 ? s.itemRef : "Untitled item"} onClose={onClose} />
       <div className="modal__body ri-form">
+        {link !== undefined && <ValuesFromRow label="Values from" source={link.from} typed={typed} disabled={dis} onChange={setValuesFrom} />}
+        {link !== undefined && typed && (
+          <FormRow label="Reason" htmlFor={fid("reason")} top>
+            <WorkbookTextarea id={fid("reason")} className="posfield__textarea" rows={2} fitContent value={s.overrideReason ?? ""} disabled={dis} onChange={(e) => patch({ overrideReason: e.target.value })} />
+          </FormRow>
+        )}
         <FormRow label="Item" htmlFor={fid("item")}>
-          <WorkbookInput id={fid("item")} className="posfield__input" value={s.itemRef} disabled={dis} onChange={(e) => patch({ itemRef: e.target.value })} />
+          <WorkbookInput id={fid("item")} className="posfield__input" value={s.itemRef} disabled={dis || link !== undefined} onChange={(e) => patch({ itemRef: e.target.value })} />
         </FormRow>
         <FormRow label="Type" htmlFor={fid("type")}>
-          <select id={fid("type")} className="posfield__select" value={s.itemType} disabled={dis}
+          <select id={fid("type")} className="posfield__select" value={s.itemType} disabled={dis || link !== undefined}
             onChange={(e) => { const type = SCREENED_TYPES.find((t) => t === e.target.value); if (type !== undefined) patch({ itemType: type }); }}>
             {SCREENED_ITEM_TYPE_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
           </select>
         </FormRow>
         <FormRow label="Screened by" htmlFor={fid("code")}>
-          <select id={fid("code")} className="posfield__select" value={s.screeningElementCode} disabled={dis}
+          <select id={fid("code")} className="posfield__select" value={s.screeningElementCode} disabled={dis || linkedRow}
             onChange={(e) => { const code = SCREENING_CODES.find((c) => c === e.target.value); if (code !== undefined) patch({ screeningElementCode: code }); }}>
             {ELEMENT_CODE_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
           </select>
         </FormRow>
         <FormRow label="Basis" htmlFor={fid("basis")} top>
-          <WorkbookTextarea id={fid("basis")} className="posfield__textarea" rows={2} fitContent value={s.screeningBasis} disabled={dis} onChange={(e) => patch({ screeningBasis: e.target.value })} />
+          <WorkbookTextarea id={fid("basis")} className="posfield__textarea" rows={2} fitContent value={s.screeningBasis} disabled={dis || linkedRow} onChange={(e) => patch({ screeningBasis: e.target.value })} />
         </FormRow>
         <FormRow label="Effect on the results" htmlFor={fid("impact")} top>
-          <WorkbookTextarea id={fid("impact")} className="posfield__textarea" rows={2} fitContent value={s.impactOnRiskMetrics ?? ""} disabled={dis} onChange={(e) => patch({ impactOnRiskMetrics: e.target.value })} />
+          <WorkbookTextarea id={fid("impact")} className="posfield__textarea" rows={2} fitContent value={s.impactOnRiskMetrics ?? ""} disabled={dis || effectLinked} onChange={(e) => patch({ impactOnRiskMetrics: e.target.value })} />
         </FormRow>
       </div>
       <FormFoot onClose={onClose}>
-        {editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={remove}>Remove item</button>}
+        {editable && link === undefined && <button type="button" className="posnav__btn posnav__btn--sm" onClick={remove}>Remove item</button>}
       </FormFoot>
     </>
   );

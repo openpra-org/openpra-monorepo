@@ -1,5 +1,6 @@
 import { reviewBlockingInternalFirePraDiagnostics } from "interfaces-mef-types/internal-fire/internal-fire-pra-validation";
 import { type JSX, useMemo, useState } from "react";
+import { useWorkbookSharingContext } from "../../workbooks/workbookSharing";
 import { WorkbookSectionHeading } from "../../workbooks/workbookSectionHeading";
 import { POSIcon } from "../../pos-workbooks/posIcons";
 import { internalFireConformanceItems, internalFireConformanceScore } from "../internalFirePraConformance";
@@ -22,7 +23,8 @@ export function DraftScreen({ actions }: { actions?: InternalFireWorkflowActions
   const blockers = useMemo(() => reviewBlockingInternalFirePraDiagnostics(mef), [mef]);
   const score = useMemo(() => internalFireConformanceScore(internalFireConformanceItems(mef)), [mef]);
   const ready = blockers.length === 0;
-  const canSubmit = editable && (mef.workflowState === "DRAFT" || mef.workflowState === "REVISION_REQUIRED");
+  const { sharedOnly } = useWorkbookSharingContext();
+  const canSubmit = editable && !sharedOnly && (mef.workflowState === "DRAFT" || mef.workflowState === "REVISION_REQUIRED");
   function submit(): void {
     setBusy(true);
     const operation = actions?.submitForReview?.();

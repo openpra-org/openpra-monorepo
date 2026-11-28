@@ -10,6 +10,7 @@ import {
   WidthType,
   BorderStyle,
 } from "docx";
+import type { WorkbookLinkedRevision } from "interfaces-shared-types/workbooks";
 import { type EventSequenceQuantification } from "interfaces-mef-types/esq/event-sequence-quantification";
 import { JOINT_SOURCE_LABELS, LEVEL_LABELS, logicViewOf, runLogicText } from "./esqLogic";
 import { barriersViewOf, cellRecordText, modeLabel, sideSourceText, MECHANISM_KIND_LABELS, MODE_KIND_LABELS } from "./esqBarriers";
@@ -311,8 +312,18 @@ function buildChildren(a: EventSequenceQuantification, final: boolean): (Paragra
   return out;
 }
 
-async function generateEsqReport(esq: EventSequenceQuantification, final: boolean): Promise<void> {
-  const doc = new Document({ sections: [{ children: buildChildren(esq, final) }] });
+function linkedSection(linked: readonly WorkbookLinkedRevision[]): (Paragraph | Table)[] {
+  if (linked.length === 0) return [];
+  const stamp = new Date().toLocaleString();
+  return [
+    heading("Linked workbooks", HeadingLevel.HEADING_1),
+    new Paragraph({ children: [new TextRun("This draft uses these linked workbooks as they stood when it was made.")], spacing: { after: 120 } }),
+    dataTable(["Element", "Workbook", "Revision"], linked.map((entry) => [entry.code, entry.name, entry.revision === undefined ? `Read ${stamp}` : String(entry.revision)])),
+  ];
+}
+
+async function generateEsqReport(esq: EventSequenceQuantification, final: boolean, linked: readonly WorkbookLinkedRevision[] = []): Promise<void> {
+  const doc = new Document({ sections: [{ children: [...buildChildren(esq, final), ...linkedSection(linked)] }] });
   const blob = await Packer.toBlob(doc);
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");

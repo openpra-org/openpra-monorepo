@@ -9,6 +9,7 @@ import type { RcWeatherRecord } from "interfaces-mef-types/rc/weather";
 import { RcCaseRecordsSchema, RcCategoryResultValuesSchema } from "interfaces-mef-types/zod/rc/case-records";
 import { caseChecks, caseDatasets, caseEmbeddedFiles, caseFiles, caseReceptorCount, caseSnapshotMetrics, caseTable, caseVersions, currentRcCase } from "interfaces-shared-types/rc-workbooks/case-records";
 import { withRcFamilyConsequences } from "interfaces-shared-types/rc-workbooks/family-consequences";
+import { rcDerivesFamilyConsequences } from "interfaces-shared-types/rc-workbooks/linked-data";
 import { rcMetricUnit } from "interfaces-shared-types/rc-workbooks/metrics";
 import { decodeRcText } from "interfaces-shared-types/rc-workbooks/source-term-parser";
 import { parseRcWeather } from "interfaces-shared-types/rc-workbooks/weather-parser";
@@ -17,6 +18,7 @@ import { ProjectsService } from "../projects/projects.service";
 import { WorkbookRolesService } from "../workbooks/workbook-roles.service";
 import { RcWorkbook, type RcWorkbookDocument } from "./rc-workbook.schema";
 import { RcDocumentsService } from "./rc-documents.service";
+import { RcLinkedSourcesService } from "./rc-linked-sources.service";
 
 interface Actor { username: string }
 export interface RcCalculatedResultInput {
@@ -40,22 +42,25 @@ const selectionSchema = z.object({ categoryId: z.string().min(1).max(255), versi
 export class RcCaseRecordsService {
   private readonly logger = new Logger(RcCaseRecordsService.name);
   constructor(@InjectModel(RcWorkbook.name) private readonly workbooks: Model<RcWorkbookDocument>, private readonly projects: ProjectsService,
-    private readonly roles: WorkbookRolesService, private readonly documents: RcDocumentsService) {}
+    private readonly roles: WorkbookRolesService, private readonly documents: RcDocumentsService, private readonly linkedSources: RcLinkedSourcesService) {}
   private async load(id: string, actor: Actor, baseRevision?: number) {
     const doc = await this.workbooks.findOne({ workbookId: id }).exec();
     if (!doc) throw new NotFoundException("RC workbook not found");
-    const access = await this.projects.resolveAccess(doc.projectId, actor), mef = doc.mef as RadiologicalConsequenceAnalysis, records = mef.consequenceQuantification.caseRecords;
+    await this.projects.resolveAccess(doc.projectId, actor);
+    const mef = doc.mef as RadiologicalConsequenceAnalysis, records = mef.consequenceQuantification.caseRecords;
     if (baseRevision !== undefined) {
-      const roles = await this.roles.resolveEffectiveRoles(id, actor.username);
-      if (access.role === "viewer" || !roles.some(r => r === "preparer" || r === "co_preparer")) throw new ForbiddenException("Only preparers can save case records");
+      if (!(await this.roles.canAuthor(id, actor.username))) throw new ForbiddenException("Only preparers can save case records");
       if (!["DRAFT", "REVISION_REQUIRED"].includes(mef.workflowState ?? "DRAFT")) throw new ForbiddenException("Case records are locked during review and approval");
       if ((records?.revision ?? 0) !== baseRevision) throw new ConflictException("Case records changed. Reload before saving");
     }
     return { doc, mef, records };
   }
-  private current(mef: RadiologicalConsequenceAnalysis, categoryId: string, expected: string) {
-    if (!mef.releaseCategoryToConsequence.releaseCategoryInputs.some(c => c.releaseCategory === categoryId)) throw new NotFoundException("Release category not found");
-    const data = currentRcCase(mef, categoryId);
+  private async current(loaded: Awaited<ReturnType<RcCaseRecordsService["load"]>>, categoryId: string, expected: string) {
+    const view = await this.linkedSources.viewFor(loaded.mef, loaded.doc.projectId, categoryId);
+    const saved = loaded.mef.releaseCategoryToConsequence.releaseCategoryInputs.some(c => c.releaseCategory === categoryId);
+    const listedByLink = (loaded.mef.linkedWorkbooks?.ES ?? "").length > 0;
+    const data = currentRcCase(view, categoryId);
+    if (!saved && !listedByLink && data.source === undefined) throw new NotFoundException("Release category not found");
     if (caseVersions(data) !== expected) throw new ConflictException("The saved inputs changed. Reload and review the current case");
     return data;
   }
@@ -72,7 +77,7 @@ export class RcCaseRecordsService {
     const p = selectionSchema.safeParse(selection);
     if (!p.success) throw new BadRequestException(reason(p.error));
     const loaded = await this.load(id, actor);
-    return p.data.snapshotId ? (await this.snapshot(id, loaded.records, p.data.snapshotId, actor)).data : this.current(loaded.mef, p.data.categoryId, p.data.versions);
+    return p.data.snapshotId ? (await this.snapshot(id, loaded.records, p.data.snapshotId, actor)).data : this.current(loaded, p.data.categoryId, p.data.versions);
   }
   private async weatherTrials(id: string, data: RcCaseData, actor: Actor) {
     if (!data.weather?.model || !data.weather.trialSet) return [];
@@ -89,7 +94,8 @@ export class RcCaseRecordsService {
     const { doc, mef } = loaded;
     let next: RcCaseRecords;
     try { next = RcCaseRecordsSchema.parse({ ...records, revision: doc.__v + 1 }); } catch (e) { throw new BadRequestException(reason(e)); }
-    const nextMef = withRcFamilyConsequences({ ...mef, consequenceQuantification: { ...mef.consequenceQuantification, caseRecords: next } });
+    const recorded = { ...mef, consequenceQuantification: { ...mef.consequenceQuantification, caseRecords: next } };
+    const nextMef = rcDerivesFamilyConsequences(mef, {}) ? withRcFamilyConsequences(recorded) : recorded;
     const result = await this.workbooks.updateOne({ _id: doc._id, __v: doc.__v }, { $set: { mef: JSON.parse(JSON.stringify(nextMef)) }, $inc: { __v: 1 } }).exec();
     if (!result.modifiedCount) throw new ConflictException("The workbook changed. Reload before saving this case record");
     return next;
@@ -104,7 +110,7 @@ export class RcCaseRecordsService {
   async saveSnapshot(id: string, body: unknown, actor: Actor) {
     const p = z.object({ baseRevision: revision, categoryId: z.string().min(1).max(255), versions }).strict().safeParse(body);
     if (!p.success) throw new BadRequestException(reason(p.error));
-    const loaded = await this.load(id, actor, p.data.baseRevision), data = this.current(loaded.mef, p.data.categoryId, p.data.versions);
+    const loaded = await this.load(id, actor, p.data.baseRevision), data = await this.current(loaded, p.data.categoryId, p.data.versions);
     const inputHash = hash(Buffer.from(JSON.stringify(data), "utf8")), records: RcCaseRecords = loaded.records ?? { revision: 1, snapshots: [], results: [] };
     const existing = records.snapshots.find(s => s.inputHash === inputHash);
     if (existing) return { records, snapshotId: existing.id };

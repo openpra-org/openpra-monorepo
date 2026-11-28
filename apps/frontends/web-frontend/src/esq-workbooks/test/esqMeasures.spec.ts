@@ -123,7 +123,7 @@ describe("ESQ Steps 06 to 09", () => {
     if (sy === undefined || hr === undefined) throw new Error("SY or HR fixture missing");
     sy.systemBasicEvents = sy.systemBasicEvents.map((event) => (event.uuid === "E-3" ? { ...event, expression: fanMission(FAN_LAW) } : event));
     hr.hepQuantifications = hr.hepQuantifications.map((quantification) => (quantification.hfeId === "HFE-1" ? { ...quantification, hep: HEP_LAW } : quantification));
-    const lawful = liveImport(esq, upstream, NOW);
+    const lawful = liveImport(esq, upstream);
     expect(uncertaintyViewOf(lawful)?.inputs.find((row) => row.input.key === "EVENT:E-3")).toMatchObject({ sampled: true, input: { expression: fanMission(FAN_LAW) } });
     expect(uncertaintyViewOf(lawful)?.inputs.find((row) => row.input.key === "HFE:HFE-1")).toMatchObject({ sampled: true, input: { source: "HR", expression: HEP_LAW } });
     const sampled = withUncertaintyRun(lawful, uncertaintyResult(lawful));
@@ -176,7 +176,7 @@ describe("ESQ Steps 06 to 09", () => {
     if (model === undefined) throw new Error("no model");
     const broken: EventSequenceQuantification = { ...esq, model: { ...model, events: model.events.map((event) => (event.id === "E-4" ? { ...event, expression: daParameter("P-9") } : event)) } };
     const stopped = withCase(broken, "SC-E4", { id: "SC-E4", name: "Division doubled", kind: "EVENT", target: "E-4", factor: 2, basis: "Doubled for the test." });
-    expect(sensitivityViewOf(stopped, measureUpstream())?.cases[0]?.problem).toBe("RPS-DIV-FS reads DA parameter P-9, which the Step 02 import does not hold.");
+    expect(sensitivityViewOf(stopped, measureUpstream())?.cases[0]?.problem).toBe("RPS-DIV-FS reads DA parameter P-9, which the linked DA workbook does not hold.");
   });
 
   it("publishes the family package that RI and DA read and flags a stale publication", () => {

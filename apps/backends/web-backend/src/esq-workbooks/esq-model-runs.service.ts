@@ -2,7 +2,19 @@ import { BadRequestException, Injectable, NotFoundException } from "@nestjs/comm
 import { InjectModel } from "@nestjs/mongoose";
 import { randomUUID } from "crypto";
 import type { Model } from "mongoose";
-import type { EsqModel, EsqTreeRecord, EventSequenceQuantification } from "interfaces-mef-types/esq/event-sequence-quantification";
+import type { EsqLinkCode, EsqModel, EsqModelElement, EsqSensitivityCase, EsqTreeRecord, EventSequenceQuantification } from "interfaces-mef-types/esq/event-sequence-quantification";
+import { esqWithLinkedData } from "interfaces-mef-types/esq/esq-linked-data";
+import { esqLinkOf } from "interfaces-mef-types/esq/esq-model-import";
+import { daLinkedValueElements, daWithLinkedNeeds, type DaMapElement } from "interfaces-mef-types/da/da-linked-needs";
+import type { EventSequenceAnalysis } from "interfaces-mef-types/es/event-sequence-analysis";
+import { EventSequenceAnalysisSchema } from "interfaces-mef-types/zod/es/event-sequence-analysis";
+import { esShowsSavedCopies, esWithLinkedTiming, type EsLinkedSources } from "interfaces-mef-types/es/es-linked-timing";
+import type { HumanReliabilityAnalysis } from "interfaces-mef-types/hr/human-reliability-analysis";
+import { HumanReliabilityAnalysisSchema } from "interfaces-mef-types/zod/hr/human-reliability-analysis";
+import type { InitiatingEventsAnalysis } from "interfaces-mef-types/ie/initiating-event-analysis";
+import { InitiatingEventsAnalysisSchema } from "interfaces-mef-types/zod/ie/initiating-event-analysis";
+import type { PlantOperatingStatesAnalysis } from "interfaces-mef-types/pos/plant-operating-state-analysis";
+import { PlantOperatingStatesAnalysisSchema } from "interfaces-mef-types/zod/pos/plant-operating-state-analysis";
 import type { SystemsAnalysis } from "interfaces-mef-types/sy/systems-analysis";
 import { EventSequenceQuantificationSchema } from "interfaces-mef-types/zod/esq/event-sequence-quantification";
 import { SystemsAnalysisSchema } from "interfaces-mef-types/zod/sy/systems-analysis";
@@ -12,7 +24,7 @@ import { daCcfFactorParameters, type DataAnalysis } from "interfaces-mef-types/d
 import { DataAnalysisSchema } from "interfaces-mef-types/zod/da/data-analysis";
 import { expressionReferences, parameterReferenceKey, type UncertainExpression, type UncertainParameter } from "interfaces-mef-types/core/uncertainty";
 import type { WorkbookParameterReference } from "interfaces-mef-types/modeling/references";
-import { esqParameterLinks, esqSequenceRunId, esqTreeRunId, transferTreeIds, treesInScope, withLiveDa } from "interfaces-mef-types/esq/esq-run-inputs";
+import { esqParameterRecord, esqSequenceRunId, esqTreeRunId, transferTreeIds, treesInScope, withLiveDa } from "interfaces-mef-types/esq/esq-run-inputs";
 import { esqCellRunId } from "interfaces-mef-types/esq/esq-barrier-inputs";
 import { esqModelRunId, sequenceFamilyOf, solveInputsKey } from "interfaces-mef-types/esq/esq-solve-inputs";
 import { esqPostRunId, hfeEventIds, recoveryInputKey, resolvedRecoveries } from "interfaces-mef-types/esq/esq-post-inputs";
@@ -55,7 +67,10 @@ import { stripNulls } from "../pos-workbooks/mef-normalize";
 import { SyWorkbook, type SyWorkbookDocument } from "../sy-workbooks/sy-workbook.schema";
 import { ScWorkbook, type ScWorkbookDocument } from "../sc-workbooks/sc-workbook.schema";
 import { DaWorkbook, type DaWorkbookDocument } from "../da-workbooks/da-workbook.schema";
+import { EsWorkbook, type EsWorkbookDocument } from "../es-workbooks/es-workbook.schema";
+import { HrWorkbook, type HrWorkbookDocument } from "../hr-workbooks/hr-workbook.schema";
 import { WorkbookModelAccessService } from "../workbooks/workbook-model-access.service";
+import { WorkbookElementRegistry } from "../workbooks/workbook-element-registry";
 import { UncertaintyService } from "../newly-developed-methods/shared/uncertainty.service";
 import { assertExpectedWorkbookRevision, readWorkbookRevision } from "../workbooks/workbook-revision";
 import {
@@ -181,6 +196,35 @@ interface PrepareTreesInput {
   augment?: (envelope: SolverEnvelope, build: EsqRunBuild, root: EsqTreeRecord) => SolverEnvelope;
 }
 
+const EXAMPLE_PREFIX = "example-";
+
+interface EsqLinkedRunSources {
+  owner: LoadedWorkbook<EventSequenceQuantification>;
+  sy?: LoadedWorkbook<SystemsAnalysis>;
+  da?: LoadedWorkbook<DataAnalysis>;
+  sc?: LoadedWorkbook<SuccessCriteriaDevelopment>;
+}
+
+function exampleVariant(workbookId: string): string | undefined {
+  return workbookId.startsWith(EXAMPLE_PREFIX) ? workbookId.split("-").slice(2).join("-") : undefined;
+}
+
+function withLinkedCase(esq: EventSequenceQuantification, entry: EsqSensitivityCase | undefined): EventSequenceQuantification {
+  if (entry === undefined || caseOf(esq, entry.id) !== undefined) return esq;
+  const work = esq.sensitivityWork ?? {};
+  return { ...esq, sensitivityWork: { ...work, cases: [...(work.cases ?? []), entry] } };
+}
+
+function missionTimesOf(sc: LoadedWorkbook<SuccessCriteriaDevelopment> | undefined): { sources: LoadedWorkbook<SuccessCriteriaDevelopment>[]; missionTimes: Map<string, UncertainParameter> } {
+  const missionTimes = new Map<string, UncertainParameter>();
+  if (sc === undefined) return { sources: [], missionTimes };
+  for (const entry of [...sc.mef.missionTimes, ...(sc.mef.componentMissionTimes ?? [])]) {
+    const reference = { referenceType: "WORKBOOK_PARAMETER" as const, workbookId: sc.workbookId, entityId: entry.uuid };
+    missionTimes.set(parameterReferenceKey(reference), { reference, expression: entry.missionTime });
+  }
+  return { sources: [sc], missionTimes };
+}
+
 function cutSetExtras(cutSets: EventTreeCutSetSettings | undefined, esq: EventSequenceQuantification, model: EsqModel, rootId: string): Record<string, EventTreeCutSetSettings | Record<string, string>> {
   return cutSets === undefined ? {} : { cutSets: { ...cutSets, cutOffs: [...cutSets.cutOffs] }, sequenceFamilies: sequenceFamilies(esq, model, rootId) };
 }
@@ -192,11 +236,14 @@ export class EsqModelRunsService {
     @InjectModel(SyWorkbook.name) private readonly syWorkbookModel: Model<SyWorkbookDocument>,
     @InjectModel(ScWorkbook.name) private readonly scWorkbookModel: Model<ScWorkbookDocument>,
     @InjectModel(DaWorkbook.name) private readonly daWorkbookModel: Model<DaWorkbookDocument>,
+    @InjectModel(EsWorkbook.name) private readonly esWorkbookModel: Model<EsWorkbookDocument>,
+    @InjectModel(HrWorkbook.name) private readonly hrWorkbookModel: Model<HrWorkbookDocument>,
     private readonly exampleWorkbooksService: ExampleWorkbooksService,
     private readonly accessService: WorkbookModelAccessService,
     private readonly projectsService: ProjectsService,
     private readonly analysisRunsService: WorkbookAnalysisRunsService,
     private readonly uncertainty: UncertaintyService,
+    private readonly registry: WorkbookElementRegistry,
   ) {}
 
   private async loadEsq(workbookId: string): Promise<LoadedWorkbook<EventSequenceQuantification>> {
@@ -317,12 +364,142 @@ export class EsqModelRunsService {
     };
   }
 
-  private async liveDa(owner: LoadedWorkbook<EventSequenceQuantification>, acting: ActingUser): Promise<{ esq: EventSequenceQuantification; sources: LoadedWorkbook<DataAnalysis>[] }> {
-    const workbookId = owner.mef.linkedWorkbooks?.DA;
+  private async storedDocument(element: string, workbookId: string): Promise<{ projectId: string; mef: object } | undefined> {
+    const document = element === "ES"
+      ? await this.esWorkbookModel.findOne({ workbookId }).exec()
+      : element === "HRA"
+        ? await this.hrWorkbookModel.findOne({ workbookId }).exec()
+        : element === "SC"
+          ? await this.scWorkbookModel.findOne({ workbookId }).exec()
+          : undefined;
+    if (document !== undefined) return document === null ? undefined : { projectId: document.projectId, mef: document.mef as object };
+    const loaded = await this.registry.tryGet(element)?.load(workbookId);
+    return loaded === undefined || loaded === null ? undefined : { projectId: loaded.projectId, mef: loaded.mef as object };
+  }
+
+  private async storedLinked(element: string, workbookId: string, acting: ActingUser) {
+    const stored = await this.storedDocument(element, workbookId);
+    if (stored === undefined) return undefined;
+    await this.projectsService.resolveAccess(stored.projectId, acting);
+    return stripNulls(stored.mef);
+  }
+
+  private async scMissionHours(sc: SuccessCriteriaDevelopment): Promise<Map<string, number>> {
+    const hours = new Map<string, number>();
+    if (sc.missionTimes.length === 0) return hours;
+    const response = await this.uncertainty.evaluate({
+      parameters: [],
+      laws: [],
+      operations: [],
+      expressions: sc.missionTimes.map((entry, index) => ({ id: String(index), expression: entry.missionTime, unit: "HOURS" as const, probabilities: [] })),
+    });
+    for (const result of response.expressions) {
+      const entry = sc.missionTimes[Number(result.id)];
+      if (entry !== undefined && "point" in result) hours.set(entry.uuid, result.point);
+    }
+    return hours;
+  }
+
+  private async esTimingSources(es: EventSequenceAnalysis, acting: ActingUser): Promise<EsLinkedSources> {
+    const scId = es.linkedWorkbooks?.SC;
+    const hrId = es.linkedWorkbooks?.HRA;
+    const [sc, hr] = await Promise.all([
+      scId === undefined || scId.startsWith(EXAMPLE_PREFIX)
+        ? undefined
+        : this.storedLinked("SC", scId, acting).then((raw) => SuccessCriteriaDevelopmentSchema.safeParse(raw)).then((parsed) => (parsed.success ? parsed.data : undefined)).catch(() => undefined),
+      hrId === undefined || hrId.startsWith(EXAMPLE_PREFIX)
+        ? undefined
+        : this.storedLinked("HRA", hrId, acting).then((raw) => HumanReliabilityAnalysisSchema.safeParse(raw)).then((parsed) => (parsed.success ? parsed.data : undefined)).catch(() => undefined),
+    ]);
+    const hours = sc === undefined ? undefined : await this.scMissionHours(sc).catch(() => undefined);
+    return { ...(sc === undefined ? {} : { sc }), ...(hr === undefined ? {} : { hr }), ...(hours === undefined ? {} : { scMissionHours: hours }) };
+  }
+
+  private async linkedEs(workbookId: string, acting: ActingUser): Promise<EventSequenceAnalysis | undefined> {
+    const variant = exampleVariant(workbookId);
+    const raw = variant === undefined ? await this.storedLinked("ES", workbookId, acting) : stripNulls((await this.exampleWorkbooksService.getEsBundle(variant)).es.mef);
+    const parsed = EventSequenceAnalysisSchema.safeParse(raw);
+    if (!parsed.success) return undefined;
+    if (variant !== undefined || esShowsSavedCopies(parsed.data)) return parsed.data;
+    return esWithLinkedTiming(parsed.data, await this.esTimingSources(parsed.data, acting));
+  }
+
+  private async linkedHr(workbookId: string, acting: ActingUser): Promise<HumanReliabilityAnalysis | undefined> {
+    const variant = exampleVariant(workbookId);
+    const raw = variant === undefined ? await this.storedLinked("HRA", workbookId, acting) : stripNulls((await this.exampleWorkbooksService.getHrBundle(variant)).hr.mef);
+    const parsed = HumanReliabilityAnalysisSchema.safeParse(raw);
+    return parsed.success ? parsed.data : undefined;
+  }
+
+  private async linkedIe(workbookId: string, acting: ActingUser): Promise<InitiatingEventsAnalysis | undefined> {
+    const variant = exampleVariant(workbookId);
+    const raw = variant === undefined ? await this.storedLinked("IE", workbookId, acting) : stripNulls((await this.exampleWorkbooksService.getIeBundle(variant)).ie.mef);
+    const parsed = InitiatingEventsAnalysisSchema.safeParse(raw);
+    return parsed.success ? parsed.data : undefined;
+  }
+
+  private async linkedPos(workbookId: string, acting: ActingUser): Promise<PlantOperatingStatesAnalysis | undefined> {
+    const variant = exampleVariant(workbookId);
+    const raw = variant === undefined ? await this.storedLinked("POS", workbookId, acting) : stripNulls((await this.exampleWorkbooksService.getPosBundle(variant)).pos.mef);
+    const parsed = PlantOperatingStatesAnalysisSchema.safeParse(raw);
+    return parsed.success ? parsed.data : undefined;
+  }
+
+  private async daWithLinkedSources(da: DataAnalysis, owner: LoadedWorkbook<EventSequenceQuantification>, acting: ActingUser): Promise<DataAnalysis> {
+    const elements = daLinkedValueElements(da);
+    if (elements.length === 0) return da;
+    const wanted: DaMapElement[] = elements.includes("SY") ? [...elements, "HRA"] : elements;
+    const idOf = (element: DaMapElement): string | undefined => (wanted.includes(element) ? da.linkedWorkbooks?.[element] : undefined);
+    const syId = idOf("SY");
+    const ieId = idOf("IE");
+    const hrId = idOf("HRA");
+    const [sy, ie, hr] = await Promise.all([
+      syId === undefined ? undefined : this.loadSy(syId, owner, acting).then((loaded) => loaded.mef).catch(() => undefined),
+      ieId === undefined ? undefined : this.linkedIe(ieId, acting).catch(() => undefined),
+      hrId === undefined ? undefined : this.linkedHr(hrId, acting).catch(() => undefined),
+    ]);
+    return daWithLinkedNeeds(da, { ...(sy === undefined ? {} : { sy }), ...(ie === undefined ? {} : { ie }), ...(hr === undefined ? {} : { hr }) });
+  }
+
+  private async linkedSources(saved: LoadedWorkbook<EventSequenceQuantification>, acting: ActingUser): Promise<EsqLinkedRunSources> {
+    const esq = saved.mef;
+    const linked = (element: EsqLinkCode): string | undefined => esqLinkOf(esq, element);
+    const lenient = <T>(element: EsqLinkCode, load: (workbookId: string) => Promise<T | undefined>): Promise<T | undefined> => {
+      const workbookId = linked(element);
+      return workbookId === undefined ? Promise.resolve(undefined) : load(workbookId).catch(() => undefined);
+    };
+    const esId = linked("ES");
+    const syId = linked("SY");
+    const daId = linked("DA");
+    const scId = linked("SC");
+    const [es, sy, da, sc, hr, ie, pos] = await Promise.all([
+      lenient("ES", (id) => this.linkedEs(id, acting)),
+      syId === undefined ? undefined : this.loadSy(syId, saved, acting),
+      daId === undefined ? undefined : this.loadDa(daId, saved, acting).then(async (loaded) => ({ ...loaded, mef: await this.daWithLinkedSources(loaded.mef, saved, acting) })),
+      scId === undefined ? undefined : this.loadSc(scId, saved, acting),
+      lenient("HRA", (id) => this.linkedHr(id, acting)),
+      lenient("IE", (id) => this.linkedIe(id, acting)),
+      lenient("POS", (id) => this.linkedPos(id, acting)),
+    ]);
+    if (esId !== undefined && es === undefined) throw new BadRequestException("The linked ES workbook could not be read. Check its link in Step 01.");
+    const names: Record<EsqModelElement, string | undefined> = { ES: es?.name, SY: sy?.mef.name, DA: da?.mef.name, HRA: hr?.name, IE: ie?.name, POS: pos?.name, SC: sc?.mef.name };
+    const mef = esqWithLinkedData(esq, {
+      ...(es === undefined ? {} : { es }),
+      ...(sy === undefined ? {} : { sy: sy.mef }),
+      ...(da === undefined ? {} : { da: da.mef }),
+      ...(hr === undefined ? {} : { hr }),
+      ...(ie === undefined ? {} : { ie }),
+      ...(pos === undefined ? {} : { pos }),
+      ...(sc === undefined ? {} : { sc: sc.mef }),
+    }, (element, workbookId) => names[element] ?? workbookId);
+    return { owner: { ...saved, mef }, ...(sy === undefined ? {} : { sy }), ...(da === undefined ? {} : { da }), ...(sc === undefined ? {} : { sc }) };
+  }
+
+  private liveDa(owner: LoadedWorkbook<EventSequenceQuantification>, da: LoadedWorkbook<DataAnalysis> | undefined): { esq: EventSequenceQuantification; sources: LoadedWorkbook<DataAnalysis>[] } {
     const model = owner.mef.model;
-    if (workbookId === undefined || workbookId.trim().length === 0 || model === undefined) return { esq: owner.mef, sources: [] };
-    const da = await this.loadDa(workbookId, owner, acting);
-    return { esq: { ...owner.mef, model: withLiveDa(model, da.mef, workbookId) }, sources: [da] };
+    if (da === undefined) return { esq: owner.mef, sources: [] };
+    if (model === undefined) return { esq: owner.mef, sources: [da] };
+    return { esq: { ...owner.mef, model: withLiveDa(model, da.mef, da.workbookId) }, sources: [da] };
   }
 
   private parameterTable(esq: EventSequenceQuantification, references: EsqReferences): Map<string, UncertainParameter> {
@@ -381,7 +558,7 @@ export class EsqModelRunsService {
         references.missionTimes.set(parameterReferenceKey(key), { reference: key, expression: entry.missionTime });
       }
     } else {
-      for (const record of esqParameterLinks(source.workbook.mef)) {
+      for (const record of source.workbook.mef.parameters.map(esqParameterRecord)) {
         const law = parameterLaw(record);
         if (law === undefined) continue;
         const key: WorkbookParameterReference = { referenceType: "WORKBOOK_PARAMETER", workbookId, entityId: record.id };
@@ -495,31 +672,20 @@ export class EsqModelRunsService {
     return upper;
   }
 
-  private async loadMissionTimes(owner: LoadedWorkbook<EventSequenceQuantification>, acting: ActingUser): Promise<{ sources: LoadedWorkbook<SuccessCriteriaDevelopment>[]; missionTimes: Map<string, UncertainParameter> }> {
-    const missionTimes = new Map<string, UncertainParameter>();
-    const workbookId = owner.mef.linkedWorkbooks?.SC;
-    if (workbookId === undefined) return { sources: [], missionTimes };
-    const sc = await this.loadSc(workbookId, owner, acting);
-    for (const entry of [...sc.mef.missionTimes, ...(sc.mef.componentMissionTimes ?? [])]) {
-      const reference = { referenceType: "WORKBOOK_PARAMETER" as const, workbookId, entityId: entry.uuid };
-      missionTimes.set(parameterReferenceKey(reference), { reference, expression: entry.missionTime });
-    }
-    return { sources: [sc], missionTimes };
-  }
-
   async runEventTree(workbookId: string, treeId: string, body: object, acting: ActingUser): Promise<AnalysisRunMetadata> {
     const parsed = EsqEventTreeRunRequestSchema.safeParse(body);
     if (!parsed.success) throw new BadRequestException(parsed.error.message);
     const request = parsed.data;
     if (request.treeId !== treeId) throw new BadRequestException("Route tree id must match the request treeId");
-    const owner = await this.loadEsq(workbookId);
-    await this.accessService.requireExecution({ workbookId, projectId: owner.projectId, mef: owner.mef, acting });
-    assertExpectedWorkbookRevision(owner.document, request.workbookRevision);
-    const syLink = owner.mef.model?.sources.find((source) => source.element === "SY");
-    if (syLink === undefined) throw new BadRequestException("The Step 02 import holds no SY workbook. Link SY in Step 01 and import the model.");
-    const sy = await this.loadSy(syLink.workbookId, owner, acting);
-    const sc = await this.loadMissionTimes(owner, acting);
-    const live = await this.liveDa(owner, acting);
+    const saved = await this.loadEsq(workbookId);
+    await this.accessService.requireExecution({ workbookId, projectId: saved.projectId, mef: saved.mef, acting });
+    assertExpectedWorkbookRevision(saved.document, request.workbookRevision);
+    const linked = await this.linkedSources(saved, acting);
+    const owner = linked.owner;
+    const sy = linked.sy;
+    if (sy === undefined) throw new BadRequestException("Link the SY workbook in Step 01 before running.");
+    const sc = missionTimesOf(linked.sc);
+    const live = this.liveDa(owner, linked.da);
     const references = this.referencesOf(owner.mef, sc.missionTimes);
     let build: EsqRunBuild;
     try {
@@ -569,19 +735,20 @@ export class EsqModelRunsService {
     });
   }
 
-  private async loadRunSources(workbookId: string, workbookRevision: number, acting: ActingUser) {
-    const owner = await this.loadEsq(workbookId);
-    await this.accessService.requireExecution({ workbookId, projectId: owner.projectId, mef: owner.mef, acting });
-    assertExpectedWorkbookRevision(owner.document, workbookRevision);
+  private async loadRunSources(workbookId: string, workbookRevision: number, acting: ActingUser, linkedCase?: EsqSensitivityCase) {
+    const saved = await this.loadEsq(workbookId);
+    await this.accessService.requireExecution({ workbookId, projectId: saved.projectId, mef: saved.mef, acting });
+    assertExpectedWorkbookRevision(saved.document, workbookRevision);
+    const linked = await this.linkedSources({ ...saved, mef: withLinkedCase(saved.mef, linkedCase) }, acting);
+    const owner = linked.owner;
     const model = owner.mef.model;
-    if (model?.importedAt === undefined) throw new BadRequestException("Import the model in Step 02 before running.");
+    if (model === undefined) throw new BadRequestException("Link the ES and SY workbooks in Step 01 before running.");
     const roots = treesInScope(owner.mef, model).filter((tree) => !tree.transferEntry);
     if (roots.length === 0) throw new BadRequestException("No event tree is in scope. Check the coverage in Step 01.");
-    const syLink = model.sources.find((source) => source.element === "SY");
-    if (syLink === undefined) throw new BadRequestException("The Step 02 import holds no SY workbook. Link SY in Step 01 and import the model.");
-    const sy = await this.loadSy(syLink.workbookId, owner, acting);
-    const sc = await this.loadMissionTimes(owner, acting);
-    const live = await this.liveDa(owner, acting);
+    const sy = linked.sy;
+    if (sy === undefined) throw new BadRequestException("Link the SY workbook in Step 01 before running.");
+    const sc = missionTimesOf(linked.sc);
+    const live = this.liveDa(owner, linked.da);
     const references = this.referencesOf(owner.mef, sc.missionTimes);
     return { owner, model, roots, sy, sc, live, references, sources: [owner, sy, ...sc.sources, ...live.sources] };
   }
@@ -1008,7 +1175,7 @@ export class EsqModelRunsService {
     if (!parsed.success) throw new BadRequestException(parsed.error.message);
     const request = parsed.data;
     if (request.caseId !== caseId) throw new BadRequestException("Route case id must match the request caseId");
-    const { owner, model, roots, sy, live, references, sources } = await this.loadRunSources(workbookId, request.workbookRevision, acting);
+    const { owner, model, roots, sy, live, references, sources } = await this.loadRunSources(workbookId, request.workbookRevision, acting, request.linkedCase);
     const entry = caseOf(owner.mef, caseId);
     if (entry === undefined) throw new NotFoundException(`Step 08 holds no case ${caseId}.`);
     const upper = entry.kind === "HEP_95TH" ? await this.upperPercentiles(live.esq, references) : new Map<string, number>();
@@ -1099,10 +1266,12 @@ export class EsqModelRunsService {
     if (!parsed.success) throw new BadRequestException(parsed.error.message);
     const request = parsed.data;
     if (request.cellId !== cellId) throw new BadRequestException("Route cell id must match the request cellId");
-    const owner = await this.loadEsq(workbookId);
-    await this.accessService.requireExecution({ workbookId, projectId: owner.projectId, mef: owner.mef, acting });
-    assertExpectedWorkbookRevision(owner.document, request.workbookRevision);
-    const live = await this.liveDa(owner, acting);
+    const saved = await this.loadEsq(workbookId);
+    await this.accessService.requireExecution({ workbookId, projectId: saved.projectId, mef: saved.mef, acting });
+    assertExpectedWorkbookRevision(saved.document, request.workbookRevision);
+    const linked = await this.linkedSources(saved, acting);
+    const owner = linked.owner;
+    const live = this.liveDa(owner, linked.da);
     let build: EsqCellRunBuild;
     try {
       build = await buildEsqCellRun({ esq: live.esq, cellId, esqRevision: owner.workbookRevision }, (fit) => this.uncertainty.evaluate(fit));

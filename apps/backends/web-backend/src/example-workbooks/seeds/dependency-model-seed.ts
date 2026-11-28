@@ -1356,15 +1356,6 @@ function reconcileExampleRiskResultReferences(
   );
   const consequenceByFamily = new Map(consequenceRecords.map((record) => [record.eventSequenceFamily, record]));
 
-  const releaseCategoryInputs = radiologicalConsequence.releaseCategoryToConsequence.releaseCategoryInputs.map(
-    (input) => ({
-      ...input,
-      eventSequenceFamilyReferences: eventSequences.eventSequenceFamilies
-        .filter((family) => family.releaseCategoryIds?.includes(input.releaseCategory) === true)
-        .map((family) => familyReference(family.uuid)),
-    }),
-  );
-
   const compiledRiskInputs = riskIntegration.compiledRiskInputs.map((input) => {
     const family = families.get(input.eventSequenceFamilyRef);
     if (family === undefined) return input;
@@ -1432,10 +1423,6 @@ function reconcileExampleRiskResultReferences(
     },
     radiologicalConsequence: {
       ...radiologicalConsequence,
-      releaseCategoryToConsequence: {
-        ...radiologicalConsequence.releaseCategoryToConsequence,
-        releaseCategoryInputs,
-      },
       consequenceQuantification: {
         ...radiologicalConsequence.consequenceQuantification,
         eventSequenceConsequences: consequenceRecords,

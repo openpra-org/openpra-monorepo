@@ -1,5 +1,5 @@
-import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
-import { type RiskIntegration } from "interfaces-mef-types/ri/risk-integration";
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { type RiLinkedWorkbooks, type RiskIntegration } from "interfaces-mef-types/ri/risk-integration";
 import { type PRAConfigurationControl } from "interfaces-mef-types/cross-cutting/pra-configuration-control";
 import { type NewlyDevelopedMethod } from "interfaces-mef-types/cross-cutting/newly-developed-methods";
 import { type PlantOperatingStatesAnalysis } from "interfaces-mef-types/pos/plant-operating-state-analysis";
@@ -8,7 +8,7 @@ import { type EventSequenceAnalysis } from "interfaces-mef-types/es/event-sequen
 import { type RadiologicalConsequenceAnalysis } from "interfaces-mef-types/rc/radiological-consequence-analysis";
 import { type MechanisticSourceTermAnalysis } from "interfaces-mef-types/ms/mechanistic-source-term-analysis";
 import { type Workbook } from "interfaces-shared-types";
-import { type RiLinkCode } from "./riViewData";
+import { RI_LINK_CODES, type RiLinkCode } from "./riViewData";
 import { loadLinkedEs, loadLinkedEsq, loadLinkedMs, loadLinkedPos, loadLinkedRc } from "./riWorkbookApi";
 
 interface RiWorkbookData {
@@ -26,6 +26,12 @@ interface RiUpstream {
   esq?: EventSequenceQuantification;
   ms?: MechanisticSourceTermAnalysis;
   rc?: RadiologicalConsequenceAnalysis;
+  unavailable?: readonly RiLinkCode[];
+}
+
+interface RiLinkedUpstream {
+  upstream: RiUpstream;
+  refresh: () => Promise<void>;
 }
 
 interface RiWorkbookContextValue extends RiWorkbookData {
@@ -34,14 +40,19 @@ interface RiWorkbookContextValue extends RiWorkbookData {
   upstream: RiUpstream;
 }
 
+interface LinkedMef<T> {
+  id: string;
+  mef?: T;
+}
+
 const RiWorkbookContext = createContext<RiWorkbookContextValue | null>(null);
 
 const EMPTY_UPSTREAM: RiUpstream = {
   options: { POS: [], ES: [], ESQ: [], MS: [], RC: [] },
 };
 
-function useLinkedMef<T>(id: string | undefined, load: (id: string) => Promise<T>): T | undefined {
-  const [value, setValue] = useState<T | undefined>(undefined);
+function useLinkedMef<T>(id: string | undefined, load: (id: string) => Promise<T>, reading: number): LinkedMef<T> | undefined {
+  const [value, setValue] = useState<LinkedMef<T> | undefined>(undefined);
   useEffect(() => {
     if (id === undefined) {
       setValue(undefined);
@@ -49,21 +60,44 @@ function useLinkedMef<T>(id: string | undefined, load: (id: string) => Promise<T
     }
     let cancelled = false;
     load(id)
-      .then((mef) => { if (!cancelled) setValue(mef); })
-      .catch(() => { if (!cancelled) setValue(undefined); });
+      .then((mef) => { if (!cancelled) setValue({ id, mef }); })
+      .catch(() => { if (!cancelled) setValue({ id }); });
     return () => { cancelled = true; };
-  }, [id, load]);
-  return value;
+  }, [id, load, reading]);
+  return value !== undefined && value.id === id ? value : undefined;
 }
 
-function useRiUpstream(ri: RiskIntegration | undefined, options: Record<RiLinkCode, Workbook[]>): RiUpstream {
-  const links = ri?.applicationContext?.linkedWorkbooks;
-  const pos = useLinkedMef(links?.POS, loadLinkedPos);
-  const es = useLinkedMef(links?.ES, loadLinkedEs);
-  const esq = useLinkedMef(links?.ESQ, loadLinkedEsq);
-  const ms = useLinkedMef(links?.MS, loadLinkedMs);
-  const rc = useLinkedMef(links?.RC, loadLinkedRc);
-  return useMemo<RiUpstream>(() => ({ options, pos, es, esq, ms, rc }), [options, pos, es, esq, ms, rc]);
+function useRiUpstream(links: RiLinkedWorkbooks | undefined, options: Record<RiLinkCode, Workbook[]>): RiLinkedUpstream {
+  const [reading, setReading] = useState(0);
+  const pos = useLinkedMef(links?.POS, loadLinkedPos, reading);
+  const es = useLinkedMef(links?.ES, loadLinkedEs, reading);
+  const esq = useLinkedMef(links?.ESQ, loadLinkedEsq, reading);
+  const ms = useLinkedMef(links?.MS, loadLinkedMs, reading);
+  const rc = useLinkedMef(links?.RC, loadLinkedRc, reading);
+  const refresh = useCallback((): Promise<void> => {
+    setReading((count) => count + 1);
+    return Promise.resolve();
+  }, []);
+  const upstream = useMemo<RiUpstream>(() => {
+    const read: Record<RiLinkCode, boolean> = {
+      POS: pos === undefined || pos.mef !== undefined,
+      ES: es === undefined || es.mef !== undefined,
+      ESQ: esq === undefined || esq.mef !== undefined,
+      MS: ms === undefined || ms.mef !== undefined,
+      RC: rc === undefined || rc.mef !== undefined,
+    };
+    const unavailable = RI_LINK_CODES.filter((code) => !read[code]);
+    return {
+      options,
+      ...(pos?.mef === undefined ? {} : { pos: pos.mef }),
+      ...(es?.mef === undefined ? {} : { es: es.mef }),
+      ...(esq?.mef === undefined ? {} : { esq: esq.mef }),
+      ...(ms?.mef === undefined ? {} : { ms: ms.mef }),
+      ...(rc?.mef === undefined ? {} : { rc: rc.mef }),
+      ...(unavailable.length === 0 ? {} : { unavailable }),
+    };
+  }, [options, pos, es, esq, ms, rc]);
+  return useMemo<RiLinkedUpstream>(() => ({ upstream, refresh }), [upstream, refresh]);
 }
 
 function RiWorkbookProvider({ data, editable, mutateRi, upstream = EMPTY_UPSTREAM, children }: {

@@ -1,4 +1,4 @@
-import { JSX, useCallback, useEffect, useState } from "react";
+import { JSX, useCallback, useEffect, useMemo, useState } from "react";
 import { type RiskIntegration } from "interfaces-mef-types/ri/risk-integration";
 import { type PRAConfigurationControl } from "interfaces-mef-types/cross-cutting/pra-configuration-control";
 import { type NewlyDevelopedMethod } from "interfaces-mef-types/cross-cutting/newly-developed-methods";
@@ -6,6 +6,7 @@ import { fetchJson } from "../api/client";
 import { RiWorkbench } from "./riWorkbench";
 import { RiDocumentsCard } from "./riDocumentsCard";
 import { RiWorkbookProvider, EMPTY_UPSTREAM, useRiUpstream, type RiWorkbookData } from "./riWorkbookContext";
+import { riWithLinkedData, riWithoutLinkedData } from "./riLinkedData";
 import { type RiPersona } from "./riViewData";
 
 interface RiExampleResponse {
@@ -25,7 +26,7 @@ function RiDemoPage(): JSX.Element {
   const [data, setData] = useState<RiWorkbookData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [persona, setPersona] = useState<RiPersona>("preparer");
-  const upstream = useRiUpstream(data?.ri, EMPTY_UPSTREAM.options);
+  const { upstream } = useRiUpstream(data?.ri.applicationContext?.linkedWorkbooks, EMPTY_UPSTREAM.options);
 
   useEffect(() => {
     let cancelled = false;
@@ -46,20 +47,26 @@ function RiDemoPage(): JSX.Element {
   }, []);
 
   const mutateRi = useCallback((mutator: (ri: RiskIntegration) => RiskIntegration): void => {
-    setData((prev) => (prev === null ? prev : { ...prev, ri: mutator(prev.ri) }));
-  }, []);
+    setData((prev) => (prev === null ? prev : { ...prev, ri: riWithoutLinkedData(mutator(riWithLinkedData(prev.ri, upstream)), upstream) }));
+  }, [upstream]);
+
+  const savedRi = data?.ri;
+  const viewData = useMemo<RiWorkbookData | null>(() => {
+    if (data === null || savedRi === undefined) return null;
+    return { ...data, ri: riWithLinkedData(savedRi, upstream) };
+  }, [data, savedRi, upstream]);
 
   if (error !== null) {
     return <div className="posw"><main className="posmain"><p className="pws-status pws-status--error">{error}</p></main></div>;
   }
-  if (data === null) {
+  if (data === null || viewData === null) {
     return <div className="posw"><main className="posmain"><p className="pws-status">Loading example workbook…</p></main></div>;
   }
 
   return (
-    <RiWorkbookProvider data={data} editable={persona === "preparer"} mutateRi={mutateRi} upstream={upstream}>
+    <RiWorkbookProvider data={viewData} editable={persona === "preparer"} mutateRi={mutateRi} upstream={upstream}>
       <RiWorkbench
-        data={data}
+        data={viewData}
         persona={persona}
         setPersona={setPersona}
         showPersonaPicker={true}

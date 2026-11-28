@@ -5,6 +5,7 @@ import { RadiologicalConsequenceAnalysisSchema } from "interfaces-mef-types/zod/
 import type { RcCaseRecords, RcCaseSnapshot, RcCategoryResult } from "interfaces-mef-types/rc/case-records";
 import { caseChecks, caseFiles, caseReceptorCount, caseSnapshotMetrics, caseVersions, currentRcCase } from "interfaces-shared-types/rc-workbooks/case-records";
 import { withRcFamilyConsequences } from "interfaces-shared-types/rc-workbooks/family-consequences";
+import { rcDerivesFamilyConsequences, rcWithCategory, rcWithLinkedData, type RcLinkedData } from "interfaces-shared-types/rc-workbooks/linked-data";
 import { RC_PUBLISHED_CATEGORY, RC_PUBLISHED_FILES, publishedRcFileMetadata, readRcPublishedFile } from "../example-workbooks/seeds/rc-published-inputs-seed";
 import { exampleResultsText } from "../example-workbooks/seeds/rc-example-results";
 import { RcDocumentsService } from "./rc-documents.service";
@@ -29,7 +30,7 @@ export class RcPublishedExampleService {
       reviewItems: checks.reduce((n, c) => n + c.items.length, 0), inventoryCount: data.source?.values.inventory.length ?? 0, receptorCount: caseReceptorCount(data),
       trialCount: data.weather?.data?.recordCount ?? 0, metrics: caseSnapshotMetrics(data), versions: caseVersions(data) };
   }
-  async prepare(workbookId: string, template: RadiologicalConsequenceAnalysis, revision: number, actor: Actor) {
+  async prepare(workbookId: string, template: RadiologicalConsequenceAnalysis, revision: number, actor: Actor, linked: RcLinkedData = {}) {
     const created: string[] = [], replacements = new Map<string, { documentId: string; uploadedAt: string }>();
     try {
       const templateJson = JSON.stringify(template);
@@ -58,10 +59,11 @@ export class RcPublishedExampleService {
       if (mef.economicFactors.siteEconomyInput?.sourceSiteRevision !== undefined) mef.economicFactors.siteEconomyInput.sourceSiteRevision = revision;
       if (mef.protectiveActionParameters.earlyResponseModel) mef.protectiveActionParameters.earlyResponseModel.revision = revision;
       const records = template.consequenceQuantification.caseRecords;
+      const view = rcWithLinkedData(mef, linked);
       if (records?.snapshots.length) {
         const snapshots: RcCaseSnapshot[] = [], results: RcCategoryResult[] = [];
         for (const saved of records.snapshots) {
-          const snapshot = await this.snapshot(workbookId, mef, saved.categoryId, saved.label, saved.file.filename, actor, created);
+          const snapshot = await this.snapshot(workbookId, rcWithLinkedData(rcWithCategory(mef, saved.categoryId), linked), saved.categoryId, saved.label, saved.file.filename, actor, created);
           snapshots.push(snapshot);
           const rows = records.results.filter(result => result.snapshotId === saved.id);
           if (!rows.length) continue;
@@ -71,10 +73,10 @@ export class RcPublishedExampleService {
         }
         mef.consequenceQuantification.caseRecords = { revision, snapshots, results } satisfies RcCaseRecords;
       } else {
-        const snapshot = await this.snapshot(workbookId, mef, RC_PUBLISHED_CATEGORY, "Published inputs", "Published-RC-input-snapshot.json", actor, created);
+        const snapshot = await this.snapshot(workbookId, view, RC_PUBLISHED_CATEGORY, "Published inputs", "Published-RC-input-snapshot.json", actor, created);
         mef.consequenceQuantification.caseRecords = { revision, snapshots: [snapshot], results: [] } satisfies RcCaseRecords;
       }
-      return { mef: RadiologicalConsequenceAnalysisSchema.parse(withRcFamilyConsequences(mef)), created };
+      return { mef: RadiologicalConsequenceAnalysisSchema.parse(rcDerivesFamilyConsequences(mef, {}) ? withRcFamilyConsequences(mef) : mef), created };
     } catch (error) { await this.rollback(workbookId, created); throw error; }
   }
   async rollback(workbookId: string, documentIds: string[]) {

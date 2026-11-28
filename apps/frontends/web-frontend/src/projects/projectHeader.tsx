@@ -1,6 +1,6 @@
 import { JSX } from "react";
 import { type Project } from "interfaces-shared-types";
-import { ArrowLeftIcon, ClockIcon, SettingsIcon } from "../welcome/icons";
+import { ArrowLeftIcon, ClockIcon, SettingsIcon, ShareIcon } from "../welcome/icons";
 import { formatRelative } from "../welcome/formatRelative";
 import { KebabMenu } from "./kebabMenu";
 
@@ -13,12 +13,13 @@ interface ProjectHeaderProps {
   onRename: () => void;
   onDuplicate: () => void;
   onShare: () => void;
+  onOpenSharing?: () => void;
   onToggleArchive: () => void;
   onDelete: () => void;
 }
 
 function ProjectHeader(props: ProjectHeaderProps): JSX.Element {
-  const { project, onBack, onOpenHistory, onOpenSettings } = props;
+  const { project, onBack, onOpenHistory, onOpenSettings, onOpenSharing } = props;
   return (
     <div className="phead">
       <button type="button" className="phead__back" onClick={onBack}>
@@ -36,6 +37,11 @@ function ProjectHeader(props: ProjectHeaderProps): JSX.Element {
           </div>
         </div>
         <div className="phead__actions">
+          {onOpenSharing !== undefined && (
+            <button type="button" className="btn btn--ghost btn--sm phead__history-btn" onClick={onOpenSharing}>
+              <ShareIcon /> Share
+            </button>
+          )}
           <button type="button" className="btn btn--ghost btn--sm phead__history-btn" onClick={onOpenHistory}>
             <ClockIcon /> History
           </button>

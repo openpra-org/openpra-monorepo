@@ -1,4 +1,5 @@
 import { deleteJson, fetchJson, patchJson, postJson } from "../api/client";
+import type { WorkbookLinkedRevisionStatus } from "interfaces-shared-types/workbooks";
 
 type WorkbookRoleName = "preparer" | "co_preparer" | "reviewer" | "approver";
 type WorkbookSignoffRole = WorkbookRoleName;
@@ -99,6 +100,10 @@ async function getWorkbookWorkflowStatus(workbookId: string): Promise<WorkbookWo
   return fetchJson<WorkbookWorkflowStatus>(`/api/workbooks/${workbookId}/workflow`);
 }
 
+async function getWorkbookLinkedRevisions(workbookId: string): Promise<WorkbookLinkedRevisionStatus> {
+  return fetchJson<WorkbookLinkedRevisionStatus>(`/api/workbooks/${workbookId}/linked-revisions`);
+}
+
 async function submitWorkbookForReview(workbookId: string): Promise<unknown> {
   return postJson<unknown>(`/api/workbooks/${workbookId}/workflow/submit-for-review`, {});
 }
@@ -142,6 +147,7 @@ export {
   unassignWorkbookUserRole,
   unassignWorkbookTeamRole,
   getWorkbookWorkflowStatus,
+  getWorkbookLinkedRevisions,
   submitWorkbookForReview,
   signWorkbookReview,
   signWorkbookApproval,

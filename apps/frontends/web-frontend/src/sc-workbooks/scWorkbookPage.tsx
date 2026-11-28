@@ -1,5 +1,9 @@
 import { JSX, useCallback, useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
+import { useWorkbookSharing } from "../workbooks/useWorkbookSharing";
+import { WorkbookAccessRedirect } from "../workbooks/workbookAccessRedirect";
+import { WorkbookSharingProvider } from "../workbooks/workbookSharing";
+import { useWorkbookLiveUpdates } from "../workbooks/useWorkbookLiveUpdates";
 import { type SuccessCriteriaDevelopment } from "interfaces-mef-types/sc/success-criteria-development";
 import { type PRAConfigurationControl } from "interfaces-mef-types/cross-cutting/pra-configuration-control";
 import { type NewlyDevelopedMethod } from "interfaces-mef-types/cross-cutting/newly-developed-methods";
@@ -168,13 +172,22 @@ function ScWorkbookPage(): JSX.Element {
     };
   }, [projectId, mutateSc]);
 
+  const sharing = useWorkbookSharing(id, myRoles);
+  const refreshFromServer = useCallback(async (): Promise<void> => {
+    if (id === undefined) return;
+    const workbook = await getScWorkbook(id);
+    updateSc(workbook.mef);
+    setMyRoles(workbook.myRoles);
+  }, [id, updateSc]);
+  useWorkbookLiveUpdates(id, refreshFromServer);
+
   const availablePersonas = useMemo<ScPersona[]>(() => {
     const out: ScPersona[] = [];
-    if (myRoles.includes("preparer") || myRoles.includes("co_preparer")) out.push("preparer");
+    if (sharing.preparerView) out.push("preparer");
     if (myRoles.includes("reviewer")) out.push("reviewer");
     if (myRoles.includes("approver")) out.push("approver");
     return out;
-  }, [myRoles]);
+  }, [myRoles, sharing.preparerView]);
 
   const [persona, setPersona] = useState<ScPersona>("preparer");
   useEffect(() => {
@@ -185,29 +198,20 @@ function ScWorkbookPage(): JSX.Element {
   if (error !== null) {
     return <div className="posw"><main className="posmain"><p className="pws-status pws-status--error">{error}</p></main></div>;
   }
-  if (data === null || id === undefined) {
+  if (data === null || id === undefined || !sharing.loaded) {
     return <div className="posw"><main className="posmain"><p className="pws-status">Loading workbook…</p></main></div>;
   }
 
-  if (availablePersonas.length === 0) {
-    return (
-      <div className="posw">
-        <main className="posmain">
-          <p className="pws-status">You do not have any role on this workbook yet. Ask the workbook owner to assign you a preparer, reviewer, or approver role.</p>
-          <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => setRolesOpen(true)}>View roles</button>
-        </main>
-        {rolesOpen && <WorkbookRolesModal workbookId={id} onClose={() => setRolesOpen(false)} onChanged={(res) => setMyRoles(res.myRoles as ScWorkbookRoleName[])} />}
-      </div>
-    );
-  }
+  if (availablePersonas.length === 0) return <WorkbookAccessRedirect projectId={projectId} />;
 
   const workflowState = data.sc.workflowState;
   const canEdit = myRoles.includes("preparer") || myRoles.includes("co_preparer");
-  const editable = persona === "preparer" && (workflowState === "DRAFT" || workflowState === "REVISION_REQUIRED");
+  const editable = persona === "preparer" && sharing.authoring && (workflowState === "DRAFT" || workflowState === "REVISION_REQUIRED");
   const canLoadExample = canEdit && (workflowState === "DRAFT" || workflowState === "REVISION_REQUIRED");
   const canUnloadExample = canLoadExample && hasPreviousMef;
 
   return (
+    <WorkbookSharingProvider workbookId={id} workbookName={workbookName} sharing={sharing}>
     <ScWorkbookProvider data={data} editable={editable} mutateSc={mutateSc}>
       <ScWorkbench
         data={data}
@@ -233,7 +237,7 @@ function ScWorkbookPage(): JSX.Element {
           />
         )}
         renderRoster={() => <WorkbookRoster workbookId={id} refreshSignal={approvalRefresh} />}
-        renderDocuments={() => <ScDocumentsCard workbookId={id} canEdit={canEdit} />}
+        renderDocuments={() => <ScDocumentsCard workbookId={id} canEdit={sharing.authoring} />}
       />
       {linkError !== null && (
         <div className="ie-savebar" role="alert">
@@ -273,6 +277,7 @@ function ScWorkbookPage(): JSX.Element {
         />
       )}
     </ScWorkbookProvider>
+    </WorkbookSharingProvider>
   );
 }
 

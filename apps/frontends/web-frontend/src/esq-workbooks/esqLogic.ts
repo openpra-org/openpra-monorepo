@@ -277,7 +277,7 @@ function flagFindings(model: EsqModel, flags: readonly EsqFlagView[], roots: rea
     const target = { kind: "flag" as const, id: flag.id };
     const item = blank(flag.name) ? flag.id : flag.name;
     if (flag.target === undefined) findings.push({ severity: "error", check: "Target missing", item, detail: "Choose the house event, basic event or gate this flag sets.", target });
-    else if (!view.found) findings.push({ severity: "error", check: "Target not imported", item, detail: `${view.target}. Choose another target or import the model again in Step 02.`, target });
+    else if (!view.found) findings.push({ severity: "error", check: "Target not imported", item, detail: `${view.target}. Choose another target.`, target });
     if (blank(flag.name)) findings.push({ severity: "warning", check: "Name missing", item, detail: "Give the flag a name.", target });
     if (blank(flag.basis)) findings.push({ severity: "warning", check: "Basis missing", item, detail: "Record why the flag is set this way (ESQ-B9).", target });
     if (flag.target !== undefined && view.trees.length === 0) findings.push({ severity: "warning", check: "Applies to no tree", item, detail: "No event tree in scope matches its initiator groups and states.", target });
@@ -357,9 +357,9 @@ function recoveryFindings(view: Omit<EsqLogicView, "findings">): EsqLogicFinding
     const noun = recovery.repair ? "repair" : "recovery";
     const rule = recovery.rule;
     const record = recovery.repairRecord;
-    if (record !== undefined && entry.sequenceCode === undefined) findings.push({ severity: "warning", check: "Sequence not imported", item, detail: `ES credits repair in ${record.sequenceId}, which the Step 02 model does not hold. Import the model again in Step 02.`, target });
+    if (record !== undefined && entry.sequenceCode === undefined) findings.push({ severity: "warning", check: "Sequence not imported", item, detail: `ES credits repair in ${record.sequenceId}, which the linked ES workbook does not list.`, target });
     if (recovery.source === "TYPED" && blank(rule?.typed?.source)) findings.push({ severity: "error", check: "Typed value without a source", item, detail: "Name the document or analysis the non-recovery probability comes from.", target });
-    if (recovery.source === "DA" && !view.model.parameters.some((parameter) => parameter.id === recovery.parameterId)) findings.push({ severity: "error", check: "DA parameter not imported", item, detail: `${recovery.parameterId ?? "The parameter"} is not in the linked DA workbook. Pick another or import the model again in Step 02.`, target });
+    if (recovery.source === "DA" && !view.model.parameters.some((parameter) => parameter.id === recovery.parameterId)) findings.push({ severity: "error", check: "DA parameter not imported", item, detail: `${recovery.parameterId ?? "The parameter"} is not in the linked DA workbook. Pick another.`, target });
     if (!recovery.credited) continue;
     if (recovery.missing.length > 0) findings.push({ severity: "error", check: recovery.repair ? "Repair not feasible" : "Recovery not feasible", item, detail: `A credited ${noun} needs its feasibility shown. Not shown: ${listText(recovery.missing.map((key) => FEASIBILITY_LABELS[key].toLowerCase()), 5)} (ESQ-A7).`, target });
     if (recovery.expression === undefined) findings.push({ severity: "error", check: "No non-recovery value", item, detail: recovery.repair ? "Take the non-repair probability from DA or type it with its source." : "Take the HEP from HR or DA, or type it with its source.", target });
@@ -435,7 +435,7 @@ function eventOption(model: EsqModel, eventId: string, codes: ReadonlyMap<string
 
 function logicViewOf(esq: EventSequenceQuantification, points?: EsqPoints): EsqLogicView | undefined {
   const model = esq.model;
-  if (model?.importedAt === undefined) return undefined;
+  if (model === undefined) return undefined;
   const work = postWorkOf(esq);
   const logic = logicOf(esq);
   const trees = treesInScope(esq, model);

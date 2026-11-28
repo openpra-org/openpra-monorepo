@@ -1,5 +1,6 @@
 ﻿import { OTHER_HAZARDS_STEP_DEFINITIONS } from "interfaces-mef-types/other-hazards/other-hazards-pra";
 import { type JSX, type ReactNode, useEffect, useMemo, useState } from "react";
+import { WorkbookShareButton } from "../workbooks/workbookSharing";
 import { useNavigate } from "react-router-dom";
 import { POSIcon } from "../pos-workbooks/posIcons";
 import {
@@ -132,6 +133,7 @@ function Header({
             </select>
           </label>
         )}
+        <WorkbookShareButton />
         {onOpenRoles !== undefined && (
           <button
             type="button"

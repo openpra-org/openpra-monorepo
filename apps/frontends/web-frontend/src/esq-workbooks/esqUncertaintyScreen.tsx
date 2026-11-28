@@ -245,9 +245,9 @@ function inputPoint(row: EsqInputRow, points: ReturnType<typeof useExpressionPoi
 
 const CHANGE_TEXT: Record<EsqLawSource, string> = {
   DA: "Give the estimate a law in DA. Each run reads it from DA.",
-  SY: "Give the value a law in SY and import again in Step 02.",
-  HR: "Give the HEP a law in HR and import again in Step 02.",
-  IE: "Change the frequency distribution in IE and import again.",
+  SY: "Give the value a law in SY.",
+  HR: "Give the HEP a law in HR.",
+  IE: "Change the frequency distribution in IE.",
   STEP_02: "Change it in Step 02.",
   STEP_03: "Change it in Step 03.",
   STEP_04: "Change it in Step 04.",

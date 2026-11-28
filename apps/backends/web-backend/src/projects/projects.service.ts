@@ -13,11 +13,14 @@ import {
   type RiskMode,
   type SharedProjectsResponse,
   type UpdateProjectRequest,
+  type WorkbookShareAccess,
+  type WorkbookShareEntry,
+  type WorkbookSharesResponse,
   riskModeLabel,
 } from "interfaces-shared-types";
 import { User, type UserDocument } from "../users/user.schema";
 import { Team, type TeamDocument } from "../teams/team.schema";
-import { Project, type ProjectDocument } from "./project.schema";
+import { Project, type ProjectCollaborator, type ProjectDocument } from "./project.schema";
 import { EventBus } from "../events/event-bus";
 import { AnalyticsService } from "../analytics/analytics.service";
 
@@ -47,6 +50,32 @@ function rolePriority(role: ProjectAccessRole): number {
   return 1;
 }
 
+function scopeOf(entry: ProjectCollaborator): string | null {
+  return entry.workbookId ?? null;
+}
+
+function casualAccessOf(doc: ProjectDocument, username: string, workbookId: string | undefined): WorkbookShareAccess | null {
+  let best: WorkbookShareAccess | null = null;
+  for (const entry of doc.collaborators) {
+    if (entry.username !== username) continue;
+    const scope = scopeOf(entry);
+    if (scope !== null && scope !== workbookId) continue;
+    if (entry.access === "edit") return "edit";
+    best = "view";
+  }
+  return best;
+}
+
+function casualRole(doc: ProjectDocument, viewer: string): ProjectAccessRole | null {
+  let best: ProjectAccessRole | null = null;
+  for (const entry of doc.collaborators) {
+    if (entry.username !== viewer) continue;
+    const role: ProjectAccessRole = scopeOf(entry) === null && entry.access === "edit" ? "editor" : "viewer";
+    if (best === null || rolePriority(role) > rolePriority(best)) best = role;
+  }
+  return best;
+}
+
 function computeRole(doc: ProjectDocument, viewer: string, myTeamIds: Set<string>): ProjectAccessRole | null {
   if (doc.ownerUsername === viewer) return "owner";
   let best: ProjectAccessRole | null = null;
@@ -56,6 +85,8 @@ function computeRole(doc: ProjectDocument, viewer: string, myTeamIds: Set<string
     if (!myTeamIds.has(ts.teamId)) continue;
     if (best === null || rolePriority(ts.role) > rolePriority(best)) best = ts.role;
   }
+  const casual = casualRole(doc, viewer);
+  if (casual !== null && (best === null || rolePriority(casual) > rolePriority(best))) best = casual;
   return best;
 }
 
@@ -168,6 +199,7 @@ export class ProjectsService {
         $or: [
           { "sharedUsers.username": acting.username },
           { "sharedTeams.teamId": { $in: Array.from(maps.myTeamIds) } },
+          { "collaborators.username": acting.username },
         ],
       })
       .sort({ updatedAt: -1 })
@@ -186,14 +218,138 @@ export class ProjectsService {
     return toDto(doc, acting.username, maps);
   }
 
-  async resolveAccess(id: string, acting: ActingUser): Promise<{ doc: ProjectDocument; role: ProjectAccessRole }> {
+  async resolveAccess(id: string, acting: ActingUser, workbookId?: string): Promise<{ doc: ProjectDocument; role: ProjectAccessRole }> {
     if (!isValidObjectId(id)) throw new NotFoundException("Project not found");
     const doc = await this.projectModel.findById(id).exec();
     if (!doc) throw new NotFoundException("Project not found");
     const maps = await this.buildSharedMaps(acting.username);
     const role = computeRole(doc, acting.username, maps.myTeamIds);
     if (role === null) throw new NotFoundException("Project not found");
+    if (role === "viewer" && workbookId !== undefined && casualAccessOf(doc, acting.username, workbookId) === "edit") {
+      return { doc, role: "editor" };
+    }
     return { doc, role };
+  }
+
+  async casualAccess(id: string, username: string, workbookId?: string): Promise<WorkbookShareAccess | null> {
+    if (!isValidObjectId(id)) return null;
+    const doc = await this.projectModel.findById(id).exec();
+    if (!doc) return null;
+    return casualAccessOf(doc, username, workbookId);
+  }
+
+  async projectCollaborators(id: string, acting: ActingUser): Promise<WorkbookSharesResponse> {
+    const { doc } = await this.resolveAccess(id, acting);
+    return this.sharesResponse(doc, null, doc.ownerUsername === acting.username, acting.username);
+  }
+
+  async shareProjectCasually(id: string, identifier: string, access: WorkbookShareAccess, acting: ActingUser): Promise<WorkbookSharesResponse> {
+    const doc = await this.findOwned(id, acting);
+    const target = await this.upsertCollaborator(doc, null, identifier, access, acting);
+    if (target !== null) {
+      await this.eventBus.emit({ type: "project.collaborator_added", projectId: id, projectName: doc.name, actor: acting.username, target, access });
+    }
+    return this.sharesResponse(doc, null, true, acting.username);
+  }
+
+  async updateProjectCollaborator(id: string, username: string, access: WorkbookShareAccess, acting: ActingUser): Promise<WorkbookSharesResponse> {
+    const doc = await this.findOwned(id, acting);
+    await this.changeCollaborator(doc, null, username, access);
+    return this.sharesResponse(doc, null, true, acting.username);
+  }
+
+  async removeProjectCollaborator(id: string, username: string, acting: ActingUser): Promise<WorkbookSharesResponse> {
+    const doc = await this.findOwned(id, acting);
+    await this.dropCollaborator(doc, null, username);
+    return this.sharesResponse(doc, null, true, acting.username);
+  }
+
+  async workbookShares(projectId: string, workbookId: string, canShare: boolean, acting: ActingUser): Promise<WorkbookSharesResponse> {
+    const { doc } = await this.resolveAccess(projectId, acting, workbookId);
+    return this.sharesResponse(doc, workbookId, canShare, acting.username);
+  }
+
+  async shareWorkbookCasually(projectId: string, workbookId: string, identifier: string, access: WorkbookShareAccess, acting: ActingUser): Promise<{ projectName: string; target: string | null; shares: WorkbookSharesResponse }> {
+    const doc = await this.findExisting(projectId);
+    const target = await this.upsertCollaborator(doc, workbookId, identifier, access, acting);
+    return { projectName: doc.name, target, shares: await this.sharesResponse(doc, workbookId, true, acting.username) };
+  }
+
+  async updateWorkbookCollaborator(projectId: string, workbookId: string, username: string, access: WorkbookShareAccess, acting: ActingUser): Promise<WorkbookSharesResponse> {
+    const doc = await this.findExisting(projectId);
+    await this.changeCollaborator(doc, workbookId, username, access);
+    return this.sharesResponse(doc, workbookId, true, acting.username);
+  }
+
+  async removeWorkbookCollaborator(projectId: string, workbookId: string, username: string, acting: ActingUser): Promise<WorkbookSharesResponse> {
+    const doc = await this.findExisting(projectId);
+    await this.dropCollaborator(doc, workbookId, username);
+    return this.sharesResponse(doc, workbookId, true, acting.username);
+  }
+
+  async forgetWorkbookCollaborators(projectId: string, workbookId: string): Promise<void> {
+    if (!isValidObjectId(projectId)) return;
+    await this.projectModel.updateOne({ _id: projectId }, { $pull: { collaborators: { workbookId } } }).exec();
+  }
+
+  private async findExisting(id: string): Promise<ProjectDocument> {
+    if (!isValidObjectId(id)) throw new NotFoundException("Project not found");
+    const doc = await this.projectModel.findById(id).exec();
+    if (!doc) throw new NotFoundException("Project not found");
+    return doc;
+  }
+
+  private async sharesResponse(doc: ProjectDocument, workbookId: string | null, canShare: boolean, username: string): Promise<WorkbookSharesResponse> {
+    const own = doc.collaborators.find((entry) => entry.username === username && scopeOf(entry) === workbookId);
+    const myAccess = workbookId === null ? own?.access ?? null : casualAccessOf(doc, username, workbookId);
+    return { canShare, myAccess, entries: canShare ? await this.collaboratorEntries(doc, workbookId) : [] };
+  }
+
+  private async collaboratorEntries(doc: ProjectDocument, workbookId: string | null): Promise<WorkbookShareEntry[]> {
+    const scoped = doc.collaborators.filter((entry) => scopeOf(entry) === workbookId);
+    if (scoped.length === 0) return [];
+    const users = await this.userModel.find({ username: { $in: scoped.map((entry) => entry.username) } }, { username: 1, fullName: 1 }).lean();
+    const names = new Map(users.map((user) => [user.username, user.fullName]));
+    return scoped.map((entry) => ({
+      username: entry.username,
+      fullName: names.get(entry.username) ?? entry.username,
+      access: entry.access,
+      sharedBy: entry.sharedBy,
+      sharedAt: new Date(entry.sharedAt).toISOString(),
+    }));
+  }
+
+  private async upsertCollaborator(doc: ProjectDocument, workbookId: string | null, identifier: string, access: WorkbookShareAccess, acting: ActingUser): Promise<string | null> {
+    const resolved = await this.resolveByIdentifier(identifier);
+    if (resolved.username === doc.ownerUsername) throw new BadRequestException("The project owner already has access");
+    if (resolved.username === acting.username) throw new BadRequestException("You already have access");
+    const existing = doc.collaborators.find((entry) => entry.username === resolved.username && scopeOf(entry) === workbookId);
+    if (existing !== undefined) {
+      existing.access = access;
+      doc.markModified("collaborators");
+      await doc.save();
+      return null;
+    }
+    doc.collaborators.push({ username: resolved.username, access, workbookId, sharedBy: acting.username, sharedAt: new Date() });
+    doc.markModified("collaborators");
+    await doc.save();
+    return resolved.username;
+  }
+
+  private async changeCollaborator(doc: ProjectDocument, workbookId: string | null, username: string, access: WorkbookShareAccess): Promise<void> {
+    const entry = doc.collaborators.find((candidate) => candidate.username === username && scopeOf(candidate) === workbookId);
+    if (entry === undefined) throw new NotFoundException("It is not shared with that user");
+    entry.access = access;
+    doc.markModified("collaborators");
+    await doc.save();
+  }
+
+  private async dropCollaborator(doc: ProjectDocument, workbookId: string | null, username: string): Promise<void> {
+    const before = doc.collaborators.length;
+    doc.collaborators = doc.collaborators.filter((entry) => !(entry.username === username && scopeOf(entry) === workbookId));
+    if (doc.collaborators.length === before) throw new NotFoundException("It is not shared with that user");
+    doc.markModified("collaborators");
+    await doc.save();
   }
 
   async updateProject(id: string, payload: UpdateProjectRequest, acting: ActingUser): Promise<ProjectDto> {

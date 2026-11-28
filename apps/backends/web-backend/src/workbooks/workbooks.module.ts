@@ -1,4 +1,5 @@
 import { Module } from "@nestjs/common";
+import { APP_INTERCEPTOR } from "@nestjs/core";
 import { MongooseModule } from "@nestjs/mongoose";
 import { User, UserSchema } from "../users/user.schema";
 import { Team, TeamSchema } from "../teams/team.schema";
@@ -11,9 +12,15 @@ import { WorkbooksService } from "./workbooks.service";
 import { WorkbookReviewController } from "./workbook-review.controller";
 import { WorkbookRolesService } from "./workbook-roles.service";
 import { WorkbookWorkflowService } from "./workbook-workflow.service";
+import { WorkbookLinkedRevisionsService } from "./workbook-linked-revisions.service";
 import { WorkbookCommentsService } from "./workbook-comments.service";
 import { WorkbookElementRegistry } from "./workbook-element-registry";
 import { WorkbookModelAccessService } from "./workbook-model-access.service";
+import { WorkbookSharingController } from "./workbook-sharing.controller";
+import { WorkbookSharingService } from "./workbook-sharing.service";
+import { WorkbookLiveService } from "./workbook-live.service";
+import { WorkbookChangesService } from "./workbook-changes.service";
+import { WorkbookChangesInterceptor } from "./workbook-changes.interceptor";
 import { UncertaintyMigrationService } from "./uncertainty-migration.service";
 import { EsNetworkMigrationService } from "./es-network-migration.service";
 import { SyNetworkMigrationService } from "./sy-network-migration.service";
@@ -57,14 +64,19 @@ import { UncertaintyService } from "../newly-developed-methods/shared/uncertaint
     ]),
     ProjectsModule,
   ],
-  controllers: [WorkbooksController, WorkbookReviewController],
+  controllers: [WorkbooksController, WorkbookReviewController, WorkbookSharingController],
   providers: [
     WorkbooksService,
     WorkbookRolesService,
     WorkbookWorkflowService,
+    WorkbookLinkedRevisionsService,
     WorkbookCommentsService,
     WorkbookElementRegistry,
     WorkbookModelAccessService,
+    WorkbookSharingService,
+    WorkbookLiveService,
+    WorkbookChangesService,
+    { provide: APP_INTERCEPTOR, useClass: WorkbookChangesInterceptor },
     PraetorAnalysisClient,
     UncertaintyService,
     UncertaintyMigrationService,

@@ -20,7 +20,7 @@ import { isComponentModel } from "interfaces-mef-types/da/data-analysis";
 import { carriesUncertainExpression } from "interfaces-mef-types/sy/systems-analysis";
 import { applySensitivityCase, caseInputsKey, registerEntryId, sensitivityWorkOf } from "interfaces-mef-types/esq/esq-sensitivity-inputs";
 import { solveWorkOf } from "interfaces-mef-types/esq/esq-solve-inputs";
-import type { EsqEventTreeRunLogic, EsqModelCalculation, EsqModelRunResult, EventTreeCutSetSettings } from "interfaces-shared-types/newly-developed-methods/event-tree";
+import type { EsqEventTreeRunLogic, EsqLinkedSensitivityCase, EsqModelCalculation, EsqModelRunResult, EventTreeCutSetSettings } from "interfaces-shared-types/newly-developed-methods/event-tree";
 import type { EsqUpstream } from "./esqLinks";
 import type { EsqDaCaseOption } from "./esqDaLinks";
 import { modelViewOf, referenceProblems, type EsqFamilyView, type EsqFindingSeverity } from "./esqModel";
@@ -557,6 +557,13 @@ function sensitivityComplete(esq: EventSequenceQuantification, upstream: EsqUpst
   return view !== undefined && view.cases.some((entry) => entry.entry.run !== undefined) && !view.findings.some((finding) => finding.severity === "error");
 }
 
+function linkedCaseOf(esq: EventSequenceQuantification, caseId: string): EsqLinkedSensitivityCase | undefined {
+  const entry = (sensitivityWorkOf(esq).cases ?? []).find((candidate) => candidate.id === caseId);
+  if (entry?.daCaseRef === undefined) return undefined;
+  const { run: _run, daCaseRef, ...definition } = entry;
+  return { ...definition, daCaseRef };
+}
+
 export {
   CASE_KINDS,
   CASE_KIND_LABELS,
@@ -567,6 +574,7 @@ export {
   caseCurrentOf,
   caseRunRequest,
   caseTargetLabel,
+  linkedCaseOf,
   nextCaseId,
   nextManualId,
   nextManualPreOpId,

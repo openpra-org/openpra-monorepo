@@ -1069,7 +1069,7 @@ function FamiliesPanel({ view, shownRun, onOpen, onCutSets }: { view: EsqSolveVi
             {shown.map((family) => {
               const solve = family.solve;
               const run = runValues.get(family.id);
-              const compared = solve?.typed !== undefined ? { value: solve.typed.annualFrequency, from: "Typed" } : solve?.imported !== undefined ? { value: solve.imported.annualFrequency, from: "Imported from ES" } : undefined;
+              const compared = solve?.typed !== undefined ? { value: solve.typed.annualFrequency, from: "Typed" } : solve?.imported !== undefined ? { value: solve.imported.annualFrequency, from: "ES" } : undefined;
               const name = blank(family.name) ? family.id : family.name;
               return (
                 <tr key={family.id}>
@@ -1214,13 +1214,11 @@ function ConvergencePanel({ view, shownRun, onSweep }: { view: EsqSolveView; sho
 }
 
 function FamilyDialog({ id, view, onClose }: { id: string; view: EsqSolveView; onClose: () => void }): JSX.Element | null {
-  const { esq, editable, mutateEsq } = useEsqWorkbook();
+  const { editable, mutateEsq } = useEsqWorkbook();
   const fieldId = useId();
   const family = view.families.find((candidate) => candidate.id === id);
   if (family === undefined) return null;
   const solve: EsqFamilySolve = family.solve ?? { familyId: id };
-  const esWorkbookId = esq.linkedWorkbooks?.ES;
-  const esFrequency = family.esFrequency;
   const typed = solve.typed;
   const reasonNeeded = (solve.ofRecord === "TYPED" || solve.ofRecord === "IMPORTED") && solve.run !== undefined;
 
@@ -1261,7 +1259,7 @@ function FamilyDialog({ id, view, onClose }: { id: string; view: EsqSolveView; o
                 <option value="">Not chosen</option>
                 {solve.run !== undefined && <option value="RUN">{`PRAXIS run · ${sciText(solve.run.annualFrequency)}`}</option>}
                 {typed !== undefined && <option value="TYPED">{`Typed · ${sciText(typed.annualFrequency)}`}</option>}
-                {solve.imported !== undefined && <option value="IMPORTED">{`Imported from ES · ${sciText(solve.imported.annualFrequency)}`}</option>}
+                {solve.imported !== undefined && <option value="IMPORTED">{`ES · ${sciText(solve.imported.annualFrequency)}`}</option>}
               </select>
             </div>
             <AreaField label="Reason" value={solve.reason ?? ""} editable={editable} required={reasonNeeded} onChange={(reason) => {
@@ -1277,22 +1275,6 @@ function FamilyDialog({ id, view, onClose }: { id: string; view: EsqSolveView; o
             {typed !== undefined && <AreaField label="Source of the typed value" value={typed.source} editable={editable} required onChange={(source) => save({ ...solve, typed: { ...typed, source } })} />}
           </div>
         </div>
-        {editable && (esFrequency !== undefined || solve.imported !== undefined) && (
-          <div className="esq-dialog-section">
-            <span className="esq-dialog-head">Imported value</span>
-            <div className="posrow es-dialog-actions">
-              {esFrequency !== undefined && esWorkbookId !== undefined && (
-                <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => save({ ...solve, imported: { annualFrequency: esFrequency, element: "ES", workbookId: esWorkbookId, at: new Date().toISOString() } })}>{`${solve.imported === undefined ? "Import" : "Import again"} from ES · ${sciText(esFrequency)}`}</button>
-              )}
-              {solve.imported !== undefined && (
-                <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => {
-                  const { imported: _old, ...rest } = withoutRecord(solve, "IMPORTED");
-                  save(rest);
-                }}>Remove imported value</button>
-              )}
-            </div>
-          </div>
-        )}
       </div>
     </DialogShell>
   );

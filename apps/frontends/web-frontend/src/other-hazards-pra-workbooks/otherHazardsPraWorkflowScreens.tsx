@@ -1,6 +1,7 @@
 import { type ReviewComment } from "interfaces-mef-types/core/pra-common";
 import { reviewBlockingOtherHazardsPraDiagnostics } from "interfaces-mef-types/other-hazards/other-hazards-pra-validation";
 import { type JSX, type ReactNode, useMemo, useState } from "react";
+import { useWorkbookSharingContext } from "../workbooks/workbookSharing";
 import { POSIcon } from "../pos-workbooks/posIcons";
 import { Badge } from "../pos-workbooks/posShared";
 import { WorkbookSectionHeading } from "../workbooks/workbookSectionHeading";
@@ -54,8 +55,9 @@ export function OtherHazardsDraftScreen({
     () => otherHazardsConformanceScore(otherHazardsConformanceItems(mef)),
     [mef],
   );
+  const { sharedOnly } = useWorkbookSharingContext();
   const canSubmit =
-    editable && (mef.workflowState === "DRAFT" || mef.workflowState === "REVISION_REQUIRED");
+    editable && !sharedOnly && (mef.workflowState === "DRAFT" || mef.workflowState === "REVISION_REQUIRED");
   function submit(): void {
     setBusy(true);
     const operation = actions?.submitForReview?.();

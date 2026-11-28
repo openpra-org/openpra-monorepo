@@ -414,10 +414,9 @@ class RcConsequenceRunsService implements OnModuleInit, OnModuleDestroy {
   private async authorize(workbookId: string, actor: Actor, write: boolean): Promise<void> {
     const workbook = await this.workbooks.findOne({ workbookId }).exec();
     if (workbook === null) throw new NotFoundException("RC workbook not found");
-    const access = await this.projects.resolveAccess(workbook.projectId, actor);
+    await this.projects.resolveAccess(workbook.projectId, actor);
     if (!write) return;
-    const roles = await this.roles.resolveEffectiveRoles(workbookId, actor.username);
-    if (access.role === "viewer" || !roles.some((role) => role === "preparer" || role === "co_preparer")) {
+    if (!(await this.roles.canAuthor(workbookId, actor.username))) {
       throw new ForbiddenException("Only preparers can run OpenRC");
     }
     const mef = workbook.mef as RadiologicalConsequenceAnalysis;

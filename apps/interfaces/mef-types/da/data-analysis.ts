@@ -1,7 +1,7 @@
 import { TechnicalElement, TechnicalElementTypes } from "../technical-element";
 import { Unique, Named } from "../core/meta";
 import { BasicEvent, ParameterDistribution, type UncertainFrequency } from "../core/events";
-import type { BaseLaw, CcfFactorModel, DiscreteOutcome, DurationModel, Law, StandbyDemandKind, TruncatedLaw, UncertainExpression, UncertainParameter, UncertainVectorParameter, VectorLaw } from "../core/uncertainty";
+import type { BaseLaw, CcfFactorModel, DiscreteOutcome, DurationModel, Law, StandbyDemandKind, TruncatedLaw, UncertainExpression, UncertainParameter, UncertainUnit, UncertainVectorParameter, VectorLaw } from "../core/uncertainty";
 import { SuccessCriteriaId, SensitivityStudy } from "../core/shared-patterns";
 import { BaseAssumption, PreOperationalAssumption } from "../core/documentation";
 import { ComponentReference, ComponentTypeReference } from "../core/component";
@@ -139,6 +139,22 @@ export const DA_ESTIMATE_MODELS: readonly DaQuantificationModel[] = [...DA_COMPO
 
 export function holdsEstimate(model: DaQuantificationModel | undefined): boolean {
   return model !== undefined && DA_ESTIMATE_MODELS.includes(model);
+}
+
+export const DA_ESTIMATE_UNITS: Partial<Record<DaQuantificationModel, UncertainUnit>> = {
+  DEMAND_PROBABILITY: "PROBABILITY",
+  OTHER_PROBABILITY: "PROBABILITY",
+  MISSION_PROBABILITY: "PROBABILITY",
+  RUNNING_RATE: "PER_HOUR",
+  STANDBY_RATE: "PER_HOUR",
+  UNAVAILABILITY: "FRACTION",
+  HUMAN_ERROR: "PROBABILITY",
+  NON_RECOVERY: "PROBABILITY",
+  FREQUENCY: "PER_YEAR",
+};
+
+export function daEstimateUnit(model: DaQuantificationModel | undefined): UncertainUnit | undefined {
+  return model === undefined ? undefined : DA_ESTIMATE_UNITS[model];
 }
 
 export interface DaParameterValueLink {
@@ -964,6 +980,21 @@ export interface DaStateNeed {
   manual?: DaManualEntry;
 }
 
+export type DaNeedList = "BASIC_EVENT" | "INITIATOR" | "HUMAN_ERROR" | "CCF_GROUP" | "STATE";
+
+export interface DaLinkedNeedDetail {
+  list: DaNeedList;
+  id: string;
+  included?: boolean;
+  exclusionReason?: string;
+  parameterId?: string;
+  unmapped?: boolean;
+  changeReason?: string;
+  kind?: DaNeedKind;
+  missionTime?: UncertainExpression;
+  testIntervalHours?: number;
+}
+
 export interface DaDataNeeds {
   importedAt?: string;
   sources: DaNeedSource[];
@@ -973,6 +1004,7 @@ export interface DaDataNeeds {
   humanErrors: DaHumanErrorNeed[];
   ccfGroups: DaCcfGroupNeed[];
   states: DaStateNeed[];
+  linkedDetails?: DaLinkedNeedDetail[];
 }
 
 export interface DaUncertaintyAlternative {

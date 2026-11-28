@@ -168,7 +168,7 @@ services:
       GITHUB_CLIENT_ID: "${GITHUB_CLIENT_ID}"
       GITHUB_CLIENT_SECRET: "${GITHUB_CLIENT_SECRET}"
       RESEND_API_KEY: "${RESEND_API_KEY}"
-      MAIL_FROM: "h.h.rasheeq@openpra.org"
+      MAIL_FROM: "no-reply@openpra.org"
       MAIL_FROM_NAME: "OpenPRA"
       TFA_ENC_KEY: "${TFA_ENC_KEY?Variable not set}"
       TFA_ISSUER: "OpenPRA"

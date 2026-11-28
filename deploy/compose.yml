@@ -111,7 +111,7 @@ services:
       GITHUB_CLIENT_ID: "${GITHUB_CLIENT_ID:-}"
       GITHUB_CLIENT_SECRET: "${GITHUB_CLIENT_SECRET:-}"
       RESEND_API_KEY: "${RESEND_API_KEY:-local-only-resend-placeholder}"
-      MAIL_FROM: "${MAIL_FROM:-noreply@localhost}"
+      MAIL_FROM: "${MAIL_FROM:-no-reply@openpra.org}"
       MAIL_FROM_NAME: "OpenPRA"
       TFA_ENC_KEY: "${TFA_ENC_KEY:-local-only-tfa-encryption-key}"
       TFA_ISSUER: "OpenPRA"

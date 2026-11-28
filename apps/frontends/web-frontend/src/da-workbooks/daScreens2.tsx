@@ -4,6 +4,7 @@ import { JSX } from "react";
 import { DAIcon } from "./daIcons";
 import { useDaWorkbook } from "./daWorkbookContext";
 import { generateDaReport } from "./daDocx";
+import { useLinkedRevisionsReader } from "../workbooks/useLinkedRevisionsReader";
 import {
   DA_TOC,
   type Stage,
@@ -14,6 +15,7 @@ import { type CcScore } from "./daSelectors";
 // ─── 10 — Draft ────────────────────────────────────────────────────────────
 function DraftScreen({ cc, scores, stage, onSubmitDraft, canSubmit }: { cc: CapabilityCategory; scores: CcScore; stage: Stage; onSubmitDraft: () => void; canSubmit: boolean }): JSX.Element {
   const { da } = useDaWorkbook();
+  const readLinked = useLinkedRevisionsReader();
   const ready = scores.blocked === 0 && scores.warn === 0;
   function downloadJson(): void {
     const blob = new Blob([stringifyJson(da, 2)!], { type: "application/json" });
@@ -60,7 +62,7 @@ function DraftScreen({ cc, scores, stage, onSubmitDraft, canSubmit }: { cc: Capa
           </p>
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {canSubmit && <button type="button" className="posnav__btn posnav__btn--primary" onClick={onSubmitDraft}><DAIcon.Send /> Submit draft to internal review</button>}
-            <button type="button" className="posnav__btn" onClick={() => { void generateDaReport(da, false); }}><DAIcon.Download /> Download draft (.docx)</button>
+            <button type="button" className="posnav__btn" onClick={() => { void readLinked().then((linked) => generateDaReport(da, false, linked)); }}><DAIcon.Download /> Download draft (.docx)</button>
             <button type="button" className="posnav__btn" onClick={downloadJson}><DAIcon.Download /> Download JSON</button>
           </div>
         </div>

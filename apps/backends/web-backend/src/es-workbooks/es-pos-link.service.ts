@@ -158,7 +158,7 @@ export class EsPosLinkService {
     const es = await this.requireEs(workbookId, acting);
     const expectedRevision = readWorkbookRevision(es);
     const myRoles = await this.rolesService.resolveEffectiveRoles(workbookId, acting.username);
-    if (!myRoles.includes("preparer") && !myRoles.includes("co_preparer")) throw new ForbiddenException("Only preparers can link a POS workbook");
+    if (!myRoles.includes("preparer") && !myRoles.includes("co_preparer") && !(await this.rolesService.canAuthor(workbookId, acting.username))) throw new ForbiddenException("Only preparers can link a POS workbook");
     const pos = await this.posWorkbookModel.findOne({ workbookId: posWorkbookId }).exec();
     if (!pos) throw new NotFoundException("POS workbook not found");
     if (pos.projectId !== es.projectId) throw new BadRequestException("POS workbook is in a different project");
@@ -197,7 +197,7 @@ export class EsPosLinkService {
     const es = await this.requireEs(workbookId, acting);
     const expectedRevision = readWorkbookRevision(es);
     const myRoles = await this.rolesService.resolveEffectiveRoles(workbookId, acting.username);
-    if (!myRoles.includes("preparer") && !myRoles.includes("co_preparer")) throw new ForbiddenException("Only preparers can unlink a POS workbook");
+    if (!myRoles.includes("preparer") && !myRoles.includes("co_preparer") && !(await this.rolesService.canAuthor(workbookId, acting.username))) throw new ForbiddenException("Only preparers can unlink a POS workbook");
     const currentMef = es.mef as EsScopeShape;
     const nextMef = {
       ...currentMef,

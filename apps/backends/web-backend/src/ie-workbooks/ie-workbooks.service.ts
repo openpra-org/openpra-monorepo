@@ -70,7 +70,7 @@ export class IeWorkbooksService {
   async patchMef(workbookId: string, operations: unknown, acting: ActingUser): Promise<IeWorkbookResponse> {
     const doc = await this.ieWorkbookModel.findOne({ workbookId }).exec();
     if (!doc) throw new NotFoundException("IE workbook not found");
-    const { role } = await this.projectsService.resolveAccess(doc.projectId, acting);
+    const { role } = await this.projectsService.resolveAccess(doc.projectId, acting, workbookId);
     if (role === "viewer") throw new ForbiddenException("You cannot edit this IE workbook");
     const parsed = InitiatingEventsAnalysisSchema.safeParse(stripNulls(mergeWorkbookPatch(doc.mef, operations)));
     if (!parsed.success) {

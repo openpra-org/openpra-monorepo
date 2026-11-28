@@ -21,11 +21,16 @@ import {
   type SharedProjectsResponse,
   type UpdateProjectRequest,
   type UpdateProjectShareRoleRequest,
+  type WorkbookShareAccessRequest,
+  type WorkbookShareRequest,
+  type WorkbookSharesResponse,
   CreateProjectRequestSchema,
   ShareProjectWithTeamRequestSchema,
   ShareProjectWithUserRequestSchema,
   UpdateProjectRequestSchema,
   UpdateProjectShareRoleRequestSchema,
+  WorkbookShareAccessRequestSchema,
+  WorkbookShareRequestSchema,
 } from "interfaces-shared-types";
 import { ZodValidationPipe } from "../pipe/zod-validation.pipe";
 import { JwtAuthGuard, type AuthenticatedRequest } from "../auth/jwt-auth.guard";
@@ -145,6 +150,43 @@ export class ProjectsController {
     @Req() req: AuthenticatedRequest,
   ): Promise<void> {
     await this.projectsService.unshareFromUser(id, username, { username: req.user!.username });
+  }
+
+  @Get(":id/collaborators")
+  @HttpCode(HttpStatus.OK)
+  listCollaborators(@Param("id") id: string, @Req() req: AuthenticatedRequest): Promise<WorkbookSharesResponse> {
+    return this.projectsService.projectCollaborators(id, { username: req.user!.username });
+  }
+
+  @Post(":id/collaborators")
+  @HttpCode(HttpStatus.OK)
+  addCollaborator(
+    @Param("id") id: string,
+    @Body(new ZodValidationPipe(WorkbookShareRequestSchema)) body: WorkbookShareRequest,
+    @Req() req: AuthenticatedRequest,
+  ): Promise<WorkbookSharesResponse> {
+    return this.projectsService.shareProjectCasually(id, body.identifier, body.access, { username: req.user!.username });
+  }
+
+  @Patch(":id/collaborators/:username")
+  @HttpCode(HttpStatus.OK)
+  updateCollaborator(
+    @Param("id") id: string,
+    @Param("username") username: string,
+    @Body(new ZodValidationPipe(WorkbookShareAccessRequestSchema)) body: WorkbookShareAccessRequest,
+    @Req() req: AuthenticatedRequest,
+  ): Promise<WorkbookSharesResponse> {
+    return this.projectsService.updateProjectCollaborator(id, username, body.access, { username: req.user!.username });
+  }
+
+  @Delete(":id/collaborators/:username")
+  @HttpCode(HttpStatus.OK)
+  removeCollaborator(
+    @Param("id") id: string,
+    @Param("username") username: string,
+    @Req() req: AuthenticatedRequest,
+  ): Promise<WorkbookSharesResponse> {
+    return this.projectsService.removeProjectCollaborator(id, username, { username: req.user!.username });
   }
 
   @Delete(":id")

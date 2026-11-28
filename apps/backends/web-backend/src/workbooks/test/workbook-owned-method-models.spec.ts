@@ -235,7 +235,7 @@ describe("workbook-owned method-model APIs", () => {
   let syModel: MockWorkbookModel;
   let esModel: MockWorkbookModel;
   let esqModel: MockWorkbookModel;
-  let projectAccess: { resolveAccess: jest.Mock };
+  let projectAccess: { resolveAccess: jest.Mock; casualAccess: jest.Mock };
   let workbookRoles: { resolveEffectiveRoles: jest.Mock };
   let dependencyDiscovery: { assertModelCanBeDeleted: jest.Mock };
   let signoffs: { deleteMany: jest.Mock };
@@ -259,7 +259,7 @@ describe("workbook-owned method-model APIs", () => {
     esModel = createModel(esDocument);
     esqModel = createModel(esqDocument);
 
-    projectAccess = { resolveAccess: jest.fn().mockResolvedValue({ role: "owner" }) };
+    projectAccess = { resolveAccess: jest.fn().mockResolvedValue({ role: "owner" }), casualAccess: jest.fn().mockResolvedValue(null) };
     workbookRoles = {
       resolveEffectiveRoles: jest.fn().mockResolvedValue(["preparer"]),
     };

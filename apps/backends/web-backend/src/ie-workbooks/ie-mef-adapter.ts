@@ -34,6 +34,11 @@ export class IeMefAdapter implements WorkbookElementAdapter, OnModuleInit {
     return { projectId: doc.projectId, ownerUsername: doc.ownerUsername, mef: doc.mef };
   }
 
+  async linkedWorkbookIds(workbookId: string): Promise<Record<string, string>> {
+    const doc = await this.ieWorkbookModel.findOne({ workbookId }).exec();
+    return doc === null || doc.linkedPosWorkbookId === null || doc.linkedPosWorkbookId === undefined ? {} : { POS: doc.linkedPosWorkbookId };
+  }
+
   async save(workbookId: string, mef: unknown): Promise<unknown> {
     const doc = await this.ieWorkbookModel.findOne({ workbookId }).exec();
     if (!doc) throw new BadRequestException("IE workbook not found");

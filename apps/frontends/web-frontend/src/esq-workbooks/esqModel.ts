@@ -1,16 +1,5 @@
 import {
-  type EsqActionRecord,
-  type EsqBarrierRecord,
-  type EsqBranchState,
   type EsqCcfRecord,
-  type EsqCriterionLoad,
-  type EsqCriterionRecord,
-  type EsqDependencyRecord,
-  type EsqImpactRecord,
-  type EsqJointFloorRecord,
-  type EsqRecoveryRecord,
-  type EsqRepairRecord,
-  type EsqQualificationRecord,
   type EsqEventRecord,
   type EsqFamilyChoice,
   type EsqFamilyRecord,
@@ -22,20 +11,14 @@ import {
   type EsqInitiatorChoice,
   type EsqInitiatorRecord,
   type EsqTypedInitiator,
-  type EsqLinkCode,
   type EsqModel,
-  type EsqModelChange,
   type EsqModelDecisions,
   type EsqModelElement,
-  type EsqModelSource,
-  type EsqModelTable,
   type EsqNetworkNodeTarget,
   type EsqParameterRecord,
-  type EsqPhenomenonRecord,
   type EsqSequenceChoice,
   type EsqSequenceRecord,
   type EsqSplitFractionTarget,
-  type EsqStateRecord,
   type EsqTopRecord,
   type EsqTopReference,
   type EsqTreeRecord,
@@ -43,21 +26,11 @@ import {
   type EsqValueHolder,
   type EventSequenceQuantification,
 } from "interfaces-mef-types/esq/event-sequence-quantification";
-import {
-  isEventTreeBranchState,
-  type EventSequence,
-  type EventSequenceAnalysis,
-  type EventSequenceFamily,
-  type EventTree,
-  type FunctionalEvent,
-} from "interfaces-mef-types/es/event-sequence-analysis";
-import { carriesUncertainExpression, type CommonCauseFailureGroup, type SystemBasicEvent, type SystemsAnalysis } from "interfaces-mef-types/sy/systems-analysis";
-import { systemFaultTreeBasicEventIds } from "interfaces-mef-types/sy/system-models";
+import { type EventSequence, type EventTree } from "interfaces-mef-types/es/event-sequence-analysis";
+import { carriesUncertainExpression } from "interfaces-mef-types/sy/systems-analysis";
 import { isComponentModel, type DataAnalysis } from "interfaces-mef-types/da/data-analysis";
-import { type HumanReliabilityAnalysis } from "interfaces-mef-types/hr/human-reliability-analysis";
-import { type InitiatingEventGroup, type InitiatingEventsAnalysis } from "interfaces-mef-types/ie/initiating-event-analysis";
+import { type InitiatingEventsAnalysis } from "interfaces-mef-types/ie/initiating-event-analysis";
 import { FrequencyUnit } from "interfaces-mef-types/core/events";
-import { type PlantOperatingStatesAnalysis } from "interfaces-mef-types/pos/plant-operating-state-analysis";
 import {
   canonicalJson,
   ccfModelTakesTotal,
@@ -70,16 +43,14 @@ import {
 } from "interfaces-mef-types/core/uncertainty";
 import { type WorkbookParameterReference } from "interfaces-mef-types/modeling/references";
 import type { ParameterOption, VectorOption } from "../newly-developed-methods/shared/uncertainEditor";
-import { type SuccessCriteriaDevelopment } from "interfaces-mef-types/sc/success-criteria-development";
 import { cellExpressionOfRecord, cellOf } from "interfaces-mef-types/esq/esq-barrier-inputs";
 import { hasUncertainty, parameterLaw, parameterUnit } from "interfaces-mef-types/esq/esq-measure-inputs";
 import { sequenceFamilyOf } from "interfaces-mef-types/esq/esq-solve-inputs";
-import { type BayesianNetworkNode, type QuantificationTimeUnit } from "interfaces-mef-types/modeling";
+import { type BayesianNetworkNode } from "interfaces-mef-types/modeling";
 import { type EsqBayesianNetwork } from "interfaces-mef-types/esq/workbook-models";
 import { type Workbook } from "interfaces-shared-types";
 import {
   daParameterExpression,
-  esqParameterLinks,
   excludedBy,
   functionLinkOf,
   groupFrequency,
@@ -98,22 +69,27 @@ import {
   type EsqGroupState,
   type EsqResolvedLink,
 } from "interfaces-mef-types/esq/esq-run-inputs";
+import {
+  blank,
+  esqLinkOf as linkOf,
+  esqLiveModel,
+  ieGroupRecord,
+  textOf,
+  topRecords,
+  transferEntryInitiators,
+  typedInitiatorsOf,
+  typedTreesOf,
+  unique,
+  withMergedInitiators,
+  type EsqModelSources,
+} from "interfaces-mef-types/esq/esq-model-import";
 import { scMissionTimeEntries, scMissionTimeTable } from "../sc-workbooks/scMissionTimeLinks";
 import { type ScMissionTimeSource } from "../sc-workbooks/scMissionTimeSources";
 import { parametersFor, peekExpression, requestExpression } from "../newly-developed-methods/shared/useUncertainty";
-import { legacyExpression } from "interfaces-mef-types/core/legacy-uncertainty-adapter";
 import { ccfFactorIssues } from "../sy-workbooks/syCcf";
 import { validateEventTree } from "../newly-developed-methods/event-tree";
 import { type EsqUpstream } from "./esqLinks";
 import { ESQ_MODEL_ELEMENTS, MODEL_ELEMENT_LABELS, exampleLinkLabel } from "./esqViewData";
-
-const HOURS_PER_UNIT: Record<QuantificationTimeUnit, number> = {
-  SECOND: 1 / 3600,
-  MINUTE: 1 / 60,
-  HOUR: 1,
-  DAY: 24,
-  YEAR: 8760,
-};
 
 const RELEASE_END_STATE = "RADIONUCLIDE_RELEASE";
 
@@ -241,33 +217,6 @@ interface EsqModelView {
   findings: EsqModelFinding[];
 }
 
-function blank(text: string | null | undefined): boolean {
-  return typeof text !== "string" || text.trim().length === 0;
-}
-
-function textOf(text: string | null | undefined): string | undefined {
-  return typeof text === "string" && text.trim().length > 0 ? text.trim() : undefined;
-}
-
-function finite(value: number | null | undefined): number | undefined {
-  return typeof value === "number" && Number.isFinite(value) ? value : undefined;
-}
-
-function texts(items: readonly (string | null | undefined)[] | null | undefined): string[] {
-  return (items ?? []).flatMap((item) => {
-    const text = textOf(item);
-    return text === undefined ? [] : [text];
-  });
-}
-
-function unique(items: readonly (string | null | undefined)[]): string[] {
-  const out: string[] = [];
-  for (const item of texts(items)) {
-    if (!out.includes(item)) out.push(item);
-  }
-  return out;
-}
-
 function plural(count: number, noun: string): string {
   return `${count} ${noun}${count === 1 ? "" : "s"}`;
 }
@@ -277,608 +226,13 @@ function listText(items: readonly string[], shown = 3): string {
   return `${items.slice(0, shown).join(", ")} and ${items.length - shown} more`;
 }
 
-interface EsqTreeSource {
-  trees: readonly EventTree[];
-  sequences: readonly EventSequence[];
-  families: readonly EventSequenceFamily[];
-  scopeInitiators: readonly string[];
-}
-
-function esTreeSource(es: EventSequenceAnalysis): EsqTreeSource {
-  return { trees: es.eventTrees ?? [], sequences: es.eventSequences, families: es.eventSequenceFamilies, scopeInitiators: texts(es.scopeDefinition?.initiatingEventIds) };
-}
-
-function typedTreesOf(esq: EventSequenceQuantification): EventTree[] {
-  return esq.modelDecisions?.typedTrees ?? [];
-}
-
-function typedTreeSource(esq: EventSequenceQuantification): EsqTreeSource {
-  return { trees: typedTreesOf(esq), sequences: [], families: [], scopeInitiators: texts(esq.modelIntegration.scopeCoverage.initiatingEventGroups) };
-}
-
-function entryInitiators(source: EsqTreeSource): string[] {
-  const trees = source.trees;
-  const targets = new Set(trees.flatMap((tree) => texts(Object.values(tree.transfers ?? {}).map((transfer) => transfer?.targetEventTreeId))));
-  const started = texts(trees.filter((tree) => !targets.has(tree.uuid)).map((tree) => tree.initiatingEventId));
-  return texts(trees.filter((tree) => targets.has(tree.uuid)).map((tree) => tree.initiatingEventId))
-    .filter((id) => !started.some((other) => sameItem(other, id)) && !source.scopeInitiators.some((other) => sameItem(other, id)));
-}
-
-function transferEntryInitiators(es: EventSequenceAnalysis): string[] {
-  return entryInitiators(esTreeSource(es));
-}
-
-function functionKeyOf(event: FunctionalEvent, fallback: string): string {
-  return textOf(event.label) ?? textOf(event.name) ?? fallback;
-}
-
-function orderedFunctions(tree: EventTree): { key: string; id: string; event: FunctionalEvent }[] {
-  const out: { key: string; id: string; event: FunctionalEvent }[] = [];
-  const entries = Object.entries(tree.functionalEvents).sort((a, b) => (a[1].order ?? 0) - (b[1].order ?? 0));
-  for (const [id, event] of entries) {
-    const key = functionKeyOf(event, id);
-    if (!out.some((entry) => entry.key === key)) out.push({ key, id, event });
-  }
-  return out;
-}
-
-function treeRecords(source: EsqTreeSource): EsqTreeRecord[] {
-  const trees = source.trees;
-  const targets = new Set(trees.flatMap((tree) => texts(Object.values(tree.transfers ?? {}).map((transfer) => transfer?.targetEventTreeId))));
-  const entries = entryInitiators(source);
-  return trees.map((tree) => {
-    const initiatorId = textOf(tree.initiatingEventId) ?? "";
-    const record: EsqTreeRecord = {
-      id: tree.uuid,
-      code: textOf(tree.label) ?? tree.uuid,
-      name: textOf(tree.name) ?? tree.uuid,
-      initiatorId,
-      functionIds: orderedFunctions(tree).map((entry) => entry.key),
-      transferEntry: targets.has(tree.uuid) && entries.some((id) => sameItem(id, initiatorId)),
-    };
-    const stateId = textOf(tree.plantOperatingStateId);
-    if (stateId !== undefined) record.stateId = stateId;
-    return record;
-  });
-}
-
-function multiBranchKeys(states: Record<string, string | null> | null | undefined, keyOf: ReadonlyMap<string, string>): string[] {
-  return Object.entries(states ?? {}).flatMap(([id, state]) => (state !== null && isEventTreeBranchState(state) ? [keyOf.get(id) ?? id] : []));
-}
-
-function translatedPath(states: Record<string, string | null> | null | undefined, keyOf: ReadonlyMap<string, string>): Record<string, EsqBranchState> {
-  const path: Record<string, EsqBranchState> = {};
-  for (const [id, state] of Object.entries(states ?? {})) {
-    if (state !== "SUCCESS" && state !== "FAILURE" && state !== "BYPASSED") continue;
-    path[keyOf.get(id) ?? id] = state;
-  }
-  return path;
-}
-
-function sequenceRecords(source: EsqTreeSource): EsqSequenceRecord[] {
-  const byId = new Map(source.sequences.map((sequence) => [sequence.uuid, sequence]));
-  const memberFamily = new Map<string, string>();
-  for (const family of source.families) {
-    for (const id of texts(family.memberSequenceIds)) {
-      if (!memberFamily.has(id)) memberFamily.set(id, family.uuid);
-    }
-  }
-  const out: EsqSequenceRecord[] = [];
-  const used = new Set<string>();
-  for (const tree of source.trees) {
-    const keyOf = new Map(Object.entries(tree.functionalEvents).map(([id, event]) => [id, functionKeyOf(event, id)]));
-    for (const [treeSequenceId, sequence] of Object.entries(tree.sequences)) {
-      const linkedId = textOf(sequence.eventSequenceId);
-      const id = linkedId !== undefined && !used.has(linkedId) ? linkedId : treeSequenceId;
-      const known = byId.get(linkedId ?? id) ?? byId.get(sequence.uuid);
-      if (known !== undefined) used.add(known.uuid);
-      used.add(id);
-      const transfer = tree.transfers?.[treeSequenceId] ?? tree.transfers?.[sequence.uuid] ?? undefined;
-      const record: EsqSequenceRecord = {
-        id,
-        code: textOf(sequence.label) ?? textOf(sequence.name) ?? treeSequenceId,
-        treeId: tree.uuid,
-        path: { ...translatedPath(known?.functionalEventStates, keyOf), ...translatedPath(sequence.functionalEventStates, keyOf) },
-      };
-      const multiBranch = [...new Set([...multiBranchKeys(known?.functionalEventStates, keyOf), ...multiBranchKeys(sequence.functionalEventStates, keyOf)])];
-      if (multiBranch.length > 0) record.multiBranchFunctions = multiBranch;
-      const endState = textOf(sequence.endState) ?? (transfer === undefined ? textOf(known?.endState) : undefined);
-      if (endState !== undefined) record.endState = endState;
-      const familyId = textOf(known?.sequenceFamilyId) ?? memberFamily.get(id);
-      if (familyId !== undefined) record.familyId = familyId;
-      const releaseCategoryId = textOf(known?.releaseCategoryId);
-      if (releaseCategoryId !== undefined) record.releaseCategoryId = releaseCategoryId;
-      const sources = texts(known?.affectedReactorSourceCombinations);
-      if (sources.length > 0) record.sourceIds = sources;
-      const target = textOf(transfer?.targetEventTreeId);
-      if (target !== undefined) {
-        record.transferTreeId = target;
-        record.transferCarries = texts(transfer?.preservedDependencies);
-      }
-      out.push(record);
-    }
-  }
-  for (const sequence of source.sequences) {
-    if (used.has(sequence.uuid)) continue;
-    const record: EsqSequenceRecord = {
-      id: sequence.uuid,
-      code: sequence.uuid,
-      treeId: textOf(sequence.eventTreeId) ?? "",
-      path: translatedPath(sequence.functionalEventStates, new Map()),
-    };
-    const endState = textOf(sequence.endState);
-    if (endState !== undefined) record.endState = endState;
-    const familyId = textOf(sequence.sequenceFamilyId) ?? memberFamily.get(sequence.uuid);
-    if (familyId !== undefined) record.familyId = familyId;
-    const releaseCategoryId = textOf(sequence.releaseCategoryId);
-    if (releaseCategoryId !== undefined) record.releaseCategoryId = releaseCategoryId;
-    out.push(record);
-  }
-  return out;
-}
-
-function familyRecords(source: EsqTreeSource, sequences: readonly EsqSequenceRecord[]): EsqFamilyRecord[] {
-  const records: EsqFamilyRecord[] = source.families.map((family) => {
-    const record: EsqFamilyRecord = { id: family.uuid, name: textOf(family.name) ?? "", releaseCategoryIds: texts(family.releaseCategoryIds) };
-    const endState = textOf(family.endState);
-    if (endState !== undefined) record.endState = endState;
-    return record;
-  });
-  for (const sequence of sequences) {
-    const familyId = sequence.familyId;
-    if (familyId !== undefined && !records.some((record) => record.id === familyId)) records.push({ id: familyId, name: "", releaseCategoryIds: [] });
-  }
-  return records;
-}
-
-function functionRecords(source: EsqTreeSource): EsqFunctionRecord[] {
-  const out = new Map<string, EsqFunctionRecord>();
-  for (const tree of source.trees) {
-    for (const { key, event } of orderedFunctions(tree)) {
-      const record = out.get(key) ?? { id: key, name: textOf(event.name) ?? key, treeIds: [], esLinks: [] };
-      if (!record.treeIds.includes(tree.uuid)) record.treeIds.push(tree.uuid);
-      const top = event.faultTreeTopEvent;
-      const modelId = textOf(top?.modelId);
-      const gateId = textOf(top?.entityId);
-      if (modelId !== undefined && gateId !== undefined && !record.esLinks.some((link) => link.treeId === tree.uuid)) {
-        record.esLinks.push({ treeId: tree.uuid, top: { workbookId: textOf(top?.workbookId) ?? "", modelId, gateId } });
-      }
-      out.set(key, record);
-    }
-  }
-  return [...out.values()];
-}
-
-function topRecords(sy: SystemsAnalysis): EsqTopRecord[] {
-  const definitions = new Map(sy.systemDefinitions.map((definition) => [definition.uuid, definition]));
-  return sy.systemLogicModels.flatMap((model) => {
-    const gateId = textOf(model.topGate?.gateId);
-    if (gateId === undefined) return [];
-    const record: EsqTopRecord = {
-      modelId: model.uuid,
-      gateId,
-      code: textOf(model.code) ?? model.uuid,
-      name: textOf(model.name) ?? "",
-      eventIds: systemFaultTreeBasicEventIds(model),
-      transferModelIds: unique(model.leafNodes.flatMap((leaf) => (leaf.kind === "TRANSFER_REFERENCE" ? [leaf.target?.modelId] : []))),
-      gates: model.gates.map((gate) => ({ id: gate.id, code: textOf(gate.code) ?? gate.id, name: textOf(gate.name) ?? "" })),
-      houseEvents: model.leafNodes.flatMap((leaf) => (leaf.kind === "HOUSE_EVENT" ? [{ id: leaf.id, code: textOf(leaf.code) ?? leaf.id, name: textOf(leaf.name) ?? "", state: leaf.state === true }] : [])),
-    };
-    const systemId = textOf(model.systemReference);
-    if (systemId !== undefined) record.systemId = systemId;
-    const definition = systemId === undefined ? undefined : definitions.get(systemId);
-    if (definition !== undefined) record.systemName = textOf(definition.abbreviation) ?? textOf(definition.name) ?? systemId;
-    return [record];
-  });
-}
-
-function ieGroupRecord(group: InitiatingEventGroup): EsqInitiatorRecord {
-  const record: EsqInitiatorRecord = { id: group.uuid, name: textOf(group.name) ?? group.uuid, stateIds: texts(group.applicableStates) };
-  const description = textOf(group.description);
-  if (description !== undefined) record.description = description;
-  const frequency = group.frequency ?? undefined;
-  if (frequency !== undefined) record.frequency = structuredClone(frequency);
-  const holderId = textOf(group.controlledDataSource?.entityId);
-  record.heldBy = holderId === undefined ? "TYPED" : "DA";
-  if (holderId !== undefined) record.holderId = holderId;
-  return record;
-}
-
-function initiatorRecords(ie: InitiatingEventsAnalysis): EsqInitiatorRecord[] {
-  return ie.initiatingEventGroups.map(ieGroupRecord);
-}
-
-function stateRecords(pos: PlantOperatingStatesAnalysis): EsqStateRecord[] {
-  return pos.plantOperatingStates.map((state) => {
-    const record: EsqStateRecord = { id: state.uuid, name: textOf(state.name) ?? state.uuid };
-    const hours = finite(state.meanDurationHours);
-    if (hours !== undefined && hours >= 0) record.hours = hours;
-    return record;
-  });
-}
-
-function eventHolder(event: SystemBasicEvent, parameterIds: ReadonlySet<string>, hfeIds: ReadonlySet<string>): Pick<EsqEventRecord, "heldBy" | "holderId"> {
-  const source = event.controlledDataSource ?? undefined;
-  const sourceId = textOf(source?.entityId);
-  if (source?.referenceType === "WORKBOOK_PARAMETER" && sourceId !== undefined) return { heldBy: "DA", holderId: sourceId };
-  if (source?.referenceType === "HUMAN_FAILURE_EVENT" && sourceId !== undefined) return { heldBy: "HRA", holderId: sourceId };
-  const legacy = textOf(event.dataAnalysisBasicEventRef);
-  if (legacy !== undefined && parameterIds.has(legacy)) return { heldBy: "DA", holderId: legacy };
-  if (legacy !== undefined && hfeIds.has(legacy)) return { heldBy: "HRA", holderId: legacy };
-  const hfe = textOf(event.attributes?.find((attribute) => attribute.name === "hfeReference")?.value);
-  if (hfe !== undefined && hfeIds.has(hfe)) return { heldBy: "HRA", holderId: hfe };
-  return { heldBy: "TYPED" };
-}
-
-function componentHolder(expression: UncertainExpression | undefined, parameterIds: ReadonlySet<string>): Pick<EsqEventRecord, "heldBy" | "holderId"> {
-  const ids = unique((expression === undefined ? [] : expressionReferences(expression)).map((reference) => reference.entityId)).filter((id) => parameterIds.has(id));
-  const [only, ...others] = ids;
-  return only !== undefined && others.length === 0 ? { heldBy: "DA", holderId: only } : { heldBy: "TYPED" };
-}
-
-function eventRecords(sy: SystemsAnalysis, parameterIds: ReadonlySet<string>, hfeIds: ReadonlySet<string>): EsqEventRecord[] {
-  const systemOf = new Map<string, string>();
-  for (const model of sy.systemLogicModels) {
-    const systemId = textOf(model.systemReference);
-    if (systemId === undefined) continue;
-    for (const id of systemFaultTreeBasicEventIds(model)) {
-      if (!systemOf.has(id)) systemOf.set(id, systemId);
-    }
-  }
-  const definitions = new Map(sy.systemDefinitions.map((definition) => [definition.uuid, definition]));
-  return sy.systemBasicEvents.map((event) => {
-    const mode = typeof event.failureMode === "string" ? textOf(event.failureMode) : undefined;
-    const component = carriesUncertainExpression(mode);
-    const expression = component ? event.expression ?? undefined : undefined;
-    const holder = component ? componentHolder(expression, parameterIds) : eventHolder(event, parameterIds, hfeIds);
-    const record: EsqEventRecord = { id: event.uuid, code: textOf(event.code) ?? event.uuid, name: textOf(event.name) ?? "", ...holder };
-    const systemId = systemOf.get(event.uuid);
-    const definition = systemId === undefined ? undefined : definitions.get(systemId);
-    if (systemId !== undefined) record.systemId = systemId;
-    if (definition !== undefined) record.systemName = textOf(definition.abbreviation) ?? textOf(definition.name) ?? systemId;
-    if (mode !== undefined) record.failureMode = mode;
-    if (component) {
-      if (expression !== undefined) record.expression = structuredClone(expression);
-      return record;
-    }
-    const basis = event.quantificationBasis ?? undefined;
-    if (basis?.kind === "FAILURE_RATE") {
-      const rate = finite(basis.failureRate?.value);
-      const rateUnit = HOURS_PER_UNIT[basis.failureRate?.unit];
-      const mission = finite(basis.missionTime?.value);
-      const missionUnit = HOURS_PER_UNIT[basis.missionTime?.unit];
-      if (rate !== undefined && rateUnit !== undefined) {
-        record.value = rate / rateUnit;
-        record.valueUnit = "PER_HOUR";
-      }
-      if (mission !== undefined && missionUnit !== undefined) record.missionTime = legacyExpression("HOURS", mission * missionUnit);
-    } else {
-      const probability = finite(event.probability);
-      if (probability !== undefined) {
-        record.value = probability;
-        record.valueUnit = "PROBABILITY";
-      }
-      const mission = definition?.missionTime ?? undefined;
-      if (mission !== undefined) record.missionTime = structuredClone(mission);
-    }
-    return record;
-  });
-}
-
-function ccfRecords(sy: SystemsAnalysis): EsqCcfRecord[] {
-  return sy.commonCauseFailureGroups.map((group: CommonCauseFailureGroup) => {
-    const record: EsqCcfRecord = {
-      id: group.uuid,
-      name: textOf(group.name) ?? group.uuid,
-      systemIds: texts(group.affectedSystems),
-      memberIds: texts((group.members?.basicEvents ?? []).map((member) => member?.id)),
-    };
-    const factors = group.factors ?? undefined;
-    if (factors !== undefined) record.factors = structuredClone(factors);
-    const total = group.total ?? undefined;
-    if (total !== undefined) record.total = structuredClone(total);
-    const reference = textOf(group.dataAnalysisCCFParameterRef);
-    if (reference !== undefined) record.estimateRef = reference;
-    return record;
-  });
-}
-
-function humanRecords(hr: HumanReliabilityAnalysis): EsqHumanRecord[] {
-  const recoveryQuantifications = new Set(texts((hr.recoveryActions ?? []).map((recovery) => recovery?.hepQuantificationId)));
-  return hr.humanFailureEvents.map((event) => {
-    const quantification = hr.hepQuantifications.find((candidate) => candidate.hfeId === event.uuid && !recoveryQuantifications.has(candidate.uuid));
-    const record: EsqHumanRecord = {
-      id: event.uuid,
-      name: textOf(event.name) ?? event.uuid,
-      riskSignificant: quantification?.isRiskSignificant === true,
-      distributionGiven: quantification?.uncertaintyCharacterization?.probabilisticRepresentationProvided === true,
-    };
-    if (event.hfeTiming === "PRE_INITIATOR" || event.hfeTiming === "AT_INITIATOR" || event.hfeTiming === "POST_INITIATOR") record.timing = event.hfeTiming;
-    if (quantification === undefined) return record;
-    if (quantification.hep !== undefined) record.hep = structuredClone(quantification.hep);
-    if (quantification.assessmentType === "CONSERVATIVE_ESTIMATE" || quantification.assessmentType === "DETAILED_ASSESSMENT") record.assessmentType = quantification.assessmentType;
-    return record;
-  });
-}
-
-function addText(list: string[], text: string | undefined): void {
-  if (text !== undefined && !list.includes(text)) list.push(text);
-}
-
-function barrierRecords(pos: PlantOperatingStatesAnalysis): EsqBarrierRecord[] {
-  const out = new Map<string, EsqBarrierRecord>();
-  const recordFor = (name: string): EsqBarrierRecord => {
-    const record = out.get(name) ?? { id: name, name, sourceNames: [], states: [], breachCriteria: [], monitoring: [] };
-    out.set(name, record);
-    return record;
-  };
-  for (const state of pos.plantOperatingStates) {
-    for (const barrier of state.radionuclideTransportBarriers ?? []) {
-      const name = textOf(barrier.name);
-      if (name === undefined) continue;
-      const record = recordFor(name);
-      if (!record.states.some((entry) => entry.stateId === state.uuid)) record.states.push({ stateId: state.uuid, status: textOf(barrier.status) ?? "INTACT" });
-      for (const criterion of texts(barrier.breachCriteria)) addText(record.breachCriteria, criterion);
-      for (const parameter of texts(barrier.monitoringParameters)) addText(record.monitoring, parameter);
-    }
-    for (const source of state.radioactiveMaterialSources ?? []) {
-      const sourceName = textOf(source.name);
-      for (const name of texts(source.barriers)) addText(recordFor(name).sourceNames, sourceName);
-    }
-  }
-  return [...out.values()];
-}
-
-function criterionRecords(sc: SuccessCriteriaDevelopment): EsqCriterionRecord[] {
-  return (sc.radionuclideBarrierCriteria ?? []).map((criterion) => {
-    const record: EsqCriterionRecord = {
-      id: criterion.uuid,
-      barrierRef: textOf(criterion.barrierId) ?? criterion.uuid,
-      parameters: (criterion.protectionParameters ?? []).map((entry) => ({ parameter: textOf(entry?.parameter) ?? "", criterion: textOf(entry?.criterion) ?? "", basis: textOf(entry?.basis) ?? "" })),
-      loads: (criterion.challengeLoads ?? []).map((entry) => {
-        const load: EsqCriterionLoad = { description: textOf(entry?.loadDescription) ?? "", attributes: texts(entry?.physicalAttributes) };
-        const sequenceId = textOf(entry?.eventSequenceReference);
-        if (sequenceId !== undefined) load.sequenceId = sequenceId;
-        return load;
-      }),
-      capacityParameters: texts(criterion.capacityParameters),
-      method: criterion.effectivenessEvaluationMethod === "REALISTIC" ? "REALISTIC" : "CONSERVATIVE",
-      references: texts(criterion.engineeringAnalysisReferences),
-    };
-    const uncertainty = textOf(criterion.uncertaintyAssessment);
-    if (uncertainty !== undefined) record.uncertainty = uncertainty;
-    return record;
-  });
-}
-
-function impactRecords(ie: InitiatingEventsAnalysis): EsqImpactRecord[] {
-  const groupOf = new Map<string, string>();
-  for (const group of ie.initiatingEventGroups) {
-    for (const id of texts(group.memberInitiatorIds)) groupOf.set(id, group.uuid);
-  }
-  return (ie.initiators ?? []).flatMap((initiator) => (initiator.barrierImpacts ?? []).flatMap((impact): EsqImpactRecord[] => {
-    const barrierRef = textOf(impact?.barrierId);
-    if (barrierRef === undefined) return [];
-    const record: EsqImpactRecord = { initiatorId: initiator.uuid, initiatorName: textOf(initiator.name) ?? initiator.uuid, barrierRef, state: textOf(impact?.state) ?? "INTACT" };
-    const groupId = textOf(initiator.groupId) ?? groupOf.get(initiator.uuid);
-    if (groupId !== undefined) record.groupId = groupId;
-    const timing = textOf(impact?.timing);
-    if (timing !== undefined) record.timing = timing;
-    const mechanism = textOf(impact?.mechanism);
-    if (mechanism !== undefined) record.mechanism = mechanism;
-    return [record];
-  }));
-}
-
-function phenomenonRecords(es: EventSequenceAnalysis): EsqPhenomenonRecord[] {
-  return (es.dependencyModels?.phenomenologicalDependencies ?? []).map((condition) => {
-    const record: EsqPhenomenonRecord = {
-      id: condition.uuid,
-      name: textOf(condition.name) ?? condition.uuid,
-      phenomenon: textOf(condition.phenomenon) ?? "",
-      description: textOf(condition.description) ?? "",
-      affectedSystems: texts(condition.affectedSystems),
-      conditions: texts(condition.environmentalConditions),
-      references: texts(condition.deterministicAnalysisReferences),
-    };
-    const onset = textOf(condition.onsetTiming);
-    if (onset !== undefined) record.onset = onset;
-    return record;
-  });
-}
-
-function repairRecords(es: EventSequenceAnalysis): EsqRepairRecord[] {
-  return (es.repairCreditRecords ?? []).flatMap((entry): EsqRepairRecord[] => {
-    const id = textOf(entry?.uuid);
-    const sequenceId = textOf(entry?.eventSequenceId);
-    if (id === undefined || sequenceId === undefined) return [];
-    const record: EsqRepairRecord = { id, sequenceId, credited: entry.repairCredited === true, justification: textOf(entry.justification) ?? "" };
-    const equipment = textOf(entry.equipment);
-    if (equipment !== undefined) record.equipment = equipment;
-    const minutes = finite(entry.timeMinutes);
-    if (minutes !== undefined) record.timeMinutes = minutes;
-    const access = textOf(entry.access);
-    if (access !== undefined) record.access = access;
-    const conservative = textOf(entry.conservativeRepairBasis);
-    if (conservative !== undefined) record.conservativeBasis = conservative;
-    return [record];
-  });
-}
-
-function qualificationRecords(sy: SystemsAnalysis): EsqQualificationRecord[] {
-  const environment = (sy.environmentalDesignBasisConsiderations ?? []).map((entry): EsqQualificationRecord => ({
-    id: entry.uuid,
-    kind: "ENVIRONMENT",
-    systemId: textOf(entry.systemReference) ?? "",
-    components: texts(entry.components),
-    condition: textOf(entry.environmentalConditions) ?? "",
-    groupIds: texts(entry.initiatingEventIds),
-    eventIds: texts(entry.basicEventIds),
-    beyondQualification: entry.beyondQualification === true,
-  }));
-  const capacity = (sy.overCapacityConsiderations ?? []).map((entry): EsqQualificationRecord => {
-    const record: EsqQualificationRecord = {
-      id: entry.uuid,
-      kind: "CAPACITY",
-      systemId: textOf(entry.system) ?? "",
-      components: [],
-      condition: texts(entry.potentialExceedanceScenarios).join(" "),
-      groupIds: [],
-      eventIds: [],
-      beyondQualification: false,
-      treatment: entry.treatment === "REALISTIC_JUSTIFIED" ? "REALISTIC_JUSTIFIED" : "CONSERVATIVE",
-    };
-    const justification = textOf(entry.justificationForCapability);
-    if (justification !== undefined) record.justification = justification;
-    return record;
-  });
-  return [...environment, ...capacity];
-}
-
-function recoveryRecords(hr: HumanReliabilityAnalysis): EsqRecoveryRecord[] {
-  return (hr.recoveryActions ?? []).flatMap((recovery): EsqRecoveryRecord[] => {
-    const id = textOf(recovery?.uuid);
-    const hfeId = textOf(recovery?.hfeId);
-    if (id === undefined || hfeId === undefined) return [];
-    const quantification = hr.hepQuantifications.find((candidate) => candidate.uuid === recovery.hepQuantificationId);
-    const feasibility = recovery.feasibility;
-    const record: EsqRecoveryRecord = {
-      id,
-      name: textOf(recovery.name) ?? id,
-      hfeId,
-      level: recovery.appliedAtLevel === "CUTSET" || recovery.appliedAtLevel === "SCENARIO" ? recovery.appliedAtLevel : "SEQUENCE",
-      sequenceIds: texts(recovery.appliedToSequenceIds),
-      feasibility: {
-        procedure: feasibility?.procedureOrGuidanceAvailable === true,
-        training: feasibility?.trainingIncluded === true,
-        cues: feasibility?.cuesAvailable === true,
-        crew: feasibility?.manpowerAvailable === true,
-        time: feasibility?.timeAvailable === true,
-        access: feasibility?.accessibilityConfirmed === true,
-        equipment: feasibility?.equipmentAvailable === true,
-      },
-    };
-    const restored = textOf(recovery.restoredFunction);
-    if (restored !== undefined) record.restoredFunction = restored;
-    const hep = quantification?.hep;
-    if (hep !== undefined) record.hep = structuredClone(hep);
-    const dependencyId = textOf(recovery.dependencyAssessmentId);
-    if (dependencyId !== undefined) record.dependencyId = dependencyId;
-    const note = textOf(recovery.preOperationalFeasibilityJustification);
-    if (note !== undefined) record.feasibilityNote = note;
-    return [record];
-  });
-}
-
-function dependencyRecords(hr: HumanReliabilityAnalysis): EsqDependencyRecord[] {
-  return (hr.dependencyAssessments ?? []).flatMap((assessment): EsqDependencyRecord[] => {
-    const id = textOf(assessment?.uuid);
-    const jointHep = finite(assessment?.jointHep);
-    if (id === undefined || jointHep === undefined) return [];
-    const level = assessment.dependenceLevel;
-    const record: EsqDependencyRecord = {
-      id,
-      scope: assessment.scope === "PRE_INITIATOR_SET" ? "PRE_INITIATOR_SET" : "WITHIN_SEQUENCE",
-      hfeIds: texts(assessment.hfeIds),
-      level: level === "ZERO" || level === "LOW" || level === "MODERATE" || level === "HIGH" || level === "COMPLETE" ? level : "ZERO",
-      jointHep,
-      includesRecovery: assessment.includesRecoveryHfe === true,
-    };
-    const stateId = textOf(assessment.plantOperatingStateId);
-    if (stateId !== undefined) record.stateId = stateId;
-    const sequenceId = textOf(assessment.eventSequenceId);
-    if (sequenceId !== undefined) record.sequenceId = sequenceId;
-    const note = textOf(assessment.floorAppliedOrJustification);
-    if (note !== undefined) record.floorNote = note;
-    return [record];
-  });
-}
-
-function jointFloorRecord(hr: HumanReliabilityAnalysis): EsqJointFloorRecord | undefined {
-  const floor = hr.jointHepFloor ?? undefined;
-  const value = finite(floor?.minimumJointProbability);
-  if (floor === undefined || value === undefined) return undefined;
-  return { id: textOf(floor.uuid) ?? "floor", value, justification: textOf(floor.justification) ?? "" };
-}
-
-function actionRecords(hr: HumanReliabilityAnalysis): EsqActionRecord[] {
-  const recoveryQuantifications = new Set(texts((hr.recoveryActions ?? []).map((recovery) => recovery?.hepQuantificationId)));
-  return hr.humanFailureEvents.flatMap((event): EsqActionRecord[] => {
-    if (event.hfeTiming !== "POST_INITIATOR") return [];
-    const quantification = hr.hepQuantifications.find((candidate) => candidate.hfeId === event.uuid && !recoveryQuantifications.has(candidate.uuid));
-    const record: EsqActionRecord = {
-      id: event.uuid,
-      name: textOf(event.name) ?? event.uuid,
-      timing: "POST_INITIATOR",
-      riskSignificant: quantification?.isRiskSignificant === true,
-    };
-    const hep = quantification?.hep;
-    if (hep !== undefined) record.hep = structuredClone(hep);
-    if (quantification?.assessmentType === "CONSERVATIVE_ESTIMATE" || quantification?.assessmentType === "DETAILED_ASSESSMENT") record.assessmentType = quantification.assessmentType;
-    const cue = textOf(event.responseDetail?.cueDescription);
-    if (cue !== undefined) record.cue = cue;
-    const cueMinutes = finite(quantification?.cueArrivalTimeMinutes);
-    if (cueMinutes !== undefined) record.cueMinutes = cueMinutes;
-    const available = finite(quantification?.timeAvailableMinutes);
-    if (available !== undefined) record.availableMinutes = available;
-    const required = finite(quantification?.timeRequiredMinutes);
-    if (required !== undefined) record.requiredMinutes = required;
-    return [record];
-  });
-}
-
-function upstreamLoaded(upstream: EsqUpstream, element: EsqModelElement): boolean {
-  switch (element) {
-    case "ES": return upstream.es !== undefined;
-    case "SY": return upstream.sy !== undefined;
-    case "DA": return upstream.da !== undefined;
-    case "HRA": return upstream.hr !== undefined;
-    case "IE": return upstream.ie !== undefined;
-    case "POS": return upstream.pos !== undefined;
-    case "SC": return upstream.sc !== undefined;
-  }
-}
-
-function linkOf(esq: EventSequenceQuantification, element: EsqLinkCode): string | undefined {
-  const id = esq.linkedWorkbooks?.[element];
-  return id === undefined || id.length === 0 ? undefined : id;
-}
-
 function modelLinked(esq: EventSequenceQuantification): EsqModelElement[] {
   return ESQ_MODEL_ELEMENTS.filter((element) => linkOf(esq, element) !== undefined);
 }
 
-function modelImportReady(esq: EventSequenceQuantification, upstream: EsqUpstream): boolean {
-  return modelLinked(esq).every((element) => upstreamLoaded(upstream, element));
-}
-
-function unitHours(unit: string | undefined): number {
-  const text = (unit ?? "").trim().toLowerCase();
-  if (text.startsWith("min")) return 1 / 60;
-  if (text === "s" || text.startsWith("sec")) return 1 / 3600;
-  if (text.startsWith("d")) return 24;
-  if (text.startsWith("w")) return 168;
-  if (text.startsWith("y")) return 8760;
-  return 1;
-}
-
-function esMissionHours(es: EventSequenceAnalysis, tree: EventTree): number | undefined {
-  const linked = new Set(texts(Object.values(tree.sequences).map((sequence) => sequence.eventSequenceId)));
-  const minutes = es.eventSequences
-    .filter((sequence) => textOf(sequence.eventTreeId) === tree.uuid || linked.has(sequence.uuid))
-    .flatMap((sequence) => (sequence.timing ?? []).flatMap((entry) => (entry.category === "MISSION_TIME" && Number.isFinite(entry.timeAfterInitiator) && entry.timeAfterInitiator > 0 ? [entry.timeAfterInitiator] : [])));
-  if (minutes.length > 0) return Math.max(...minutes) / 60;
-  const value = finite(tree.missionTime);
-  return value === undefined || !(value > 0) ? undefined : value * unitHours(tree.missionTimeUnits);
-}
-
-function esTreeRecords(es: EventSequenceAnalysis): EsqTreeRecord[] {
-  const byId = new Map((es.eventTrees ?? []).map((tree) => [tree.uuid, tree]));
-  return treeRecords(esTreeSource(es)).map((record) => {
-    const tree = byId.get(record.id);
-    const hours = tree === undefined ? undefined : esMissionHours(es, tree);
-    return hours === undefined ? record : { ...record, esMissionTime: legacyExpression("HOURS", hours) };
-  });
+function modelUnavailable(esq: EventSequenceQuantification, upstream: EsqUpstream): EsqModelElement[] {
+  const failed = upstream.unavailable ?? [];
+  return modelLinked(esq).filter((element) => failed.includes(element));
 }
 
 function effectiveMissionTime(tree: EsqTreeRecord): UncertainExpression | undefined {
@@ -889,87 +243,20 @@ function workbookNameOf(id: string, options: readonly Workbook[]): string {
   return options.find((workbook) => workbook.id === id)?.name ?? exampleLinkLabel(id) ?? id;
 }
 
-function modelSources(esq: EventSequenceQuantification, upstream: EsqUpstream): EsqModelSource[] {
-  const out: EsqModelSource[] = [];
-  for (const element of ESQ_MODEL_ELEMENTS) {
-    const id = linkOf(esq, element);
-    if (id === undefined || !upstreamLoaded(upstream, element)) continue;
-    const option = upstream.options[element].find((workbook) => workbook.id === id);
-    const source: EsqModelSource = { element, workbookId: id, workbookName: workbookNameOf(id, upstream.options[element]) };
-    if (option !== undefined) source.updatedAt = option.updatedAt;
-    out.push(source);
-  }
-  return out;
-}
-
-function importModel(esq: EventSequenceQuantification, upstream: EsqUpstream, now: string): EsqModel {
-  const es = linkOf(esq, "ES") === undefined ? undefined : upstream.es;
-  const sy = linkOf(esq, "SY") === undefined ? undefined : upstream.sy;
-  const daWorkbookId = linkOf(esq, "DA");
-  const da = daWorkbookId === undefined ? undefined : upstream.da;
-  const hr = linkOf(esq, "HRA") === undefined ? undefined : upstream.hr;
-  const ie = linkOf(esq, "IE") === undefined ? undefined : upstream.ie;
-  const pos = linkOf(esq, "POS") === undefined ? undefined : upstream.pos;
-  const sc = linkOf(esq, "SC") === undefined ? undefined : upstream.sc;
-  const parameterIds = new Set((da?.parameters ?? []).map((parameter) => parameter.uuid));
-  const hfeIds = new Set((hr?.humanFailureEvents ?? []).map((event) => event.uuid));
-  const source = es === undefined ? undefined : esTreeSource(es);
-  const sequences = source === undefined ? [] : sequenceRecords(source);
+function esqModelSourcesOf(upstream: EsqUpstream): EsqModelSources {
   return {
-    importedAt: now,
-    sources: modelSources(esq, upstream),
-    trees: es === undefined ? [] : esTreeRecords(es),
-    sequences,
-    families: source === undefined ? [] : familyRecords(source, sequences),
-    functions: source === undefined ? [] : functionRecords(source),
-    tops: sy === undefined ? [] : topRecords(sy),
-    initiators: ie === undefined ? [] : initiatorRecords(ie),
-    states: pos === undefined ? [] : stateRecords(pos),
-    events: sy === undefined ? [] : eventRecords(sy, parameterIds, hfeIds),
-    ccfGroups: sy === undefined ? [] : ccfRecords(sy),
-    parameters: da === undefined ? [] : esqParameterLinks(da),
-    humanEvents: hr === undefined ? [] : humanRecords(hr),
-    barriers: pos === undefined ? [] : barrierRecords(pos),
-    criteria: sc === undefined ? [] : criterionRecords(sc),
-    impacts: ie === undefined ? [] : impactRecords(ie),
-    phenomena: es === undefined ? [] : phenomenonRecords(es),
-    qualifications: sy === undefined ? [] : qualificationRecords(sy),
-    actions: hr === undefined ? [] : actionRecords(hr),
-    recoveries: hr === undefined ? [] : recoveryRecords(hr),
-    repairs: es === undefined ? [] : repairRecords(es),
-    dependencies: hr === undefined ? [] : dependencyRecords(hr),
-    ...(hr === undefined ? {} : floorField(hr)),
+    ...(upstream.es === undefined ? {} : { es: upstream.es }),
+    ...(upstream.sy === undefined ? {} : { sy: upstream.sy }),
+    ...(upstream.da === undefined ? {} : { da: upstream.da }),
+    ...(upstream.hr === undefined ? {} : { hr: upstream.hr }),
+    ...(upstream.ie === undefined ? {} : { ie: upstream.ie }),
+    ...(upstream.pos === undefined ? {} : { pos: upstream.pos }),
+    ...(upstream.sc === undefined ? {} : { sc: upstream.sc }),
   };
 }
 
-function floorField(hr: HumanReliabilityAnalysis): { jointFloor?: EsqJointFloorRecord } {
-  const floor = jointFloorRecord(hr);
-  return floor === undefined ? {} : { jointFloor: floor };
-}
-
-function tableChanges<T extends object>(table: EsqModelTable, previous: readonly T[], next: readonly T[], idOf: (row: T) => string, labelOf: (row: T) => string, changes: EsqModelChange[]): void {
-  const before = new Map(previous.map((row) => [idOf(row), row]));
-  const nextIds = new Set(next.map(idOf));
-  for (const row of next) {
-    const old = before.get(idOf(row));
-    if (old === undefined) changes.push({ table, id: idOf(row), change: "ADDED" });
-    else if (canonicalJson(old) !== canonicalJson(row)) changes.push({ table, id: idOf(row), change: "CHANGED" });
-  }
-  for (const [id, old] of before) {
-    if (!nextIds.has(id)) changes.push({ table, id, change: "REMOVED", label: labelOf(old) });
-  }
-}
-
-function withTreeMissionTimes(previous: EsqModel | undefined, next: EsqModel): EsqModel {
-  const kept = new Map((previous?.trees ?? []).flatMap((tree) => (tree.missionTime === undefined ? [] : [[tree.id, tree.missionTime] as const])));
-  if (kept.size === 0) return next;
-  return {
-    ...next,
-    trees: next.trees.map((tree) => {
-      const missionTime = kept.get(tree.id);
-      return missionTime === undefined ? tree : { ...tree, missionTime };
-    }),
-  };
+function modelNameOf(upstream: EsqUpstream): (element: EsqModelElement, workbookId: string) => string {
+  return (element, workbookId) => workbookNameOf(workbookId, upstream.options[element]);
 }
 
 function withTreeMissionTime(esq: EventSequenceQuantification, treeId: string, missionTime: UncertainExpression | undefined): EventSequenceQuantification {
@@ -985,52 +272,12 @@ function withTreeMissionTime(esq: EventSequenceQuantification, treeId: string, m
   return { ...esq, model: { ...model, trees } };
 }
 
-function withTypedRecords(model: EsqModel, esq: EventSequenceQuantification, previous?: EsqModel): EsqModel {
-  const typedTrees = typedTreesOf(esq);
-  const stale = new Set([...model.trees, ...(previous?.trees ?? [])].filter((tree) => tree.typed === true).map((tree) => tree.id));
-  for (const tree of typedTrees) stale.add(tree.uuid);
-  const keptTrees = model.trees.filter((tree) => !stale.has(tree.id));
-  const keptSequences = model.sequences.filter((sequence) => !stale.has(sequence.treeId));
-  const functions = model.functions.flatMap((record): EsqFunctionRecord[] => {
-    const treeIds = record.treeIds.filter((id) => !stale.has(id));
-    return treeIds.length === 0 ? [] : [{ ...record, treeIds, esLinks: record.esLinks.filter((link) => !stale.has(link.treeId)) }];
-  });
-  const missionTimes = new Map([...(previous?.trees ?? []), ...model.trees].flatMap((tree) => (tree.typed === true && tree.missionTime !== undefined ? [[tree.id, tree.missionTime] as const] : [])));
-  const source = typedTreeSource(esq);
-  const trees = treeRecords(source).map((tree): EsqTreeRecord => {
-    const missionTime = missionTimes.get(tree.id);
-    return missionTime === undefined ? { ...tree, typed: true } : { ...tree, typed: true, missionTime };
-  });
-  for (const record of functionRecords(source)) {
-    const index = functions.findIndex((entry) => entry.id === record.id);
-    const known = functions[index];
-    if (known === undefined) functions.push(record);
-    else functions[index] = { ...known, treeIds: [...known.treeIds, ...record.treeIds], esLinks: [...known.esLinks, ...record.esLinks] };
-  }
-  return withMergedInitiators({ ...model, trees: [...keptTrees, ...trees], sequences: [...keptSequences, ...sequenceRecords(source)], functions }, esq);
+function withTypedModel(esq: EventSequenceQuantification, upstream: EsqUpstream): EventSequenceQuantification {
+  return withModelImported(esq, upstream);
 }
 
-function typedInitiatorsOf(esq: EventSequenceQuantification): EsqTypedInitiator[] {
-  return esq.modelDecisions?.typedInitiators ?? [];
-}
-
-function withMergedInitiators(model: EsqModel, esq: EventSequenceQuantification): EsqModel {
-  const typed = typedInitiatorsOf(esq).map((entry): EsqInitiatorRecord => {
-    const { synced: _synced, ieOwned: _ieOwned, ...record } = entry;
-    return { ...record, typed: true };
-  });
-  const imported = model.initiators.filter((record) => record.typed !== true && !typed.some((entry) => sameItem(entry.id, record.id)));
-  return { ...model, initiators: [...imported, ...typed] };
-}
-
-function withTypedModel(esq: EventSequenceQuantification, upstream: EsqUpstream, now: string): EventSequenceQuantification {
-  const model = esq.model;
-  if (model?.importedAt === undefined) return withModelImported(esq, upstream, now);
-  return { ...esq, model: withTypedRecords(model, esq) };
-}
-
-function withTypedTrees(esq: EventSequenceQuantification, trees: EventTree[], upstream: EsqUpstream, now: string): EventSequenceQuantification {
-  return withTypedModel({ ...esq, modelDecisions: { ...(esq.modelDecisions ?? {}), typedTrees: trees } }, upstream, now);
+function withTypedTrees(esq: EventSequenceQuantification, trees: EventTree[], upstream: EsqUpstream): EventSequenceQuantification {
+  return withTypedModel({ ...esq, modelDecisions: { ...(esq.modelDecisions ?? {}), typedTrees: trees } }, upstream);
 }
 
 function withTypedInitiatorRecord(esq: EventSequenceQuantification, record: EsqInitiatorRecord): EventSequenceQuantification {
@@ -1053,8 +300,8 @@ function withTypedInitiatorRecord(esq: EventSequenceQuantification, record: EsqI
   });
 }
 
-function withTypedInitiator(esq: EventSequenceQuantification, record: EsqInitiatorRecord, upstream: EsqUpstream, now: string): EventSequenceQuantification {
-  return withTypedModel(withTypedInitiatorRecord(esq, record), upstream, now);
+function withTypedInitiator(esq: EventSequenceQuantification, record: EsqInitiatorRecord, upstream: EsqUpstream): EventSequenceQuantification {
+  return withTypedModel(withTypedInitiatorRecord(esq, record), upstream);
 }
 
 function newTypedInitiator(id: string, stateId: string | undefined): EsqInitiatorRecord {
@@ -1089,7 +336,7 @@ function renamedIds(ids: readonly string[], from: string, to: string): string[] 
   return ids.map((id) => (sameItem(id, from) ? to : id));
 }
 
-function withInitiatorCode(esq: EventSequenceQuantification, from: string, to: string, upstream: EsqUpstream, now: string): EventSequenceQuantification {
+function withInitiatorCode(esq: EventSequenceQuantification, from: string, to: string, upstream: EsqUpstream): EventSequenceQuantification {
   const code = to.trim();
   if (code.length === 0 || code === from) return esq;
   const ieWorkbookId = linkOf(esq, "IE");
@@ -1132,7 +379,7 @@ function withInitiatorCode(esq: EventSequenceQuantification, from: string, to: s
     ...(review?.screened === undefined ? {} : { review: { ...review, screened: review.screened.map((bound) => (sameItem(bound.groupId, from) ? { ...bound, groupId: code } : bound)) } }),
     ...(model === undefined ? {} : { model: { ...model, initiators: model.initiators.filter((record) => record.typed === true || !sameItem(record.id, from)) } }),
   };
-  return withTypedModel(next, upstream, now);
+  return withTypedModel(next, upstream);
 }
 
 function nextTypedInitiatorCode(esq: EventSequenceQuantification, ie?: InitiatingEventsAnalysis): string {
@@ -1157,7 +404,7 @@ function initiatorRecordOf(esq: EventSequenceQuantification, id: string): EsqIni
   return base;
 }
 
-function withTypedTreeRemoved(esq: EventSequenceQuantification, treeId: string, upstream: EsqUpstream, now: string): EventSequenceQuantification {
+function withTypedTreeRemoved(esq: EventSequenceQuantification, treeId: string, upstream: EsqUpstream): EventSequenceQuantification {
   const sequenceIds = new Set((esq.model?.sequences ?? []).filter((sequence) => sequence.treeId === treeId).map((sequence) => sequence.id));
   const decisions = esq.modelDecisions ?? {};
   const functionLinks = (decisions.functionLinks ?? []).flatMap((link): EsqFunctionLink[] => {
@@ -1169,39 +416,13 @@ function withTypedTreeRemoved(esq: EventSequenceQuantification, treeId: string, 
     ...esq,
     modelDecisions: { ...decisions, functionLinks, sequenceChoices: (decisions.sequenceChoices ?? []).filter((choice) => !sequenceIds.has(choice.sequenceId)) },
   };
-  return withTypedTrees(cleaned, typedTreesOf(esq).filter((tree) => tree.uuid !== treeId), upstream, now);
+  return withTypedTrees(cleaned, typedTreesOf(esq).filter((tree) => tree.uuid !== treeId), upstream);
 }
 
-function withModelImported(esq: EventSequenceQuantification, upstream: EsqUpstream, now: string): EventSequenceQuantification {
-  const previous = esq.model;
-  const next = withTypedRecords(withTreeMissionTimes(previous, importModel(esq, upstream, now)), esq, previous);
-  if (previous?.importedAt === undefined) return { ...esq, model: next };
-  const changes: EsqModelChange[] = [];
-  tableChanges("TREE", previous.trees, next.trees, (row) => row.id, (row) => row.code, changes);
-  tableChanges("SEQUENCE", previous.sequences, next.sequences, (row) => row.id, (row) => row.code, changes);
-  tableChanges("FAMILY", previous.families, next.families, (row) => row.id, (row) => row.id, changes);
-  tableChanges("FUNCTION", previous.functions, next.functions, (row) => row.id, (row) => row.id, changes);
-  tableChanges("TOP", previous.tops, next.tops, (row) => row.modelId, (row) => row.code, changes);
-  tableChanges("INITIATOR", previous.initiators, next.initiators, (row) => row.id, (row) => row.id, changes);
-  tableChanges("STATE", previous.states, next.states, (row) => row.id, (row) => row.id, changes);
-  tableChanges("EVENT", previous.events, next.events, (row) => row.id, (row) => row.code, changes);
-  tableChanges("CCF", previous.ccfGroups, next.ccfGroups, (row) => row.id, (row) => row.id, changes);
-  tableChanges("PARAMETER", previous.parameters, next.parameters, (row) => row.id, (row) => row.id, changes);
-  tableChanges("HUMAN", previous.humanEvents, next.humanEvents, (row) => row.id, (row) => row.id, changes);
-  tableChanges("BARRIER", previous.barriers ?? [], next.barriers ?? [], (row) => row.id, (row) => row.name, changes);
-  tableChanges("CRITERION", previous.criteria ?? [], next.criteria ?? [], (row) => row.id, (row) => row.id, changes);
-  tableChanges("IMPACT", previous.impacts ?? [], next.impacts ?? [], (row) => `${row.initiatorId}:${row.barrierRef}`, (row) => `${row.initiatorName} ${row.barrierRef}`, changes);
-  tableChanges("PHENOMENON", previous.phenomena ?? [], next.phenomena ?? [], (row) => row.id, (row) => row.name, changes);
-  tableChanges("QUALIFICATION", previous.qualifications ?? [], next.qualifications ?? [], (row) => row.id, (row) => row.id, changes);
-  tableChanges("ACTION", previous.actions ?? [], next.actions ?? [], (row) => row.id, (row) => row.name, changes);
-  tableChanges("RECOVERY", previous.recoveries ?? [], next.recoveries ?? [], (row) => row.id, (row) => row.name, changes);
-  tableChanges("REPAIR", previous.repairs ?? [], next.repairs ?? [], (row) => row.id, (row) => row.equipment ?? row.sequenceId, changes);
-  tableChanges("DEPENDENCY", previous.dependencies ?? [], next.dependencies ?? [], (row) => row.id, (row) => row.id, changes);
-  return { ...esq, model: { ...next, changes } };
-}
-
-function modelChangeOf(model: EsqModel, table: EsqModelTable, id: string): EsqModelChange["change"] | undefined {
-  return model.changes?.find((change) => change.table === table && change.id === id)?.change;
+function withModelImported(esq: EventSequenceQuantification, upstream: EsqUpstream): EventSequenceQuantification {
+  const model = esqLiveModel(esq, esqModelSourcesOf(upstream), modelNameOf(upstream));
+  const { model: _held, ...rest } = esq;
+  return model === undefined ? rest : { ...rest, model };
 }
 
 function decisionsOf(esq: EventSequenceQuantification): EsqModelDecisions {
@@ -1459,9 +680,9 @@ function readsMissionTime(esq: EventSequenceQuantification, reference: WorkbookP
 }
 
 function boundExpression(esq: EventSequenceQuantification, event: EsqEventRecord, parameter: EsqParameterRecord): Pick<EsqValueView, "expression" | "problem"> {
-  if (parameter.estimate === undefined) return { problem: `DA gives ${parameter.name} no estimate. Give it one in DA and import again.` };
+  if (parameter.estimate === undefined) return { problem: `DA gives ${parameter.name} no estimate. Give it one in DA.` };
   const reference = daReferenceOf(esq, parameter.id);
-  if (reference === undefined) return { problem: "Step 01 links no DA workbook. Link it and import again." };
+  if (reference === undefined) return { problem: "Step 01 links no DA workbook. Link it in Step 01." };
   const own: UncertainExpression = { node: "PARAMETER", reference };
   const key = parameterReferenceKey(reference);
   const imported = event.expression;
@@ -1502,7 +723,7 @@ function valueViews(esq: EventSequenceQuantification, model: EsqModel, functions
         view.problem = `${parameter.name} is a ${parameter.parameterType === "FREQUENCY" ? "frequency" : "rate"}. It cannot set ${event.code}.`;
       } else {
         const reference = daReferenceOf(esq, parameter.id);
-        if (reference === undefined) view.problem = "Step 01 links no DA workbook. Link it and import again.";
+        if (reference === undefined) view.problem = "Step 01 links no DA workbook. Link it in Step 01.";
         else if (parameterLaw(parameter) === undefined) view.problem = `DA gives ${parameter.name} no value. Give it one in DA.`;
         else view.expression = { node: "PARAMETER", reference };
       }
@@ -1538,34 +759,14 @@ function sortFindings(findings: readonly EsqModelFinding[]): EsqModelFinding[] {
     .map(({ finding }) => finding);
 }
 
-function sourceFindings(esq: EventSequenceQuantification, model: EsqModel, options?: Record<EsqLinkCode, Workbook[]>): EsqModelFinding[] {
-  const findings: EsqModelFinding[] = [];
-  for (const source of model.sources) {
-    const label = MODEL_ELEMENT_LABELS[source.element];
-    const linkedId = linkOf(esq, source.element);
-    if (linkedId !== source.workbookId) {
-      findings.push({ severity: "warning", check: "Link changed", item: label, detail: linkedId === undefined ? `${label} is no longer linked. Its items stay until you import again.` : `Step 01 now links a different ${label} workbook. Import again to use it.` });
-      continue;
-    }
-    const option = options?.[source.element].find((workbook) => workbook.id === source.workbookId);
-    if (option !== undefined && source.updatedAt !== undefined && option.updatedAt > source.updatedAt) {
-      findings.push({ severity: "warning", check: "Source changed", item: label, detail: `The ${label} workbook changed after the import. Import again to bring in the changes.` });
-    }
-  }
-  for (const element of ESQ_MODEL_ELEMENTS) {
-    const label = MODEL_ELEMENT_LABELS[element];
-    if (linkOf(esq, element) !== undefined && !model.sources.some((source) => source.element === element)) {
-      findings.push({ severity: "warning", check: "Not imported", item: label, detail: `${label} is linked, but nothing was imported from it. Import again.` });
-    }
-  }
-  if (model.trees.length === 0) findings.push({ severity: "error", check: "No event tree", item: "Trees", detail: "Link ES in Step 01 and import its event trees, or draw an event tree in the Trees tab." });
-  const changes = model.changes ?? [];
-  if (changes.length > 0) {
-    const added = changes.filter((change) => change.change === "ADDED").length;
-    const changed = changes.filter((change) => change.change === "CHANGED").length;
-    const removed = changes.filter((change) => change.change === "REMOVED").map((change) => change.label ?? change.id);
-    findings.push({ severity: "note", check: "Import changes", item: "Import", detail: `Since the previous import, ${added} added, ${changed} changed and ${removed.length} removed${removed.length === 0 ? "" : ` (${listText(removed, 5)})`}.` });
-  }
+function sourceFindings(model: EsqModel, unavailable: readonly EsqModelElement[]): EsqModelFinding[] {
+  const findings: EsqModelFinding[] = unavailable.map((element): EsqModelFinding => ({
+    severity: "warning",
+    check: "Linked workbook unavailable",
+    item: MODEL_ELEMENT_LABELS[element],
+    detail: `The linked ${MODEL_ELEMENT_LABELS[element]} workbook could not be read, so its items are missing here. Fix the link in Step 01.`,
+  }));
+  if (model.trees.length === 0) findings.push({ severity: "error", check: "No event tree", item: "Trees", detail: "Link ES in Step 01, or draw an event tree in the Trees tab." });
   return findings;
 }
 
@@ -1835,7 +1036,7 @@ function referenceProblems(esq: EventSequenceQuantification, model: EsqModel, ex
     }
     const parameter = model.parameters.find((entry) => entry.id === reference.entityId.trim());
     if (parameter === undefined) {
-      problems.push({ check: "DA parameter missing", detail: `${code} reads DA parameter ${reference.entityId}, which the Step 02 import does not hold.` });
+      problems.push({ check: "DA parameter missing", detail: `${code} reads DA parameter ${reference.entityId}, which the linked DA workbook does not hold.` });
       continue;
     }
     const law = parameterLaw(parameter);
@@ -1890,7 +1091,7 @@ function ccfFindings(model: EsqModel, values: readonly EsqValueView[]): EsqModel
     const ccf = value.ccf;
     if (value.kind !== "CCF" || ccf === undefined) return [];
     const target = { kind: "esqValue" as const, id: value.id };
-    if (ccf.factors === undefined) return [{ severity: "error", check: "No factors", item: value.code, detail: `${value.name} has no common cause factors. Complete it in SY and import again.`, target }];
+    if (ccf.factors === undefined) return [{ severity: "error", check: "No factors", item: value.code, detail: `${value.name} has no common cause factors. Complete it in SY.`, target }];
     return ccfFactorIssues(ccf.factors, new Set(ccf.memberIds).size, lengths).map((issue): EsqModelFinding => ({
       severity: issue.severity === "ERROR" ? "error" : "warning",
       check: "Common cause factors",
@@ -1913,9 +1114,9 @@ function missionTimeTableOf(esq: EventSequenceQuantification, upstream: Pick<Esq
   return linkOf(esq, "SC") !== undefined && upstream.sc === undefined ? undefined : scTableOf(missionTimeSourcesOf(esq, upstream));
 }
 
-function modelViewOf(esq: EventSequenceQuantification, options?: Record<EsqLinkCode, Workbook[]>, missionTimes?: ReadonlyMap<string, UncertainParameter>): EsqModelView | undefined {
+function modelViewOf(esq: EventSequenceQuantification, unavailable: readonly EsqModelElement[] = [], missionTimes?: ReadonlyMap<string, UncertainParameter>): EsqModelView | undefined {
   const model = esq.model;
-  if (model?.importedAt === undefined) return undefined;
+  if (model === undefined) return undefined;
   const trees = treesInScope(esq, model);
   const sequences = sequenceViews(esq, model, trees);
   const families = familyViews(esq, model, sequences);
@@ -1926,7 +1127,7 @@ function modelViewOf(esq: EventSequenceQuantification, options?: Record<EsqLinkC
   const treeIds = new Set(model.trees.map((tree) => tree.id));
   const outOfScope = model.sequences.filter((sequence) => treeIds.has(sequence.treeId)).length - sequences.length;
   const findings = [
-    ...sourceFindings(esq, model, options),
+    ...sourceFindings(model, unavailable),
     ...(model.trees.length > 0 && sequences.length === 0 ? [{ severity: "error" as const, check: "No sequence in scope", item: "Sequences", detail: "Step 01 leaves every event tree out of scope." }] : []),
     ...(outOfScope > 0 ? [{ severity: "note" as const, check: "Out of scope", item: "Sequences", detail: `Step 01 leaves ${plural(outOfScope, "sequence")} out of scope.` }] : []),
     ...typedTreeFindings(esq, model),
@@ -2128,9 +1329,10 @@ export {
   sameItem,
   transferEntryInitiators,
   modelLinked,
-  modelImportReady,
   withModelImported,
-  modelChangeOf,
+  modelUnavailable,
+  esqModelSourcesOf,
+  modelNameOf,
   modelViewOf,
   modelComplete,
   resolveLink,

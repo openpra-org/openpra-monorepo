@@ -1,5 +1,6 @@
 import { reviewBlockingInternalFloodPraDiagnostics } from "interfaces-mef-types/internal-flood/internal-flood-pra-validation";
 import { type JSX, useMemo, useState } from "react";
+import { useWorkbookSharingContext } from "../../workbooks/workbookSharing";
 import { WorkbookSectionHeading } from "../../workbooks/workbookSectionHeading";
 import { POSIcon } from "../../pos-workbooks/posIcons";
 import { internalFloodConformanceItems, internalFloodConformanceScore } from "../internalFloodPraConformance";
@@ -38,7 +39,8 @@ export function DraftScreen({ actions }: { actions?: InternalFloodWorkflowAction
   const blockers = useMemo(() => reviewBlockingInternalFloodPraDiagnostics(mef), [mef]);
   const score = useMemo(() => internalFloodConformanceScore(internalFloodConformanceItems(mef)), [mef]);
   const ready = blockers.length === 0;
-  const canSubmit = editable && (mef.workflowState === "DRAFT" || mef.workflowState === "REVISION_REQUIRED");
+  const { sharedOnly } = useWorkbookSharingContext();
+  const canSubmit = editable && !sharedOnly && (mef.workflowState === "DRAFT" || mef.workflowState === "REVISION_REQUIRED");
 
   function submit(): void {
     setBusy(true);

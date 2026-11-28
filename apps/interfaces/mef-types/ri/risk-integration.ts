@@ -292,7 +292,25 @@ export interface ModelUncertaintySource extends Unique, Named {
     potentialImpact: string;
   }[];
   recommendations?: string[];
+  overridesLink?: boolean;
+  overrideReason?: string;
   implementsSrs: SRReference[];
+}
+
+export interface RiLinkedUncertaintyDetail extends Unique {
+  originatingElement: TechnicalElementTypes;
+  name: string;
+  impactScope?: TechnicalElementTypes[];
+  affectedMetrics?: (RiskMetricType | string)[];
+  impactAssessment?: string;
+  frequencyImpactRef?: string;
+  consequenceImpactRef?: string;
+  characterizationMethod?: string;
+  alternatives?: {
+    description: string;
+    potentialImpact: string;
+  }[];
+  recommendations?: string[];
 }
 
 export interface ScreenedItemLedgerEntry extends Unique {
@@ -307,7 +325,15 @@ export interface ScreenedItemLedgerEntry extends Unique {
   screeningElementCode: "POS" | "IE" | "ES" | "SC" | "SY" | "HR" | "DA" | "ESQ" | "MS" | "RC";
   screeningBasis: string;
   impactOnRiskMetrics?: string;
+  overridesLink?: boolean;
+  overrideReason?: string;
   implementsSrs: SRReference[];
+}
+
+export interface RiLinkedScreenedItemDetail {
+  itemType: ScreenedItemLedgerEntry["itemType"];
+  itemRef: string;
+  impactOnRiskMetrics: string;
 }
 
 export interface RiskUncertaintyAnalysis extends Unique, Named {
@@ -597,9 +623,19 @@ export interface RiInputFamily {
   imported?: RiFrequencyStats;
   frequency?: RiFrequencyStats;
   changeReason?: string;
+  overridesLink?: boolean;
   included: boolean;
   exclusionReason?: string;
   manual?: RiManualEntry;
+}
+
+export interface RiLinkedFamilyDetail {
+  familyId: string;
+  included?: boolean;
+  exclusionReason?: string;
+  overridesLink?: boolean;
+  frequency?: RiFrequencyStats;
+  changeReason?: string;
 }
 
 export interface RiTopEventState {
@@ -621,7 +657,14 @@ export interface RiInputSequence {
   imported?: RiFrequencyStats;
   frequency?: RiFrequencyStats;
   changeReason?: string;
+  overridesLink?: boolean;
   manual?: RiManualEntry;
+}
+
+export interface RiLinkedSequenceDetail {
+  sequenceId: string;
+  frequency?: RiFrequencyStats;
+  changeReason?: string;
 }
 
 export interface RiConsequenceStats {
@@ -639,7 +682,15 @@ export interface RiInputConsequence {
   imported?: RiConsequenceStats;
   statistics: RiConsequenceStats;
   changeReason?: string;
+  overridesLink?: boolean;
   manual?: RiManualEntry;
+}
+
+export interface RiLinkedConsequenceDetail {
+  releaseCategoryId: string;
+  rcMetricId: string;
+  statistics: RiConsequenceStats;
+  changeReason?: string;
 }
 
 export interface RiInputContributor {
@@ -676,6 +727,9 @@ export interface RiInputs {
   contributors?: RiInputContributor[];
   importance?: RiInputImportance[];
   unavailable?: RiUnavailableResult[];
+  linkedFamilyDetails?: RiLinkedFamilyDetail[];
+  linkedSequenceDetails?: RiLinkedSequenceDetail[];
+  linkedConsequenceDetails?: RiLinkedConsequenceDetail[];
 }
 
 export interface RiSscAssignment {
@@ -733,7 +787,9 @@ export interface RiskIntegration extends TechnicalElement<TechnicalElementTypes.
   integrationMethods: RiskIntegrationMethod[];
 
   modelUncertaintySources: ModelUncertaintySource[];
+  linkedUncertaintyDetails?: RiLinkedUncertaintyDetail[];
   screenedItemsLedger?: ScreenedItemLedgerEntry[];
+  linkedScreenedItemDetails?: RiLinkedScreenedItemDetail[];
   uncertaintyAnalyses: RiskUncertaintyAnalysis[];
   sensitivityStudies?: SensitivityStudy[];
 

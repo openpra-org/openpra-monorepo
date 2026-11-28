@@ -11,6 +11,7 @@ import { ProjectsService } from "../projects/projects.service";
 import { WorkbookRolesService } from "../workbooks/workbook-roles.service";
 import { RcWorkbook, type RcWorkbookDocument } from "./rc-workbook.schema";
 import { RcDocumentsService } from "./rc-documents.service";
+import { RcLinkedSourcesService } from "./rc-linked-sources.service";
 const revision = z.number().int().nonnegative();
 const reason = (e: unknown) => e instanceof z.ZodError ? e.issues.slice(0, 5).map(i => i.message).join("; ") : e instanceof Error ? e.message : "Invalid dose input";
 interface Actor { username: string }
@@ -18,22 +19,23 @@ interface Actor { username: string }
 export class RcDoseInputsService {
   private readonly logger = new Logger(RcDoseInputsService.name);
   constructor(@InjectModel(RcWorkbook.name) private readonly workbooks: Model<RcWorkbookDocument>, private readonly projects: ProjectsService,
-    private readonly roles: WorkbookRolesService, private readonly documents: RcDocumentsService) {}
+    private readonly roles: WorkbookRolesService, private readonly documents: RcDocumentsService, private readonly linkedSources: RcLinkedSourcesService) {}
   private async load(id: string, actor: Actor, baseRevision?: number) {
     const doc = await this.workbooks.findOne({ workbookId: id }).exec();
     if (!doc) throw new NotFoundException("RC workbook not found");
-    const access = await this.projects.resolveAccess(doc.projectId, actor), mef = doc.mef as RadiologicalConsequenceAnalysis, inputs = mef.dosimetry.doseInputs;
+    await this.projects.resolveAccess(doc.projectId, actor);
+    const mef = doc.mef as RadiologicalConsequenceAnalysis, inputs = mef.dosimetry.doseInputs;
     if (baseRevision !== undefined) {
-      const roles = await this.roles.resolveEffectiveRoles(id, actor.username);
-      if (access.role === "viewer" || !roles.some(r => r === "preparer" || r === "co_preparer")) throw new ForbiddenException("Only preparers can edit dose inputs");
+      if (!(await this.roles.canAuthor(id, actor.username))) throw new ForbiddenException("Only preparers can edit dose inputs");
       if (!["DRAFT", "REVISION_REQUIRED"].includes(mef.workflowState ?? "DRAFT")) throw new ForbiddenException("Dose inputs are locked during review and approval");
       if ((inputs?.revision ?? 0) !== baseRevision) throw new ConflictException("Dose inputs changed. Reload before saving");
     }
     return { doc, mef, inputs };
   }
-  private source(loaded: Awaited<ReturnType<RcDoseInputsService["load"]>>, categoryId: string, sourceRevision: number) {
-    const source = loaded.mef.releaseCategoryToConsequence.releaseCategoryInputs.find(c => c.releaseCategory === categoryId)?.sourceTerm;
-    if (!source) throw new BadRequestException("Import or save this category's Step 01 source inventory first");
+  private async source(loaded: Awaited<ReturnType<RcDoseInputsService["load"]>>, categoryId: string, sourceRevision: number) {
+    const view = await this.linkedSources.viewFor(loaded.mef, loaded.doc.projectId, categoryId);
+    const source = view.releaseCategoryToConsequence.releaseCategoryInputs.find(c => c.releaseCategory === categoryId)?.sourceTerm;
+    if (!source) throw new BadRequestException("Link or save this category's Step 01 source inventory first");
     if (source.revision !== sourceRevision) throw new ConflictException("The Step 01 source changed. Review the dose settings again");
     return source;
   }
@@ -49,7 +51,7 @@ export class RcDoseInputsService {
   async save(id: string, body: unknown, actor: Actor) {
     const parsed = z.object({ baseRevision: revision, sourceRevision: revision, categoryId: z.string().min(1) }).strict().safeParse(body);
     if (!parsed.success) throw new BadRequestException(reason(parsed.error));
-    const p = parsed.data, loaded = await this.load(id, actor, p.baseRevision), source = this.source(loaded, p.categoryId, p.sourceRevision), next = this.initial(loaded.inputs), old = next.categories.find(c => c.categoryId === p.categoryId);
+    const p = parsed.data, loaded = await this.load(id, actor, p.baseRevision), source = await this.source(loaded, p.categoryId, p.sourceRevision), next = this.initial(loaded.inputs), old = next.categories.find(c => c.categoryId === p.categoryId);
     next.categories = [...next.categories.filter(c => c.categoryId !== p.categoryId), { ...old, categoryId: p.categoryId, savedForSourceRevision: source.revision }];
     return this.persist(loaded, next);
   }
@@ -60,7 +62,7 @@ export class RcDoseInputsService {
     if (!upload.buffer.length || upload.buffer.length > 15 * 1024 * 1024) throw new BadRequestException("Choose a nonempty text file up to 15 MB");
     if (kind === "exposure") {
       if (p.sourceRevision === undefined || !p.categoryId) throw new BadRequestException("Provide a source category and revision for exposure settings");
-      this.source(loaded, p.categoryId, p.sourceRevision);
+      await this.source(loaded, p.categoryId, p.sourceRevision);
     }
     let exposure, coefficients;
     try { const raw = decodeRcDoseText(upload.buffer); if (kind === "exposure") exposure = parseRcExposure(raw); else coefficients = parseRcDoseCoefficients(raw, kind); }

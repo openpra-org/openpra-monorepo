@@ -1,5 +1,6 @@
 import { WorkbookSectionHeading } from "../workbooks/workbookSectionHeading";
 import { JSX, useEffect, useMemo, useRef, useState } from "react";
+import { WorkbookShareButton, useWorkbookSharingContext } from "../workbooks/workbookSharing";
 import { useNavigate } from "react-router-dom";
 import { ESIcon } from "./esIcons";
 import {
@@ -112,6 +113,7 @@ function WorkspaceHeader({
             </select>
           </label>
         )}
+        <WorkbookShareButton />
         {onOpenRoles !== undefined && (
           <button type="button" className="posnav__btn posnav__btn--sm" onClick={onOpenRoles} title="Manage roles"><ESIcon.Settings /> Roles</button>
         )}
@@ -317,6 +319,7 @@ function EsWorkbench({
   const { user: authUser } = useAuth();
   const actingUsername = authUser?.username ?? "";
   const isPreparer = persona === "preparer";
+  const { sharedOnly } = useWorkbookSharingContext();
   const [comments, setComments] = useState<CommentView[]>(() => commentsView(data.es));
   const [commentDockOpen, setCommentDockOpen] = useState(false);
   const [demoSubmittedLocal, setDemoSubmittedLocal] = useState(false);
@@ -378,7 +381,7 @@ function EsWorkbench({
       case "dynamic": return <EsDynamicPraScreen treeId={treeId} />;
       case "uncertainty": return <EsUncertaintyScreen />;
       case "handoff": return <EsHandoffScreen />;
-      case "draft": return <DraftScreen cc={cc} scores={scores} stage={stage} onSubmitDraft={() => { handleSubmitToApproval(); setStepId("review"); }} canSubmit={isPreparer} />;
+      case "draft": return <DraftScreen cc={cc} scores={scores} stage={stage} onSubmitDraft={() => { handleSubmitToApproval(); setStepId("review"); }} canSubmit={isPreparer && !sharedOnly} />;
       case "review":
       case "approval": return (
         <InternalReviewScreen

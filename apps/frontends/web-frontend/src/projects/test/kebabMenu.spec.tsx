@@ -89,10 +89,10 @@ describe("KebabMenu", () => {
     expect(handlers.onRename).toHaveBeenCalledTimes(1);
   });
 
-  it("invokes onShare when the Share item is clicked", async () => {
+  it("invokes onShare when the Members item is clicked", async () => {
     const handlers = setup(makeProject());
     await userEvent.click(screen.getByRole("button", { name: /project actions/i }));
-    await userEvent.click(screen.getByRole("menuitem", { name: /share/i }));
+    await userEvent.click(screen.getByRole("menuitem", { name: "Members…" }));
     expect(handlers.onShare).toHaveBeenCalledTimes(1);
   });
 });

@@ -15,6 +15,7 @@ import { getSyWorkbook } from "../sy-workbooks/syWorkbookApi";
 import { getHrWorkbook } from "../hr-workbooks/hrWorkbookApi";
 import { getEsqWorkbook } from "../esq-workbooks/esqWorkbookApi";
 import { getScWorkbook } from "../sc-workbooks/scWorkbookApi";
+import { daLinkedValueElements, daWithLinkedNeeds, type DaMapElement } from "interfaces-mef-types/da/da-linked-needs";
 import { exampleLinkVariant } from "./daViewData";
 
 async function listLinkOptions(projectId: string, code: DaLinkCode): Promise<Workbook[]> {
@@ -137,11 +138,34 @@ async function deleteDaDocument(workbookId: string, documentId: string): Promise
   await deleteJson<void>(`/api/da-workbooks/${workbookId}/documents/${documentId}`);
 }
 
+async function readLinked<T>(da: DataAnalysis, element: DaMapElement, wanted: readonly DaMapElement[], load: (id: string) => Promise<T>): Promise<T | undefined> {
+  const id = da.linkedWorkbooks?.[element];
+  if (id === undefined || !wanted.includes(element)) return undefined;
+  try {
+    return await load(id);
+  } catch {
+    return undefined;
+  }
+}
+
+async function daWithLinkedSources(da: DataAnalysis): Promise<DataAnalysis> {
+  const elements = daLinkedValueElements(da);
+  if (elements.length === 0) return da;
+  const wanted: DaMapElement[] = elements.includes("SY") ? [...elements, "HRA"] : elements;
+  const [sy, ie, hr] = await Promise.all([
+    readLinked(da, "SY", wanted, loadLinkedSy),
+    readLinked(da, "IE", wanted, loadLinkedIe),
+    readLinked(da, "HRA", wanted, loadLinkedHr),
+  ]);
+  return daWithLinkedNeeds(da, { ...(sy === undefined ? {} : { sy }), ...(ie === undefined ? {} : { ie }), ...(hr === undefined ? {} : { hr }) });
+}
+
 async function getDaDocumentDownload(workbookId: string, documentId: string): Promise<{ url: string; filename: string }> {
   return fetchJson<{ url: string; filename: string }>(`/api/da-workbooks/${workbookId}/documents/${documentId}/download`);
 }
 
 export {
+  daWithLinkedSources,
   listDaLinkOptions,
   loadLinkedEsq,
   loadLinkedHr,

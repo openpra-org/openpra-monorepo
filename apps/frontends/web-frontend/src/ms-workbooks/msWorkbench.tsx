@@ -1,5 +1,6 @@
 import { WorkbookSectionHeading } from "../workbooks/workbookSectionHeading";
 import { JSX, useEffect, useMemo, useRef, useState } from "react";
+import { WorkbookShareButton, useWorkbookSharingContext } from "../workbooks/workbookSharing";
 import { useNavigate } from "react-router-dom";
 import { MSIcon } from "./msIcons";
 import {
@@ -107,6 +108,7 @@ function WorkspaceHeader({
             </select>
           </label>
         )}
+        <WorkbookShareButton />
         {onOpenRoles !== undefined && (
           <button type="button" className="posnav__btn posnav__btn--sm" onClick={onOpenRoles} title="Manage roles"><MSIcon.Settings /> Roles</button>
         )}
@@ -329,6 +331,7 @@ function MsWorkbench({
   const { user: authUser } = useAuth();
   const actingUsername = authUser?.username ?? "";
   const isPreparer = persona === "preparer";
+  const { sharedOnly } = useWorkbookSharingContext();
   const [comments, setComments] = useState<CommentView[]>(() => commentsView(data.ms));
   const [commentDockOpen, setCommentDockOpen] = useState(false);
   const [demoSubmittedLocal, setDemoSubmittedLocal] = useState(false);
@@ -385,7 +388,7 @@ function MsWorkbench({
       case "sourceterm": return <SourceTermScreen openDrawer={setDrawer} />;
       case "uncert": return <UncertScreen openDrawer={setDrawer} />;
       case "handoff": return <MsHandoffScreen />;
-      case "draft": return <DraftScreen cc={cc} scores={scores} stage={stage} onSubmitDraft={() => { handleSubmitToApproval(); setStepId("review"); }} canSubmit={isPreparer} />;
+      case "draft": return <DraftScreen cc={cc} scores={scores} stage={stage} onSubmitDraft={() => { handleSubmitToApproval(); setStepId("review"); }} canSubmit={isPreparer && !sharedOnly} />;
       case "review":
       case "approval": return (
         <InternalReviewScreen

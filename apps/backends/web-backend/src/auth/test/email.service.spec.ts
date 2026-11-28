@@ -61,11 +61,21 @@ describe("EmailService", () => {
     await service.sendPasswordResetEmail("user@example.com", "https://app.example/reset?token=xyz");
 
     expect(sendMail).toHaveBeenCalledTimes(1);
-    const arg = sendMail.mock.calls[0][0] as { from: string; to: string; subject: string; text: string };
+    const arg = sendMail.mock.calls[0][0] as {
+      from: string;
+      to: string;
+      subject: string;
+      text: string;
+      html: string;
+      attachments: { cid: string; contentType: string; contentDisposition: string }[];
+    };
     expect(arg.from).toBe('"OpenPRA" <noreply@example.com>');
     expect(arg.to).toBe("user@example.com");
     expect(arg.subject).toMatch(/reset/i);
     expect(arg.text).toContain("https://app.example/reset?token=xyz");
+    expect(arg.html).toContain('href="https://app.example/reset?token=xyz"');
+    expect(arg.html).toContain('src="cid:openpra-logo"');
+    expect(arg.attachments[0]).toMatchObject({ cid: "openpra-logo", contentType: "image/png", contentDisposition: "inline" });
   });
 
   it("swallows send errors so caller does not leak failure to clients", async () => {

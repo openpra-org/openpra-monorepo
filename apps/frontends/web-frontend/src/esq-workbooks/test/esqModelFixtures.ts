@@ -144,6 +144,7 @@ const HR = {
 } as HumanReliabilityAnalysis;
 
 const IE = {
+  metadata: {},
   initiatingEventGroups: [{
     uuid: "IEG-01",
     name: "Loss of cooling",
@@ -186,8 +187,8 @@ function linkedEsq(): EventSequenceQuantification {
   return { ...blankEsq(), linkedWorkbooks: { ES: "es-1", SY: "sy-1", DA: "da-1", HRA: "hr-1", IE: "ie-1", POS: "pos-1" } };
 }
 
-function liveImport(esq: EventSequenceQuantification, upstream: EsqUpstream, now: string): EventSequenceQuantification {
-  return liveEsqOf(withModelImported(esq, upstream, now), upstream.da);
+function liveImport(esq: EventSequenceQuantification, upstream: EsqUpstream): EventSequenceQuantification {
+  return liveEsqOf(withModelImported(esq, upstream), upstream.da);
 }
 
 export { PUMP_ESTIMATE, daParameter, dependencyNetwork, fanMission, linkedEsq, liveImport, modelUpstream };

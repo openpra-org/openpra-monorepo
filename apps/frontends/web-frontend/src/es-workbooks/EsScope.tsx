@@ -7,6 +7,7 @@ import { Badge } from "./esShared";
 import { ESIcon } from "./esIcons";
 import { CAPABILITY_CATEGORIES, type Stage } from "./esViewData";
 import { useEsWorkbook } from "./esWorkbookContext";
+import { esTypedWindows } from "./esLinkedTiming";
 import "./css/esScope.css";
 
 type EsLinkCode = "POS" | "IE" | "SC" | "SY" | "HRA";
@@ -51,11 +52,12 @@ const SCOPE_KEYS: readonly ScopeKey[] = ["states", "initiators", "sources", "bar
 const FUNCTION_PAGE = 10;
 
 function EsInterfaces({ links }: { links?: EsLinkActions }): JSX.Element {
-  const { es, posLink, ieLink, editable } = useEsWorkbook();
+  const { es, posLink, ieLink, upstream, editable } = useEsWorkbook();
   const [selected, setSelected] = useState<EsLinkCode | null>("POS");
   const [options, setOptions] = useState<Partial<Record<EsLinkCode, EsLinkOption[]>>>({});
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [pending, setPending] = useState<{ code: EsLinkCode; workbookId: string } | null>(null);
   const requested = useRef(new Set<EsLinkCode>());
   const selectId = useId();
   const tile = LINK_TILES.find((candidate) => candidate.code === selected);
@@ -63,6 +65,8 @@ function EsInterfaces({ links }: { links?: EsLinkActions }): JSX.Element {
   const linkedName = selected === "POS" ? posLink.linkedName : selected === "IE" ? ieLink.linkedName : null;
   const choices = selected === null ? undefined : options[selected];
   const linked = choices?.find((option) => option.workbookId === linkedId);
+  const typedWindows = esTypedWindows(es).length;
+  const unavailable = tile !== undefined && tile.code !== "POS" && tile.code !== "IE" && (upstream?.unavailable ?? []).includes(tile.code);
 
   useEffect(() => {
     if (links === undefined) return;
@@ -75,13 +79,29 @@ function EsInterfaces({ links }: { links?: EsLinkActions }): JSX.Element {
     }
   }, [links]);
 
-  function onLink(code: EsLinkCode, workbookId: string): void {
+  function applyLink(code: EsLinkCode, workbookId: string): void {
     if (links === undefined || !editable) return;
     setBusy(true);
     setError(null);
     (workbookId.length === 0 ? links.unlink(code) : links.link(code, workbookId))
       .catch((failure: Error) => setError(failure.message))
       .finally(() => setBusy(false));
+  }
+
+  function onLink(code: EsLinkCode, workbookId: string): void {
+    if (links === undefined || !editable) return;
+    if (workbookId.length > 0 && (code === "HRA" || code === "SC") && typedWindows > 0) {
+      setPending({ code, workbookId });
+      return;
+    }
+    setPending(null);
+    applyLink(code, workbookId);
+  }
+
+  function confirmPending(): void {
+    if (pending === null) return;
+    setPending(null);
+    applyLink(pending.code, pending.workbookId);
   }
 
   return (
@@ -93,7 +113,7 @@ function EsInterfaces({ links }: { links?: EsLinkActions }): JSX.Element {
             type="button"
             className={`poshandoff__tile${selected === candidate.code ? " poshandoff__tile--active" : ""}`}
             aria-pressed={selected === candidate.code}
-            onClick={() => { setSelected(selected === candidate.code ? null : candidate.code); setError(null); }}
+            onClick={() => { setSelected(selected === candidate.code ? null : candidate.code); setError(null); setPending(null); }}
           >
             <span className="poshandoff__tile-code">{candidate.label}</span>
             <span className="poshandoff__tile-name">{candidate.name}</span>
@@ -116,7 +136,15 @@ function EsInterfaces({ links }: { links?: EsLinkActions }): JSX.Element {
               {linkedId !== null && linked === undefined && <option value={linkedId}>{linkedName ?? (linkedId.startsWith("example") ? `Example ${tile.label} workbook` : choices === undefined ? "" : `${tile.label} workbook not in this project`)}</option>}
             </select>
           </div>
+          {pending !== null && pending.code === tile.code && (
+            <div className="es-scope-confirm" role="group" aria-label="Confirm the link">
+              <span>Linking replaces the {typedWindows} operator {typedWindows === 1 ? "window" : "windows"} typed in Step 03.</span>
+              <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" disabled={busy} onClick={confirmPending}>Link {choices?.find((option) => option.workbookId === pending.workbookId)?.name ?? tile.label}</button>
+              <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => setPending(null)}>Cancel</button>
+            </div>
+          )}
           <HandoffImports consumer="ES" producer={tile.code} />
+          {unavailable && <p className="es-scope-error" role="alert">Linked workbook unavailable</p>}
           {error !== null && <p className="es-scope-error" role="alert">{error}</p>}
         </div>
       )}

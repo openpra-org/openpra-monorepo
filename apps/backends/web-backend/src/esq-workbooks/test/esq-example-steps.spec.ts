@@ -11,11 +11,13 @@ import { HR_ANALYSIS } from "../../example-workbooks/seeds/hr-seed";
 import { HR_ANALYSIS_HTGR } from "../../example-workbooks/seeds/hr-seed-htgr";
 import { RI_ANALYSIS } from "../../example-workbooks/seeds/ri-seed";
 import { RI_ANALYSIS_HTGR } from "../../example-workbooks/seeds/ri-seed-htgr";
+import { DA_ANALYSIS } from "../../example-workbooks/seeds/da-seed";
+import { DA_ANALYSIS_HTGR } from "../../example-workbooks/seeds/da-seed-htgr";
 import { normalizeEsqMef } from "../esq-mef-normalize";
 
 const variants = [
-  { name: "HTGR", esq: ESQ_ANALYSIS_HTGR, sy: SY_ANALYSIS_HTGR, pos: POS_ANALYSIS, hr: HR_ANALYSIS_HTGR, ri: RI_ANALYSIS_HTGR, hs: "example-hs-htgr", cells: ["BC-1", "BC-2", "BC-3", "BC-4", "BC-5"] },
-  { name: "SFR", esq: ESQ_ANALYSIS, sy: SY_ANALYSIS, pos: POS_ANALYSIS_SFR, hr: HR_ANALYSIS, ri: RI_ANALYSIS, hs: "example-hs-sfr", cells: ["BC-1", "BC-2", "BC-3", "BC-4", "BC-5", "BC-6", "BC-7"] },
+  { name: "HTGR", esq: ESQ_ANALYSIS_HTGR, sy: SY_ANALYSIS_HTGR, pos: POS_ANALYSIS, hr: HR_ANALYSIS_HTGR, ri: RI_ANALYSIS_HTGR, da: DA_ANALYSIS_HTGR, hs: "example-hs-htgr", cells: ["BC-1", "BC-2", "BC-3", "BC-4", "BC-5"] },
+  { name: "SFR", esq: ESQ_ANALYSIS, sy: SY_ANALYSIS, pos: POS_ANALYSIS_SFR, hr: HR_ANALYSIS, ri: RI_ANALYSIS, da: DA_ANALYSIS, hs: "example-hs-sfr", cells: ["BC-1", "BC-2", "BC-3", "BC-4", "BC-5", "BC-6", "BC-7"] },
 ] as const;
 
 describe("ESQ examples Steps 02 to 10", () => {
@@ -27,7 +29,7 @@ describe("ESQ examples Steps 02 to 10", () => {
     expect(mef.review?.screened?.map((bound) => bound.groupId)).toEqual(["IE-35", "IEG-DEPENDENCY-DEMO"]);
     expect(mef.review?.comparison).toMatchObject({ possible: false, plants: [] });
     expect(HR_ANALYSIS_HTGR.hepQuantifications.find((quantification) => quantification.hfeId === "HR-PRE-018")?.hep).toEqual({ node: "VALUE", value: { unit: "PROBABILITY", law: { family: "TRUNCATED", law: { family: "LOGNORMAL", mean: 1.5e-3, errorFactor: 6, level: 0.95 }, lower: null, upper: 1 } } });
-    expect(mef.sensitivityWork?.cases?.map((entry) => entry.id)).toEqual(["SC-1", "SS-2-HIGH", "SS-3-LOW", "SS-3-HIGH", "SS-6-HIGH", "SC-4", "SC-5", "SC-6"]);
+    expect(mef.sensitivityWork?.cases?.map((entry) => entry.id)).toEqual(["SC-1", "SC-4", "SC-5", "SC-6"]);
     expect(mef.handoffWork?.responses).toHaveLength(12);
   });
 
@@ -37,7 +39,7 @@ describe("ESQ examples Steps 02 to 10", () => {
     if (!parsed.success) return;
     const mef = parsed.data;
     expect(mef.review?.screened?.map((bound) => bound.groupId)).toEqual(["IE-22", "IE-23", "IEG-DEPENDENCY-DEMO"]);
-    expect(mef.sensitivityWork?.cases?.map((entry) => entry.id)).toEqual(["SC-1", "SS-2-HIGH", "SS-3-LOW", "SS-3-HIGH", "SS-4-LOW", "SS-4-HIGH", "SS-6-HIGH", "SC-4", "SC-5", "SC-6"]);
+    expect(mef.sensitivityWork?.cases?.map((entry) => entry.id)).toEqual(["SC-1", "SC-4", "SC-5", "SC-6"]);
     expect(mef.handoffWork?.responses).toHaveLength(13);
   });
 
@@ -115,8 +117,10 @@ describe("ESQ examples Steps 02 to 10", () => {
     }
   });
 
-  it.each(variants)("links every $name register decision to a case the example holds", ({ esq }) => {
-    const cases = new Set((esq.sensitivityWork?.cases ?? []).map((entry) => entry.id));
+  it.each(variants)("links every $name register decision to a case the example holds or its DA example sets", ({ esq, da }) => {
+    expect((esq.sensitivityWork?.cases ?? []).every((entry) => entry.daCaseRef === undefined)).toBe(true);
+    const daCases = (da.sensitivityCases ?? []).flatMap((entry) => [`${entry.id}-LOW`, `${entry.id}-HIGH`]);
+    const cases = new Set([...(esq.sensitivityWork?.cases ?? []).map((entry) => entry.id), ...daCases]);
     for (const decision of esq.sensitivityWork?.decisions ?? []) {
       for (const caseId of decision.caseIds) expect(cases.has(caseId)).toBe(true);
       if (decision.key === true && decision.caseIds.length === 0) expect(decision.reason.length).toBeGreaterThan(0);
@@ -142,9 +146,9 @@ describe("ESQ examples Steps 02 to 10", () => {
     expect(registerEntryId("ESQ", "SOURCE", "Cavity-cooling duct blockage mode")).not.toBe(registerEntryId("ESQ", "SOURCE", "Graphite-oxidation phenomena model"));
   });
 
-  it.each(variants)("explains why each $name case cannot run before Step 02 imports the model", ({ esq }) => {
+  it.each(variants)("explains why each $name case cannot run before ES and SY are linked", ({ esq }) => {
     for (const entry of esq.sensitivityWork?.cases ?? []) {
-      expect(applySensitivityCase(esq, entry).problem).toBe("Import the model in Step 02 first.");
+      expect(applySensitivityCase(esq, entry).problem).toBe("Link the ES and SY workbooks in Step 01 first.");
     }
   });
 });

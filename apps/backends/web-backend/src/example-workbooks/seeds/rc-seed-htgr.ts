@@ -15,8 +15,10 @@ import {
 import { TechnicalElementTypes } from "interfaces-mef-types/technical-element";
 import { rcMsBoundingMember, rcSourceTermFromMs } from "interfaces-shared-types/rc-workbooks/ms-source-term";
 import { withSourceTermSummary } from "interfaces-shared-types/rc-workbooks/source-term-summary";
+import { rcSavedForm, rcSourceFingerprint, type RcLinkedData } from "interfaces-shared-types/rc-workbooks/linked-data";
 import { MS_ANALYSIS_HTGR } from "./ms-seed-htgr";
 import { ES_ANALYSIS_HTGR } from "./es-seed-htgr";
+import { RI_ANALYSIS_HTGR } from "./ri-seed-htgr";
 import { rcHealthEffectLabel } from "interfaces-shared-types/rc-workbooks/health-input-parser";
 import { nobleGasGroup } from "interfaces-shared-types/rc-workbooks/transport";
 import type { RcTransportSettings } from "interfaces-mef-types/rc/transport";
@@ -90,6 +92,7 @@ const conformanceMatrix: SRConformance[] = Object.keys(RC_SR_CATALOG).flatMap((c
 });
 
 const MS_INVENTORY_IDS = ["SRC-H1", "SRC-H2"];
+const RC_LINKS_HTGR = { ES: "example-es-htgr", MS: "example-ms-htgr", RI: "example-ri-htgr" };
 
 function msCategory(releaseCategory: string, sourceTermDefinitionRef: string, releaseCharacteristics: ReleaseCharacteristics): ReleaseCategoryInputs {
   const definition = MS_ANALYSIS_HTGR.sourceTermDefinitions.find((entry) => entry.uuid === sourceTermDefinitionRef)!;
@@ -98,10 +101,10 @@ function msCategory(releaseCategory: string, sourceTermDefinitionRef: string, re
   return withSourceTermSummary({
     releaseCategory,
     sourceTermDefinitionRef,
-    sourceTerm: { revision: 1, values: converted.values, msSource: { workbookId: "example-ms-htgr", sourceTermId: sourceTermDefinitionRef, inventoryIds: MS_INVENTORY_IDS } },
+    sourceTerm: { revision: rcSourceFingerprint(converted.values), values: converted.values, msSource: { workbookId: RC_LINKS_HTGR.MS, sourceTermId: sourceTermDefinitionRef, inventoryIds: MS_INVENTORY_IDS } },
     eventSequenceFamilyReferences: ES_ANALYSIS_HTGR.eventSequenceFamilies
       .filter((family) => family.releaseCategoryIds?.includes(releaseCategory) === true)
-      .map((family) => ({ referenceType: "EVENT_SEQUENCE_FAMILY" as const, workbookId: "example-es-htgr", entityId: family.uuid })),
+      .map((family) => ({ referenceType: "EVENT_SEQUENCE_FAMILY" as const, workbookId: RC_LINKS_HTGR.ES, entityId: family.uuid })),
     boundingMember: rcMsBoundingMember(MS_ANALYSIS_HTGR, releaseCategory),
     releaseCharacteristics,
   });
@@ -403,7 +406,7 @@ const atmosphericTransportAndDispersion: AtmosphericDispersionAnalysis = {
   parameterUncertaintyCharacterization: "The dry-deposition velocity for the coarse graphite dust, the washout coefficient and the dispersion-coefficient fits are carried as characterized parameter uncertainties. In Step 04 the noble gases deposit at 0 m/s. Tritium also deposits at 0 m/s because the MS source term releases it as tritiated gas. The other groups use the OpenRC default of 0.003 m/s from Etter (2026), printed p. 82, until size-resolved graphite-dust velocities are set.",
   transportInputs: {
     revision: 1,
-    categories: releaseCategoryInputs.map((category) => ({ categoryId: category.releaseCategory, savedForSourceRevision: 1, settings: { decayMode: "parent" as const, groupVelocities: groupVelocities(category) } })),
+    categories: releaseCategoryInputs.map((category) => ({ categoryId: category.releaseCategory, savedForSourceRevision: category.sourceTerm!.revision, settings: { decayMode: "parent" as const, groupVelocities: groupVelocities(category) } })),
     dispersionReference: LIBRARIES.dispersionReference,
     decayFiles: LIBRARIES.standardDecayFiles,
   },
@@ -456,7 +459,7 @@ const dosimetry: DosimetryAnalysis = {
   parameterUncertaintyCharacterization: "The dose-conversion factors, the breathing rate, the tritium dose model and the shielding factors are carried as characterized parameter uncertainties.",
   doseInputs: {
     revision: 1,
-    categories: releaseCategoryInputs.map((category) => ({ categoryId: category.releaseCategory, savedForSourceRevision: 1 })),
+    categories: releaseCategoryInputs.map((category) => ({ categoryId: category.releaseCategory, savedForSourceRevision: category.sourceTerm!.revision })),
     libraries: LIBRARIES.doseLibraries,
   },
   modelUncertainty: {
@@ -839,6 +842,7 @@ const BASE_ANALYSIS: RadiologicalConsequenceAnalysis = {
   workflowHistory: [{ state: "DRAFT", enteredAt: CREATED, actor: "praman" }],
   capabilityCategory: "CC-II",
   plantStage: "PRE_OPERATIONAL",
+  linkedWorkbooks: RC_LINKS_HTGR,
   metadata: {
     versionInfo: { version: "1", lastUpdated: NOW, schemaVersion: "0.0.1" },
     analysisDate: NOW,
@@ -1004,4 +1008,10 @@ const BASE_ANALYSIS: RadiologicalConsequenceAnalysis = {
   newlyDevelopedMethodIds: ["NM-091", "NM-094", "NM-097"],
 };
 
-export const RC_ANALYSIS_HTGR: RadiologicalConsequenceAnalysis = withExampleCaseRecords(BASE_ANALYSIS, ES_ANALYSIS_HTGR, "Generic HTGR", NOW);
+export const RC_LINKED_HTGR: RcLinkedData = {
+  es: { workbookId: RC_LINKS_HTGR.ES, analysis: ES_ANALYSIS_HTGR },
+  ms: { workbookId: RC_LINKS_HTGR.MS, analysis: MS_ANALYSIS_HTGR },
+  ri: { workbookId: RC_LINKS_HTGR.RI, analysis: RI_ANALYSIS_HTGR },
+};
+
+export const RC_ANALYSIS_HTGR: RadiologicalConsequenceAnalysis = rcSavedForm(withExampleCaseRecords(BASE_ANALYSIS, ES_ANALYSIS_HTGR, "Generic HTGR", NOW), RC_LINKED_HTGR);

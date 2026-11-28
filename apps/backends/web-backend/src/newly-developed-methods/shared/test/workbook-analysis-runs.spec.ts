@@ -16,7 +16,11 @@ import type {
   EsqStateRecord,
   EsqTopRecord,
   EsqTreeRecord,
+  EsqTypedInitiator,
+  EventSequenceQuantification,
 } from "interfaces-mef-types/esq/event-sequence-quantification";
+import { esqWithLinkedData } from "interfaces-mef-types/esq/esq-linked-data";
+import type { EsqModelSources } from "interfaces-mef-types/esq/esq-model-import";
 import { isEventTreeBranchState, type EventSequenceAnalysis, type EventTree, type FunctionalEvent } from "interfaces-mef-types/es/event-sequence-analysis";
 import type { DataAnalysis } from "interfaces-mef-types/da/data-analysis";
 import type { HumanReliabilityAnalysis } from "interfaces-mef-types/hr/human-reliability-analysis";
@@ -84,6 +88,7 @@ import {
   HCL_CASE_FAULT_TREE_MODEL_IDS,
   HCL_CASE_FAULT_TREE_TOP_GATE_IDS,
   HCL_CASE_BAYESIAN_IDS,
+  IE_ANALYSIS_HCL,
   SY_ANALYSIS_HCL,
 } from "../../../example-workbooks/seeds/hcl-case-study-seed";
 import {
@@ -104,6 +109,7 @@ import { ES_ANALYSIS } from "../../../example-workbooks/seeds/es-seed";
 import { ES_ANALYSIS_HTGR } from "../../../example-workbooks/seeds/es-seed-htgr";
 import { ESQ_ANALYSIS } from "../../../example-workbooks/seeds/esq-seed";
 import { ESQ_ANALYSIS_HTGR } from "../../../example-workbooks/seeds/esq-seed-htgr";
+import { DA_EXAMPLES } from "../../../example-workbooks/seeds";
 import { DA_ANALYSIS } from "../../../example-workbooks/seeds/da-seed";
 import { DA_ANALYSIS_HTGR } from "../../../example-workbooks/seeds/da-seed-htgr";
 import { HR_ANALYSIS } from "../../../example-workbooks/seeds/hr-seed";
@@ -116,12 +122,14 @@ import { POS_ANALYSIS } from "../../../example-workbooks/seeds/pos-seed";
 import { POS_ANALYSIS_SFR } from "../../../example-workbooks/seeds/pos-seed-sfr";
 import { createBlankSy } from "../../../sy-workbooks/blank-sy";
 import { createBlankDa } from "../../../da-workbooks/blank-da";
+import { createBlankHr } from "../../../hr-workbooks/blank-hr";
 import { DaWorkbook, DaWorkbookSchema } from "../../../da-workbooks/da-workbook.schema";
 import { HrWorkbook, HrWorkbookSchema } from "../../../hr-workbooks/hr-workbook.schema";
 import { SyWorkbook, SyWorkbookSchema } from "../../../sy-workbooks/sy-workbook.schema";
 import { SyWorkbooksController } from "../../../sy-workbooks/sy-workbooks.controller";
 import { SyWorkbooksService } from "../../../sy-workbooks/sy-workbooks.service";
 import { WorkbookModelAccessService } from "../../../workbooks/workbook-model-access.service";
+import { WorkbookElementRegistry } from "../../../workbooks/workbook-element-registry";
 import {
   AnalysisRunRecord,
   AnalysisRunRecordSchema,
@@ -493,6 +501,21 @@ function esqInitiatorsOf(es: EventSequenceAnalysis, trees: readonly EsqTreeRecor
     const members = trees.filter((other) => other.initiatorId === tree.initiatorId);
     const expression = (es.eventTrees ?? []).find((source) => members.some((member) => member.id === source.uuid) && source.initiatingEventFrequency !== undefined)?.initiatingEventFrequency?.expression;
     const record: EsqInitiatorRecord = { id: tree.initiatorId, name: tree.initiatorId, stateIds: [...new Set(textsOf(members.map((member) => member.stateId)))], heldBy: "TYPED" };
+    if (expression !== undefined) record.frequency = { expression: structuredClone(expression), basis: FrequencyUnit.PER_PLANT_YEAR };
+    out.push(record);
+  }
+  return out;
+}
+
+function esqTypedInitiatorsOf(es: EventSequenceAnalysis): EsqTypedInitiator[] {
+  const trees = es.eventTrees ?? [];
+  const out: EsqTypedInitiator[] = [];
+  for (const tree of trees) {
+    const id = textOf(tree.initiatingEventId);
+    if (id === undefined || out.some((record) => record.id === id)) continue;
+    const members = trees.filter((other) => textOf(other.initiatingEventId) === id);
+    const expression = members.find((member) => member.initiatingEventFrequency !== undefined)?.initiatingEventFrequency?.expression;
+    const record: EsqTypedInitiator = { id, name: id, stateIds: [...new Set(textsOf(members.map((member) => member.plantOperatingStateId)))], heldBy: "TYPED" };
     if (expression !== undefined) record.frequency = { expression: structuredClone(expression), basis: FrequencyUnit.PER_PLANT_YEAR };
     out.push(record);
   }
@@ -1084,7 +1107,10 @@ const createEsqMef = () => {
       },
     },
   ];
-  mef.model = esqModelFrom({ es: createEsMef(), esWorkbookId: ES_WORKBOOK_ID, sy: createSyMef(), syWorkbookId: SY_WORKBOOK_ID });
+  const es = createEsMef();
+  mef.model = esqModelFrom({ es, esWorkbookId: ES_WORKBOOK_ID, sy: createSyMef(), syWorkbookId: SY_WORKBOOK_ID });
+  mef.linkedWorkbooks = { ...mef.linkedWorkbooks, ES: ES_WORKBOOK_ID, SY: SY_WORKBOOK_ID };
+  mef.modelDecisions = { ...mef.modelDecisions, typedInitiators: esqTypedInitiatorsOf(es) };
   return mef;
 };
 
@@ -1097,7 +1123,7 @@ const createEsMef = () => {
       initiatingEventId: "initiator-independent",
       initiatingEventFrequency: { expression: perYear(0.01) },
       functionalEvents: {
-        first: {
+        [FE_INDEPENDENT]: {
           uuid: FE_INDEPENDENT,
           name: "OR tree failure",
           order: 0,
@@ -1132,13 +1158,13 @@ const createEsMef = () => {
       initiatingEventId: "initiator-hcl",
       initiatingEventFrequency: { expression: perYear(0.01) },
       functionalEvents: {
-        first: {
+        [FE_HCL_A]: {
           uuid: FE_HCL_A,
           name: "AND tree first use",
           order: 0,
           faultTreeTopEvent: topReference(FT_AND, TOP_AND),
         },
-        second: {
+        [FE_HCL_B]: {
           uuid: FE_HCL_B,
           name: "AND tree second use",
           order: 1,
@@ -1182,6 +1208,110 @@ const createEsMef = () => {
   ];
   return mef;
 };
+
+const createDaMef = () => {
+  const mef = createBlankDa("Controlled probabilities", USERNAME);
+  mef.parameters = [
+    {
+      uuid: DA_PARAMETER_ID,
+      name: "Event A probability",
+      parameterType: "PROBABILITY",
+      quantificationModel: "DEMAND_PROBABILITY",
+      estimate: { node: "VALUE", value: { unit: "PROBABILITY", law: { family: "BETA", alpha: 3, beta: 7, lower: 0, upper: 1 } } },
+      implementsSrs: [],
+    },
+    {
+      uuid: "P-1",
+      name: "Pump fails",
+      parameterType: "PROBABILITY",
+      quantificationModel: "DEMAND_PROBABILITY",
+      estimate: { node: "VALUE", value: { unit: "PROBABILITY", law: { family: "BETA", alpha: 1, beta: 9, lower: 0, upper: 1 } } },
+      implementsSrs: [],
+    },
+    {
+      uuid: "P-IE",
+      name: "Initiator frequency",
+      parameterType: "FREQUENCY",
+      quantificationModel: "FREQUENCY",
+      estimate: { node: "VALUE", value: { unit: "PER_YEAR", law: { family: "GAMMA", shape: 4, rate: 2 } } },
+      implementsSrs: [],
+    },
+  ];
+  return mef;
+};
+
+interface EsFixtureFunction {
+  id: string;
+  name: string;
+  top?: { modelId: string; gateId: string };
+}
+
+interface EsFixtureSequence {
+  id: string;
+  path: Record<string, "SUCCESS" | "FAILURE">;
+  endState: "SUCCESSFUL_MITIGATION" | "RADIONUCLIDE_RELEASE";
+  familyId?: string;
+}
+
+interface EsFixtureTree {
+  id: string;
+  initiatorId: string;
+  stateId: string;
+  functions: EsFixtureFunction[];
+  sequences: EsFixtureSequence[];
+}
+
+interface EsFixtureFamily {
+  id: string;
+  name: string;
+  releaseCategoryIds: string[];
+  endState: "SUCCESSFUL_MITIGATION" | "RADIONUCLIDE_RELEASE";
+}
+
+const createTreesEsMef = (name: string, trees: readonly EsFixtureTree[], families: readonly EsFixtureFamily[] = []): EventSequenceAnalysis => {
+  const mef = createBlankEs(name, USERNAME);
+  const eventId = (treeId: string, functionId: string): string => `${treeId}:${functionId}`;
+  mef.eventTrees = trees.map((tree) => ({
+    uuid: tree.id,
+    name: tree.id,
+    label: tree.id,
+    initiatingEventId: tree.initiatorId,
+    plantOperatingStateId: tree.stateId,
+    functionalEvents: Object.fromEntries(tree.functions.map((entry, order) => [eventId(tree.id, entry.id), {
+      uuid: eventId(tree.id, entry.id),
+      label: entry.id,
+      name: entry.name,
+      order,
+      ...(entry.top === undefined ? {} : { faultTreeTopEvent: topReference(entry.top.modelId, entry.top.gateId) }),
+    }])),
+    sequences: Object.fromEntries(tree.sequences.map((sequence) => [sequence.id, {
+      uuid: sequence.id,
+      name: sequence.id,
+      endState: sequence.endState,
+      functionalEventStates: Object.fromEntries(Object.entries(sequence.path).map(([functionId, state]) => [eventId(tree.id, functionId), state])),
+    }])),
+    endStateIds: { SUCCESSFUL_MITIGATION: SAFE, RADIONUCLIDE_RELEASE: RELEASE },
+    branches: {},
+    initialState: { branchId: "initial" },
+    implementsSrs: [],
+  }));
+  mef.eventSequenceFamilies = families.map((family) => ({
+    uuid: family.id,
+    name: family.name,
+    groupingCriteriaId: "",
+    representativeInitiatingEventId: "",
+    representativePlantOperatingStateId: "",
+    representativePlantResponse: "",
+    releaseCategoryIds: family.releaseCategoryIds,
+    memberSequenceIds: trees.flatMap((tree) => tree.sequences.filter((sequence) => sequence.familyId === family.id).map((sequence) => sequence.id)),
+    endState: family.endState,
+    implementsSrs: [],
+  }));
+  return mef;
+};
+
+const liveEsqOf = (esq: EventSequenceQuantification, sources: EsqModelSources): EventSequenceQuantification =>
+  esqWithLinkedData(esq, sources, (_element, workbookId) => workbookId);
 
 describe("workbook-owned analysis-run APIs", () => {
   let api: INestApplication;
@@ -1239,13 +1369,25 @@ describe("workbook-owned analysis-run APIs", () => {
         { provide: WorkbookModelAccessService, useValue: accessService },
         {
           provide: ProjectsService,
-          useValue: { resolveAccess: jest.fn().mockResolvedValue({ role: "editor" }) },
+          useValue: { resolveAccess: jest.fn().mockResolvedValue({ role: "editor" }), casualAccess: jest.fn().mockResolvedValue(null) },
         },
         { provide: SyWorkbooksService, useValue: {} },
         { provide: EsWorkbooksService, useValue: {} },
         { provide: EsqWorkbooksService, useValue: {} },
         EsqModelRunsService,
-        { provide: ExampleWorkbooksService, useValue: { findBySlug: jest.fn() } },
+        WorkbookElementRegistry,
+        {
+          provide: ExampleWorkbooksService,
+          useValue: {
+            findBySlug: jest.fn((slug: string) => {
+              const variant = DA_EXAMPLES.find((entry) => entry.slug === slug)?.id;
+              const mef = variant === "sfr" ? DA_ANALYSIS : variant === "htgr" ? DA_ANALYSIS_HTGR : variant === "hcl" ? DA_ANALYSIS_HCL : undefined;
+              return mef === undefined ? Promise.reject(new NotFoundException(`Example workbook "${slug}" not found`)) : Promise.resolve({ mef: structuredClone(mef) });
+            }),
+            getIeBundle: jest.fn((variant: string) => Promise.resolve({ ie: { mef: structuredClone(variant === "hcl" ? IE_ANALYSIS_HCL : variant === "sfr" ? IE_ANALYSIS_SFR : IE_ANALYSIS) } })),
+            getPosBundle: jest.fn((variant: string) => Promise.resolve({ pos: { mef: structuredClone(variant === "sfr" ? POS_ANALYSIS_SFR : POS_ANALYSIS) } })),
+          },
+        },
       ],
     })
       .overrideGuard(JwtAuthGuard)
@@ -1314,39 +1456,12 @@ describe("workbook-owned analysis-run APIs", () => {
       revision: 4,
       mef: controlledSy,
     });
-    const da = createBlankDa("Controlled probabilities", USERNAME);
-    da.parameters = [
-      {
-        uuid: DA_PARAMETER_ID,
-        name: "Event A probability",
-        parameterType: "PROBABILITY",
-        quantificationModel: "DEMAND_PROBABILITY",
-        estimate: { node: "VALUE", value: { unit: "PROBABILITY", law: { family: "BETA", alpha: 3, beta: 7, lower: 0, upper: 1 } } },
-        implementsSrs: [],
-      },
-      {
-        uuid: "P-1",
-        name: "Pump fails",
-        parameterType: "PROBABILITY",
-        quantificationModel: "DEMAND_PROBABILITY",
-        estimate: { node: "VALUE", value: { unit: "PROBABILITY", law: { family: "BETA", alpha: 1, beta: 9, lower: 0, upper: 1 } } },
-        implementsSrs: [],
-      },
-      {
-        uuid: "P-IE",
-        name: "Initiator frequency",
-        parameterType: "FREQUENCY",
-        quantificationModel: "FREQUENCY",
-        estimate: { node: "VALUE", value: { unit: "PER_YEAR", law: { family: "GAMMA", shape: 4, rate: 2 } } },
-        implementsSrs: [],
-      },
-    ];
     await daWorkbooks.create({
       workbookId: DA_WORKBOOK_ID,
       projectId: PROJECT_ID,
       ownerUsername: USERNAME,
       revision: 6,
-      mef: da,
+      mef: createDaMef(),
     });
     const hclCaseSystems = reconcileExampleSyDataAnalysisReferences(structuredClone(SY_ANALYSIS_HCL), DA_ANALYSIS_HCL, HCL_CASE_DA_WORKBOOK_ID);
     await moduleRef.get<Model<unknown>>(getModelToken(DaWorkbook.name)).create({
@@ -2621,41 +2736,28 @@ describe("workbook-owned analysis-run APIs", () => {
 
   const perYear = (value: number): UncertainExpression => ({ node: "VALUE", value: { unit: "PER_YEAR", law: { family: "POINT", value } } });
 
-  it("runs an ESQ event tree from its Step 02 snapshot and applies Step 03 flags", async () => {
+  it("runs an ESQ event tree from its linked workbooks and applies Step 03 flags", async () => {
     const workbookId = "esq-logic-runs";
-    const sy = createSyMef();
-    const esq = createBlankEsq("Logic runs", USERNAME);
-    esq.model = {
-      importedAt: "2026-10-05T12:00:00.000Z",
-      sources: [{ element: "SY", workbookId: SY_WORKBOOK_ID, workbookName: "Run fixtures" }],
-      trees: [{ id: "ET-1", code: "ET-1", name: "Tree", initiatorId: "IE-1", stateId: "S-1", functionIds: ["F-OR", "F-AND"], transferEntry: false }],
-      sequences: [
-        { id: "Q-1", code: "Q-1", treeId: "ET-1", path: { "F-OR": "SUCCESS", "F-AND": "SUCCESS" }, endState: "SUCCESSFUL_MITIGATION" },
-        { id: "Q-2", code: "Q-2", treeId: "ET-1", path: { "F-OR": "SUCCESS", "F-AND": "FAILURE" }, endState: "RADIONUCLIDE_RELEASE" },
-        { id: "Q-3", code: "Q-3", treeId: "ET-1", path: { "F-OR": "FAILURE" }, endState: "RADIONUCLIDE_RELEASE" },
-      ],
-      families: [],
+    const esId = "es-logic-runs";
+    const tree = (linked: boolean): EsFixtureTree => ({
+      id: "ET-1",
+      initiatorId: "IE-1",
+      stateId: "S-1",
       functions: [
-        { id: "F-OR", name: "Either", treeIds: ["ET-1"], esLinks: [{ treeId: "ET-1", top: { workbookId: SY_WORKBOOK_ID, modelId: FT_OR, gateId: TOP_OR } }] },
-        { id: "F-AND", name: "Both", treeIds: ["ET-1"], esLinks: [{ treeId: "ET-1", top: { workbookId: SY_WORKBOOK_ID, modelId: FT_AND, gateId: TOP_AND } }] },
+        { id: "F-OR", name: "Either", ...(linked ? { top: { modelId: FT_OR, gateId: TOP_OR } } : {}) },
+        { id: "F-AND", name: "Both", ...(linked ? { top: { modelId: FT_AND, gateId: TOP_AND } } : {}) },
       ],
-      tops: sy.systemLogicModels.map((model) => ({
-        modelId: model.uuid,
-        gateId: model.topGate?.gateId ?? "",
-        code: model.code,
-        name: model.name,
-        eventIds: systemFaultTreeBasicEventIds(model),
-        transferModelIds: model.leafNodes.flatMap((leaf) => (leaf.kind === "TRANSFER_REFERENCE" ? [leaf.target.modelId] : [])),
-        gates: model.gates.map((gate) => ({ id: gate.id, code: gate.code, name: gate.name })),
-        houseEvents: model.leafNodes.flatMap((leaf) => (leaf.kind === "HOUSE_EVENT" ? [{ id: leaf.id, code: leaf.code, name: leaf.name, state: leaf.state }] : [])),
-      })),
-      initiators: [{ id: "IE-1", name: "Initiator", stateIds: ["S-1"], frequency: { expression: perYear(2), basis: FrequencyUnit.PER_PLANT_YEAR } }],
-      states: [{ id: "S-1", name: "Power", hours: 8000 }],
-      events: sy.systemBasicEvents.map((event) => ({ id: event.uuid, code: event.code, name: event.name, heldBy: "TYPED", expression: event.expression })),
-      ccfGroups: [],
-      parameters: [],
-      humanEvents: [],
-    };
+      sequences: [
+        { id: "Q-1", path: { "F-OR": "SUCCESS", "F-AND": "SUCCESS" }, endState: "SUCCESSFUL_MITIGATION" },
+        { id: "Q-2", path: { "F-OR": "SUCCESS", "F-AND": "FAILURE" }, endState: "RADIONUCLIDE_RELEASE" },
+        { id: "Q-3", path: { "F-OR": "FAILURE" }, endState: "RADIONUCLIDE_RELEASE" },
+      ],
+    });
+    const esWorkbooks = api.get<Model<unknown>>(getModelToken(EsWorkbook.name));
+    await esWorkbooks.create({ workbookId: esId, projectId: PROJECT_ID, ownerUsername: USERNAME, revision: 1, mef: createTreesEsMef("Logic runs", [tree(true)]) });
+    const esq = createBlankEsq("Logic runs", USERNAME);
+    esq.linkedWorkbooks = { ...esq.linkedWorkbooks, ES: esId, SY: SY_WORKBOOK_ID };
+    esq.modelDecisions = { ...esq.modelDecisions, typedInitiators: [{ id: "IE-1", name: "Initiator", stateIds: ["S-1"], frequency: { expression: perYear(2), basis: FrequencyUnit.PER_PLANT_YEAR } }] };
     const esqWorkbooks = api.get<Model<EsqWorkbookDocument>>(getModelToken(EsqWorkbook.name));
     await esqWorkbooks.create({ workbookId, projectId: PROJECT_ID, ownerUsername: USERNAME, revision: 2, mef: esq });
     const asSet: EsqEventTreeRunLogic = { flags: true, loopBreaks: "AS_SET", exclusions: true, expandCcf: true };
@@ -2703,32 +2805,21 @@ describe("workbook-owned analysis-run APIs", () => {
       expect.objectContaining({ conditionalProbability: expect.closeTo(0.28, 12) }),
     ]);
 
-    const model = flaggedMef.model;
-    if (model === undefined) throw new Error("fixture has no model");
-    await esqWorkbooks.updateOne({ workbookId }, { $set: { revision: 4, mef: { ...flaggedMef, model: { ...model, functions: [] } } } }).exec();
+    await esWorkbooks.updateOne({ workbookId: esId }, { $set: { mef: createTreesEsMef("Logic runs", [tree(false)]) } }).exec();
+    await esqWorkbooks.updateOne({ workbookId }, { $set: { revision: 4 } }).exec();
     const unlinked = await run(asSet, 4);
     expect(unlinked.status).toBe(400);
-    expect(unlinked.body.message).toBe("F-OR in ET-1 is not linked. Link it in Step 02.");
+    expect(unlinked.body.message).toBe("Either in ET-1 is not linked. Link it in Step 02.");
   }, 120_000);
 
   it("runs a Step 04 load and capacity cell through PRAXIS", async () => {
     const workbookId = "esq-barrier-cells";
+    const daId = "da-barrier-cells";
+    const da = createBlankDa("Barrier cells", USERNAME);
+    da.parameters = [{ uuid: "P-WIN", name: "Time to the fuel limit", parameterType: "OTHER", quantificationModel: "OTHER_PROBABILITY", estimate: { node: "VALUE", value: { unit: "QUANTITY", law: { family: "LOGNORMAL", mean: 33.74468539677077, errorFactor: 1.287, level: 0.95 } } }, implementsSrs: [] }];
+    await daWorkbooks.create({ workbookId: daId, projectId: PROJECT_ID, ownerUsername: USERNAME, revision: 1, mef: da });
     const esq = createBlankEsq("Barrier cells", USERNAME);
-    esq.model = {
-      importedAt: "2026-10-05T12:00:00.000Z",
-      sources: [],
-      trees: [],
-      sequences: [],
-      families: [],
-      functions: [],
-      tops: [],
-      initiators: [],
-      states: [],
-      events: [],
-      ccfGroups: [],
-      parameters: [{ id: "P-WIN", name: "Time to the fuel limit", parameterType: "OTHER", quantificationModel: "OTHER_PROBABILITY", estimate: { node: "VALUE", value: { unit: "QUANTITY", law: { family: "LOGNORMAL", mean: 33.74468539677077, errorFactor: 1.287, level: 0.95 } } } }],
-      humanEvents: [],
-    };
+    esq.linkedWorkbooks = { ...esq.linkedWorkbooks, DA: daId };
     const cell = { barrierId: "Fuel coating", modeId: "FM-1", familyId: "F-REL", mechanismIds: [], basis: "REALISTIC" as const, use: "SPLIT_FRACTION" as const };
     esq.barrierWork = {
       barriers: [{ barrierId: "Fuel coating", modes: [{ id: "FM-1", name: "Coating failure", kind: "GROSS", location: "Core" }] }],
@@ -2796,49 +2887,34 @@ describe("workbook-owned analysis-run APIs", () => {
 
   it("solves every Step 05 tree in one model run and sums the families across trees", async () => {
     const workbookId = "esq-model-runs";
+    const esId = "es-model-runs";
     const sy = createSyMef();
-    const esq = createBlankEsq("Model runs", USERNAME);
-    const tree = (id: string, initiatorId: string, stateId: string) => ({ id, code: id, name: id, initiatorId, stateId, functionIds: ["F-OR", "F-AND"], transferEntry: false });
-    const sequences = (treeId: string, prefix: string): EsqSequenceRecord[] => [
-      { id: `${prefix}-1`, code: `${prefix}-1`, treeId, path: { "F-OR": "SUCCESS", "F-AND": "SUCCESS" }, endState: "SUCCESSFUL_MITIGATION", familyId: "F-OK" },
-      { id: `${prefix}-2`, code: `${prefix}-2`, treeId, path: { "F-OR": "SUCCESS", "F-AND": "FAILURE" }, endState: "RADIONUCLIDE_RELEASE", familyId: "F-REL" },
-      { id: `${prefix}-3`, code: `${prefix}-3`, treeId, path: { "F-OR": "FAILURE" }, endState: "RADIONUCLIDE_RELEASE", familyId: "F-REL" },
-    ];
-    const link = (functionId: string, modelId: string, gateId: string) => ({
-      id: functionId,
-      name: functionId,
-      treeIds: ["ET-1", "ET-2", "ET-3"],
-      esLinks: ["ET-1", "ET-2", "ET-3"].map((treeId) => ({ treeId, top: { workbookId: SY_WORKBOOK_ID, modelId, gateId } })),
-    });
-    esq.model = {
-      importedAt: "2026-10-05T12:00:00.000Z",
-      sources: [{ element: "SY", workbookId: SY_WORKBOOK_ID, workbookName: "Run fixtures" }],
-      trees: [tree("ET-1", "IE-1", "S-1"), tree("ET-2", "IE-1", "S-2"), tree("ET-3", "IE-2", "S-1")],
-      sequences: [...sequences("ET-1", "Q"), ...sequences("ET-2", "R"), ...sequences("ET-3", "T")],
-      families: [
-        { id: "F-OK", name: "Safe", releaseCategoryIds: [] },
-        { id: "F-REL", name: "Release", releaseCategoryIds: ["RC-1"] },
+    const tree = (id: string, initiatorId: string, stateId: string, prefix: string): EsFixtureTree => ({
+      id,
+      initiatorId,
+      stateId,
+      functions: [{ id: "F-OR", name: "F-OR", top: { modelId: FT_OR, gateId: TOP_OR } }, { id: "F-AND", name: "F-AND", top: { modelId: FT_AND, gateId: TOP_AND } }],
+      sequences: [
+        { id: `${prefix}-1`, path: { "F-OR": "SUCCESS", "F-AND": "SUCCESS" }, endState: "SUCCESSFUL_MITIGATION", familyId: "F-OK" },
+        { id: `${prefix}-2`, path: { "F-OR": "SUCCESS", "F-AND": "FAILURE" }, endState: "RADIONUCLIDE_RELEASE", familyId: "F-REL" },
+        { id: `${prefix}-3`, path: { "F-OR": "FAILURE" }, endState: "RADIONUCLIDE_RELEASE", familyId: "F-REL" },
       ],
-      functions: [link("F-OR", FT_OR, TOP_OR), link("F-AND", FT_AND, TOP_AND)],
-      tops: sy.systemLogicModels.map((model) => ({
-        modelId: model.uuid,
-        gateId: model.topGate?.gateId ?? "",
-        code: model.code,
-        name: model.name,
-        eventIds: systemFaultTreeBasicEventIds(model),
-        transferModelIds: model.leafNodes.flatMap((leaf) => (leaf.kind === "TRANSFER_REFERENCE" ? [leaf.target.modelId] : [])),
-        gates: model.gates.map((gate) => ({ id: gate.id, code: gate.code, name: gate.name })),
-        houseEvents: model.leafNodes.flatMap((leaf) => (leaf.kind === "HOUSE_EVENT" ? [{ id: leaf.id, code: leaf.code, name: leaf.name, state: leaf.state }] : [])),
-      })),
-      initiators: [
+    });
+    const es = createTreesEsMef("Model runs", [tree("ET-1", "IE-1", "S-1", "Q"), tree("ET-2", "IE-1", "S-2", "R"), tree("ET-3", "IE-2", "S-1", "T")], [
+      { id: "F-OK", name: "Safe", releaseCategoryIds: [], endState: "SUCCESSFUL_MITIGATION" },
+      { id: "F-REL", name: "Release", releaseCategoryIds: ["RC-1"], endState: "RADIONUCLIDE_RELEASE" },
+    ]);
+    await api.get<Model<unknown>>(getModelToken(EsWorkbook.name)).create({ workbookId: esId, projectId: PROJECT_ID, ownerUsername: USERNAME, revision: 1, mef: es });
+    const esq = createBlankEsq("Model runs", USERNAME);
+    esq.linkedWorkbooks = { ...esq.linkedWorkbooks, ES: esId, SY: SY_WORKBOOK_ID };
+    esq.quantificationPlan = { ...esq.quantificationPlan, stateWeighting: { value: "TYPED_SHARES" } };
+    esq.modelDecisions = {
+      ...esq.modelDecisions,
+      typedInitiators: [
         { id: "IE-1", name: "Initiator", stateIds: ["S-1", "S-2"], frequency: { expression: perYear(2), basis: FrequencyUnit.PER_PLANT_YEAR } },
         { id: "IE-2", name: "Unquantified initiator", stateIds: ["S-1"] },
       ],
-      states: [{ id: "S-1", name: "Power", hours: 6000 }, { id: "S-2", name: "Shutdown", hours: 2000 }],
-      events: sy.systemBasicEvents.map((event) => ({ id: event.uuid, code: event.code, name: event.name, heldBy: "TYPED", expression: event.expression })),
-      ccfGroups: [],
-      parameters: [],
-      humanEvents: [],
+      initiatorChoices: [{ groupId: "IE-1", source: "IE", shares: [{ stateId: "S-1", percent: 75 }, { stateId: "S-2", percent: 25 }] }],
     };
     const esqWorkbooks = api.get<Model<EsqWorkbookDocument>>(getModelToken(EsqWorkbook.name));
     await esqWorkbooks.create({ workbookId, projectId: PROJECT_ID, ownerUsername: USERNAME, revision: 2, mef: esq });
@@ -2857,14 +2933,17 @@ describe("workbook-owned analysis-run APIs", () => {
       scope: "BATCH",
       failure: { code: "ESQ_MODEL_RUN_FAILED", message: "1 of 3 event trees could not be built. ET-3: ET-3 has no initiator frequency. Complete the Initiators tab of Step 02." },
     });
-    esq.model!.initiators[1] = { ...esq.model!.initiators[1]!, frequency: { expression: perYear(1), basis: FrequencyUnit.PER_PLANT_YEAR } };
+    esq.modelDecisions = {
+      ...esq.modelDecisions,
+      typedInitiators: (esq.modelDecisions?.typedInitiators ?? []).map((record) => (record.id === "IE-2" ? { ...record, frequency: { expression: perYear(1), basis: FrequencyUnit.PER_PLANT_YEAR } } : record)),
+    };
     await esqWorkbooks.updateOne({ workbookId }, { $set: { mef: esq } }).exec();
 
     const exact = await run({ calculation: "EXACT" });
     expect(exact.status).toBe(200);
     expect(exact.body.run).toMatchObject({ status: "SUCCEEDED", scope: "BATCH", methodType: "EVENT_TREE", owner: { workbookId, modelId: esqModelRunId(), workbookRevision: 2 } });
     const exactSummary = await summaryOf(exact.body.run.id);
-    expect(exactSummary).toMatchObject({ kind: "ESQ_MODEL_RUN", calculation: "EXACT", cutSets: null, peakProbability: null, inputs: solveInputsKey(esq) });
+    expect(exactSummary).toMatchObject({ kind: "ESQ_MODEL_RUN", calculation: "EXACT", cutSets: null, peakProbability: null, inputs: solveInputsKey(liveEsqOf(esq, { es, sy })) });
     expect(exactSummary.trees).toEqual([
       expect.objectContaining({ treeId: "ET-1", status: "SUCCEEDED", initiatorFrequency: 1.5, failure: null }),
       expect.objectContaining({ treeId: "ET-2", status: "SUCCEEDED", initiatorFrequency: 0.5, failure: null }),
@@ -2943,43 +3022,43 @@ describe("workbook-owned analysis-run APIs", () => {
 
   it("searches HFE combinations, checks deletions and applies Step 06 rules as logic", async () => {
     const workbookId = "esq-post-runs";
-    const sy = createSyMef();
-    const esq = createBlankEsq("Post runs", USERNAME);
-    esq.model = {
-      importedAt: "2026-10-05T12:00:00.000Z",
-      sources: [{ element: "SY", workbookId: SY_WORKBOOK_ID, workbookName: "Run fixtures" }],
-      trees: [{ id: "ET-1", code: "ET-1", name: "Tree", initiatorId: "IE-1", stateId: "S-1", functionIds: ["F-AND"], transferEntry: false }],
+    const esId = "es-post-runs";
+    const syId = "sy-post-runs";
+    const hrId = "hr-post-runs";
+    const es = createTreesEsMef("Post runs", [{
+      id: "ET-1",
+      initiatorId: "IE-1",
+      stateId: "S-1",
+      functions: [{ id: "F-AND", name: "Both", top: { modelId: FT_AND, gateId: TOP_AND } }],
       sequences: [
-        { id: "Q-1", code: "Q-1", treeId: "ET-1", path: { "F-AND": "SUCCESS" }, endState: "SUCCESSFUL_MITIGATION", familyId: "F-OK" },
-        { id: "Q-2", code: "Q-2", treeId: "ET-1", path: { "F-AND": "FAILURE" }, endState: "RADIONUCLIDE_RELEASE", familyId: "F-REL" },
+        { id: "Q-1", path: { "F-AND": "SUCCESS" }, endState: "SUCCESSFUL_MITIGATION", familyId: "F-OK" },
+        { id: "Q-2", path: { "F-AND": "FAILURE" }, endState: "RADIONUCLIDE_RELEASE", familyId: "F-REL" },
       ],
-      families: [{ id: "F-OK", name: "Safe", releaseCategoryIds: [] }, { id: "F-REL", name: "Release", releaseCategoryIds: [] }],
-      functions: [{ id: "F-AND", name: "Both", treeIds: ["ET-1"], esLinks: [{ treeId: "ET-1", top: { workbookId: SY_WORKBOOK_ID, modelId: FT_AND, gateId: TOP_AND } }] }],
-      tops: sy.systemLogicModels.map((model) => ({
-        modelId: model.uuid,
-        gateId: model.topGate?.gateId ?? "",
-        code: model.code,
-        name: model.name,
-        eventIds: systemFaultTreeBasicEventIds(model),
-        transferModelIds: model.leafNodes.flatMap((leaf) => (leaf.kind === "TRANSFER_REFERENCE" ? [leaf.target.modelId] : [])),
-        gates: model.gates.map((gate) => ({ id: gate.id, code: gate.code, name: gate.name })),
-        houseEvents: model.leafNodes.flatMap((leaf) => (leaf.kind === "HOUSE_EVENT" ? [{ id: leaf.id, code: leaf.code, name: leaf.name, state: leaf.state }] : [])),
-      })),
-      initiators: [{ id: "IE-1", name: "Initiator", stateIds: ["S-1"], frequency: { expression: perYear(2), basis: FrequencyUnit.PER_PLANT_YEAR } }],
-      states: [{ id: "S-1", name: "Power", hours: 8000 }],
-      events: sy.systemBasicEvents.map((event) => {
-        if (event.uuid === EVENT_A) return { id: event.uuid, code: event.code, name: event.name, heldBy: "HRA" as const, holderId: "H-A" };
-        if (event.uuid === EVENT_B) return { id: event.uuid, code: event.code, name: event.name, heldBy: "HRA" as const, holderId: "H-B" };
-        return { id: event.uuid, code: event.code, name: event.name, heldBy: "TYPED" as const, expression: event.expression };
-      }),
-      ccfGroups: [],
-      parameters: [],
-      humanEvents: [
-        { id: "H-A", name: "Operator fails to start A", timing: "POST_INITIATOR", hep: { node: "VALUE", value: { unit: "PROBABILITY", law: { family: "POINT", value: 0.1 } } }, riskSignificant: false, distributionGiven: false },
-        { id: "H-B", name: "Operator fails to start B", timing: "POST_INITIATOR", hep: { node: "VALUE", value: { unit: "PROBABILITY", law: { family: "POINT", value: 0.2 } } }, riskSignificant: false, distributionGiven: false },
-      ],
-      jointFloor: { id: "JHF-1", value: 1e-5, justification: "Floor." },
-    };
+    }], [
+      { id: "F-OK", name: "Safe", releaseCategoryIds: [], endState: "SUCCESSFUL_MITIGATION" },
+      { id: "F-REL", name: "Release", releaseCategoryIds: [], endState: "RADIONUCLIDE_RELEASE" },
+    ]);
+    const heps = new Map([[EVENT_A, { hfeId: "H-A", hep: 0.1 }], [EVENT_B, { hfeId: "H-B", hep: 0.2 }]]);
+    const sy = createSyMef();
+    sy.systemBasicEvents = sy.systemBasicEvents.map((event) => {
+      const human = heps.get(event.uuid);
+      if (human === undefined) return event;
+      const { expression: _expression, ...rest } = event;
+      return { ...rest, failureMode: "HUMAN_ERROR", probability: human.hep, controlledDataSource: { referenceType: "HUMAN_FAILURE_EVENT", workbookId: hrId, entityId: human.hfeId, quantificationId: `Q-${human.hfeId}` } };
+    });
+    const humanEvent = (uuid: string, name: string) => ({ uuid, name, hfeTiming: "POST_INITIATOR" as const, description: name, impactLevel: "COMPONENT" as const, affectedSystems: [], applicablePlantOperatingStates: ["S-1"], implementsSrs: [] });
+    const quantification = (uuid: string, hfeId: string, value: number) => ({ uuid, hfeId, methodology: "THERP", assessmentType: "DETAILED_ASSESSMENT" as const, isRiskSignificant: false, hep: pointProbability(value), implementsSrs: [] });
+    const hr = createBlankHr("Post runs", USERNAME);
+    hr.humanFailureEvents = [humanEvent("H-A", "Operator fails to start A"), humanEvent("H-B", "Operator fails to start B")];
+    hr.hepQuantifications = [quantification("Q-H-A", "H-A", 0.1), quantification("Q-H-B", "H-B", 0.2)];
+    hr.jointHepFloor = { uuid: "JHF-1", minimumJointProbability: 1e-5, justification: "Floor.", implementsSrs: [] };
+    const hrWorkbooks = api.get<Model<unknown>>(getModelToken(HrWorkbook.name));
+    await api.get<Model<unknown>>(getModelToken(EsWorkbook.name)).create({ workbookId: esId, projectId: PROJECT_ID, ownerUsername: USERNAME, revision: 1, mef: es });
+    await syWorkbooks.create({ workbookId: syId, projectId: PROJECT_ID, ownerUsername: USERNAME, revision: 1, mef: sy });
+    await hrWorkbooks.create({ workbookId: hrId, projectId: PROJECT_ID, ownerUsername: USERNAME, revision: 1, mef: hr });
+    const esq = createBlankEsq("Post runs", USERNAME);
+    esq.linkedWorkbooks = { ...esq.linkedWorkbooks, ES: esId, SY: syId, HRA: hrId };
+    esq.modelDecisions = { ...esq.modelDecisions, typedInitiators: [{ id: "IE-1", name: "Initiator", stateIds: ["S-1"], frequency: { expression: perYear(2), basis: FrequencyUnit.PER_PLANT_YEAR } }] };
     const esqWorkbooks = api.get<Model<EsqWorkbookDocument>>(getModelToken(EsqWorkbook.name));
     await esqWorkbooks.create({ workbookId, projectId: PROJECT_ID, ownerUsername: USERNAME, revision: 2, mef: esq });
     const logic: EsqEventTreeRunLogic = { flags: true, loopBreaks: "AS_SET", exclusions: true, expandCcf: true, recovery: true, dependency: true };
@@ -2997,7 +3076,7 @@ describe("workbook-owned analysis-run APIs", () => {
     expect(search.status).toBe(200);
     expect(search.body.run).toMatchObject({ status: "SUCCEEDED", scope: "BATCH", owner: { modelId: esqPostRunId() } });
     const searched = await postResult(search.body.run.id);
-    expect(searched).toMatchObject({ kind: "ESQ_POST_RUN", purpose: "COMBINATIONS", raisedHep: 0.8, cutOff: 1e-12, inputs: solveInputsKey(esq, { combinations: false }) });
+    expect(searched).toMatchObject({ kind: "ESQ_POST_RUN", purpose: "COMBINATIONS", raisedHep: 0.8, cutOff: 1e-12, inputs: solveInputsKey(liveEsqOf(esq, { es, sy, hr }), { combinations: false }) });
     expect(searched.combinations).toEqual([{ eventIds: [EVENT_A, EVENT_B].sort(), treeIds: ["ET-1"], cutSetCount: 1, nominalFrequency: expect.closeTo(0.04, 12) }]);
 
     const excluded = { ...esq, logic: { exclusions: [{ id: "EX-1", eventIds: [EVENT_A, EVENT_B], basis: "Never in maintenance together." }] } };
@@ -3013,11 +3092,14 @@ describe("workbook-owned analysis-run APIs", () => {
     expect(await release(withJoint.body.run.id)).toBeCloseTo(0.1, 12);
     expect(await release((await model(4, { ...logic, dependency: false })).body.run.id)).toBeCloseTo(0.04, 12);
 
-    const recovered = {
-      ...esq,
-      model: { ...esq.model, recoveries: [{ id: "REC-A", name: "Restart A", hfeId: "H-A", level: "SEQUENCE" as const, sequenceIds: [], hep: { node: "VALUE" as const, value: { unit: "PROBABILITY" as const, law: { family: "POINT" as const, value: 0.5 } } }, feasibility: { procedure: true, training: true, cues: true, crew: true, time: true, access: true, equipment: true } }] },
-      postWork: { recoveries: [{ id: "REC-A", groupIds: [], stateIds: [], credited: true, basis: "Remote start." }] },
+    const feasibility = { procedureOrGuidanceAvailable: true, trainingIncluded: true, cuesAvailable: true, manpowerAvailable: true, timeAvailable: true, accessibilityConfirmed: true, equipmentAvailable: true };
+    const recoveredHr = {
+      ...hr,
+      hepQuantifications: [...hr.hepQuantifications, quantification("Q-REC-A", "H-A", 0.5)],
+      recoveryActions: [{ uuid: "REC-A", name: "Restart A", hfeId: "H-A", appliedAtLevel: "SEQUENCE" as const, restoredFunction: "Start A", appliedToSequenceIds: [], feasibility, hepQuantificationId: "Q-REC-A", implementsSrs: [] }],
     };
+    await hrWorkbooks.updateOne({ workbookId: hrId }, { $set: { mef: recoveredHr } }).exec();
+    const recovered = { ...esq, postWork: { recoveries: [{ id: "REC-A", groupIds: [], stateIds: [], credited: true, basis: "Remote start." }] } };
     await esqWorkbooks.updateOne({ workbookId }, { $set: { revision: 5, mef: recovered } }).exec();
     expect(await release((await model(5, logic)).body.run.id)).toBeCloseTo(0.02, 12);
     expect(await release((await model(5, { ...logic, recovery: false })).body.run.id)).toBeCloseTo(0.04, 12);
@@ -3025,46 +3107,38 @@ describe("workbook-owned analysis-run APIs", () => {
 
   it("ranks importance, samples paired families and runs sensitivity cases through PRAXIS", async () => {
     const workbookId = "esq-measure-runs";
-    const sy = createSyMef();
-    const esq = createBlankEsq("Measure runs", USERNAME);
+    const esId = "es-measure-runs";
+    const syId = "sy-measure-runs";
     const pumpALaw: UncertainExpression = { node: "VALUE", value: { unit: "PROBABILITY", law: { family: "BETA", alpha: 1, beta: 9, lower: 0, upper: 1 } } };
     const pumpBLaw: UncertainExpression = { node: "VALUE", value: { unit: "PROBABILITY", law: { family: "BETA", alpha: 2, beta: 8, lower: 0, upper: 1 } } };
-    esq.linkedWorkbooks = { ...esq.linkedWorkbooks, DA: DA_WORKBOOK_ID };
-    esq.model = {
-      importedAt: "2026-10-05T12:00:00.000Z",
-      sources: [{ element: "SY", workbookId: SY_WORKBOOK_ID, workbookName: "Run fixtures" }],
-      trees: [{ id: "ET-1", code: "ET-1", name: "Tree", initiatorId: "IE-1", stateId: "S-1", functionIds: ["F-OR", "F-AND"], transferEntry: false }],
+    const es = createTreesEsMef("Measure runs", [{
+      id: "ET-1",
+      initiatorId: "IE-1",
+      stateId: "S-1",
+      functions: [{ id: "F-OR", name: "Either", top: { modelId: FT_OR, gateId: TOP_OR } }, { id: "F-AND", name: "Both", top: { modelId: FT_AND, gateId: TOP_AND } }],
       sequences: [
-        { id: "Q-1", code: "Q-1", treeId: "ET-1", path: { "F-OR": "SUCCESS", "F-AND": "SUCCESS" }, endState: "SUCCESSFUL_MITIGATION", familyId: "F-OK" },
-        { id: "Q-2", code: "Q-2", treeId: "ET-1", path: { "F-OR": "SUCCESS", "F-AND": "FAILURE" }, endState: "RADIONUCLIDE_RELEASE", familyId: "F-REL" },
-        { id: "Q-3", code: "Q-3", treeId: "ET-1", path: { "F-OR": "FAILURE" }, endState: "RADIONUCLIDE_RELEASE", familyId: "F-REL" },
+        { id: "Q-1", path: { "F-OR": "SUCCESS", "F-AND": "SUCCESS" }, endState: "SUCCESSFUL_MITIGATION", familyId: "F-OK" },
+        { id: "Q-2", path: { "F-OR": "SUCCESS", "F-AND": "FAILURE" }, endState: "RADIONUCLIDE_RELEASE", familyId: "F-REL" },
+        { id: "Q-3", path: { "F-OR": "FAILURE" }, endState: "RADIONUCLIDE_RELEASE", familyId: "F-REL" },
       ],
-      families: [{ id: "F-OK", name: "Safe", releaseCategoryIds: [] }, { id: "F-REL", name: "Release", releaseCategoryIds: ["RC-1"] }],
-      functions: [
-        { id: "F-OR", name: "Either", treeIds: ["ET-1"], esLinks: [{ treeId: "ET-1", top: { workbookId: SY_WORKBOOK_ID, modelId: FT_OR, gateId: TOP_OR } }] },
-        { id: "F-AND", name: "Both", treeIds: ["ET-1"], esLinks: [{ treeId: "ET-1", top: { workbookId: SY_WORKBOOK_ID, modelId: FT_AND, gateId: TOP_AND } }] },
-      ],
-      tops: sy.systemLogicModels.map((model) => ({
-        modelId: model.uuid,
-        gateId: model.topGate?.gateId ?? "",
-        code: model.code,
-        name: model.name,
-        eventIds: systemFaultTreeBasicEventIds(model),
-        transferModelIds: model.leafNodes.flatMap((leaf) => (leaf.kind === "TRANSFER_REFERENCE" ? [leaf.target.modelId] : [])),
-        gates: model.gates.map((gate) => ({ id: gate.id, code: gate.code, name: gate.name })),
-        houseEvents: model.leafNodes.flatMap((leaf) => (leaf.kind === "HOUSE_EVENT" ? [{ id: leaf.id, code: leaf.code, name: leaf.name, state: leaf.state }] : [])),
-      })),
-      initiators: [{ id: "IE-1", name: "Initiator", stateIds: ["S-1"], frequency: { expression: perYear(2), basis: FrequencyUnit.PER_PLANT_YEAR } }],
-      states: [{ id: "S-1", name: "Power", hours: 8000 }],
-      events: sy.systemBasicEvents.map((event) => {
-        if (event.uuid === EVENT_A) return { id: event.uuid, code: event.code, name: event.name, heldBy: "DA" as const, holderId: "P-1", systemId: "SYS-1", systemName: "Cooling" };
-        if (event.uuid === EVENT_B) return { id: event.uuid, code: event.code, name: event.name, heldBy: "TYPED" as const, expression: pumpBLaw, systemId: "SYS-1", systemName: "Cooling" };
-        return { id: event.uuid, code: event.code, name: event.name, heldBy: "TYPED" as const, expression: event.expression };
-      }),
-      ccfGroups: [],
-      parameters: [{ id: "P-1", name: "Pump fails", parameterType: "PROBABILITY", quantificationModel: "DEMAND_PROBABILITY", estimate: pumpALaw }],
-      humanEvents: [],
-    };
+    }], [
+      { id: "F-OK", name: "Safe", releaseCategoryIds: [], endState: "SUCCESSFUL_MITIGATION" },
+      { id: "F-REL", name: "Release", releaseCategoryIds: ["RC-1"], endState: "RADIONUCLIDE_RELEASE" },
+    ]);
+    const sy = createSyMef();
+    sy.systemDefinitions = [{ uuid: "SYS-1", name: "Cooling", boundaries: [], successCriteriaIds: [], modeledComponentsAndFailures: {}, informationBasis: "as-designed-as-intended", implementsSrs: [] }];
+    sy.systemLogicModels = sy.systemLogicModels.map((model) => (model.uuid === FT_OR || model.uuid === FT_AND ? { ...model, systemReference: "SYS-1" } : model));
+    sy.systemBasicEvents = sy.systemBasicEvents.map((event) => {
+      if (event.uuid === EVENT_A) return { ...event, expression: daParameter(DA_WORKBOOK_ID, "P-1") };
+      if (event.uuid === EVENT_B) return { ...event, expression: pumpBLaw };
+      return event;
+    });
+    await api.get<Model<unknown>>(getModelToken(EsWorkbook.name)).create({ workbookId: esId, projectId: PROJECT_ID, ownerUsername: USERNAME, revision: 1, mef: es });
+    await syWorkbooks.create({ workbookId: syId, projectId: PROJECT_ID, ownerUsername: USERNAME, revision: 1, mef: sy });
+    const esq = createBlankEsq("Measure runs", USERNAME);
+    esq.linkedWorkbooks = { ...esq.linkedWorkbooks, ES: esId, SY: syId, DA: DA_WORKBOOK_ID };
+    esq.modelDecisions = { ...esq.modelDecisions, typedInitiators: [{ id: "IE-1", name: "Initiator", stateIds: ["S-1"], frequency: { expression: perYear(2), basis: FrequencyUnit.PER_PLANT_YEAR } }] };
+    const live = (mef: EventSequenceQuantification): EventSequenceQuantification => liveEsqOf(mef, { es, sy, da: createDaMef() });
     esq.sensitivityWork = {
       cases: [
         { id: "SC-1", name: "Pump at 0.2", kind: "PARAMETER", target: "P-1", value: 0.2, basis: "Upper data bound." },
@@ -3088,7 +3162,7 @@ describe("workbook-owned analysis-run APIs", () => {
     expect(ranked.status).toBe(200);
     expect(ranked.body.run).toMatchObject({ status: "SUCCEEDED", scope: "BATCH", owner: { workbookId, modelId: esqImportanceRunId(), workbookRevision: 2 } });
     const importance = await read(`importance-runs/${ranked.body.run.id}/result`);
-    expect(importance).toMatchObject({ kind: "ESQ_IMPORTANCE_RUN", inputs: solveInputsKey(esq), logic });
+    expect(importance).toMatchObject({ kind: "ESQ_IMPORTANCE_RUN", inputs: solveInputsKey(live(esq)), logic });
     const base = new Map(importance.families.map((family: { familyId: string; base: number }) => [family.familyId, family.base]));
     expect(base.get("F-REL")).toBeCloseTo(0.56, 12);
     expect(base.get("F-OK")).toBeCloseTo(1.44, 12);
@@ -3108,7 +3182,7 @@ describe("workbook-owned analysis-run APIs", () => {
     expect(sampled.status).toBe(200);
     expect(sampled.body.run.owner.modelId).toBe(esqUncertaintyRunId());
     const uncertainty = await read(`uncertainty-runs/${sampled.body.run.id}/result`);
-    expect(uncertainty).toMatchObject({ kind: "ESQ_UNCERTAINTY_RUN", inputs: uncertaintyInputsKey(esq), trials: 2000, seed: 11, method: "LATIN_HYPERCUBE", correlation: "SHARED" });
+    expect(uncertainty).toMatchObject({ kind: "ESQ_UNCERTAINTY_RUN", inputs: uncertaintyInputsKey(live(esq)), trials: 2000, seed: 11, method: "LATIN_HYPERCUBE", correlation: "SHARED" });
     const families = new Map<string, { point: number; mean: number; p05: number; p50: number; p95: number; values: number[]; endState: string | null }>(
       uncertainty.families.map((family: { familyId: string; point: number; mean: number; p05: number; p50: number; p95: number; values: number[]; endState: string | null }) => [family.familyId, family]),
     );
@@ -3127,7 +3201,7 @@ describe("workbook-owned analysis-run APIs", () => {
       { key: `EVENT:${EVENT_B}`, label: "EVENT-B · Event B", source: "SY", expression: pumpBLaw, unit: "PROBABILITY", events: 1 },
     ]));
     expect(uncertainty.total.standardError).toBeCloseTo(uncertainty.total.standardDeviation / Math.sqrt(2000), 12);
-    expect(uncertainty.unsampled).toEqual([{ id: "INITIATOR:IE-1", label: "Initiator (IE-1)", reason: "IE gives this frequency no uncertainty. Give it a law in IE." }]);
+    expect(uncertainty.unsampled).toEqual([{ id: "INITIATOR:IE-1", label: "Initiator (IE-1)", reason: "The typed frequency has no uncertainty. Give it a law in Step 02." }]);
     const childId = uncertainty.trees[0].runId;
     const child = await read(`event-trees/ET-1/runs/${childId}/result`);
     expect(child.sampling.families.every((family: { values: number[] }) => family.values.length === 0)).toBe(true);
@@ -3155,7 +3229,7 @@ describe("workbook-owned analysis-run APIs", () => {
     const runCase = (caseId: string, body: object = {}) => post(`sensitivity-cases/${caseId}/runs`, { caseId, calculation: "EXACT", ...body });
     const caseRelease = async (caseId: string, runId: string): Promise<number> => {
       const summary = await read(`sensitivity-cases/${caseId}/runs/${runId}/result`);
-      expect(summary).toMatchObject({ kind: "ESQ_MODEL_RUN", caseId, inputs: caseInputsKey(esq, caseId) });
+      expect(summary).toMatchObject({ kind: "ESQ_MODEL_RUN", caseId, inputs: caseInputsKey(live(esq), caseId) });
       return summary.families.find((family: { familyId: string }) => family.familyId === "F-REL").annualFrequency;
     };
     const raised = await runCase("SC-1");
@@ -3175,9 +3249,7 @@ describe("workbook-owned analysis-run APIs", () => {
     expect((await runCase("SC-1", { workbookRevision: 1 })).status).toBe(409);
 
     const frequencyLaw: UncertainExpression = { node: "VALUE", value: { unit: "PER_YEAR", law: { family: "GAMMA", shape: 4, rate: 2 } } };
-    const model = esq.model;
-    if (model === undefined) throw new Error("fixture has no model");
-    const fromDa = { ...esq, model: { ...model, parameters: [...model.parameters, { id: "P-IE", name: "Initiator frequency", parameterType: "FREQUENCY", quantificationModel: "FREQUENCY" as const, estimate: frequencyLaw }] }, modelDecisions: { initiatorChoices: [{ groupId: "IE-1", source: "DA" as const, parameterId: "P-IE" }] } };
+    const fromDa = { ...esq, modelDecisions: { ...esq.modelDecisions, initiatorChoices: [{ groupId: "IE-1", source: "DA" as const, parameterId: "P-IE" }] } };
     await esqWorkbooks.updateOne({ workbookId }, { $set: { revision: 3, mef: fromDa } }).exec();
     const drawn = await post("uncertainty-runs", { workbookRevision: 3, trials: 2000, seed: 11, method: "LATIN_HYPERCUBE", correlation: "SHARED" });
     expect(drawn.status).toBe(200);
@@ -3202,8 +3274,7 @@ describe("workbook-owned analysis-run APIs", () => {
     const source = mef.eventTrees![0]!;
     const destination = structuredClone(source);
     destination.uuid = ET_HCL;
-    destination.functionalEvents.first!.uuid = FE_HCL_A;
-    destination.functionalEvents.first!.faultTreeTopEvent = topReference(FT_AND, TOP_AND);
+    destination.functionalEvents = { [FE_HCL_A]: { ...source.functionalEvents[FE_INDEPENDENT]!, uuid: FE_HCL_A, faultTreeTopEvent: topReference(FT_AND, TOP_AND) } };
     destination.sequences = {
       success: { ...source.sequences.success!, uuid: HCL_SS, functionalEventStates: { [FE_HCL_A]: "SUCCESS" } },
       failure: { ...source.sequences.failure!, uuid: HCL_FF, functionalEventStates: { [FE_HCL_A]: "FAILURE" } },
@@ -3939,6 +4010,7 @@ describe("workbook-owned analysis-run APIs", () => {
     es.eventTrees![0]!.transfers = { [ET_FAILURE]: { targetEventTreeId: ET_HCL } };
     const workbookId = "es-multistate-oracle";
     esq.model = esqModelFrom({ es, esWorkbookId: workbookId, sy: createSyMef(), syWorkbookId: SY_WORKBOOK_ID });
+    esq.linkedWorkbooks = { ...esq.linkedWorkbooks, ES: workbookId, SY: SY_WORKBOOK_ID };
     try {
       await workbooks.updateOne({ workbookId: ESQ_WORKBOOK_ID }, { $set: { mef: esq } }).exec();
       await api
@@ -4175,11 +4247,12 @@ describe("workbook-owned analysis-run APIs", () => {
           })),
         },
       }));
-      es.eventTrees![0]!.functionalEvents.first!.faultTreeTopEvent = topReference(FT_TRANSFER, TOP_TRANSFER);
+      es.eventTrees![0]!.functionalEvents[FE_INDEPENDENT]!.faultTreeTopEvent = topReference(FT_TRANSFER, TOP_TRANSFER);
       es.eventTrees![0]!.sequences.failure!.endState = undefined;
       es.eventTrees![0]!.transfers = { [ET_FAILURE]: { targetEventTreeId: ET_HCL } };
       const esId = `es-source-uq-${sampler}`;
       esq.model = esqModelFrom({ es, esWorkbookId: esId, sy, syWorkbookId: SY_WORKBOOK_ID });
+      esq.linkedWorkbooks = { ...esq.linkedWorkbooks, ES: esId, SY: SY_WORKBOOK_ID };
       const checkSummary = (actual: PopulationSummary & { seed: number }, samples: number[], label: string) => {
         expect(actual.sampleCount).toBe(source.settings.sample_count);
         expect(actual.seed).toBe(source.settings.seed);

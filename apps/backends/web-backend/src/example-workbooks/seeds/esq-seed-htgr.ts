@@ -1001,10 +1001,6 @@ const sensitivityWork: EsqSensitivityWork = {
   decisions,
   cases: [
     { id: "SC-1", name: "Stack blockage at ten times its estimate", kind: "PARAMETER", target: "DA-BE-211", factor: 10, basis: "SY takes duct and stack blockage from gas-cooled test facility experience (MU-RCC-2). Ten times the estimate spans the spread of that experience." },
-    { id: "SS-2-HIGH", name: "Prior-form comparison · high", kind: "PARAMETER", target: "DA-BE-205", value: 5.97e-4, basis: "The circulator update repeated with the published compressor prior in place of the constrained noninformative one.", daCaseRef: { workbookId: DA_LINK, caseId: "SS-2" } },
-    { id: "SS-3-LOW", name: "Train maintenance sweep · low", kind: "PARAMETER", target: "DA-UA-11", value: 0.001997716894977169, basis: "Shutdown-cooling train maintenance between half and twice the planned 35 h a year.", daCaseRef: { workbookId: DA_LINK, caseId: "SS-3" } },
-    { id: "SS-3-HIGH", name: "Train maintenance sweep · high", kind: "PARAMETER", target: "DA-UA-11", value: 0.007990867579908675, basis: "Shutdown-cooling train maintenance between half and twice the planned 35 h a year.", daCaseRef: { workbookId: DA_LINK, caseId: "SS-3" } },
-    { id: "SS-6-HIGH", name: "Shutdown-cooling testing scheme · high", kind: "CCF_TOTAL", target: "CCF-SCS-TRAIN", factor: 3.36e-6 / 1.69e-6, basis: "The two shutdown-cooling trains tested on one day instead of staggered. The group total scales by DA's all-members ratio.", daCaseRef: { workbookId: DA_LINK, caseId: "SS-6" } },
     { id: "SC-4", name: "Every HEP at its 95th percentile", kind: "HEP_95TH", basis: "HR borrows nonnuclear performance data for a crew that does not yet exist. The 95th percentile of each HEP bounds that applicability gap." },
     { id: "SC-5", name: "Cavity cooling duct groups failed", kind: "GROUP_FAILED", target: "CCF_GROUP:CCF-RCCS-DUCT", basis: "Bounds the shared-riser failure that SY has not yet modeled (SY-B8) by failing all four duct groups together." },
     { id: "SC-6", name: "No recovery and no HFE dependency", kind: "LOGIC", logic: { recovery: false, dependency: false }, basis: "Shows what the remote-panel restart credit and the joint HEPs change, the dependency treatment that ESQ-C16 asks to be tested." },
@@ -1078,10 +1074,6 @@ export const ESQ_ANALYSIS_HTGR: EventSequenceQuantification = {
   review,
   sensitivityWork,
   handoffWork,
-  quantificationPlan: {
-    modulesPerPlant: { value: 1, link: { element: "IE", workbookId: "example-ie-htgr", field: "numberOfModules" } },
-    reportingFloorPerYear: { value: 1e-7, link: { element: "RI", workbookId: "example-ri-htgr", field: "minimumReportingFrequencyPerPlantYear" } },
-  },
   bayesianNetworks: [createExampleDependencyNetwork()],
   hclConfigurations: [createExampleHclConfiguration()],
   familyQuantifications,

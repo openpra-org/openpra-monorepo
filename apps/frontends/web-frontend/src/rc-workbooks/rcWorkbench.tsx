@@ -1,5 +1,6 @@
 import { WorkbookSectionHeading } from "../workbooks/workbookSectionHeading";
 import { JSX, useEffect, useMemo, useRef, useState } from "react";
+import { WorkbookShareButton, useWorkbookSharingContext } from "../workbooks/workbookSharing";
 import { useNavigate } from "react-router-dom";
 import { RCIcon } from "./rcIcons";
 import {
@@ -112,6 +113,7 @@ function WorkspaceHeader({
             </select>
           </label>
         )}
+        <WorkbookShareButton />
         {onOpenRoles !== undefined && (
           <button type="button" className="posnav__btn posnav__btn--sm" onClick={onOpenRoles}><RCIcon.Settings /> Roles</button>
         )}
@@ -364,6 +366,7 @@ function RcWorkbench({
   const { user: authUser } = useAuth();
   const actingUsername = authUser?.username ?? "";
   const isPreparer = persona === "preparer";
+  const { sharedOnly } = useWorkbookSharingContext();
   const [comments, setComments] = useState<CommentView[]>(() => commentsView(data.rc));
   const [commentDockOpen, setCommentDockOpen] = useState(false);
   const [demoSubmittedLocal, setDemoSubmittedLocal] = useState(false);
@@ -422,7 +425,7 @@ function RcWorkbench({
       case "economics": return <EconomicsScreen openDrawer={setDrawer} />;
       case "quantify": return <QuantifyScreen key={caseView} openDrawer={setDrawer} onOpenStep={setStepId} initialCaseTab={caseView === "default" ? undefined : "prepared"} />;
       case "handoff": return <RcHandoffScreen />;
-      case "draft": return <DraftScreen cc={cc} scores={scores} site={site} conformance={filterConformance(data.rc, ccId, site, checks)} onSubmitDraft={() => { handleSubmitToApproval(); setStepId("review"); }} canSubmit={isPreparer} />;
+      case "draft": return <DraftScreen cc={cc} scores={scores} site={site} conformance={filterConformance(data.rc, ccId, site, checks)} onSubmitDraft={() => { handleSubmitToApproval(); setStepId("review"); }} canSubmit={isPreparer && !sharedOnly} />;
       case "review":
       case "approval": return (
         <InternalReviewScreen

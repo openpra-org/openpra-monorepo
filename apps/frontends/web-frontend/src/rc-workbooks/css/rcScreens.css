@@ -113,6 +113,10 @@
 .rc-link-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-top: 4px; }
 .rc-link-lane .rcscope__title { margin: 4px 0 0; }
 .rc-link-actions { display: flex; align-items: center; gap: 8px; }
+.rc-link-confirm { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; font-size: 13px; color: var(--color-text); }
+.rc-link-error { margin: 0; font-size: 12.5px; color: var(--color-error); }
+.rc-family-table th:nth-child(1) { width: 36%; }
+.rc-family-table th:nth-child(2) { width: 28%; }
 .rc-rifeedback__text { margin: 8px 0 0; font-size: 12.5px; line-height: 1.5; }
 .rc-rifeedback__table { margin-top: 10px; }
 .rcscope__title.rc-rifeedback__record { margin-top: 18px; }

@@ -33,7 +33,7 @@ function loopedUpstream(): EsqUpstream {
 }
 
 function linked(): EventSequenceQuantification {
-  let esq = withModelImported(linkedEsq(), loopedUpstream(), NOW);
+  let esq = withModelImported(linkedEsq(), loopedUpstream());
   esq = withFunctionLink(esq, "RT", { functionId: "RT", target: { kind: "FAULT_TREE", top: { workbookId: "sy-1", modelId: "M-RPS", gateId: "G-RPS" } } });
   return withFunctionLink(esq, "COOL", { functionId: "COOL", target: { kind: "FAULT_TREE", top: { workbookId: "sy-1", modelId: "M-COOL", gateId: "G-COOL" } } });
 }

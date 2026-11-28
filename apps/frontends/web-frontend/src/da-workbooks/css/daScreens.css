@@ -232,6 +232,8 @@
 .da-scope-lane { display: flex; flex-direction: column; gap: 12px; width: 100%; overflow-x: auto; margin-top: 16px; }
 .da-scope-link { display: flex; flex-direction: column; gap: 5px; max-width: 420px; }
 .da-scope-link .posfield__select { width: 100%; min-width: 0; }
+.da-scope-error { margin: 0; font-size: 12.5px; color: var(--color-error); }
+.da-scope-confirm { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; font-size: 13px; color: var(--color-text); }
 
 .da-scope__text { box-sizing: border-box; width: 100%; min-height: 56px; }
 .da-scope { margin-top: 18px; }

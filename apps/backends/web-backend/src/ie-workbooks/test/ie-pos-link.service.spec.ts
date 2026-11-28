@@ -24,14 +24,14 @@ describe("IePosLinkService", () => {
   let workbookModel: Record<string, jest.Mock>;
   let posModel: Record<string, jest.Mock>;
   let projectsService: { resolveAccess: jest.Mock };
-  let rolesService: { resolveEffectiveRoles: jest.Mock };
+  let rolesService: { resolveEffectiveRoles: jest.Mock; canAuthor: jest.Mock };
 
   beforeEach(async () => {
     ieModel = { findOne: jest.fn() };
     workbookModel = { find: jest.fn(), findById: jest.fn() };
     posModel = { findOne: jest.fn() };
     projectsService = { resolveAccess: jest.fn().mockResolvedValue({ doc: {}, role: "editor" }) };
-    rolesService = { resolveEffectiveRoles: jest.fn().mockResolvedValue(["preparer"]) };
+    rolesService = { resolveEffectiveRoles: jest.fn().mockResolvedValue(["preparer"]), canAuthor: jest.fn().mockResolvedValue(false) };
 
     const moduleRef = await Test.createTestingModule({
       providers: [

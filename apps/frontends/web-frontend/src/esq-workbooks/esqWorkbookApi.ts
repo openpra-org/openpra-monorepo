@@ -35,6 +35,7 @@ import {
   EsqUncertaintyRunResultSchema,
   type EsqEventTreeRunLogic,
   type EsqImportanceRunResult,
+  type EsqLinkedSensitivityCase,
   type EsqModelCalculation,
   type EsqModelRunHcl,
   type EsqModelRunResult,
@@ -544,6 +545,7 @@ async function runEsqSensitivity(
   calculation: EsqModelCalculation,
   cutSets: EventTreeCutSetSettings | undefined,
   onProgress?: RunProgressListener,
+  linkedCase?: EsqLinkedSensitivityCase,
 ): Promise<EventTreeExecuteResult> {
   return finishedRun("esq", workbookId, postJson<EventTreeExecuteResult>(`/api/esq-workbooks/${workbookId}/sensitivity-cases/${encodeURIComponent(caseId)}/runs`, {
     schemaVersion: "1.0.0",
@@ -552,6 +554,7 @@ async function runEsqSensitivity(
     logic,
     calculation,
     ...(cutSets === undefined ? {} : { cutSets }),
+    ...(linkedCase === undefined ? {} : { linkedCase }),
   }), onProgress);
 }
 

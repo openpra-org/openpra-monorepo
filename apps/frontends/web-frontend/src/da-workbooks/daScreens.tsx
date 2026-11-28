@@ -62,9 +62,7 @@ import {
   COMPONENT_MODELS,
   NEED_ELEMENTS,
   basicEventEdited,
-  daImportNeeds,
   daNeedChecks,
-  daNeedsImportReady,
   daNeedsLinked,
   emptyNeeds,
   mappableNeeds,
@@ -81,12 +79,11 @@ import {
   scopeDecisionOf,
   scopeItemsToComplete,
   stateShares,
-  withAutoMapping,
-  withLinkedValuesSynced,
+  typedNeedCount,
+  withLinkChanged,
   withNeedParameter,
   withNeeds,
   withOutlierGroup,
-  withNeedsMerged,
   linkedEstimate,
   type DaFindingSeverity,
   type DaMappableNeed,
@@ -114,9 +111,10 @@ function DaInterfaces(): JSX.Element {
   const linked = options.find((workbook) => workbook.id === linkedId);
   const exampleLabel = linkedId === undefined ? undefined : exampleLinkLabel(linkedId);
   const nothingToLink = options.length === 0 && linkedId === undefined;
+  const [pending, setPending] = useState<{ code: DaLinkCode; workbookId: string } | null>(null);
+  const typedRows = (code: DaLinkCode): number => typedNeedCount(da.dataNeeds, code);
 
-  function onLink(code: DaLinkCode, id: string): void {
-    if (!editable) return;
+  function applyLink(code: DaLinkCode, id: string): void {
     mutateDa((draft) => {
       const current: DaLinkedWorkbooks = draft.linkedWorkbooks ?? {};
       const next: DaLinkedWorkbooks = {};
@@ -124,8 +122,24 @@ function DaInterfaces(): JSX.Element {
         const value = candidate.code === code ? id : current[candidate.code];
         if (value !== undefined && value.length > 0) next[candidate.code] = value;
       }
-      return { ...draft, linkedWorkbooks: next };
+      return withLinkChanged({ ...draft, linkedWorkbooks: next }, code, current[code]);
     });
+  }
+
+  function onLink(code: DaLinkCode, id: string): void {
+    if (!editable) return;
+    if (id.length > 0 && typedRows(code) > 0) {
+      setPending({ code, workbookId: id });
+      return;
+    }
+    setPending(null);
+    applyLink(code, id);
+  }
+
+  function confirmPending(): void {
+    if (pending === null) return;
+    setPending(null);
+    applyLink(pending.code, pending.workbookId);
   }
 
   return (
@@ -137,7 +151,7 @@ function DaInterfaces(): JSX.Element {
             type="button"
             className={`poshandoff__tile${selected === candidate.code ? " poshandoff__tile--active" : ""}`}
             aria-pressed={selected === candidate.code}
-            onClick={() => setSelected(selected === candidate.code ? null : candidate.code)}
+            onClick={() => { setSelected(selected === candidate.code ? null : candidate.code); setPending(null); }}
           >
             <span className="poshandoff__tile-code">{candidate.label}</span>
             <span className="poshandoff__tile-name">{candidate.name}</span>
@@ -161,6 +175,14 @@ function DaInterfaces(): JSX.Element {
               {linkedId !== undefined && linked === undefined && exampleLabel === undefined && <option value={linkedId}>{`${tile.label} workbook not in this project`}</option>}
             </select>
           </div>
+          {pending !== null && pending.code === tile.code && (
+            <div className="da-scope-confirm" role="group" aria-label="Confirm the link">
+              <span>{`Linking replaces the ${typedRows(tile.code)} ${tile.label} ${typedRows(tile.code) === 1 ? "row" : "rows"} typed in Step 02.`}</span>
+              <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={confirmPending}>{`Link ${options.find((workbook) => workbook.id === pending.workbookId)?.name ?? exampleLinkLabel(pending.workbookId) ?? tile.label}`}</button>
+              <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => setPending(null)}>Cancel</button>
+            </div>
+          )}
+          {linkedId !== undefined && (upstream.unavailable ?? []).includes(tile.code) && <p className="da-scope-error" role="alert">Linked workbook unavailable</p>}
           <HandoffImports consumer="DA" producer={tile.code} />
         </div>
       )}
@@ -594,10 +616,6 @@ function percentText(value: number | undefined): string {
   return value === undefined ? "—" : String(Number((value * 100).toPrecision(3)));
 }
 
-function countedList(items: readonly string[], shown: number): string {
-  return items.length > shown ? `${items.slice(0, shown).join(", ")} and ${items.length - shown} more` : items.join(", ");
-}
-
 function listCell(items: readonly string[], noun: string): JSX.Element {
   if (items.length === 0) return <>—</>;
   if (items.length <= 2) return <>{items.join(", ")}</>;
@@ -624,38 +642,22 @@ function NeedTags({ change, manual, edited, excluded }: { change?: DaNeedChange[
 }
 
 function NeedSourcesCard(): JSX.Element {
-  const { da, editable, mutateDa, upstream } = useDaWorkbook();
+  const { da, upstream } = useDaWorkbook();
   const needs = da.dataNeeds;
   const links = da.linkedWorkbooks ?? {};
   const linked = daNeedsLinked(da);
-  const ready = daNeedsImportReady(da, upstream);
   const byHand = needManualCount(needs);
-  const changes = needs?.changes ?? [];
-  const added = changes.filter((change) => change.change === "ADDED").length;
-  const changed = changes.filter((change) => change.change === "CHANGED").length;
-  const removed = changes.filter((change) => change.change === "REMOVED").map((change) => change.label ?? change.id);
-  const imported = (rows: readonly { manual?: DaManualEntry }[]): number => rows.filter((row) => row.manual === undefined).length;
+  const fromLink = (rows: readonly { manual?: DaManualEntry }[]): number => rows.filter((row) => row.manual === undefined).length;
   const counts: Record<DaNeedElement, number> = {
-    SY: needs === undefined ? 0 : imported(needs.basicEvents) + imported(needs.ccfGroups),
-    IE: needs === undefined ? 0 : imported(needs.initiators),
-    HRA: needs === undefined ? 0 : imported(needs.humanErrors),
-    POS: needs === undefined ? 0 : imported(needs.states),
+    SY: needs === undefined ? 0 : fromLink(needs.basicEvents) + fromLink(needs.ccfGroups),
+    IE: needs === undefined ? 0 : fromLink(needs.initiators),
+    HRA: needs === undefined ? 0 : fromLink(needs.humanErrors),
+    POS: needs === undefined ? 0 : fromLink(needs.states),
   };
   const loaded: Record<DaNeedElement, boolean> = { SY: upstream.sy !== undefined, IE: upstream.ie !== undefined, HRA: upstream.hr !== undefined, POS: upstream.pos !== undefined };
   const meta: string[] = [];
-  if (needs?.importedAt !== undefined) meta.push(`Imported ${new Date(needs.importedAt).toLocaleString()}.`);
-  if (needs?.changes !== undefined && changes.length === 0) meta.push("Nothing changed since the previous import.");
-  if (changes.length > 0) meta.push(`Since the previous import, ${added} added, ${changed} changed and ${removed.length} removed${removed.length > 0 ? ` (${countedList(removed, 5)})` : ""}.`);
   if (byHand > 0) meta.push(`${byHand} ${byHand === 1 ? "item is" : "items are"} entered by hand.`);
-  if (needs?.importedAt !== undefined) meta.push("Hand entries and DA decisions stay when you import again.");
-  if (linked.length === 0) meta.push("No workbook is linked. Link SY, IE, HR and POS in Step 01 to import, or add the needs by hand below.");
-  else if (!ready) meta.push("The linked workbooks are still loading.");
-
-  function importNow(): void {
-    if (!editable) return;
-    const now = new Date().toISOString();
-    mutateDa((draft) => withLinkedValuesSynced({ ...draft, dataNeeds: withNeedsMerged(draft.dataNeeds, daImportNeeds(draft, upstream, now)) }));
-  }
+  if (linked.length === 0) meta.push("No workbook is linked. Link SY, IE, HR and POS in Step 01, or add the needs by hand below.");
 
   return (
     <div className="poscard">
@@ -663,28 +665,21 @@ function NeedSourcesCard(): JSX.Element {
         <WorkbookSectionHeading title="Source workbooks" level={3} />
         <div className="da-card-actions">
           <DaProvenanceChip>DA-A1</DaProvenanceChip>
-          {editable && linked.length > 0 && (
-            <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" disabled={!ready} onClick={importNow}>
-              {needs?.importedAt === undefined ? "Import from linked workbooks" : "Import again"}
-            </button>
-          )}
         </div>
       </div>
       <div className="da-table-wrap">
         <table className="postable da-rowtable" aria-label="Source workbooks">
-          <thead><tr><th>Element</th><th>Linked workbook</th><th>Provides</th><th>Imported from</th><th>Items</th></tr></thead>
+          <thead><tr><th>Element</th><th>Linked workbook</th><th>Provides</th><th>Items</th></tr></thead>
           <tbody>
             {NEED_ELEMENTS.map((element) => {
               const id = links[element];
               const name = id === undefined ? "Not linked" : upstream.options[element].find((workbook) => workbook.id === id)?.name ?? exampleLinkLabel(id) ?? id;
-              const source = needs?.sources.find((candidate) => candidate.element === element);
               return (
                 <tr key={element}>
                   <td>{NEED_ELEMENT_LABELS[element]}</td>
                   <td className="da-rowtable__text">{name}{id !== undefined && !loaded[element] && <span className="da-rowtable__tag">Not loaded</span>}</td>
                   <td className="da-rowtable__text">{NEED_ELEMENT_PROVIDES[element]}</td>
-                  <td className="da-rowtable__text">{source === undefined ? "—" : source.workbookName}</td>
-                  <td className="da-rowtable__num">{source === undefined ? "—" : counts[element]}</td>
+                  <td className="da-rowtable__num">{id === undefined || !loaded[element] ? "—" : counts[element]}</td>
                 </tr>
               );
             })}
@@ -1002,7 +997,7 @@ function DataNeedsScreen({ openDrawer }: { openDrawer: (ctx: DaDrawerContext) =>
   const [tab, setTab] = useState<NeedsTab>("events");
   const tabId = useId();
   const needs = da.dataNeeds;
-  const findings = daNeedChecks(da, upstream.options);
+  const findings = daNeedChecks(da, upstream.unavailable);
   const count = (n: number): string => (needs === undefined ? "" : ` (${n})`);
   const tabs: { id: NeedsTab; label: string }[] = [
     { id: "events", label: `Basic events${count(needs?.basicEvents.length ?? 0)}` },
@@ -1608,7 +1603,7 @@ function ParametersTable({ openDrawer }: { openDrawer: (ctx: DaDrawerContext) =>
   );
 }
 
-function EventMapTable({ unmapped }: { unmapped: number }): JSX.Element {
+function EventMapTable(): JSX.Element {
   const { da, editable, mutateDa } = useDaWorkbook();
   useUncertaintyVersion();
   const [source, setSource] = useState("");
@@ -1684,7 +1679,6 @@ function EventMapTable({ unmapped }: { unmapped: number }): JSX.Element {
           </tbody>
         </table>
       </div>
-      {unmapped > 0 && <p className="da-needs__meta">{unmapped} {unmapped === 1 ? "event is" : "events are"} not mapped. Map automatically uses the DA parameter that SY already names for an event. For a value typed in SY, IE or HR, it creates a parameter linked to that value.</p>}
     </>
   );
 }
@@ -1835,9 +1829,6 @@ function ParametersScreen({ openDrawer }: { openDrawer: (ctx: DaDrawerContext) =
             <WorkbookSectionHeading title={head.title} level={3} />
             <div className="da-card-actions">
               <DaProvenanceChip>{head.sr}</DaProvenanceChip>
-              {editable && tab === "map" && (
-                <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" disabled={unmapped === 0} onClick={() => mutateDa((draft) => withAutoMapping(draft))}>Map automatically</button>
-              )}
               {editable && head.add !== undefined && (
                 <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={add}>{head.add}</button>
               )}
@@ -1846,7 +1837,7 @@ function ParametersScreen({ openDrawer }: { openDrawer: (ctx: DaDrawerContext) =
           {tab === "parameters" ? (
             <ParametersTable openDrawer={openDrawer} />
           ) : tab === "map" ? (
-            <EventMapTable unmapped={unmapped} />
+            <EventMapTable />
           ) : tab === "boundaries" ? (
             <BoundariesTable openDrawer={openDrawer} />
           ) : tab === "modes" ? (

@@ -1,8 +1,19 @@
-import { JSX, useEffect, useState } from "react";
+import { JSX, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { type Project, type ProjectWorkbooksResult, type Workbook } from "interfaces-shared-types";
 import { useToast } from "../toast/toastProvider";
-import { getProject, updateProject, duplicateProject, deleteProject } from "./projectApi";
+import {
+  addProjectCollaborator,
+  deleteProject,
+  duplicateProject,
+  getProject,
+  getProjectCollaborators,
+  removeProjectCollaborator,
+  updateProject,
+  updateProjectCollaborator,
+} from "./projectApi";
+import { WorkbookShareModal, type WorkbookShareActions } from "../workbooks/workbookShareModal";
+import { NO_WORKBOOK_ROLE_MESSAGE, canOpenWorkbook } from "../workbooks/workbookAccess";
 import { ProjectHeader } from "./projectHeader";
 import { ElementsSection } from "./elementsSection";
 import { WorkspaceLegacy } from "./workspaceLegacy";
@@ -17,6 +28,27 @@ import { LoadExampleModal } from "../workbooks/exampleWorkbookModal";
 import { getProjectExampleInfo, generateProjectExamples, type ProjectExampleInfo, type ProjectExampleOption } from "../workbooks/workbookApi";
 import { CreationNoticeSchema, creationNoticeText, type CreationNotice } from "./projectCreation";
 import "./css/projectWorkspace.css";
+
+const WORKBOOK_PAGES = new Map<string, string>([
+  ["POS", "pos-workbooks"],
+  ["IE", "ie-workbooks"],
+  ["ES", "es-workbooks"],
+  ["SC", "sc-workbooks"],
+  ["SY", "sy-workbooks"],
+  ["HRA", "hr-workbooks"],
+  ["DA", "da-workbooks"],
+  ["ESQ", "esq-workbooks"],
+  ["MS", "ms-workbooks"],
+  ["RC", "rc-workbooks"],
+  ["RI", "ri-workbooks"],
+  ["S", "seismic-pra-workbooks"],
+  ["FL", "internal-flood-pra-workbooks"],
+  ["F", "internal-fire-pra-workbooks"],
+  ["HS", "hazards-screening-analysis-workbooks"],
+  ["W", "high-winds-pra-workbooks"],
+  ["XF", "external-flood-pra-workbooks"],
+  ["O", "other-hazards-pra-workbooks"],
+]);
 
 function generationIntro(option: ProjectExampleOption): string {
   const perElement = option.id === "both" ? "one example workbook per reactor" : "one example workbook";
@@ -39,12 +71,14 @@ function ProjectWorkspacePage(): JSX.Element {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [renameOpen, setRenameOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
+  const [sharingOpen, setSharingOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [mutating, setMutating] = useState(false);
   const [exampleInfo, setExampleInfo] = useState<ProjectExampleInfo | null>(null);
   const [generateOpen, setGenerateOpen] = useState(false);
   const [workbooksOpen, setWorkbooksOpen] = useState(false);
   const [generation, setGeneration] = useState(0);
+  const opening = useRef(false);
 
   useEffect(() => {
     if (id === undefined) return;
@@ -69,6 +103,16 @@ function ProjectWorkspacePage(): JSX.Element {
     return () => { cancelled = true; };
   }, [id]);
 
+  const sharingActions = useMemo((): WorkbookShareActions | null => {
+    if (id === undefined) return null;
+    return {
+      load: () => getProjectCollaborators(id),
+      add: (identifier, access) => addProjectCollaborator(id, identifier, access),
+      update: (username, access) => updateProjectCollaborator(id, username, access),
+      remove: (username) => removeProjectCollaborator(id, username),
+    };
+  }, [id]);
+
   function flashError(message: string): void {
     addToast({ id: crypto.randomUUID(), type: "danger", message });
   }
@@ -80,79 +124,21 @@ function ProjectWorkspacePage(): JSX.Element {
   }
 
   function handleOpenWorkbook(workbook: Workbook): void {
-    if (workbook.elementCode === "POS") {
-      navigate(`/pos-workbooks/${workbook.id}`);
+    const page = WORKBOOK_PAGES.get(workbook.elementCode);
+    if (page === undefined) {
+      flashInfo(`"${workbook.name}" — workflow coming soon`);
       return;
     }
-    if (workbook.elementCode === "IE") {
-      navigate(`/ie-workbooks/${workbook.id}`);
-      return;
-    }
-    if (workbook.elementCode === "ES") {
-      navigate(`/es-workbooks/${workbook.id}`);
-      return;
-    }
-    if (workbook.elementCode === "SC") {
-      navigate(`/sc-workbooks/${workbook.id}`);
-      return;
-    }
-    if (workbook.elementCode === "SY") {
-      navigate(`/sy-workbooks/${workbook.id}`);
-      return;
-    }
-    if (workbook.elementCode === "HRA") {
-      navigate(`/hr-workbooks/${workbook.id}`);
-      return;
-    }
-    if (workbook.elementCode === "DA") {
-      navigate(`/da-workbooks/${workbook.id}`);
-      return;
-    }
-    if (workbook.elementCode === "ESQ") {
-      navigate(`/esq-workbooks/${workbook.id}`);
-      return;
-    }
-    if (workbook.elementCode === "MS") {
-      navigate(`/ms-workbooks/${workbook.id}`);
-      return;
-    }
-    if (workbook.elementCode === "RC") {
-      navigate(`/rc-workbooks/${workbook.id}`);
-      return;
-    }
-    if (workbook.elementCode === "RI") {
-      navigate(`/ri-workbooks/${workbook.id}`);
-      return;
-    }
-    if (workbook.elementCode === "S") {
-      navigate(`/seismic-pra-workbooks/${workbook.id}`);
-      return;
-    }
-    if (workbook.elementCode === "FL") {
-      navigate(`/internal-flood-pra-workbooks/${workbook.id}`);
-      return;
-    }
-    if (workbook.elementCode === "F") {
-      navigate(`/internal-fire-pra-workbooks/${workbook.id}`);
-      return;
-    }
-    if (workbook.elementCode === "HS") {
-      navigate(`/hazards-screening-analysis-workbooks/${workbook.id}`);
-      return;
-    }
-    if (workbook.elementCode === "W") {
-      navigate(`/high-winds-pra-workbooks/${workbook.id}`);
-      return;
-    }
-    if (workbook.elementCode === "XF") {
-      navigate(`/external-flood-pra-workbooks/${workbook.id}`);
-      return;
-    }
-    if (workbook.elementCode === "O") {
-      navigate(`/other-hazards-pra-workbooks/${workbook.id}`);
-      return;
-    }
-    flashInfo(`"${workbook.name}" — workflow coming soon`);
+    if (opening.current) return;
+    opening.current = true;
+    const path = `/${page}/${workbook.id}`;
+    canOpenWorkbook(workbook.id)
+      .then((allowed) => {
+        if (allowed) navigate(path);
+        else flashInfo(NO_WORKBOOK_ROLE_MESSAGE);
+      })
+      .catch(() => { navigate(path); })
+      .finally(() => { opening.current = false; });
   }
 
   function togglePin(): void {
@@ -233,6 +219,7 @@ function ProjectWorkspacePage(): JSX.Element {
             onRename={() => { setRenameOpen(true); }}
             onDuplicate={handleDuplicate}
             onShare={() => { setShareOpen(true); }}
+            onOpenSharing={project.myRole === "owner" ? () => { setSharingOpen(true); } : undefined}
             onToggleArchive={toggleArchive}
             onDelete={() => { setDeleteOpen(true); }}
             onNewLinkedWorkbooks={project.myRole !== "viewer" ? () => { setWorkbooksOpen(true); } : undefined}
@@ -250,6 +237,7 @@ function ProjectWorkspacePage(): JSX.Element {
               onRename={() => { setRenameOpen(true); }}
               onDuplicate={handleDuplicate}
               onShare={() => { setShareOpen(true); }}
+              onOpenSharing={project.myRole === "owner" ? () => { setSharingOpen(true); } : undefined}
               onToggleArchive={toggleArchive}
               onDelete={() => { setDeleteOpen(true); }}
             />
@@ -350,6 +338,10 @@ function ProjectWorkspacePage(): JSX.Element {
           onError={flashError}
           onSuccess={flashSuccess}
         />
+      )}
+
+      {sharingOpen && project !== null && sharingActions !== null && (
+        <WorkbookShareModal title={`Share "${project.name}"`} actions={sharingActions} onClose={() => { setSharingOpen(false); }} />
       )}
 
       {deleteOpen && project !== null && (

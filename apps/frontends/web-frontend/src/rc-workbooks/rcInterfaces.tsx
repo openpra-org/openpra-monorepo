@@ -1,52 +1,53 @@
-import { JSX, useId, useState } from "react";
+import { JSX, useEffect, useId, useRef, useState } from "react";
 import type { RadiologicalConsequenceAnalysis, RcLinkedWorkbooks, ReleaseCategoryInputs } from "interfaces-mef-types/rc/radiological-consequence-analysis";
-import { rcFamilyReferenceMatches } from "interfaces-shared-types/rc-workbooks/step-checks";
-import { rcMsBoundingMember } from "interfaces-shared-types/rc-workbooks/ms-source-term";
+import { rcFamilyAssignments, rcFamilyReferenceMatches, rcLostFamilyOverrides, rcWithFamilyOverrideRemoved, rcWithFamilyReason } from "interfaces-shared-types/rc-workbooks/linked-data";
 import { blankRcMetric, nextRcMetricId, rcMetricMatchesMeasure } from "interfaces-shared-types/rc-workbooks/metrics";
 import { WorkbookInput } from "../workbooks/commitOnDeactivateFields";
 import { HandoffImports } from "../workbooks/workbookHandoff";
 import { HANDOFF_ELEMENT_NAMES } from "interfaces-mef-types/technical-element-handoff";
 import { useRcWorkbook } from "./rcWorkbookContext";
 import { RcMsSourceTerm } from "./rcMsSourceTerm";
-import { RC_LINK_CODES, type RcLinkCode } from "./rcLinks";
+import { RC_LINK_CODES, loadRcLinkReplacement, rcExampleLinkLabel, type RcLinkCode, type RcMutation } from "./rcLinks";
 import type { RcDrawerContext } from "./rcScreens";
 
-const emptyCharacteristics: ReleaseCategoryInputs["releaseCharacteristics"] = { importantRadionuclides: [], radionuclideGroupFractions: [], releasePhaseTimings: [] };
+interface PendingLink {
+  code: RcLinkCode;
+  workbookId: string;
+  replaced: string;
+  replace: RcMutation;
+}
 
 function withCategories(rc: RadiologicalConsequenceAnalysis, releaseCategoryInputs: ReleaseCategoryInputs[]): RadiologicalConsequenceAnalysis {
   return { ...rc, releaseCategoryToConsequence: { ...rc.releaseCategoryToConsequence, releaseCategoryInputs } };
 }
 
+function withLinkedWorkbook(rc: RadiologicalConsequenceAnalysis, code: RcLinkCode, id: string): RadiologicalConsequenceAnalysis {
+  const current: RcLinkedWorkbooks = rc.linkedWorkbooks ?? {};
+  const next: RcLinkedWorkbooks = {};
+  RC_LINK_CODES.forEach((candidate) => {
+    const value = candidate === code ? id : current[candidate];
+    if (value !== undefined && value.length > 0) next[candidate] = value;
+  });
+  return { ...rc, linkedWorkbooks: next };
+}
+
 function RcEsLane(): JSX.Element | null {
-  const { rc, editable, mutateRc, links } = useRcWorkbook();
-  const linkedEs = rc.linkedWorkbooks?.ES, es = links.es;
-  if (!linkedEs || !es) return null;
-  const esId: string = linkedEs;
+  const { rc, editable, mutateRc, linked } = useRcWorkbook();
+  const es = linked.es;
+  if (es === undefined) return null;
+  const esId = es.workbookId;
   const categories = rc.releaseCategoryToConsequence.releaseCategoryInputs;
-  const families = es.eventSequenceFamilies;
-  const holder = (familyId: string) => categories.find((category) => (category.eventSequenceFamilyReferences ?? []).some((reference) => rcFamilyReferenceMatches(reference, esId, familyId)))?.releaseCategory ?? "";
+  const families = es.analysis.eventSequenceFamilies;
+  const assignments = rcFamilyAssignments(rc, linked);
+  const lost = rcLostFamilyOverrides(rc, linked);
+  const assignmentOf = (familyId: string) => assignments.find((entry) => entry.familyId === familyId);
   const reference = (entityId: string) => ({ referenceType: "EVENT_SEQUENCE_FAMILY" as const, workbookId: esId, entityId });
-  const missing = [...new Set((es.releaseCategoryMappings ?? []).map((mapping) => mapping.releaseCategoryId))].filter((id) => !categories.some((category) => category.releaseCategory === id));
-  const unassigned = families.filter((family) => (family.releaseCategoryIds ?? []).some((id) => categories.some((category) => category.releaseCategory === id) || missing.includes(id)) && !holder(family.uuid));
 
   function assign(familyId: string, categoryId: string): void {
     mutateRc((draft) => withCategories(draft, draft.releaseCategoryToConsequence.releaseCategoryInputs.map((category) => {
       const kept = (category.eventSequenceFamilyReferences ?? []).filter((entry) => !rcFamilyReferenceMatches(entry, esId, familyId));
       return { ...category, eventSequenceFamilyReferences: category.releaseCategory === categoryId ? [...kept, reference(familyId)] : kept };
     })));
-  }
-  function addFromEs(): void {
-    mutateRc((draft) => {
-      const current = draft.releaseCategoryToConsequence.releaseCategoryInputs;
-      const added = missing.map((releaseCategory): ReleaseCategoryInputs => {
-        const bounding = links.ms ? rcMsBoundingMember(links.ms, releaseCategory) : undefined;
-        return { releaseCategory, ...(bounding ? { boundingMember: bounding } : {}), releaseCharacteristics: emptyCharacteristics };
-      });
-      return withCategories(draft, [...current, ...added].map((category) => {
-        const joining = unassigned.filter((family) => family.releaseCategoryIds?.find((id) => current.some((entry) => entry.releaseCategory === id) || missing.includes(id)) === category.releaseCategory);
-        return joining.length ? { ...category, eventSequenceFamilyReferences: [...(category.eventSequenceFamilyReferences ?? []), ...joining.map((family) => reference(family.uuid))] } : category;
-      }));
-    });
   }
   function setBounding(category: ReleaseCategoryInputs, patch: Partial<NonNullable<ReleaseCategoryInputs["boundingMember"]>>): void {
     mutateRc((draft) => withCategories(draft, draft.releaseCategoryToConsequence.releaseCategoryInputs.map((entry) => entry.releaseCategory !== category.releaseCategory ? entry
@@ -57,21 +58,34 @@ function RcEsLane(): JSX.Element | null {
     <>
       <div className="rc-link-head">
         <h4 className="rcscope__title">Family map</h4>
-        {editable && (missing.length > 0 || unassigned.length > 0) && <button type="button" className="posnav__btn posnav__btn--sm" onClick={addFromEs}>Add {missing.length ? "categories and families" : "families"} from ES</button>}
       </div>
-      {families.length === 0 ? <p className="posmuted rc-link-note">The linked workbook has no event sequence families.</p> : (
+      {families.length === 0 && lost.length === 0 ? <p className="posmuted rc-link-note">The linked workbook has no event sequence families.</p> : (
         <div className="rc-link-table">
-          <table className="postable postable--mid" aria-label="Family map">
-            <thead><tr><th>Event sequence family</th><th>Release category</th></tr></thead>
-            <tbody>{families.map((family) => (
-              <tr key={family.uuid}>
-                <td><div className="postable__name">{family.uuid}</div><span className="postable__name-sub">{family.name}</span></td>
-                <td><select className="posfield__select" aria-label={`Release category for ${family.uuid}`} value={holder(family.uuid)} disabled={!editable || categories.length === 0} onChange={(event) => assign(family.uuid, event.target.value)}>
-                  <option value="">No release</option>
-                  {categories.map((category) => <option key={category.releaseCategory} value={category.releaseCategory}>{category.releaseCategory}</option>)}
-                </select></td>
-              </tr>
-            ))}</tbody>
+          <table className="postable postable--mid rc-family-table" aria-label="Family map">
+            <thead><tr><th>Event sequence family</th><th>Release category</th><th>Reason</th></tr></thead>
+            <tbody>
+              {families.map((family) => {
+                const assignment = assignmentOf(family.uuid);
+                const fromEs = assignment?.linkedCategory ?? "";
+                return (
+                  <tr key={family.uuid}>
+                    <td><div className="postable__name">{family.uuid}</div><span className="postable__name-sub">{family.name}</span></td>
+                    <td><select className="posfield__select" aria-label={`Release category for ${family.uuid}`} value={assignment?.category ?? ""} disabled={!editable || categories.length === 0} onChange={(event) => assign(family.uuid, event.target.value)}>
+                      <option value="">{fromEs === "" ? "No release · ES" : "No release"}</option>
+                      {categories.map((category) => <option key={category.releaseCategory} value={category.releaseCategory}>{category.releaseCategory === fromEs ? `${category.releaseCategory} · ES` : category.releaseCategory}</option>)}
+                    </select></td>
+                    <td>{assignment?.typed === true && <WorkbookInput className="posfield__input" aria-label={`Reason for ${family.uuid}`} value={assignment.reason ?? ""} disabled={!editable} onChange={(event) => mutateRc((draft) => rcWithFamilyReason(draft, family.uuid, event.target.value))} />}</td>
+                  </tr>
+                );
+              })}
+              {lost.map((entry) => (
+                <tr key={entry.familyId}>
+                  <td><div className="postable__name">{entry.familyId}</div><span className="postable__name-sub">Linked row not found</span></td>
+                  <td>{entry.releaseCategory ?? "No release"}</td>
+                  <td>{editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => mutateRc((draft) => rcWithFamilyOverrideRemoved(draft, entry.familyId))}>Remove</button>}</td>
+                </tr>
+              ))}
+            </tbody>
           </table>
         </div>
       )}
@@ -81,7 +95,7 @@ function RcEsLane(): JSX.Element | null {
           <table className="postable postable--mid rc-bounding-table" aria-label="Bounding members">
             <thead><tr><th>Release category</th><th>Bounding sequence</th><th>Screening basis</th></tr></thead>
             <tbody>{categories.map((category) => {
-              const mapped = families.filter((family) => holder(family.uuid) === category.releaseCategory);
+              const mapped = families.filter((family) => assignmentOf(family.uuid)?.category === category.releaseCategory);
               const sequenceId = category.boundingMember?.sequenceId ?? "";
               const listed = mapped.some((family) => family.memberSequenceIds.includes(sequenceId));
               return (
@@ -104,8 +118,8 @@ function RcEsLane(): JSX.Element | null {
 }
 
 function RcRiLane({ openDrawer }: { openDrawer: (ctx: RcDrawerContext) => void }): JSX.Element | null {
-  const { rc, editable, mutateRc, links } = useRcWorkbook();
-  const measures = rc.linkedWorkbooks?.RI ? links.riMeasures : undefined;
+  const { rc, editable, mutateRc, links, linked } = useRcWorkbook();
+  const measures = linked.ri === undefined ? undefined : links.riMeasures;
   if (!measures) return null;
   const metrics = rc.scope.metrics ?? [];
 
@@ -151,24 +165,51 @@ function RcRiLane({ openDrawer }: { openDrawer: (ctx: RcDrawerContext) => void }
 }
 
 function RcInterfaces({ openDrawer }: { openDrawer: (ctx: RcDrawerContext) => void }): JSX.Element {
-  const { rc, editable, mutateRc, links } = useRcWorkbook();
+  const { rc, editable, mutateRc, links, setSourceTermDraft } = useRcWorkbook();
   const [selected, setSelected] = useState<RcLinkCode | null>("ES");
+  const [busy, setBusy] = useState(false);
+  const [failed, setFailed] = useState<RcLinkCode | null>(null);
+  const [pending, setPending] = useState<PendingLink | null>(null);
+  const latestMutate = useRef(mutateRc);
   const selectId = useId();
   const options = selected === null ? [] : links.options[selected];
   const linkedId = selected === null ? undefined : rc.linkedWorkbooks?.[selected];
-  const linked = options.find((workbook) => workbook.id === linkedId);
+  const linkedOption = options.find((workbook) => workbook.id === linkedId);
+  const exampleLabel = linkedId === undefined ? undefined : rcExampleLinkLabel(linkedId);
+  const nothingToLink = options.length === 0 && linkedId === undefined;
+  const unavailable = selected !== null && (failed === selected || (links.unavailable ?? []).includes(selected));
+
+  useEffect(() => {
+    latestMutate.current = mutateRc;
+  }, [mutateRc]);
+
+  function applyLink(code: RcLinkCode, id: string, replace: RcMutation): void {
+    latestMutate.current((draft) => withLinkedWorkbook(replace(draft), code, id));
+  }
 
   function onLink(code: RcLinkCode, id: string): void {
     if (!editable) return;
-    mutateRc((draft) => {
-      const current: RcLinkedWorkbooks = draft.linkedWorkbooks ?? {};
-      const next: RcLinkedWorkbooks = {};
-      RC_LINK_CODES.forEach((candidate) => {
-        const value = candidate === code ? id : current[candidate];
-        if (value !== undefined && value.length > 0) next[candidate] = value;
-      });
-      return { ...draft, linkedWorkbooks: next };
-    });
+    setFailed(null);
+    setPending(null);
+    if (id.length === 0) {
+      applyLink(code, id, (draft) => draft);
+      return;
+    }
+    setBusy(true);
+    loadRcLinkReplacement(code, id, rc)
+      .then((replacement) => {
+        if (replacement.replaced === undefined) applyLink(code, id, replacement.replace);
+        else setPending({ code, workbookId: id, replaced: replacement.replaced, replace: replacement.replace });
+      })
+      .catch(() => setFailed(code))
+      .finally(() => setBusy(false));
+  }
+
+  function confirmPending(): void {
+    if (pending === null) return;
+    setPending(null);
+    if (pending.code === "MS") rc.releaseCategoryToConsequence.releaseCategoryInputs.forEach((category) => setSourceTermDraft(category.releaseCategory, undefined));
+    applyLink(pending.code, pending.workbookId, pending.replace);
   }
 
   return (
@@ -177,7 +218,7 @@ function RcInterfaces({ openDrawer }: { openDrawer: (ctx: RcDrawerContext) => vo
         {RC_LINK_CODES.map((code) => (
           <button key={code} type="button" aria-pressed={selected === code}
             className={`poshandoff__tile${selected === code ? " poshandoff__tile--active" : ""}`}
-            onClick={() => setSelected(selected === code ? null : code)}>
+            onClick={() => { setSelected(selected === code ? null : code); setPending(null); setFailed(null); }}>
             <span className="poshandoff__tile-code">{code}</span>
             <span className="poshandoff__tile-name">{HANDOFF_ELEMENT_NAMES[code]}</span>
           </button>
@@ -187,12 +228,21 @@ function RcInterfaces({ openDrawer }: { openDrawer: (ctx: RcDrawerContext) => vo
         <div className="rc-link-lane">
           <div className="rc-link-select">
             <label className="posfield__label" htmlFor={selectId}>Source workbook</label>
-            <select id={selectId} className="posfield__select" value={linkedId ?? ""} disabled={!editable || (options.length === 0 && linkedId === undefined)} onChange={(event) => onLink(selected, event.target.value)}>
-              <option value="">{options.length === 0 && linkedId === undefined ? `No ${selected} workbooks in this project` : "Not linked"}</option>
+            <select id={selectId} className="posfield__select" value={pending !== null && pending.code === selected ? pending.workbookId : linkedId ?? ""} disabled={!editable || nothingToLink || busy} onChange={(event) => onLink(selected, event.target.value)}>
+              <option value="">{nothingToLink ? `No ${selected} workbooks in this project` : "Not linked"}</option>
+              {exampleLabel !== undefined && linkedId !== undefined && <option value={linkedId}>{exampleLabel}</option>}
               {options.map((workbook) => <option key={workbook.id} value={workbook.id}>{workbook.name}</option>)}
-              {linkedId !== undefined && linked === undefined && <option value={linkedId}>{linkedId.startsWith("example") ? `Example ${selected} workbook` : `${selected} workbook not in this project`}</option>}
+              {linkedId !== undefined && linkedOption === undefined && exampleLabel === undefined && <option value={linkedId}>{`${selected} workbook not in this project`}</option>}
             </select>
           </div>
+          {pending !== null && pending.code === selected && (
+            <div className="rc-link-confirm" role="group" aria-label="Confirm the link">
+              <span>Linking replaces {pending.replaced}.</span>
+              <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" disabled={busy} onClick={confirmPending}>Link {options.find((workbook) => workbook.id === pending.workbookId)?.name ?? selected}</button>
+              <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => setPending(null)}>Cancel</button>
+            </div>
+          )}
+          {unavailable && <p className="rc-link-error" role="alert">Linked workbook unavailable</p>}
           <HandoffImports consumer="RC" producer={selected} />
           {selected === "ES" && <RcEsLane />}
           {selected === "MS" && <RcMsSourceTerm openDrawer={openDrawer} />}

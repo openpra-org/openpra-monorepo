@@ -1,6 +1,10 @@
 import { type SeismicPRA } from "interfaces-mef-types/seismic/seismic-pra";
 import { type JSX, useCallback, useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
+import { useWorkbookSharing } from "../workbooks/useWorkbookSharing";
+import { WorkbookAccessRedirect } from "../workbooks/workbookAccessRedirect";
+import { WorkbookSharingProvider } from "../workbooks/workbookSharing";
+import { useWorkbookLiveUpdates } from "../workbooks/useWorkbookLiveUpdates";
 import { useAuth } from "../auth/AuthContext";
 import { getProject } from "../projects/projectApi";
 import { LoadExampleModal, UnloadExampleModal } from "../workbooks/exampleWorkbookModal";
@@ -23,6 +27,7 @@ function SeismicPraWorkbookPage(): JSX.Element {
   const [roles, setRoles] = useState<SeismicPraWorkbookRoleName[]>([]);
   const [options, setOptions] = useState<SeismicPraExampleOption[]>([]);
   const [projectName, setProjectName] = useState("");
+  const [projectId, setProjectId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [rolesOpen, setRolesOpen] = useState(false);
@@ -37,7 +42,7 @@ function SeismicPraWorkbookPage(): JSX.Element {
     let cancelled = false;
     Promise.all([getSeismicPraWorkbook(id), getSeismicPraExamples()]).then(async ([workbook, examples]) => {
       if (cancelled) return;
-      setMef(workbook.mef); setRoles(workbook.myRoles); setHasPrevious(workbook.hasPreviousMef); setOptions(examples);
+      setMef(workbook.mef); setRoles(workbook.myRoles); setHasPrevious(workbook.hasPreviousMef); setOptions(examples); setProjectId(workbook.projectId);
       try { const project = await getProject(workbook.projectId); if (!cancelled) setProjectName(project.name); } catch { if (!cancelled) setProjectName(""); }
     }).catch((err: unknown) => { if (!cancelled) setError((err as { message?: string }).message ?? "Could not load this Seismic PRA workbook"); });
     return () => { cancelled = true; };
@@ -58,37 +63,37 @@ function SeismicPraWorkbookPage(): JSX.Element {
   const onSaveError = useCallback((message: string): void => setSaveError(message), []);
   const { patch } = useSeismicPraMefPatch(id ?? "", mef, onSaveSuccess, onSaveError);
   const mutate = useCallback((mutator: (current: SeismicPRA) => SeismicPRA): void => { setMef((current) => current === null ? current : mutator(current)); void patch(mutator); }, [patch]);
-  const availablePersonas = useMemo<SeismicPraPersona[]>(() => {
+  const sharing = useWorkbookSharing(id, roles); const refreshFromServer = useCallback(async (): Promise<void> => { if (id === undefined) return; const workbook = await getSeismicPraWorkbook(id); setMef(workbook.mef); setRoles(workbook.myRoles); }, [id]); useWorkbookLiveUpdates(id, refreshFromServer); const availablePersonas = useMemo<SeismicPraPersona[]>(() => {
     const out: SeismicPraPersona[] = [];
-    if (roles.includes("preparer") || roles.includes("co_preparer")) out.push("preparer");
+    if (sharing.preparerView) out.push("preparer");
     if (roles.includes("reviewer")) out.push("reviewer");
     if (roles.includes("approver")) out.push("approver");
     return out;
-  }, [roles]);
+  }, [roles, sharing.preparerView]);
   useEffect(() => { if (availablePersonas.length > 0 && !availablePersonas.includes(persona)) setPersona(availablePersonas[0]!); }, [availablePersonas, persona]);
 
   if (error !== null) return <div className="posw"><main className="posmain"><p className="pws-status pws-status--error">{error}</p></main></div>;
-  if (mef === null || id === undefined) return <div className="posw"><main className="posmain"><p className="pws-status">Loading Seismic PRA workbook…</p></main></div>;
-  if (availablePersonas.length === 0) return <div className="posw"><main className="posmain"><p className="pws-status">You do not have a role on this workbook yet.</p><button type="button" className="posnav__btn" onClick={() => setRolesOpen(true)}>View roles</button></main>{rolesOpen && <WorkbookRolesModal workbookId={id} onClose={() => setRolesOpen(false)} onChanged={(response) => setRoles(response.myRoles as SeismicPraWorkbookRoleName[])} />}</div>;
+  if (mef === null || id === undefined || !sharing.loaded) return <div className="posw"><main className="posmain"><p className="pws-status">Loading Seismic PRA workbook…</p></main></div>;
+  if (availablePersonas.length === 0) return <WorkbookAccessRedirect projectId={projectId} />;
 
   const canPrepare = roles.includes("preparer") || roles.includes("co_preparer");
-  const editable = persona === "preparer" && (mef.workflowState === "DRAFT" || mef.workflowState === "REVISION_REQUIRED");
+  const editable = persona === "preparer" && sharing.authoring && (mef.workflowState === "DRAFT" || mef.workflowState === "REVISION_REQUIRED");
   const canLoad = canPrepare && (mef.workflowState === "DRAFT" || mef.workflowState === "REVISION_REQUIRED");
   const activeLinkedInputs = linkedInputs?.variant === exampleVariant ? linkedInputs : null;
   const actions = {
-    submitForReview: async (): Promise<void> => setMef(await submitWorkbookForReview(id) as SeismicPRA),
+    submitForReview: sharing.sharedOnly ? undefined : async (): Promise<void> => setMef(await submitWorkbookForReview(id) as SeismicPRA),
     requestRevision: async (note: string): Promise<void> => setMef(await requestWorkbookRevision(id, note) as SeismicPRA),
     postComment: async (text: string, severity: "MAJOR" | "MINOR" | "OBSERVATION", associatedSr?: string): Promise<void> => setMef(await postWorkbookComment(id, { text, severity, associatedSr }) as SeismicPRA),
     toggleResolve: async (commentId: string, resolved: boolean): Promise<void> => setMef(await patchWorkbookComment(id, commentId, { resolved }) as SeismicPRA),
   };
 
-  return <SeismicPraWorkbookProvider mef={mef} linkedInputs={activeLinkedInputs} editable={editable} mutate={mutate}>
-    <SeismicPraWorkbench persona={persona} setPersona={setPersona} availablePersonas={availablePersonas} showPersonaPicker={availablePersonas.length > 1} onOpenRoles={() => setRolesOpen(true)} onLoadExample={canLoad ? () => setLoadOpen(true) : undefined} onUnloadExample={canLoad && hasPrevious ? () => setUnloadOpen(true) : undefined} headerMeta={{ projectName, workbookName: mef.name, workbookVersion: mef.version }} actions={actions} renderDocuments={() => <SeismicPraDocumentsCard workbookId={id} canEdit={canPrepare} />} renderApprovalTable={() => <WorkbookApprovalTable workbookId={id} refreshSignal={approvalRefresh} />} renderSignCard={() => <WorkbookSignCard workbookId={id} actingUsername={user?.username ?? ""} currentPersona={persona} myOpenComments={mef.internalReviewComments.comments.filter((comment) => comment.authorId === (user?.username ?? "") && !comment.resolved).length} refreshSignal={approvalRefresh} onSigned={() => setApprovalRefresh((value) => value + 1)} />} renderRoster={() => <WorkbookRoster workbookId={id} refreshSignal={approvalRefresh} />} />
+  return <WorkbookSharingProvider workbookId={id} workbookName={mef.name} sharing={sharing}><SeismicPraWorkbookProvider mef={mef} linkedInputs={activeLinkedInputs} editable={editable} mutate={mutate}>
+    <SeismicPraWorkbench persona={persona} setPersona={setPersona} availablePersonas={availablePersonas} showPersonaPicker={availablePersonas.length > 1} onOpenRoles={() => setRolesOpen(true)} onLoadExample={canLoad ? () => setLoadOpen(true) : undefined} onUnloadExample={canLoad && hasPrevious ? () => setUnloadOpen(true) : undefined} headerMeta={{ projectName, workbookName: mef.name, workbookVersion: mef.version }} actions={actions} renderDocuments={() => <SeismicPraDocumentsCard workbookId={id} canEdit={sharing.authoring} />} renderApprovalTable={() => <WorkbookApprovalTable workbookId={id} refreshSignal={approvalRefresh} />} renderSignCard={() => <WorkbookSignCard workbookId={id} actingUsername={user?.username ?? ""} currentPersona={persona} myOpenComments={mef.internalReviewComments.comments.filter((comment) => comment.authorId === (user?.username ?? "") && !comment.resolved).length} refreshSignal={approvalRefresh} onSigned={() => setApprovalRefresh((value) => value + 1)} />} renderRoster={() => <WorkbookRoster workbookId={id} refreshSignal={approvalRefresh} />} />
     {saveError !== null && <div className="ie-savebar" role="alert"><span>Could not save changes: {saveError}</span><button type="button" className="ie-savebar__dismiss" onClick={() => setSaveError(null)}>Dismiss</button></div>}
     {rolesOpen && <WorkbookRolesModal workbookId={id} onClose={() => setRolesOpen(false)} onChanged={(response) => setRoles(response.myRoles as SeismicPraWorkbookRoleName[])} />}
     {loadOpen && <LoadExampleModal exampleName="Seismic PRA" exampleOptions={options} onCancel={() => setLoadOpen(false)} onConfirm={async (exampleId) => { setLinkedInputs(null); const response = await loadSeismicPraExample(id, exampleId); setMef(response.mef); setHasPrevious(response.hasPreviousMef); setLoadOpen(false); }} />}
     {unloadOpen && <UnloadExampleModal onCancel={() => setUnloadOpen(false)} onConfirm={async () => { setLinkedInputs(null); const response = await unloadSeismicPraExample(id); setMef(response.mef); setHasPrevious(response.hasPreviousMef); setUnloadOpen(false); }} />}
-  </SeismicPraWorkbookProvider>;
+  </SeismicPraWorkbookProvider></WorkbookSharingProvider>;
 }
 
 export { SeismicPraWorkbookPage };

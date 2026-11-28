@@ -24,12 +24,11 @@ export class RcSiteReceptorsService {
   private async load(id: string, baseRevision: unknown, actor: Actor, write = true) {
     const doc = await this.workbooks.findOne({ workbookId: id }).exec();
     if (!doc) throw new NotFoundException("RC workbook not found");
-    const access = await this.projects.resolveAccess(doc.projectId, actor);
+    await this.projects.resolveAccess(doc.projectId, actor);
     const mef = doc.mef as RadiologicalConsequenceAnalysis;
     const site = mef.protectiveActionParameters.siteAndReceptors;
     if (write) {
-      const roles = await this.roles.resolveEffectiveRoles(id, actor.username);
-      if (access.role === "viewer" || !roles.some(r => r === "preparer" || r === "co_preparer")) throw new ForbiddenException("Only preparers can edit site and receptor inputs");
+      if (!(await this.roles.canAuthor(id, actor.username))) throw new ForbiddenException("Only preparers can edit site and receptor inputs");
       if (!["DRAFT", "REVISION_REQUIRED"].includes(mef.workflowState ?? "DRAFT")) throw new ForbiddenException("Site inputs are locked during review and approval");
       if (!revision.safeParse(baseRevision).success) throw new BadRequestException("A site-input revision is required");
       if ((site?.revision ?? 0) !== baseRevision) throw new ConflictException("Site inputs changed. Reload before saving");

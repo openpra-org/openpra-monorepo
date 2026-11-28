@@ -90,7 +90,7 @@ export class IeDocumentsService implements OnModuleInit {
   private async loadAuthorize(workbookId: string, acting: ActingUser, requireWrite: boolean): Promise<{ myRoles: WorkbookRoleName[] }> {
     const wb = await this.ieWorkbookModel.findOne({ workbookId }).exec();
     if (!wb) throw new NotFoundException("IE workbook not found");
-    const { role } = await this.projectsService.resolveAccess(wb.projectId, acting);
+    const { role } = await this.projectsService.resolveAccess(wb.projectId, acting, workbookId);
     if (requireWrite && role === "viewer") throw new ForbiddenException("You cannot modify documents on this workbook");
     const myRoles = await this.rolesService.resolveEffectiveRoles(workbookId, acting.username);
     return { myRoles };
@@ -111,7 +111,7 @@ export class IeDocumentsService implements OnModuleInit {
 
   async upload(workbookId: string, input: UploadInput, acting: ActingUser): Promise<IeDocumentEntry> {
     const { myRoles } = await this.loadAuthorize(workbookId, acting, true);
-    if (!myRoles.includes("preparer") && !myRoles.includes("co_preparer")) throw new ForbiddenException("Only preparers can upload documents");
+    if (!myRoles.includes("preparer") && !myRoles.includes("co_preparer") && !(await this.rolesService.canAuthor(workbookId, acting.username))) throw new ForbiddenException("Only preparers can upload documents");
     if (!ALLOWED_MIME_TYPES.has(input.mimeType)) throw new BadRequestException(`Unsupported file type: ${input.mimeType}`);
     if (input.size > MAX_BYTES) throw new BadRequestException(`File exceeds ${MAX_BYTES} bytes`);
     if (input.size <= 0) throw new BadRequestException("Empty file");
@@ -140,7 +140,7 @@ export class IeDocumentsService implements OnModuleInit {
 
   async remove(workbookId: string, documentId: string, acting: ActingUser): Promise<void> {
     const { myRoles } = await this.loadAuthorize(workbookId, acting, true);
-    if (!myRoles.includes("preparer") && !myRoles.includes("co_preparer")) throw new ForbiddenException("Only preparers can delete documents");
+    if (!myRoles.includes("preparer") && !myRoles.includes("co_preparer") && !(await this.rolesService.canAuthor(workbookId, acting.username))) throw new ForbiddenException("Only preparers can delete documents");
     const doc = await this.ieDocModel.findOne({ workbookId, documentId }).exec();
     if (!doc) throw new NotFoundException("Document not found");
     try {

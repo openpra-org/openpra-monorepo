@@ -988,6 +988,19 @@ export const DaStateNeedSchema = z.object({
   manual: DaManualEntrySchema.optional(),
 });
 
+export const DaLinkedNeedDetailSchema = z.object({
+  list: z.enum(["BASIC_EVENT", "INITIATOR", "HUMAN_ERROR", "CCF_GROUP", "STATE"]),
+  id: z.string(),
+  included: z.boolean().optional(),
+  exclusionReason: z.string().optional(),
+  parameterId: z.string().optional(),
+  unmapped: z.boolean().optional(),
+  changeReason: z.string().optional(),
+  kind: DaNeedKindSchema.optional(),
+  missionTime: UncertainExpressionSchema.optional(),
+  testIntervalHours: z.number().optional(),
+});
+
 export const DaDataNeedsSchema = z.object({
   importedAt: z.string().optional(),
   sources: z.array(DaNeedSourceSchema),
@@ -997,6 +1010,7 @@ export const DaDataNeedsSchema = z.object({
   humanErrors: z.array(DaHumanErrorNeedSchema),
   ccfGroups: z.array(DaCcfGroupNeedSchema),
   states: z.array(DaStateNeedSchema),
+  linkedDetails: z.array(DaLinkedNeedDetailSchema).optional(),
 });
 
 export const DaUncertaintyAlternativeSchema = z.object({

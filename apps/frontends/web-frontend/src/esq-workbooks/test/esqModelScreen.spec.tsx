@@ -37,7 +37,7 @@ function node(trueStateIds: string[], nodeId = "N-ROOM", modelId = "BN-1"): EsqN
 }
 
 function networked(): EventSequenceQuantification {
-  return { ...withModelImported(linkedEsq(), modelUpstream(), NOW), bayesianNetworks: [dependencyNetwork()] };
+  return { ...withModelImported(linkedEsq(), modelUpstream()), bayesianNetworks: [dependencyNetwork()] };
 }
 
 function drawnTree(): EventTree {
@@ -254,7 +254,7 @@ describe("ESQ Step 02 network node links", () => {
 
   it("sets a network node for a function of a drawn tree without asking for a reason", async () => {
     const onChange = changeSpy();
-    render(<Harness initial={withTypedTrees(networked(), [drawnTree()], modelUpstream(), NOW)} onChange={onChange} />);
+    render(<Harness initial={withTypedTrees(networked(), [drawnTree()], modelUpstream())} onChange={onChange} />);
     const functionWindow = within(await openFunction("DCOOL"));
     expect(selectedText(functionWindow.getByLabelText("ET-ESQ-01 linked to"))).toBe("Not linked");
     fireEvent.change(functionWindow.getByLabelText("ET-ESQ-01 linked to"), { target: { value: "node" } });
@@ -276,7 +276,7 @@ describe("ESQ Step 02 network node links", () => {
     const sy = upstream.sy;
     if (sy === undefined) throw new Error("SY fixture missing");
     jest.mocked(getSyWorkbook).mockResolvedValue({ workbookId: "sy-1", projectId: "p-1", ownerUsername: "analyst", revision: 1, mef: sy, myRoles: [], hasPreviousMef: false, updatedAt: NOW });
-    render(<Harness initial={withTypedTrees(networked(), [drawnTree()], upstream, NOW)} onChange={onChange} />);
+    render(<Harness initial={withTypedTrees(networked(), [drawnTree()], upstream)} onChange={onChange} />);
     await praxis();
     fireEvent.change(screen.getByLabelText("Event tree"), { target: { value: "ET-DRAWN" } });
     fireEvent.click(screen.getByRole("button", { name: (name) => name.includes("Drawn cooling") }));

@@ -16,11 +16,9 @@ import {
   type RiInputFamily,
   type RiInputs,
   type RiInputSequence,
-  type RiInputSource,
   type RiInputContributor,
   type RiInputImportance,
   type RiManualEntry,
-  type ModelUncertaintySource,
   type ScreenedItemLedgerEntry,
   type RiResolvedAbsoluteCriteria,
   type RiResolvedCriteriaSet,
@@ -45,7 +43,6 @@ import {
   type ImportanceAnalysisRecord,
   type ImportanceMeasureEntry,
 } from "interfaces-mef-types/esq/event-sequence-quantification";
-import { type Workbook } from "interfaces-shared-types";
 import { meanFrequencyValue } from "../workbooks/riskWorkbookConnections";
 import { sciText, shareText } from "./riShared";
 import { type RadiologicalConsequenceAnalysis } from "interfaces-mef-types/rc/radiological-consequence-analysis";
@@ -58,7 +55,6 @@ import {
   CUMULATIVE_TARGET_SPECS,
   ELEMENT_CODE_BY_TYPE,
   MEASURE_ROLE_SPECS,
-  exampleLinkLabel,
   RELATIVE_CRITERIA_SPECS,
   RI_CRITERIA_SPECS,
   RI_HAZARD_GROUPS,
@@ -68,7 +64,6 @@ import {
   type RiAbsoluteNumberKey,
   type RiAbsoluteStatisticKey,
   type RiRelativeKey,
-  type RiLinkCode,
   type AppTypeId,
   type ConformanceItem,
   type RiPersona,
@@ -708,8 +703,8 @@ function combineFrequencies(parts: RiFrequencyStats[]): RiFrequencyStats {
   return { mean: total, p05: approx(Math.exp(mu - Z95 * sigma)), p50: approx(Math.exp(mu)), p95: approx(Math.exp(mu + Z95 * sigma)) };
 }
 
-function familyInput(family: EventSequenceFamily, esq: EventSequenceQuantification): RiInputFamily {
-  const parts = esq.familyQuantifications.filter((q) => (q.eventSequenceFamilyReference?.entityId ?? q.eventSequenceFamilyRef) === family.uuid);
+function familyInput(family: EventSequenceFamily, esq: EventSequenceQuantification | undefined): RiInputFamily {
+  const parts = (esq?.familyQuantifications ?? []).filter((q) => (q.eventSequenceFamilyReference?.entityId ?? q.eventSequenceFamilyRef) === family.uuid);
   const first = parts[0];
   const frequency = parts.length > 1
     ? combineFrequencies(parts.map(quantificationStats))
@@ -736,8 +731,8 @@ function familyInput(family: EventSequenceFamily, esq: EventSequenceQuantificati
   return input;
 }
 
-function sequenceInput(sequence: EventSequence, es: EventSequenceAnalysis, esq: EventSequenceQuantification, familyOf: Map<string, string>): RiInputSequence {
-  const estimate = (esq.sequenceFrequencyEstimates ?? []).find((e) => e.eventSequenceRef === sequence.uuid);
+function sequenceInput(sequence: EventSequence, es: EventSequenceAnalysis, esq: EventSequenceQuantification | undefined, familyOf: Map<string, string>): RiInputSequence {
+  const estimate = (esq?.sequenceFrequencyEstimates ?? []).find((e) => e.eventSequenceRef === sequence.uuid);
   const tree = (es.eventTrees ?? []).find((t) => t.uuid === sequence.eventTreeId);
   const frequency = estimate !== undefined
     ? statsOf(meanFrequencyValue(estimate.meanFrequency), estimate.percentile05, estimate.percentile50, estimate.percentile95)
@@ -821,35 +816,22 @@ function consequenceInputs(ri: RiskIntegration, rc: RadiologicalConsequenceAnaly
   return rows;
 }
 
-function riImportReady(upstream: RiUpstream): boolean {
-  return upstream.es !== undefined && upstream.esq !== undefined;
+interface RiLinkedRows {
+  families: RiInputFamily[];
+  sequences: RiInputSequence[];
+  contributors: RiInputContributor[];
+  importance: RiInputImportance[];
 }
 
-function riImportInputs(ri: RiskIntegration, upstream: RiUpstream, now: string): RiInputs | undefined {
-  const es = upstream.es;
-  const esq = upstream.esq;
-  if (es === undefined || esq === undefined) return undefined;
-  const links = applicationContextOf(ri).linkedWorkbooks;
-  const sources: RiInputSource[] = [];
-  for (const element of ["ES", "ESQ", "RC"] as const) {
-    const id = links[element];
-    if (id === undefined || (element === "RC" && upstream.rc === undefined)) continue;
-    const option = upstream.options[element].find((w) => w.id === id);
-    const source: RiInputSource = { element, workbookId: id, workbookName: option?.name ?? exampleLinkLabel(id) ?? id };
-    if (option !== undefined) source.updatedAt = option.updatedAt;
-    sources.push(source);
-  }
+function riLinkedRows(es: EventSequenceAnalysis | undefined, esq: EventSequenceQuantification | undefined): RiLinkedRows {
   const familyOf = new Map<string, string>();
-  for (const family of es.eventSequenceFamilies) {
+  for (const family of es?.eventSequenceFamilies ?? []) {
     for (const member of family.memberSequenceIds) familyOf.set(member, family.uuid);
   }
   return {
-    importedAt: now,
-    sources,
-    families: es.eventSequenceFamilies.map((family) => familyInput(family, esq)),
-    sequences: es.eventSequences.map((sequence) => sequenceInput(sequence, es, esq, familyOf)),
-    consequences: upstream.rc === undefined ? [] : consequenceInputs(ri, upstream.rc),
-    contributors: esq.familyQuantifications.flatMap((q) => (q.contributionBreakdown ?? []).map((c): RiInputContributor => ({
+    families: es === undefined ? [] : es.eventSequenceFamilies.map((family) => familyInput(family, esq)),
+    sequences: es === undefined ? [] : es.eventSequences.map((sequence) => sequenceInput(sequence, es, esq, familyOf)),
+    contributors: (esq?.familyQuantifications ?? []).flatMap((q) => (q.contributionBreakdown ?? []).map((c): RiInputContributor => ({
       familyId: q.eventSequenceFamilyReference?.entityId ?? q.eventSequenceFamilyRef,
       quantificationId: q.uuid,
       quantificationMean: meanFrequencyValue(q.meanFrequency),
@@ -857,7 +839,7 @@ function riImportInputs(ri: RiskIntegration, upstream: RiUpstream, now: string):
       type: c.contributorType,
       fraction: c.fractionalContribution,
     }))),
-    importance: (esq.importanceAnalyses ?? []).flatMap((analysis) => analysis.measures.map((m) => importanceInput(analysis, m))),
+    importance: (esq?.importanceAnalyses ?? []).flatMap((analysis) => analysis.measures.map((m) => importanceInput(analysis, m))),
   };
 }
 
@@ -886,12 +868,12 @@ function sameConsequence(a: RiConsequenceStats, b: RiConsequenceStats): boolean 
     && a.exceedances.every((x, i) => x.threshold === b.exceedances[i]?.threshold && x.probability === b.exceedances[i]?.probability);
 }
 
-function frequencyEdited(item: { imported?: RiFrequencyStats; frequency?: RiFrequencyStats; manual?: RiManualEntry }): boolean {
-  return item.manual === undefined && !sameFrequency(item.imported, item.frequency);
+function frequencyEdited(item: { imported?: RiFrequencyStats; frequency?: RiFrequencyStats; manual?: RiManualEntry; overridesLink?: boolean }): boolean {
+  return item.manual === undefined && (item.overridesLink === true || !sameFrequency(item.imported, item.frequency));
 }
 
 function consequenceEdited(item: RiInputConsequence): boolean {
-  return item.imported !== undefined && !sameConsequence(item.imported, item.statistics);
+  return item.manual === undefined && (item.overridesLink === true || (item.imported !== undefined && !sameConsequence(item.imported, item.statistics)));
 }
 
 function consequenceKey(item: RiInputConsequence): string {
@@ -921,6 +903,29 @@ interface RiInputFinding {
   item: string;
   detail: string;
   target?: { kind: "inputFamily" | "inputSequence" | "inputConsequence" | "inputContributor" | "inputImportance"; id: string };
+  leftover?: RiLeftover;
+}
+
+type RiLeftover =
+  | { kind: "family"; familyId: string }
+  | { kind: "sequence"; sequenceId: string }
+  | { kind: "consequence"; releaseCategoryId: string; rcMetricId: string };
+
+const LEFTOVER_CHECK = "Linked row not found";
+
+function withLeftoverRemoved(ri: RiskIntegration, leftover: RiLeftover): RiskIntegration {
+  return withInputs(ri, (inputs) => {
+    const { linkedFamilyDetails, linkedSequenceDetails, linkedConsequenceDetails, ...rest } = inputs;
+    const families = (linkedFamilyDetails ?? []).filter((detail) => !(leftover.kind === "family" && detail.familyId === leftover.familyId));
+    const sequences = (linkedSequenceDetails ?? []).filter((detail) => !(leftover.kind === "sequence" && detail.sequenceId === leftover.sequenceId));
+    const consequences = (linkedConsequenceDetails ?? []).filter((detail) => !(leftover.kind === "consequence" && detail.releaseCategoryId === leftover.releaseCategoryId && detail.rcMetricId === leftover.rcMetricId));
+    return {
+      ...rest,
+      ...(families.length === 0 ? {} : { linkedFamilyDetails: families }),
+      ...(sequences.length === 0 ? {} : { linkedSequenceDetails: sequences }),
+      ...(consequences.length === 0 ? {} : { linkedConsequenceDetails: consequences }),
+    };
+  });
 }
 
 const SEVERITY_RANK: Record<RiFindingSeverity, number> = { error: 0, warning: 1, note: 2 };
@@ -952,7 +957,7 @@ function unavailableReasonOf(inputs: RiInputs, measure: string): string | undefi
   return reason === undefined || reason.trim().length === 0 ? undefined : reason;
 }
 
-function riInputChecks(ri: RiskIntegration, options?: Record<RiLinkCode, Workbook[]>): RiInputFinding[] {
+function riInputChecks(ri: RiskIntegration): RiInputFinding[] {
   const inputs = ri.inputs;
   if (inputs === undefined) return [];
   const findings: RiInputFinding[] = [];
@@ -980,10 +985,10 @@ function riInputChecks(ri: RiskIntegration, options?: Record<RiLinkCode, Workboo
       if (missing(f.exclusionReason)) findings.push({ severity: "error", check: "Excluded without a reason", item: f.id, detail: "Give the reason this family is left out of the integration.", target });
       continue;
     }
-    if (f.manual === undefined && frequencyEdited(f) && missing(f.changeReason)) findings.push({ severity: "error", check: "Edited without a reason", item: f.id, detail: "The frequency differs from the imported value. Give the reason.", target });
+    if (f.manual === undefined && frequencyEdited(f) && missing(f.changeReason)) findings.push({ severity: "error", check: "Typed over a linked value without a reason", item: f.id, detail: "Give the reason this frequency is typed in RI.", target });
     const frequency = f.frequency;
     if (frequency === undefined) {
-      findings.push({ severity: "error", check: "Missing frequency", item: f.id, detail: f.manual === undefined ? "Neither ESQ nor ES gives a frequency for this family." : "Enter the family frequency.", target });
+      findings.push({ severity: "error", check: "Missing frequency", item: f.id, detail: f.manual !== undefined || f.overridesLink === true ? "Enter the family frequency." : "Neither ESQ nor ES gives a frequency for this family.", target });
     } else {
       if (f.frequencySource === "ES") findings.push({ severity: "warning", check: "Screening frequency", item: f.id, detail: "ESQ does not quantify this family, so the ES screening value is used.", target });
       if (f.quantificationIds.length > 1) {
@@ -1024,7 +1029,7 @@ function riInputChecks(ri: RiskIntegration, options?: Record<RiLinkCode, Workboo
         continue;
       }
       if (!found) {
-        findings.push({ severity: "error", check: "No results", item: measure.name, detail: `No family has a result for this measure. Import them, add them by hand, or record why they are not available.` });
+        findings.push({ severity: "error", check: "No results", item: measure.name, detail: "No family has a result for this measure. Add the results, or record why they are not available." });
         continue;
       }
       for (const { family, category } of lacking) {
@@ -1037,7 +1042,7 @@ function riInputChecks(ri: RiskIntegration, options?: Record<RiLinkCode, Workboo
   for (const s of inputs.sequences) {
     const target = { kind: "inputSequence" as const, id: s.id };
     if (s.manual !== undefined && missing(s.manual.source)) findings.push({ severity: "warning", check: "Source not given", item: s.id, detail: sourceNote, target });
-    if (s.manual === undefined && frequencyEdited(s) && missing(s.changeReason)) findings.push({ severity: "error", check: "Edited without a reason", item: s.id, detail: "The frequency differs from the imported value. Give the reason.", target });
+    if (s.manual === undefined && frequencyEdited(s) && missing(s.changeReason)) findings.push({ severity: "error", check: "Typed over a linked value without a reason", item: s.id, detail: "Give the reason this frequency is typed in RI.", target });
     if (s.frequency !== undefined && orderFindings(s.frequency).outOfOrder) findings.push({ severity: "error", check: "Percentiles out of order", item: s.id, detail: "The 5th, 50th and 95th percentiles must increase.", target });
     if (s.reactorSourceCombinations.length > 1 && modules <= 1) {
       findings.push({ severity: "warning", check: "Several reactors or sources", item: s.id, detail: `The sequence affects ${s.reactorSourceCombinations.join(", ")}, but the scope lists ${modules} reactor module${modules === 1 ? "" : "s"}.`, target });
@@ -1056,7 +1061,7 @@ function riInputChecks(ri: RiskIntegration, options?: Record<RiLinkCode, Workboo
     const pair = `${c.releaseCategoryId.trim().toLowerCase()}|${c.measure}`;
     if (c.releaseCategoryId.trim().length > 0 && seenResults.has(pair)) findings.push({ severity: "error", check: "Duplicate result", item, detail: "Another result has the same release category and measure.", target });
     seenResults.add(pair);
-    if (c.manual === undefined && consequenceEdited(c) && missing(c.changeReason)) findings.push({ severity: "error", check: "Edited without a reason", item, detail: "The values differ from the imported ones. Give the reason.", target });
+    if (c.manual === undefined && consequenceEdited(c) && missing(c.changeReason)) findings.push({ severity: "error", check: "Typed over a linked value without a reason", item, detail: "Give the reason this result is typed in RI.", target });
     const values = [...c.statistics.percentiles].sort((a, b) => a.percentile - b.percentile).map((p) => p.value);
     if (values.some((v, i) => i > 0 && v < (values[i - 1] ?? v))) findings.push({ severity: "error", check: "Percentiles out of order", item, detail: "The percentiles must increase.", target });
     const measure = measures.find((m) => m.name === c.measure);
@@ -1102,14 +1107,14 @@ function riInputChecks(ri: RiskIntegration, options?: Record<RiLinkCode, Workboo
     if (missing(m.manual.source)) findings.push({ severity: "warning", check: "Source not given", item, detail: sourceNote, target });
   }
 
-  if (options !== undefined) {
-    for (const source of inputs.sources) {
-      if (source.updatedAt === undefined) continue;
-      const current = options[source.element].find((w) => w.id === source.workbookId);
-      if (current !== undefined && current.updatedAt !== source.updatedAt) {
-        findings.push({ severity: "warning", check: "Changed since import", item: source.element, detail: `${source.workbookName} changed after the import. Import again to refresh.` });
-      }
-    }
+  for (const detail of inputs.linkedFamilyDetails ?? []) {
+    findings.push({ severity: "warning", check: LEFTOVER_CHECK, item: detail.familyId, detail: "No linked workbook lists this family. What was entered for it is kept.", leftover: { kind: "family", familyId: detail.familyId } });
+  }
+  for (const detail of inputs.linkedSequenceDetails ?? []) {
+    findings.push({ severity: "warning", check: LEFTOVER_CHECK, item: detail.sequenceId, detail: "No linked workbook lists this sequence. What was entered for it is kept.", leftover: { kind: "sequence", sequenceId: detail.sequenceId } });
+  }
+  for (const detail of inputs.linkedConsequenceDetails ?? []) {
+    findings.push({ severity: "warning", check: LEFTOVER_CHECK, item: `${detail.releaseCategoryId} ${detail.rcMetricId}`, detail: "No linked workbook lists this result. What was entered for it is kept.", leftover: { kind: "consequence", releaseCategoryId: detail.releaseCategoryId, rcMetricId: detail.rcMetricId } });
   }
 
   return findings.sort((a, b) => SEVERITY_RANK[a.severity] - SEVERITY_RANK[b.severity]);
@@ -1121,22 +1126,6 @@ function emptyInputs(): RiInputs {
 
 function withInputsCreated(ri: RiskIntegration, fn: (inputs: RiInputs) => RiInputs): RiskIntegration {
   return { ...ri, inputs: fn(ri.inputs ?? emptyInputs()) };
-}
-
-function withManualKept(previous: RiInputs | undefined, next: RiInputs): RiInputs {
-  if (previous === undefined) return next;
-  const out: RiInputs = {
-    ...next,
-    families: [...next.families, ...previous.families.filter((f) => f.manual !== undefined)],
-    sequences: [...next.sequences, ...previous.sequences.filter((s) => s.manual !== undefined)],
-    consequences: [...next.consequences, ...previous.consequences.filter((c) => c.manual !== undefined)],
-  };
-  const contributors = [...(next.contributors ?? []), ...(previous.contributors ?? []).filter((c) => c.manual !== undefined)];
-  const importance = [...(next.importance ?? []), ...(previous.importance ?? []).filter((m) => m.manual !== undefined)];
-  if (contributors.length > 0 || next.contributors !== undefined) out.contributors = contributors;
-  if (importance.length > 0 || next.importance !== undefined) out.importance = importance;
-  if (previous.unavailable !== undefined) out.unavailable = previous.unavailable;
-  return out;
 }
 
 function manualCount(inputs: RiInputs | undefined): number {
@@ -1993,7 +1982,7 @@ function breakdownItems(ri: RiskIntegration, metric: RiIntegratedMetric): RiBrea
     const label = contributorTypeLabel(entry.type);
     categories.set(label, (categories.get(label) ?? 0) + entry.value);
   }
-  const reimport = imported ? undefined : "Import ESQ's contributors in Step 02 or add them by hand there.";
+  const reimport = imported ? undefined : "Step 02 has no contributors yet.";
   const withNote = (item: RiBreakdownItem, note: string | undefined): RiBreakdownItem => (note === undefined ? item : { ...item, note });
   const maintenance = ofTypes(["MAINTENANCE_UNAVAILABILITY"]);
   return [
@@ -2112,7 +2101,10 @@ function elementTypeOf(code: string): TechnicalElementTypes | undefined {
   return Object.values(TechnicalElementTypes).find((type) => ELEMENT_CODE_BY_TYPE[type] === code);
 }
 
+type RiRegisterWorkbook = "ESQ" | "MS" | "RC";
+
 interface RiRegisterCandidate {
+  from: RiRegisterWorkbook;
   element: TechnicalElementTypes;
   name: string;
   description: string;
@@ -2121,43 +2113,22 @@ interface RiRegisterCandidate {
 
 function registerCandidates(upstream: RiUpstream): RiRegisterCandidate[] {
   const out: RiRegisterCandidate[] = [];
-  const push = (element: TechnicalElementTypes | undefined, name: string, description: string, assumptions: string[]): void => {
-    if (element !== undefined && name.trim().length > 0) out.push({ element, name, description, assumptions });
+  const push = (from: RiRegisterWorkbook, element: TechnicalElementTypes | undefined, name: string, description: string, assumptions: string[]): void => {
+    if (element === undefined || name.trim().length === 0) return;
+    if (!out.some((c) => c.element === element && sameItem(c.name, name))) out.push({ from, element, name, description, assumptions });
   };
-  for (const a of upstream.esq?.modelUncertaintySourceAssessments ?? []) push(elementTypeOf(a.sourceElementCode), a.uncertaintySource, a.effectOnFamilyFrequencies, a.relatedAssumptions);
-  for (const a of upstream.ms?.modelUncertaintyAssessments ?? []) push(TechnicalElementTypes.MECHANISTIC_SOURCE_TERM_ANALYSIS, a.uncertaintySource, a.consequenceEffect, a.relatedAssumptions);
-  for (const a of upstream.rc?.consequenceQuantification.modelUncertaintyAssessments ?? []) push(TechnicalElementTypes.CONSEQUENCE_ANALYSIS, a.uncertaintySource, a.effectOnMetrics, a.relatedAssumptions);
+  for (const a of upstream.esq?.modelUncertaintySourceAssessments ?? []) push("ESQ", elementTypeOf(a.sourceElementCode), a.uncertaintySource, a.effectOnFamilyFrequencies, a.relatedAssumptions);
+  for (const a of upstream.ms?.modelUncertaintyAssessments ?? []) push("MS", TechnicalElementTypes.MECHANISTIC_SOURCE_TERM_ANALYSIS, a.uncertaintySource, a.consequenceEffect, a.relatedAssumptions);
+  for (const a of upstream.rc?.consequenceQuantification.modelUncertaintyAssessments ?? []) push("RC", TechnicalElementTypes.CONSEQUENCE_ANALYSIS, a.uncertaintySource, a.effectOnMetrics, a.relatedAssumptions);
   return out;
-}
-
-function newRegisterCandidates(ri: RiskIntegration, upstream: RiUpstream): RiRegisterCandidate[] {
-  return registerCandidates(upstream).filter((c) => !ri.modelUncertaintySources.some((u) => u.originatingElement === c.element && sameItem(u.name, c.name)));
-}
-
-function withImportedRegister(ri: RiskIntegration, upstream: RiUpstream): RiskIntegration {
-  const added: ModelUncertaintySource[] = [];
-  const ids = ri.modelUncertaintySources.map((u) => u.uuid);
-  for (const c of newRegisterCandidates(ri, upstream)) {
-    const uuid = nextId("MU", [...ids, ...added.map((a) => a.uuid)]);
-    const entry: ModelUncertaintySource = {
-      uuid,
-      name: c.name,
-      description: c.description,
-      originatingElement: c.element,
-      affectedMetrics: [],
-      impactAssessment: "",
-      implementsSrs: [{ sr: "RI-C1", hlr: "C" }, { sr: "RI-C3", hlr: "C" }],
-    };
-    if (c.assumptions.length > 0) entry.relatedAssumptions = [...c.assumptions];
-    added.push(entry);
-  }
-  return added.length === 0 ? ri : { ...ri, modelUncertaintySources: [...ri.modelUncertaintySources, ...added] };
 }
 
 type RiScreenedType = ScreenedItemLedgerEntry["itemType"];
 type RiScreeningCode = ScreenedItemLedgerEntry["screeningElementCode"];
+type RiScreeningWorkbook = "POS" | "ES" | "ESQ";
 
 interface RiScreenCandidate {
+  from: RiScreeningWorkbook;
   itemType: RiScreenedType;
   itemRef: string;
   code: RiScreeningCode;
@@ -2168,45 +2139,23 @@ interface RiScreenCandidate {
 function screeningCandidates(upstream: RiUpstream): RiScreenCandidate[] {
   const out: RiScreenCandidate[] = [];
   const push = (candidate: RiScreenCandidate): void => {
+    if (candidate.itemRef.trim().length === 0) return;
     if (!out.some((c) => c.itemType === candidate.itemType && sameItem(c.itemRef, candidate.itemRef))) out.push(candidate);
   };
   for (const r of upstream.pos?.screeningRecords ?? []) {
-    if (!r.retained) push({ itemType: "PLANT_OPERATING_STATE", itemRef: r.posId, code: "POS", basis: r.justification });
+    if (!r.retained) push({ from: "POS", itemType: "PLANT_OPERATING_STATE", itemRef: r.posId, code: "POS", basis: r.justification });
   }
   for (const r of upstream.es?.screeningRecords ?? []) {
-    if (!r.retained) push({ itemType: "EVENT_SEQUENCE", itemRef: r.sequenceId, code: "ES", basis: r.justification });
+    if (!r.retained) push({ from: "ES", itemType: "EVENT_SEQUENCE", itemRef: r.sequenceId, code: "ES", basis: r.justification });
   }
   for (const sequence of upstream.es?.eventSequences ?? []) {
-    if (sequence.screeningStatus === ScreeningStatus.SCREENED_OUT) push({ itemType: "EVENT_SEQUENCE", itemRef: sequence.uuid, code: "ES", basis: sequence.screeningBasis ?? "" });
+    if (sequence.screeningStatus === ScreeningStatus.SCREENED_OUT) push({ from: "ES", itemType: "EVENT_SEQUENCE", itemRef: sequence.uuid, code: "ES", basis: sequence.screeningBasis ?? "" });
   }
   const screened = upstream.esq?.screenedEventCumulativeAssessment;
   for (const ref of screened?.screenedInitiatingEventRefs ?? []) {
-    push({ itemType: "INITIATING_EVENT", itemRef: ref, code: "IE", basis: screened?.basis ?? "", impact: screened?.cumulativeImpactAssessment });
+    push({ from: "ESQ", itemType: "INITIATING_EVENT", itemRef: ref, code: "IE", basis: screened?.basis ?? "", impact: screened?.cumulativeImpactAssessment ?? "" });
   }
   return out;
-}
-
-function newScreeningCandidates(ri: RiskIntegration, upstream: RiUpstream): RiScreenCandidate[] {
-  const ledger = ri.screenedItemsLedger ?? [];
-  return screeningCandidates(upstream).filter((c) => !ledger.some((s) => s.itemType === c.itemType && sameItem(s.itemRef, c.itemRef)));
-}
-
-function withImportedScreening(ri: RiskIntegration, upstream: RiUpstream): RiskIntegration {
-  const ledger = ri.screenedItemsLedger ?? [];
-  const added: ScreenedItemLedgerEntry[] = [];
-  for (const c of newScreeningCandidates(ri, upstream)) {
-    const entry: ScreenedItemLedgerEntry = {
-      uuid: nextId("SL", [...ledger.map((s) => s.uuid), ...added.map((a) => a.uuid)]),
-      itemType: c.itemType,
-      itemRef: c.itemRef,
-      screeningElementCode: c.code,
-      screeningBasis: c.basis,
-      implementsSrs: [{ sr: "RI-C1", hlr: "C" }],
-    };
-    if (c.impact !== undefined && c.impact.trim().length > 0) entry.impactOnRiskMetrics = c.impact;
-    added.push(entry);
-  }
-  return added.length === 0 ? ri : { ...ri, screenedItemsLedger: [...ledger, ...added] };
 }
 
 function sharedReleaseCategories(ri: RiskIntegration): { category: string; families: string[] }[] {
@@ -2344,10 +2293,14 @@ function registerIssues(ri: RiskIntegration): string[] {
   const issues: string[] = [];
   if (ri.modelUncertaintySources.length === 0) issues.push("Compile the model uncertainties.");
   for (const u of ri.modelUncertaintySources) {
-    if (missing(u.impactAssessment) || u.affectedMetrics.length === 0) issues.push(`Assess ${u.name.trim().length > 0 ? u.name : u.uuid}.`);
+    const label = u.name.trim().length > 0 ? u.name : u.uuid;
+    if (missing(u.impactAssessment) || u.affectedMetrics.length === 0) issues.push(`Assess ${label}.`);
+    if (u.overridesLink === true && missing(u.overrideReason)) issues.push(`Give the reason ${label} is typed in RI.`);
   }
   for (const s of ri.screenedItemsLedger ?? []) {
-    if (missing(s.screeningBasis)) issues.push(`Give the screening basis for ${s.itemRef.trim().length > 0 ? s.itemRef : s.uuid}.`);
+    const label = s.itemRef.trim().length > 0 ? s.itemRef : s.uuid;
+    if (missing(s.screeningBasis)) issues.push(`Give the screening basis for ${label}.`);
+    if (s.overridesLink === true && missing(s.overrideReason)) issues.push(`Give the reason ${label} is typed in RI.`);
   }
   return issues;
 }
@@ -2822,7 +2775,7 @@ function withHandoffsUpdated(ri: RiskIntegration): RiskIntegration {
 }
 
 function handoffIssues(ri: RiskIntegration): string[] {
-  if (ri.inputs === undefined) return ["Import the inputs in Step 02."];
+  if (ri.inputs === undefined) return ["Step 02 has no inputs yet."];
   const targets = handoffTargets(ri);
   const plan = handoffPlan(ri, targets);
   const issues: string[] = [];
@@ -2966,7 +2919,7 @@ function conformanceMeta(ri: RiskIntegration, code: string): string | undefined 
   switch (code) {
     case "RI-A1": return countText(ri.scopeDefinition.consequenceMeasures.length, "measure", "measures");
     case "RI-A4": return `${sciText(ri.reportingThresholds.minimumReportingFrequencyPerPlantYear)} per yr`;
-    case "RI-B1": return inputs === undefined ? "Nothing imported" : countText(inputs.families.filter((f) => f.included).length, "family", "families");
+    case "RI-B1": return inputs === undefined ? "No inputs" : countText(inputs.families.filter((f) => f.included).length, "family", "families");
     case "RI-B6": return inputs?.contributors === undefined ? "No contributors" : countText(new Set(inputs.contributors.map((c) => c.name)).size, "contributor", "contributors");
     case "RI-C1": return countText(ri.modelUncertaintySources.length, "source", "sources");
     default: return undefined;
@@ -3160,9 +3113,15 @@ export {
   measureIssues,
   measureRoleIssues,
   measureFromPreset,
-  riImportReady,
-  riImportInputs,
+  riLinkedRows,
+  consequenceInputs,
+  cloneConsequenceStats,
+  sameItem,
+  sameFrequency,
+  sameConsequence,
   riInputChecks,
+  withLeftoverRemoved,
+  LEFTOVER_CHECK,
   frequencyEdited,
   consequenceEdited,
   consequenceKey,
@@ -3170,7 +3129,6 @@ export {
   withInputs,
   metricCoverage,
   withInputsCreated,
-  withManualKept,
   manualCount,
   withFamilyRenamed,
   withSequenceRenamed,
@@ -3232,10 +3190,8 @@ export {
   sscGroups,
   importanceRows,
   nextId,
-  newRegisterCandidates,
-  withImportedRegister,
-  newScreeningCandidates,
-  withImportedScreening,
+  registerCandidates,
+  screeningCandidates,
   sharedReleaseCategories,
   groupingIssues,
   registerIssues,
@@ -3251,6 +3207,12 @@ export {
   type FloorsIssues,
   type RiInputFinding,
   type RiFindingSeverity,
+  type RiLeftover,
+  type RiLinkedRows,
+  type RiRegisterCandidate,
+  type RiRegisterWorkbook,
+  type RiScreenCandidate,
+  type RiScreeningWorkbook,
   type RiCategory,
   type RiFamilyCategory,
   type RiFamilyDose,

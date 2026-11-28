@@ -1,5 +1,6 @@
 import { WorkbookSectionHeading } from "../workbooks/workbookSectionHeading";
 import { JSX, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { WorkbookShareButton, useWorkbookSharingContext } from "../workbooks/workbookSharing";
 import { useNavigate } from "react-router-dom";
 import { IEIcon } from "./ieIcons";
 import {
@@ -140,6 +141,7 @@ function WorkspaceHeader({
             </select>
           </label>
         )}
+        <WorkbookShareButton />
         {onOpenRoles !== undefined && (
           <button type="button" className="posnav__btn posnav__btn--sm" onClick={onOpenRoles} title="Manage roles"><IEIcon.Settings /> Roles</button>
         )}
@@ -303,6 +305,7 @@ function IeWorkbench({
   const isReviewer = persona === "reviewer";
   const isApprover = persona === "approver";
   const isPreparer = persona === "preparer";
+  const { sharedOnly } = useWorkbookSharingContext();
 
   const { drawer, openDrawer } = useIeWorkbook();
   const closeDrawer = useCallback(() => openDrawer(null), [openDrawer]);
@@ -403,7 +406,7 @@ function IeWorkbench({
       case "screening": return <ScreeningScreen />;
       case "frequency": return <FrequencyScreen />;
       case "handoff": return <IeHandoffScreen />;
-      case "draft": return <DraftScreen cc={cc} scores={scores} stage={stage} onSubmitDraft={() => { handleSubmitToApproval(); setStepId("review"); }} canSubmit={isPreparer} />;
+      case "draft": return <DraftScreen cc={cc} scores={scores} stage={stage} onSubmitDraft={() => { handleSubmitToApproval(); setStepId("review"); }} canSubmit={isPreparer && !sharedOnly} />;
       case "review":
       case "approval": return (
         <InternalReviewScreen

@@ -16,7 +16,7 @@ import type {
   EventSequenceQuantification,
 } from "interfaces-mef-types/esq/event-sequence-quantification";
 import type { FaultTreeTopEventReference } from "interfaces-mef-types/modeling";
-import { canonicalJson, type UncertainExpression, type UncertainParameter } from "interfaces-mef-types/core/uncertainty";
+import { type UncertainExpression, type UncertainParameter } from "interfaces-mef-types/core/uncertainty";
 import { isComponentModel } from "interfaces-mef-types/da/data-analysis";
 import { parameterLaw, parameterUnit } from "interfaces-mef-types/esq/esq-measure-inputs";
 import { barrierWorkOf } from "interfaces-mef-types/esq/esq-barrier-inputs";
@@ -40,7 +40,7 @@ import { cellRecordText } from "./esqBarriers";
 import { FaultTreeDiagram, FaultTreeWindow, pointText, sciText, useExpressionPoints, type EsqPointEntry } from "./esqShared";
 import { useEsqWorkbook } from "./esqWorkbookContext";
 import { EsqInitiatingEventEditor } from "./EsqInitiatingEvent";
-import { loadLinkedSy, withLinkedWorkbook, type EsqUpstream } from "./esqLinks";
+import { loadLinkedSy, withLinkedWorkbook } from "./esqLinks";
 import { END_STATE_LABELS, FREQUENCY_UNIT_OPTIONS, exampleLinkLabel, exampleLinkVariant, type EsqLinkRequest } from "./esqViewData";
 import {
   daParameterOptionsOf,
@@ -49,8 +49,7 @@ import {
   missionTimeSourcesOf,
   missionTimeTableOf,
   linkOf,
-  modelImportReady,
-  modelLinked,
+  modelUnavailable,
   modelViewOf,
   newTypedInitiator,
   nextFamilyId,
@@ -77,7 +76,6 @@ import {
   withFunctionLink,
   withHandFamily,
   withInitiatorChoice,
-  withModelImported,
   withRuleChanged,
   withSequenceChoice,
   withSplitTarget,
@@ -364,14 +362,13 @@ function TreePanel({ tree, initiators, states, onOpenTree, onOpenFaultTree, onLi
   function applyOperation(operation: EventTreeOperation): void {
     if (!author || tree === undefined) return;
     const treeId = tree.id;
-    const now = new Date().toISOString();
     mutateEsq((draft) => {
       const trees = typedTreesOf(draft);
       const current = trees.find((candidate) => candidate.uuid === treeId);
       if (current === undefined) return draft;
       const reserved = new Set((draft.model?.sequences ?? []).filter((sequence) => sequence.treeId !== treeId).map((sequence) => sequence.code));
       const next = applyEventTreeOperation(current, operation, reserved);
-      return next === current ? draft : withTypedTrees(draft, trees.map((candidate) => (candidate.uuid === treeId ? next : candidate)), upstream, now);
+      return next === current ? draft : withTypedTrees(draft, trees.map((candidate) => (candidate.uuid === treeId ? next : candidate)), upstream);
     });
   }
 
@@ -431,8 +428,6 @@ function LinkDialog({ treeId, functionalEventId, name, onClose, onPickSy }: {
   const syChoices = upstream.options.SY;
   const syName = syId === undefined ? "" : syNameOf(syId, syChoices);
   const chosen = tops.find((record) => topKey(record.modelId, record.gateId) === value);
-  const needsImport = canonicalJson(tops) !== canonicalJson(model?.tops ?? []);
-  const importReady = !needsImport || modelImportReady(esq, upstream);
   const noLink = syChoices.length === 0 ? "No SY workbook in this project" : "No SY workbook linked";
   const emptyText = syId === undefined ? noLink : liveSy === undefined ? "Loading fault trees…" : `${syName} has no fault trees`;
 
@@ -445,27 +440,25 @@ function LinkDialog({ treeId, functionalEventId, name, onClose, onPickSy }: {
     return () => { cancelled = true; };
   }, [replaceLinkedSy, syId]);
 
-  function apply(operation: EventTreeOperation, refresh: EsqUpstream | null): void {
+  function apply(operation: EventTreeOperation): void {
     if (!editable) return;
-    const now = new Date().toISOString();
     mutateEsq((draft) => {
       const trees = typedTreesOf(draft);
       const known = trees.find((candidate) => candidate.uuid === treeId);
       if (known === undefined) return draft;
       const next = applyEventTreeOperation(known, operation);
-      const linked = withTypedTrees(draft, trees.map((candidate) => (candidate.uuid === treeId ? next : candidate)), upstream, now);
-      return refresh !== null && modelImportReady(linked, refresh) ? withModelImported(linked, refresh, now) : linked;
+      return withTypedTrees(draft, trees.map((candidate) => (candidate.uuid === treeId ? next : candidate)), upstream);
     });
   }
 
   function save(): void {
     if (chosen === undefined || syId === undefined) return;
-    apply({ kind: "SET_FAULT_TREE_REFERENCE", functionalEventId, reference: { referenceType: "FAULT_TREE_TOP_EVENT", workbookId: syId, modelId: chosen.modelId, entityId: chosen.gateId } }, needsImport ? upstream : null);
+    apply({ kind: "SET_FAULT_TREE_REFERENCE", functionalEventId, reference: { referenceType: "FAULT_TREE_TOP_EVENT", workbookId: syId, modelId: chosen.modelId, entityId: chosen.gateId } });
     onClose();
   }
 
   function remove(): void {
-    apply({ kind: "SET_FAULT_TREE_REFERENCE", functionalEventId, reference: undefined }, null);
+    apply({ kind: "SET_FAULT_TREE_REFERENCE", functionalEventId, reference: undefined });
     onClose();
   }
 
@@ -507,7 +500,7 @@ function LinkDialog({ treeId, functionalEventId, name, onClose, onPickSy }: {
         {editable && (
           <div className="posrow es-dialog-actions">
             {current !== undefined && <button type="button" className="posnav__btn posnav__btn--sm" onClick={remove}>Remove link</button>}
-            <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" disabled={chosen === undefined || !importReady} onClick={save}>Save</button>
+            <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" disabled={chosen === undefined} onClick={save}>Save</button>
           </div>
         )}
       </div>
@@ -1436,28 +1429,19 @@ function EsqModelTabs({ onPickSy, reopenLink = null, onReopened }: {
   const [dialog, setDialog] = useState<ModelDialog | null>(null);
   const version = useUncertaintyVersion();
   const missionTimes = useMemo(() => missionTimeTableOf(esq, upstream), [esq, upstream]);
-  const view = useMemo(() => (version < 0 ? undefined : modelViewOf(esq, upstream.options, missionTimes)), [esq, upstream.options, missionTimes, version]);
+  const unavailable = useMemo(() => modelUnavailable(esq, upstream), [esq, upstream]);
+  const view = useMemo(() => (version < 0 ? undefined : modelViewOf(esq, unavailable, missionTimes)), [esq, unavailable, missionTimes, version]);
   const axes = useMemo(() => treeAxes(esq), [esq]);
-  const ready = modelImportReady(esq, upstream);
-  const linked = modelLinked(esq).length > 0;
-  const imported = esq.model?.importedAt !== undefined;
   const trees = esq.model?.trees ?? [];
   const inScope = new Set((view?.trees ?? []).map((tree) => tree.id));
   const active = trees.find((tree) => tree.id === treeId) ?? view?.trees[0] ?? trees[0];
   const esTrees = trees.filter((tree) => tree.typed !== true);
   const drawnTrees = trees.filter((tree) => tree.typed === true);
-  const canAdd = editable && (imported || ready);
-  const showImport = editable && linked;
+  const canAdd = editable;
 
   function openTree(id: string): void {
     setTreeId(id);
     setTab("trees");
-  }
-
-  function importNow(): void {
-    if (!editable || !ready) return;
-    const now = new Date().toISOString();
-    mutateEsq((draft) => withModelImported(draft, upstream, now));
   }
 
   function addTree(): void {
@@ -1466,10 +1450,9 @@ function EsqModelTabs({ onPickSy, reopenLink = null, onReopened }: {
     const initiator = known ?? nextTypedInitiatorCode(esq, upstream.ie);
     const state = axes.states[0]?.id;
     const created: EventTree = { ...createEmptyEventTree(initiator, state), label: nextTypedTreeCode(esq) };
-    const now = new Date().toISOString();
     mutateEsq((draft) => {
       const withInitiator = known === undefined ? withTypedInitiatorRecord(draft, newTypedInitiator(initiator, state)) : draft;
-      return withTypedTrees(withInitiator, [...typedTreesOf(withInitiator), created], upstream, now);
+      return withTypedTrees(withInitiator, [...typedTreesOf(withInitiator), created], upstream);
     });
     openTree(created.uuid);
   }
@@ -1484,8 +1467,7 @@ function EsqModelTabs({ onPickSy, reopenLink = null, onReopened }: {
 
   function removeTree(id: string): void {
     if (!editable) return;
-    const now = new Date().toISOString();
-    mutateEsq((draft) => withTypedTreeRemoved(draft, id, upstream, now));
+    mutateEsq((draft) => withTypedTreeRemoved(draft, id, upstream));
     setTreeId("");
   }
 
@@ -1573,26 +1555,21 @@ function EsqModelTabs({ onPickSy, reopenLink = null, onReopened }: {
   return (
     <>
       <div className="poscard es-seq-card">
-        {(tab === "trees" || showImport) && (
+        {tab === "trees" && (
           <div className="poscard__head es-seq-card__head esq-model-head">
-            {tab === "trees" && (trees.length > 0 ? (
+            {trees.length > 0 ? (
               <div className="es-seq-card__picker">
                 <label className="posfield__label" htmlFor={`${fieldId}-tree`}>Event tree</label>
                 <div className="es-seq-card__pick-row">
                   <select id={`${fieldId}-tree`} className="posfield__select" value={active?.id ?? ""} onChange={(event) => openTree(event.target.value)}>
-                    {esTrees.length > 0 && <optgroup label="Imported from ES">{esTrees.map((tree) => <option key={tree.id} value={tree.id}>{treeOption(tree)}</option>)}</optgroup>}
+                    {esTrees.length > 0 && <optgroup label="From ES">{esTrees.map((tree) => <option key={tree.id} value={tree.id}>{treeOption(tree)}</option>)}</optgroup>}
                     {drawnTrees.length > 0 && <optgroup label="Drawn in ESQ">{drawnTrees.map((tree) => <option key={tree.id} value={tree.id}>{treeOption(tree)}</option>)}</optgroup>}
                   </select>
                   {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" disabled={!canAdd} onClick={addTree}>Add event tree</button>}
                   {editable && active?.typed === true && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => removeTree(active.id)}>Delete event tree</button>}
                 </div>
               </div>
-            ) : editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" disabled={!canAdd} onClick={addTree}>Add event tree</button>)}
-            {showImport && (
-              <div className="esq-model-head__import">
-                <button type="button" className={`posnav__btn posnav__btn--sm${imported ? "" : " posnav__btn--primary"}`} disabled={!ready} onClick={importNow}>{imported ? "Import again" : "Import from linked workbooks"}</button>
-              </div>
-            )}
+            ) : editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" disabled={!canAdd} onClick={addTree}>Add event tree</button>}
           </div>
         )}
         <TabBar tabs={MODEL_TABS} tab={tab} label="Model sections" findings={view?.findings.length ?? 0} onTab={setTab} />

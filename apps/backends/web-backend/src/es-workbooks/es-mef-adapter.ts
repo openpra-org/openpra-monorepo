@@ -50,6 +50,15 @@ export class EsMefAdapter implements WorkbookElementAdapter, OnModuleInit {
     };
   }
 
+  async linkedWorkbookIds(workbookId: string): Promise<Record<string, string>> {
+    const doc = await this.esWorkbookModel.findOne({ workbookId }).exec();
+    if (!doc) return {};
+    return {
+      ...(doc.linkedPosWorkbookId === null || doc.linkedPosWorkbookId === undefined ? {} : { POS: doc.linkedPosWorkbookId }),
+      ...(doc.linkedIeWorkbookId === null || doc.linkedIeWorkbookId === undefined ? {} : { IE: doc.linkedIeWorkbookId }),
+    };
+  }
+
   async save(workbookId: string, mef: unknown, expectedRevision?: number): Promise<unknown> {
     const doc = await this.esWorkbookModel.findOne({ workbookId }).exec();
     if (!doc) throw new BadRequestException("ES workbook not found");

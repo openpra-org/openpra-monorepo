@@ -66,7 +66,7 @@ export class RiWorkbooksService {
   async patchMef(workbookId: string, operations: unknown, acting: ActingUser): Promise<RiWorkbookResponse> {
     const doc = await this.riWorkbookModel.findOne({ workbookId }).exec();
     if (!doc) throw new NotFoundException("RI workbook not found");
-    const { role } = await this.projectsService.resolveAccess(doc.projectId, acting);
+    const { role } = await this.projectsService.resolveAccess(doc.projectId, acting, workbookId);
     if (role === "viewer") throw new ForbiddenException("You cannot edit this RI workbook");
     const parsed = RiskIntegrationSchema.safeParse(stripNulls(mergeWorkbookPatch(doc.mef, operations)));
     if (!parsed.success) {

@@ -144,6 +144,9 @@ function WorkbookRolesModal({ workbookId, onClose, onChanged }: {
                   })}
                 </ul>
               )}
+              {!roles.canManage && (
+                <p className="posroles__hint">Only the workbook owner or the project owner can change role assignments.</p>
+              )}
             </section>
 
             {roles.canManage && (
@@ -210,10 +213,6 @@ function WorkbookRolesModal({ workbookId, onClose, onChanged }: {
                   Assigning a role to a team grants the role to every current and future member of that team. One person can hold multiple roles. Reviewers and approvers all must sign before the workbook advances.
                 </p>
               </section>
-            )}
-
-            {!roles.canManage && (
-              <p className="posroles__hint">Only the workbook owner or the project owner can change role assignments.</p>
             )}
           </>
         )}

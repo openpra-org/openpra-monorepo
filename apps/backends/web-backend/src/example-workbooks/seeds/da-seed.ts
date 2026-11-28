@@ -43,12 +43,6 @@ function ieResult(id: string): UncertainExpression {
   return { node: "VALUE", value: { unit: "PER_YEAR", law } };
 }
 
-function ieGroupFrequency(id: string): UncertainExpression {
-  const expression = IE_ANALYSIS_SFR.initiatingEventGroups.find((group) => group.uuid === id)?.frequency?.expression;
-  if (expression === undefined) throw new Error(`The IE example gives no frequency for ${id}.`);
-  return expression;
-}
-
 const NOW = "2026-05-12T12:00:00.000Z";
 const CREATED = "2026-04-23T09:00:00.000Z";
 
@@ -194,14 +188,13 @@ const parameters: DataAnalysisParameter[] = [
       { id: "U-1", sourceId: "SRC-01", entryId: "BIS-FTOP", verdict: "SCALED", boundary: "ADJUSTED", reason: "A bistable that fails to trip is the main failure of a trip division. The INL row covers the bistable alone, so a factor adds the rest of the division.", factors: [{ id: "F-1", name: "Process logic and trip relays in the division", nominal: 1.4, low: 1.2, high: 2, basis: "Adding PLP-FTOP (1.6E-4) and two RLY-FTOP (2.5E-5 each) to BIS-FTOP (5.4E-4) gives 1.4 times the bistable alone." }] },
       { id: "U-2", sourceId: "SRC-01", entryId: "PLP-FTOP", verdict: "REJECTED", boundary: "ADJUSTED", reason: "Already counted in the division factor on BIS-FTOP." },
     ],
-    isRiskSignificant: true,
     basicEventRef: "RPS-DVA-FS",
     systemReference: "SYS-RPS",
     plantOperatingStateRef: "POS-01",
     componentBoundaryRef: "CB-5",
     modelSelectionBasis: "A standby component asked to change state, estimated per demand.",
     dataSources: [{ source: "Industry component reliability database", sourceType: "GENERIC_INDUSTRY" }],
-    importance: { from: "ESQ", fussellVesely: 0.04, riskAchievementWorth: 1.9, entryIds: ["IMP-1 · 5"], importedAt: "2026-10-04T18:00:00.000Z" },
+    importance: { from: "ESQ" },
     implementsSrs: srs("DA-A1", "DA-A3", "DA-D1", "DA-D5", "DA-D3"),
   },
   {
@@ -1504,7 +1497,6 @@ const parameters: DataAnalysisParameter[] = [
     name: "Internal sodium fire frequency",
     description: "The HZ-FIRE hazard frequency. IE owns the fire hazard analysis and types the value, so DA imports it from IE.",
     parameterType: "FREQUENCY",
-    estimate: ieGroupFrequency("HZ-FIRE"),
     quantificationModel: "FREQUENCY",
     valueMode: "LINKED",
     valueLink: { element: "IE", needId: "HZ-FIRE" },
@@ -1523,7 +1515,6 @@ const parameters: DataAnalysisParameter[] = [
     name: "Seismic exceedance frequency",
     description: "The HZ-SEIS hazard frequency. IE owns the seismic hazard analysis and types the value, so DA imports it from IE.",
     parameterType: "FREQUENCY",
-    estimate: ieGroupFrequency("HZ-SEIS"),
     quantificationModel: "FREQUENCY",
     valueMode: "LINKED",
     valueLink: { element: "IE", needId: "HZ-SEIS" },
@@ -2686,12 +2677,11 @@ const ccfParameterEstimations: CcfParameterEstimation[] = [
     priorSourceId: "SRC-06",
     priorTemplate: "DCP-BAT-LP",
     priorReason: "Station batteries of the same kind. The fail-to-operate factors cover a bank that cannot carry its load, the members' failure mode.",
-    isRiskSignificant: true,
     imported: alphaImport("DCP-BAT-LP", 2),
     factors: alphaLink("DCP-BAT-LP", 2, "NON_STAGGERED"),
     parameterSource: "GENERIC",
     componentBoundaryConsistencyBasis: "The bank boundary (CB-4) holds the cells, rack and DC bus disconnect, with the charger outside. That matches the battery events, which code charger faults to the charger.",
-    importance: { from: "ESQ", fussellVesely: 0.1, riskAchievementWorth: 3.6, entryIds: ["IMP-1 · 4"], importedAt: "2026-10-04T18:00:00.000Z" },
+    importance: { from: "ESQ" },
     implementsSrs: srs("DA-D7", "DA-D8"),
   },
   {
@@ -2706,12 +2696,11 @@ const ccfParameterEstimations: CcfParameterEstimation[] = [
     priorSourceId: "SRC-06",
     priorTemplate: "CCF-RATE",
     priorReason: "No CCF 2020 template covers sodium or NaK natural-circulation loops. The generic rate factors pool failures over time, like a loop that loses flow or heat transfer during its mission.",
-    isRiskSignificant: true,
     imported: alphaImport("CCF-RATE", 3),
     factors: alphaLink("CCF-RATE", 3, "STAGGERED"),
     parameterSource: "GENERIC",
     componentBoundaryConsistencyBasis: "Each loop's boundary (CB-1) holds the piping and the sodium-to-air heat exchanger, with the damper outside. The generic factors pool many component types, so they carry no single boundary to match.",
-    importance: { from: "ESQ", fussellVesely: 0.22, riskAchievementWorth: 8.4, entryIds: ["IMP-1 · 1"], importedAt: "2026-10-04T18:00:00.000Z" },
+    importance: { from: "ESQ" },
     implementsSrs: srs("DA-D7", "DA-D8"),
   },
   {

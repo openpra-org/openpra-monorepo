@@ -69,6 +69,7 @@ export const SequenceTimingSchema = z.object({
   deterministicAnalysisReferences: z.array(z.string()).optional(),
   uncertaintyRange: z.tuple([z.number(), z.number()]).optional(),
   importedFrom: z.array(EsTimingSourceSchema).optional(),
+  overridesLink: z.boolean().optional(),
 });
 
 export const FeasibilityStateSchema = z.enum(["OK", "MARGINAL", "NOT_MET"]);
@@ -88,7 +89,23 @@ export const OperatorActionWindowSchema = z.object({
   applicablePlantOperatingStates: z.array(z.string()).optional(),
   note: z.string().optional(),
   importedFrom: z.array(EsTimingSourceSchema).optional(),
+  overridesLink: z.boolean().optional(),
+  overrideReason: z.string().optional(),
   implementsSrs: z.array(SRReferenceSchema),
+});
+
+export const LinkedOperatorActionDetailSchema = z.object({
+  humanActionId: z.string(),
+  cue: z.string().optional(),
+  cueMinutes: z.number().optional(),
+  windowStartMinutes: z.number().optional(),
+  windowEndMinutes: z.number().optional(),
+  requiredMinutes: z.number().optional(),
+  hepPointEstimate: z.number().optional(),
+  feasibility: z.record(z.string(), FeasibilityStateSchema).optional(),
+  applicableInitiatingEvents: z.array(z.string()).optional(),
+  applicablePlantOperatingStates: z.array(z.string()).optional(),
+  note: z.string().optional(),
 });
 
 export const DependencySchema = z.object({
@@ -275,7 +292,18 @@ export const PhenomenologicalDependencyModelSchema = z.object({
   systemSpecificImpacts: z.record(z.string(), z.string()).optional(),
   deterministicAnalysisReferences: z.array(z.string()).optional(),
   importedFrom: z.array(EsTimingSourceSchema).optional(),
+  overridesLink: z.boolean().optional(),
+  overrideReason: z.string().optional(),
   implementsSrs: z.array(SRReferenceSchema),
+});
+
+export const LinkedPhenomenonDetailSchema = z.object({
+  conditionId: z.string(),
+  description: z.string().optional(),
+  onsetTiming: z.string().optional(),
+  affectedSystems: z.array(z.string()).optional(),
+  environmentalConditions: z.array(z.string()).optional(),
+  systemSpecificImpacts: z.record(z.string(), z.string()).optional(),
 });
 
 export const OperationalDependencyModelSchema = z.object({
@@ -515,7 +543,9 @@ export const EventSequenceAnalysisSchema = z.object({
     notes: z.string().optional(),
   })).optional(),
   operatorActionWindows: z.array(OperatorActionWindowSchema).optional(),
+  linkedOperatorActionDetails: z.array(LinkedOperatorActionDetailSchema).optional(),
   dependencyModels: DependencyModelsSchema.optional(),
+  linkedPhenomenonDetails: z.array(LinkedPhenomenonDetailSchema).optional(),
   releaseCategoryMappings: z.array(ReleaseCategoryMappingSchema).optional(),
   endStateDefinitions: z.array(EsEndStateDefinitionSchema).optional(),
   screeningRecords: z.array(EventSequenceScreeningRecordSchema),

@@ -1010,12 +1010,6 @@ const sensitivityWork: EsqSensitivityWork = {
   decisions,
   cases: [
     { id: "SC-1", name: "DRACS loop failure at ten times its estimate", kind: "PARAMETER", target: "DA-BE-031", factor: 10, basis: "SY takes the loop natural-circulation failures from sodium test facility experience (MU-DRC-2). Ten times the estimate spans the spread of that experience." },
-    { id: "SS-2-HIGH", name: "Test-interval sweep · high", kind: "PARAMETER", target: "DA-BE-082", value: 3.0480034508374184e-4, basis: "The sensor input module estimate with semiannual channel tests in place of quarterly ones.", daCaseRef: { workbookId: DA_LINK, caseId: "SS-2" } },
-    { id: "SS-3-LOW", name: "Pump maintenance sweep · low", kind: "PARAMETER", target: "DA-UA-03", value: 0.0014840182648401827, basis: "Intermediate pump maintenance between half and twice the planned 26 h a year.", daCaseRef: { workbookId: DA_LINK, caseId: "SS-3" } },
-    { id: "SS-3-HIGH", name: "Pump maintenance sweep · high", kind: "PARAMETER", target: "DA-UA-03", value: 0.005936073059360731, basis: "Intermediate pump maintenance between half and twice the planned 26 h a year.", daCaseRef: { workbookId: DA_LINK, caseId: "SS-3" } },
-    { id: "SS-4-LOW", name: "Coincident-maintenance sweep · low", kind: "PARAMETER", target: "DA-UA-05", value: 0, basis: "The joint battery equalization unavailability from none to 5.0E-3.", daCaseRef: { workbookId: DA_LINK, caseId: "SS-4" } },
-    { id: "SS-4-HIGH", name: "Coincident-maintenance sweep · high", kind: "PARAMETER", target: "DA-UA-05", value: 5.0e-3, basis: "The joint battery equalization unavailability from none to 5.0E-3.", daCaseRef: { workbookId: DA_LINK, caseId: "SS-4" } },
-    { id: "SS-6-HIGH", name: "DRACS loop testing scheme · high", kind: "CCF_TOTAL", target: "CCF-DRACS-LOOP", factor: 1.73e-4 / 5.94e-5, basis: "The three DRACS loops tested on one day instead of staggered. The group total scales by DA's all-members ratio.", daCaseRef: { workbookId: DA_LINK, caseId: "SS-6" } },
     { id: "SC-4", name: "Every HEP at its 95th percentile", kind: "HEP_95TH", basis: "HR borrows nonnuclear performance data for a crew that does not yet exist. The 95th percentile of each HEP bounds that applicability gap." },
     { id: "SC-5", name: "DRACS loops failed together", kind: "GROUP_FAILED", target: "CCF_GROUP:CCF-DRACS-LOOP", basis: "Bounds the shared north penetration room failure that SY has not yet modeled (SY-B8) by failing the three loops together." },
     { id: "SC-6", name: "No recovery and no HFE dependency", kind: "LOGIC", logic: { recovery: false, dependency: false }, basis: "Shows what the remote-panel restoration credit and the joint HEPs change, the dependency treatment that ESQ-C16 asks to be tested." },
@@ -1090,10 +1084,6 @@ export const ESQ_ANALYSIS: EventSequenceQuantification = {
   review,
   sensitivityWork,
   handoffWork,
-  quantificationPlan: {
-    modulesPerPlant: { value: 1, link: { element: "IE", workbookId: "example-ie-sfr", field: "numberOfModules" } },
-    reportingFloorPerYear: { value: 1e-7, link: { element: "RI", workbookId: "example-ri-sfr", field: "minimumReportingFrequencyPerPlantYear" } },
-  },
   bayesianNetworks: [createExampleDependencyNetwork()],
   hclConfigurations: [createExampleHclConfiguration()],
   familyQuantifications,

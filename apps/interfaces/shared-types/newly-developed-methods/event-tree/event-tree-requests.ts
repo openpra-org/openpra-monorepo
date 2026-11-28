@@ -176,6 +176,30 @@ interface EsqUncertaintyRunRequest {
   treeIds?: string[];
 }
 
+type EsqLinkedCaseKind = "PARAMETER" | "CCF_TOTAL" | "HEP" | "EVENT" | "GROUP_FAILED" | "FLAG" | "LOGIC" | "HEP_95TH";
+
+interface EsqLinkedCaseLogic {
+  flags?: boolean;
+  loopBreaks?: EsqRunLoopOption;
+  exclusions?: boolean;
+  expandCcf?: boolean;
+  recovery?: boolean;
+  dependency?: boolean;
+}
+
+interface EsqLinkedSensitivityCase {
+  id: string;
+  name: string;
+  kind: EsqLinkedCaseKind;
+  target?: string;
+  value?: number;
+  factor?: number;
+  state?: boolean;
+  logic?: EsqLinkedCaseLogic;
+  basis: string;
+  daCaseRef: { workbookId: string; caseId: string };
+}
+
 interface EsqSensitivityRunRequest {
   schemaVersion: WorkbookMethodSchemaVersion;
   workbookRevision: WorkbookRevision;
@@ -183,6 +207,7 @@ interface EsqSensitivityRunRequest {
   logic: EsqEventTreeRunLogic;
   calculation: EsqModelCalculation;
   cutSets?: EventTreeCutSetSettings;
+  linkedCase?: EsqLinkedSensitivityCase;
 }
 
 const EventTreeExecutionModeSchema = z.enum(["INDEPENDENT", "HYBRID_CAUSAL_LOGIC"]);
@@ -413,6 +438,31 @@ const EsqUncertaintyRunRequestSchema = z
   })
   .strict();
 
+const EsqLinkedSensitivityCaseSchema = z
+  .object({
+    id: z.string().min(1),
+    name: z.string(),
+    kind: z.enum(["PARAMETER", "CCF_TOTAL", "HEP", "EVENT", "GROUP_FAILED", "FLAG", "LOGIC", "HEP_95TH"]),
+    target: z.string().optional(),
+    value: z.number().optional(),
+    factor: z.number().optional(),
+    state: z.boolean().optional(),
+    logic: z
+      .object({
+        flags: z.boolean().optional(),
+        loopBreaks: z.enum(["AS_SET", "TRUE", "FALSE"]).optional(),
+        exclusions: z.boolean().optional(),
+        expandCcf: z.boolean().optional(),
+        recovery: z.boolean().optional(),
+        dependency: z.boolean().optional(),
+      })
+      .strict()
+      .optional(),
+    basis: z.string(),
+    daCaseRef: z.object({ workbookId: z.string().min(1), caseId: z.string().min(1) }).strict(),
+  })
+  .strict();
+
 const EsqSensitivityRunRequestSchema = z
   .object({
     schemaVersion: WorkbookMethodSchemaVersionSchema,
@@ -421,9 +471,13 @@ const EsqSensitivityRunRequestSchema = z
     logic: EsqEventTreeRunLogicSchema,
     calculation: EsqModelCalculationSchema,
     cutSets: EventTreeCutSetSettingsSchema.optional(),
+    linkedCase: EsqLinkedSensitivityCaseSchema.optional(),
   })
   .strict()
   .superRefine((request, context) => {
+    if (request.linkedCase !== undefined && request.linkedCase.id !== request.caseId) {
+      context.addIssue({ code: "custom", path: ["linkedCase", "id"], message: "The linked case must be the case that runs" });
+    }
     if (request.calculation === "CUT_SETS" && request.cutSets === undefined) {
       context.addIssue({ code: "custom", path: ["cutSets"], message: "A cut set run needs its settings" });
     }
@@ -525,5 +579,6 @@ export type {
   EsqUncertaintyCorrelation,
   EsqImportanceRunRequest,
   EsqUncertaintyRunRequest,
+  EsqLinkedSensitivityCase,
   EsqSensitivityRunRequest,
 };

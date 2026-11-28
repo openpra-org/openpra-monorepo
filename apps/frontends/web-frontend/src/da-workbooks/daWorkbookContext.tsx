@@ -40,6 +40,12 @@ interface DaUpstream {
   esq?: EventSequenceQuantification;
   sc?: SuccessCriteriaDevelopment;
   scReferenced: ScMissionTimeSource[];
+  unavailable?: DaLinkCode[];
+}
+
+interface LinkedMef<T> {
+  id: string;
+  mef?: T;
 }
 
 const EMPTY_UPSTREAM: DaUpstream = {
@@ -96,37 +102,43 @@ function derived(da: DataAnalysis, self: string | undefined): DataAnalysis {
   return withCcf(withFrequencies(withUnavailability(withEstimates(da))), self);
 }
 
-function useLinkedMef<T>(id: string | undefined, load: (id: string) => Promise<T>): T | undefined {
-  const [value, setValue] = useState<T | undefined>(undefined);
+function useLinkedMef<T>(id: string | undefined, load: (id: string) => Promise<T>, reading: number): LinkedMef<T> | undefined {
+  const [value, setValue] = useState<LinkedMef<T> | undefined>(undefined);
   useEffect(() => {
-    if (id === undefined) {
+    if (id === undefined || id.length === 0) {
       setValue(undefined);
       return;
     }
     let cancelled = false;
     load(id)
-      .then((mef) => { if (!cancelled) setValue(mef); })
-      .catch(() => { if (!cancelled) setValue(undefined); });
+      .then((mef) => { if (!cancelled) setValue((previous) => (previous !== undefined && previous.id === id && previous.mef !== undefined && JSON.stringify(previous.mef) === JSON.stringify(mef) ? previous : { id, mef })); })
+      .catch(() => { if (!cancelled) setValue({ id }); });
     return () => { cancelled = true; };
-  }, [id, load]);
-  return value;
+  }, [id, load, reading]);
+  return value !== undefined && value.id === id ? value : undefined;
 }
 
-function useDaUpstream(da: DataAnalysis | undefined, options: Record<DaLinkCode, Workbook[]>, workbookId?: string): DaUpstream {
+function failed<T>(code: DaLinkCode, entry: LinkedMef<T> | undefined): DaLinkCode[] {
+  return entry !== undefined && entry.mef === undefined ? [code] : [];
+}
+
+function useDaUpstream(da: DataAnalysis | undefined, options: Record<DaLinkCode, Workbook[]>, workbookId?: string, reading = 0): DaUpstream {
   const links = da?.linkedWorkbooks;
-  const sy = useLinkedMef(links?.SY, loadLinkedSy);
-  const ie = useLinkedMef(links?.IE, loadLinkedIe);
-  const hr = useLinkedMef(links?.HRA, loadLinkedHr);
-  const pos = useLinkedMef(links?.POS, loadLinkedPos);
-  const esq = useLinkedMef(links?.ESQ, loadLinkedEsq);
-  const sc = useLinkedMef(links?.SC, loadLinkedSc);
+  const syEntry = useLinkedMef(links?.SY, loadLinkedSy, reading);
+  const ieEntry = useLinkedMef(links?.IE, loadLinkedIe, reading);
+  const hrEntry = useLinkedMef(links?.HRA, loadLinkedHr, reading);
+  const posEntry = useLinkedMef(links?.POS, loadLinkedPos, reading);
+  const esqEntry = useLinkedMef(links?.ESQ, loadLinkedEsq, reading);
+  const scEntry = useLinkedMef(links?.SC, loadLinkedSc, reading);
+  const sy = syEntry?.mef, ie = ieEntry?.mef, hr = hrEntry?.mef, pos = posEntry?.mef, esq = esqEntry?.mef, sc = scEntry?.mef;
+  const unavailable = useMemo(() => [...failed("SY", syEntry), ...failed("IE", ieEntry), ...failed("HRA", hrEntry), ...failed("POS", posEntry), ...failed("ESQ", esqEntry), ...failed("SC", scEntry)], [syEntry, ieEntry, hrEntry, posEntry, esqEntry, scEntry]);
   const scRoots = useMemo(() => [...(da === undefined ? [] : daLinkRoots(da)), ...(sy === undefined ? [] : syLinkRoots(sy))], [da, sy]);
   const scBaseTable = useMemo(() => {
     const [linked] = linkedScSource(da, sc);
     return linked === undefined ? NO_PARAMETERS : scMissionTimeTable(linked.workbookId, linked.sc);
   }, [da, sc]);
   const scReferenced = useLinkedScSources(scRoots, scBaseTable);
-  return useMemo<DaUpstream>(() => ({ options, workbookId, sy, ie, hr, pos, esq, sc, scReferenced }), [options, workbookId, sy, ie, hr, pos, esq, sc, scReferenced]);
+  return useMemo<DaUpstream>(() => ({ options, workbookId, sy, ie, hr, pos, esq, sc, scReferenced, ...(unavailable.length === 0 ? {} : { unavailable }) }), [options, workbookId, sy, ie, hr, pos, esq, sc, scReferenced, unavailable]);
 }
 
 function DaWorkbookProvider({ data, editable, mutateDa, upstream = EMPTY_UPSTREAM, children }: {

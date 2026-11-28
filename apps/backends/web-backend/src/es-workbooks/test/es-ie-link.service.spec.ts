@@ -28,14 +28,14 @@ describe("EsIeLinkService", () => {
   let workbookModel: Record<string, jest.Mock>;
   let ieModel: Record<string, jest.Mock>;
   let projectsService: { resolveAccess: jest.Mock };
-  let rolesService: { resolveEffectiveRoles: jest.Mock };
+  let rolesService: { resolveEffectiveRoles: jest.Mock; canAuthor: jest.Mock };
 
   beforeEach(async () => {
     esModel = { findOne: jest.fn(), findOneAndUpdate: jest.fn() };
     workbookModel = { find: jest.fn(), findById: jest.fn() };
     ieModel = { findOne: jest.fn() };
     projectsService = { resolveAccess: jest.fn().mockResolvedValue({ doc: {}, role: "editor" }) };
-    rolesService = { resolveEffectiveRoles: jest.fn().mockResolvedValue(["preparer"]) };
+    rolesService = { resolveEffectiveRoles: jest.fn().mockResolvedValue(["preparer"]), canAuthor: jest.fn().mockResolvedValue(false) };
 
     const moduleRef = await Test.createTestingModule({
       providers: [

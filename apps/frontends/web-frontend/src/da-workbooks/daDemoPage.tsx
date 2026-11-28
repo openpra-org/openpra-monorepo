@@ -1,4 +1,4 @@
-import { JSX, useCallback, useEffect, useState } from "react";
+import { JSX, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { type DataAnalysis } from "interfaces-mef-types/da/data-analysis";
 import { type PRAConfigurationControl } from "interfaces-mef-types/cross-cutting/pra-configuration-control";
 import { type NewlyDevelopedMethod } from "interfaces-mef-types/cross-cutting/newly-developed-methods";
@@ -6,6 +6,7 @@ import { fetchJson } from "../api/client";
 import { DaWorkbench } from "./daWorkbench";
 import { DaWorkbookProvider, EMPTY_UPSTREAM, useDaUpstream, type DaWorkbookData } from "./daWorkbookContext";
 import { type DaPersona } from "./daViewData";
+import { daSavedOf, daViewOf } from "./daLinkedData";
 
 interface DaExampleResponse {
   slug: string;
@@ -44,22 +45,30 @@ function DaDemoPage(): JSX.Element {
   }, []);
 
   const upstream = useDaUpstream(data?.da, EMPTY_UPSTREAM.options);
+  const viewUpstream = useRef(upstream);
+  viewUpstream.current = upstream;
 
   const mutateDa = useCallback((mutator: (da: DataAnalysis) => DataAnalysis): void => {
-    setData((prev) => (prev === null ? prev : { ...prev, da: mutator(prev.da) }));
+    setData((prev) => {
+      if (prev === null) return prev;
+      const before = daViewOf(prev.da, viewUpstream.current);
+      return { ...prev, da: daSavedOf(mutator(before), before, viewUpstream.current) };
+    });
   }, []);
+
+  const viewData = useMemo<DaWorkbookData | null>(() => (data === null ? null : { ...data, da: daViewOf(data.da, upstream) }), [data, upstream]);
 
   if (error !== null) {
     return <div className="posw"><main className="posmain"><p className="pws-status pws-status--error">{error}</p></main></div>;
   }
-  if (data === null) {
+  if (data === null || viewData === null) {
     return <div className="posw"><main className="posmain"><p className="pws-status">Loading example workbook…</p></main></div>;
   }
 
   return (
-    <DaWorkbookProvider data={data} editable={persona === "preparer"} mutateDa={mutateDa} upstream={upstream}>
+    <DaWorkbookProvider data={viewData} editable={persona === "preparer"} mutateDa={mutateDa} upstream={upstream}>
       <DaWorkbench
-        data={data}
+        data={viewData}
         persona={persona}
         setPersona={setPersona}
         showPersonaPicker={true}

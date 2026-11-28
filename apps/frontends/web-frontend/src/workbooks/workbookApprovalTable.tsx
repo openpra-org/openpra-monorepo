@@ -1,6 +1,7 @@
 import { JSX, useEffect, useState } from "react";
+import { linkedRevisionChanged, type WorkbookLinkedRevisionStatus } from "interfaces-shared-types/workbooks";
 import { LockIcon } from "./reviewIcons";
-import { getWorkbookWorkflowStatus, type WorkbookSignoffRole, type WorkbookWorkflowStatus } from "./workbookReviewApi";
+import { getWorkbookLinkedRevisions, getWorkbookWorkflowStatus, type WorkbookSignoffRole, type WorkbookWorkflowStatus } from "./workbookReviewApi";
 import "./css/workbookApprovalTable.css";
 
 interface WorkbookApprovalTableProps {
@@ -49,6 +50,7 @@ function formatDate(iso: string | null): string {
 
 function WorkbookApprovalTable({ workbookId, refreshSignal }: WorkbookApprovalTableProps): JSX.Element {
   const [status, setStatus] = useState<WorkbookWorkflowStatus | null>(null);
+  const [linked, setLinked] = useState<WorkbookLinkedRevisionStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -56,6 +58,9 @@ function WorkbookApprovalTable({ workbookId, refreshSignal }: WorkbookApprovalTa
     getWorkbookWorkflowStatus(workbookId)
       .then((s) => { if (!cancelled) setStatus(s); })
       .catch((err: unknown) => { if (!cancelled) setError((err as { message?: string }).message ?? "Could not load workflow status"); });
+    getWorkbookLinkedRevisions(workbookId)
+      .then((next) => { if (!cancelled) setLinked(next); })
+      .catch(() => { if (!cancelled) setLinked(null); });
     return () => { cancelled = true; };
   }, [workbookId, refreshSignal]);
 
@@ -68,6 +73,7 @@ function WorkbookApprovalTable({ workbookId, refreshSignal }: WorkbookApprovalTa
 
   const rows = buildRows(status);
   const notStarted = status.workflowState === "DRAFT" || status.workflowState === "REVISION_REQUIRED";
+  const signedAgainst = linked?.signedAgainst ?? null;
 
   return (
     <div className="posapproval">
@@ -107,6 +113,30 @@ function WorkbookApprovalTable({ workbookId, refreshSignal }: WorkbookApprovalTa
           ))}
         </tbody>
       </table>
+      {linked !== null && signedAgainst !== null && signedAgainst.links.length > 0 && (
+        <div className="posapproval__linked">
+          <h3 className="posapproval__title">Linked workbooks at sign-off</h3>
+          {linked.outOfDate && <p className="posapproval__error" role="alert">Out of date since sign-off. A linked workbook changed after this workbook was signed, so it needs a new review.</p>}
+          <table className="posapproval__table" aria-label="Linked workbooks at sign-off">
+            <thead>
+              <tr>
+                <th>Linked workbook</th>
+                <th>Signed against</th>
+                <th>Now</th>
+              </tr>
+            </thead>
+            <tbody>
+              {signedAgainst.links.map((entry) => (
+                <tr key={entry.code}>
+                  <td>{`${entry.code} · ${entry.name}`}</td>
+                  <td>{entry.revision === undefined ? `As of ${formatDate(signedAgainst.recordedAt)}` : `Revision ${entry.revision}`}</td>
+                  <td>{linkedRevisionChanged(entry, linked.current) ? "Changed" : "Same"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
       {notStarted && (
         <p className="posapproval__hint">
           Signatures collect once the workbook is submitted for review. Current state: <strong>{status.workflowState}</strong>.

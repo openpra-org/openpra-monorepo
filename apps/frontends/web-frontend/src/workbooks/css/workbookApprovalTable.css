@@ -30,6 +30,14 @@
   font-size: 13px;
 }
 
+.posapproval__linked {
+  margin-top: 18px;
+}
+
+.posapproval__linked .posapproval__title {
+  margin-bottom: 10px;
+}
+
 .posapproval__hint {
   margin: 14px 0 0;
   color: var(--color-text-muted);

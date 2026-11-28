@@ -76,7 +76,7 @@ export class HrWorkbooksService {
   async patchMef(workbookId: string, patch: RevisionedWorkbookPatchBody, acting: ActingUser): Promise<HrWorkbookResponse> {
     const doc = await this.hrWorkbookModel.findOne({ workbookId }).exec();
     if (!doc) throw new NotFoundException("HR workbook not found");
-    const { role } = await this.projectsService.resolveAccess(doc.projectId, acting);
+    const { role } = await this.projectsService.resolveAccess(doc.projectId, acting, workbookId);
     if (role === "viewer") throw new ForbiddenException("You cannot edit this HR workbook");
     assertExpectedWorkbookRevision(doc, patch.expectedRevision);
     const current = HumanReliabilityAnalysisSchema.safeParse(stripNulls(doc.mef));

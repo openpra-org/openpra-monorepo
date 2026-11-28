@@ -3,6 +3,7 @@ import { JSX } from "react";
 import { RIIcon } from "./riIcons";
 import { useRiWorkbook } from "./riWorkbookContext";
 import { generateRiReport } from "./riDocx";
+import { useLinkedRevisionsReader } from "../workbooks/useLinkedRevisionsReader";
 import { RI_TOC, type CapabilityCategory } from "./riViewData";
 import { type CcScore } from "./riSelectors";
 import { AggregationNoteDrawer, CliffEdgeDrawer, InputConsequenceDrawer, InputContributorDrawer, InputFamilyDrawer, InputGapDrawer, InputImportanceDrawer, InputSequenceDrawer, MeasureDrawer, ScreenedItemDrawer, SensitivityStudyDrawer, SscAssignmentDrawer, UncertaintyAnalysisDrawer, UncertaintySourceDrawer, type RiDrawerContext } from "./riScreens";
@@ -14,6 +15,7 @@ function DraftScreen({ cc, scores, onSubmitDraft, canSubmit }: {
   canSubmit: boolean;
 }): JSX.Element {
   const { ri } = useRiWorkbook();
+  const readLinked = useLinkedRevisionsReader();
   const ready = scores.blocked === 0 && scores.warn === 0;
   const stage = ri.plantStage === "OPERATIONAL" ? "operational" : "pre_operational";
   function downloadJson(): void {
@@ -60,7 +62,7 @@ function DraftScreen({ cc, scores, onSubmitDraft, canSubmit }: {
           </p>
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {canSubmit && <button type="button" className="posnav__btn posnav__btn--primary" onClick={onSubmitDraft}><RIIcon.Send /> Submit draft to internal review</button>}
-            <button type="button" className="posnav__btn" onClick={() => { void generateRiReport(ri, false); }}><RIIcon.Download /> Download draft (.docx)</button>
+            <button type="button" className="posnav__btn" onClick={() => { void readLinked().then((linked) => generateRiReport(ri, false, linked)); }}><RIIcon.Download /> Download draft (.docx)</button>
             <button type="button" className="posnav__btn" onClick={downloadJson}><RIIcon.Download /> Download JSON</button>
           </div>
         </div>

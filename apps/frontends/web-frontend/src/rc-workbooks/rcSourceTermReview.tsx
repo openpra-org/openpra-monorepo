@@ -2,6 +2,7 @@ import { useId, useRef, useState, type JSX, type ReactNode } from "react";
 import type { ReleaseCategoryInputs } from "interfaces-mef-types/rc/radiological-consequence-analysis";
 import type { RcSourceTermValues } from "interfaces-mef-types/rc/source-term";
 import { RcSourceTermValuesSchema } from "interfaces-mef-types/zod/rc/source-term";
+import { rcSourceIsLinked } from "interfaces-shared-types/rc-workbooks/linked-data";
 import { WorkbookInput } from "../workbooks/commitOnDeactivateFields";
 import { useRcWorkbook } from "./rcWorkbookContext";
 import { RCIcon } from "./rcIcons";
@@ -28,7 +29,8 @@ const number = (value: string) => value.trim() === "" ? Number.NaN : Number(valu
 
 /** The approved Step 01 review layout, rendered only inside the MS interface. */
 export function RcSourceTermReview({ category, values, active, disabled, dirty, error, canSave, importControl, edit, onEnter, onSave, onDiscard, onError }: SourceReviewProps): JSX.Element {
-  const { editable, sourceTerms } = useRcWorkbook();
+  const { editable: workbookEditable, sourceTerms } = useRcWorkbook();
+  const editable = workbookEditable && !rcSourceIsLinked(category);
   const [tab, setTab] = useState<"inventory" | "releases">("releases");
   const [segment, setSegment] = useState(0);
   const [page, setPage] = useState(0);
@@ -68,7 +70,7 @@ export function RcSourceTermReview({ category, values, active, disabled, dirty, 
     <section className="st-source" aria-label="Source term file">
       <div className="st-source-info"><span className="st-label">{source?.msSource ? "Source term" : "Source term file"}</span>
         <strong>{source?.msSource ? `MS ${source.msSource.sourceTermId} · ${source.msSource.inventoryIds.join(", ")}` : source?.originalFile?.filename ?? (source ? "Manually entered source term" : "No source-term file")}</strong>
-        <span className="st-caption">{source?.msSource ? "Imported from the linked MS workbook" : ".inp · .txt · .dat"}</span>
+        <span className="st-caption">{source?.msSource ? "Linked MS workbook" : ".inp · .txt · .dat"}</span>
       </div>
       <div className="st-file-actions">{importControl}
         {source?.originalFile && <button type="button" className="posnav__btn posnav__btn--sm" disabled={!sourceTerms} onClick={() => {

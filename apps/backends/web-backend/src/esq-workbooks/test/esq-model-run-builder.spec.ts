@@ -342,7 +342,7 @@ describe("ESQ event tree run builder", () => {
     const da = createBlankDa("DA", "analyst");
     da.parameters = [{ uuid: P2, name: "Pump fails to start", parameterType: "PROBABILITY", quantificationModel: "DEMAND_PROBABILITY", estimate: live, implementsSrs: [] }];
     if (esq.model !== undefined) esq.model = withLiveDa(esq.model, da, DA);
-    expect(buildError(() => build(esq))).toBe(`E3 takes its value from DA parameter ${P3}, which the linked DA workbook does not hold. Import the model again in Step 02.`);
+    expect(buildError(() => build(esq))).toBe(`E3 takes its value from DA parameter ${P3}, which the linked DA workbook does not hold.`);
     if (esq.model !== undefined) esq.model.events = esq.model.events.filter((event) => event.id !== E3);
     const sy = systems();
     sy.systemLogicModels = sy.systemLogicModels.map((model) => (model.uuid === FT_A ? { ...model, leafNodes: model.leafNodes.filter((leaf) => leaf.id !== "a-e3"), gateInputs: model.gateInputs.filter((input) => input.childId !== "a-e3") } : model));
@@ -435,7 +435,7 @@ describe("ESQ event tree run builder", () => {
     expect(buildError(() => build(foreign))).toBe(`E1 reads ${P2} from a workbook that Step 01 does not link as DA or SC.`);
     const missing = workbook();
     missing.model?.events.splice(0, 1, { id: E1, code: "E1", name: "E1", heldBy: "TYPED", expression: parameter(P6) });
-    expect(buildError(() => build(missing))).toBe(`E1 reads DA parameter ${P6}, which the linked DA workbook does not hold. Import the model again in Step 02.`);
+    expect(buildError(() => build(missing))).toBe(`E1 reads DA parameter ${P6}, which the linked DA workbook does not hold.`);
     const unlinked = workbook();
     unlinked.linkedWorkbooks = {};
     expect(buildError(() => build(unlinked))).toBe("E2 takes its value from DA, but Step 01 links no DA workbook.");
@@ -529,7 +529,7 @@ describe("ESQ event tree run builder", () => {
     sy.systemBasicEvents.push(basicEvent("e4000000-0000-4000-8000-000000000004", "E4", { expression: point("PROBABILITY", 0.2) }));
     sy.systemLogicModels[0]?.leafNodes.push(eventLeaf("a-e4", "e4000000-0000-4000-8000-000000000004"));
     sy.systemLogicModels[0]?.gateInputs.push({ id: "ga:a-e4", gateId: "ga", childId: "a-e4", order: 3 });
-    expect(buildError(() => build(workbook(), AS_SET, sy))).toBe("The SY fault tree FT-A changed after the Step 02 import. Re-import the model in Step 02.");
+    expect(buildError(() => build(workbook(), AS_SET, sy))).toBe("The SY fault tree FT-A no longer matches the linked SY workbook.");
   });
 
   it("carries a common cause group into every fault tree catalogue when its members sit in different trees", () => {
@@ -564,10 +564,10 @@ describe("ESQ event tree run builder", () => {
     expect(table).toContainEqual(estimateOf(P3, RUN_ESTIMATE));
     const vector = pumpGroupWorkbook();
     if (vector.model !== undefined) vector.model.ccfGroups = [{ id: "ccf-pumps", name: "Pumps", systemIds: [], memberIds: [E1, E2], factors: { model: "ALPHA_FACTOR", testing: "STAGGERED", alphas: { node: "PARAMETER", reference: { referenceType: "WORKBOOK_PARAMETER", workbookId: DA, entityId: "CCF-1" } } }, total: point("PROBABILITY", 0.03) }];
-    expect(buildError(() => build(vector, AS_SET, withPumpGroup(systems())))).toBe("The common cause group Pumps takes its factors from CCF-1, which the Step 02 import does not hold. Import the model again.");
+    expect(buildError(() => build(vector, AS_SET, withPumpGroup(systems())))).toBe("The common cause group Pumps takes its factors from CCF-1, which the linked workbooks do not hold.");
     const bare = pumpGroupWorkbook();
     if (bare.model !== undefined) bare.model.ccfGroups = [{ id: "ccf-pumps", name: "Pumps", systemIds: [], memberIds: [E1, E2] }];
-    expect(buildError(() => build(bare, AS_SET, withPumpGroup(systems())))).toBe("The common cause group Pumps has no factors in the Step 02 import. Complete it in SY and import again.");
+    expect(buildError(() => build(bare, AS_SET, withPumpGroup(systems())))).toBe("The common cause group Pumps has no factors in the linked SY workbook. Complete it in SY.");
   });
 
   it("sends a linked alpha vector once in the vector table of every fault tree", () => {
@@ -587,7 +587,7 @@ describe("ESQ event tree run builder", () => {
     }
   });
 
-  it("reads a DA common cause factor scalar from the Step 02 import", () => {
+  it("reads a DA common cause factor scalar from the linked DA workbook", () => {
     const esq = pumpGroupWorkbook();
     const reference = { referenceType: "WORKBOOK_PARAMETER" as const, workbookId: DA, entityId: "ccff/SRC-21/EB-T7-36-BETAN-N2" };
     const factor = { reference, expression: point("FACTOR", 0.1) };
@@ -600,7 +600,7 @@ describe("ESQ event tree run builder", () => {
     const run = build(esq, AS_SET, withPumpGroup(systems()));
     expect(parametersOf(run, FT_A)).toContainEqual(factor);
     if (esq.model !== undefined) esq.model.ccfFactors = [];
-    expect(buildError(() => build(esq, AS_SET, withPumpGroup(systems())))).toBe("The common cause group Pumps reads DA parameter ccff/SRC-21/EB-T7-36-BETAN-N2, which the linked DA workbook does not hold. Import the model again in Step 02.");
+    expect(buildError(() => build(esq, AS_SET, withPumpGroup(systems())))).toBe("The common cause group Pumps reads DA parameter ccff/SRC-21/EB-T7-36-BETAN-N2, which the linked DA workbook does not hold.");
   });
 
   it("sends a binomial failure rate group without a total", () => {
@@ -669,7 +669,7 @@ describe("ESQ event tree run builder", () => {
 
   it("names what is missing before a run", () => {
     const blank = createBlankEsq("ESQ", "analyst");
-    expect(buildError(() => build(blank))).toBe("Import the model in Step 02 before running.");
+    expect(buildError(() => build(blank))).toBe("Link the ES and SY workbooks in Step 01 before running.");
     expect(buildError(() => buildEsqEventTreeRun({ esq: workbook(), treeId: "T2", sy: systems(), syWorkbookId: "sy-1", syRevision: 4, missionTimes: new Map(), esqWorkbookId: "esq-1", esqRevision: 7, logic: AS_SET, points: new Map() })))
       .toBe("ET-T2 is entered by transfer. Run the tree that transfers into it.");
     const unlinked = workbook();

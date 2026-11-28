@@ -185,6 +185,8 @@
 .ri-step .posfield__select { width: auto; align-self: flex-start; justify-self: start; padding-right: 26px; background-position: right 8px center; }
 .ri-link { display: flex; max-width: 420px; flex-direction: column; gap: 5px; }
 .ri-link .posfield__select { width: 100%; min-width: 0; }
+.ri-link-confirm { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; font-size: 13px; color: var(--color-text); }
+.ri-link-error { margin: 0; font-size: 12.5px; color: var(--color-error); }
 .ri-decision__fields { display: grid; grid-template-columns: repeat(2, minmax(0, 260px)); gap: 12px; margin-top: 16px; }
 .ri-decision__fields .posfield__select { max-width: 100%; }
 .ricriteria__set { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px; margin: 0 0 14px; font-size: 12.5px; color: var(--color-text); }
@@ -217,6 +219,7 @@
 .ri-rowtable__name:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
 .ri-rowtable__note { display: block; margin-top: 3px; font-size: 11.5px; color: var(--color-text-subtle); font-style: italic; }
 .ri-rowtable__tag { margin-left: 6px; font-size: 11px; color: var(--color-text-muted); }
+.ri-leftover__remove { margin-left: 8px; }
 .ri-rowtable__muted td { color: var(--color-text-muted); }
 .ri-rowtable__mono { font-family: var(--font-data), ui-monospace, monospace; font-size: 12px; }
 .ri-tone--muted { color: var(--color-text-muted); }

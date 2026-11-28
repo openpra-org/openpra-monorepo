@@ -36,6 +36,7 @@ import {
   type CcScore,
 } from "./esSelectors";
 import { generateEsReport } from "./esDocx";
+import { useLinkedRevisionsReader } from "../workbooks/useLinkedRevisionsReader";
 import { EsFaultTreeReferencePicker } from "./esFaultTreeReferencePicker";
 import { setFunctionalEventFaultTreeReference } from "./esFaultTreeReferences";
 import { ChoiceEditor, DialogHead, DialogShell } from "./EsScope";
@@ -1090,6 +1091,7 @@ function DraftScreen({ cc, scores, stage, onSubmitDraft, canSubmit }: {
   canSubmit: boolean;
 }): JSX.Element {
   const { es } = useEsWorkbook();
+  const readLinked = useLinkedRevisionsReader();
   const ready = scores.blocked === 0;
   function downloadJson(): void {
     const blob = new Blob([stringifyJson(es, 2)!], { type: "application/json" });
@@ -1161,7 +1163,7 @@ function DraftScreen({ cc, scores, stage, onSubmitDraft, canSubmit }: {
             {canSubmit && (
               <button type="button" className="posnav__btn posnav__btn--primary" onClick={() => onSubmitDraft(ready)}><ESIcon.Send /> Submit draft to internal review</button>
             )}
-            <button type="button" className="posnav__btn" onClick={() => { void generateEsReport(es, ready); }}><ESIcon.Download /> Download draft (.docx)</button>
+            <button type="button" className="posnav__btn" onClick={() => { void readLinked().then((linked) => generateEsReport(es, ready, linked)); }}><ESIcon.Download /> Download draft (.docx)</button>
             <button type="button" className="posnav__btn" onClick={downloadJson}><ESIcon.Download /> Download JSON</button>
           </div>
         </div>

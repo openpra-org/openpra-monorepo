@@ -103,7 +103,7 @@ function barrierUpstream(): EsqUpstream {
 
 function barrierStored(): EventSequenceQuantification {
   const esq = linkedEsq();
-  return withModelImported({ ...esq, linkedWorkbooks: { ...esq.linkedWorkbooks, SC: "sc-1" } }, barrierUpstream(), NOW);
+  return withModelImported({ ...esq, linkedWorkbooks: { ...esq.linkedWorkbooks, SC: "sc-1" } }, barrierUpstream());
 }
 
 function barrierEsq(): EventSequenceQuantification {

@@ -66,7 +66,7 @@ export class MsWorkbooksService {
   async patchMef(workbookId: string, operations: unknown, acting: ActingUser): Promise<MsWorkbookResponse> {
     const doc = await this.msWorkbookModel.findOne({ workbookId }).exec();
     if (!doc) throw new NotFoundException("MS workbook not found");
-    const { role } = await this.projectsService.resolveAccess(doc.projectId, acting);
+    const { role } = await this.projectsService.resolveAccess(doc.projectId, acting, workbookId);
     if (role === "viewer") throw new ForbiddenException("You cannot edit this MS workbook");
     const parsed = MechanisticSourceTermAnalysisSchema.safeParse(stripNulls(mergeWorkbookPatch(doc.mef, operations)));
     if (!parsed.success) {

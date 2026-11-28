@@ -21,7 +21,7 @@ import { useDaWorkbook } from "./daWorkbookContext";
 import { CCF_TESTING_LABELS, PRIOR_FORM_LABELS, SENSITIVITY_KIND_LABELS } from "./daViewData";
 import { AreaRow, EstimateRows, LinesRow, NEED_PAGE, NeedChecksTable, NeedPager, PraxisValue, estimateText, statText, waitNote, type DaDrawerContext } from "./daScreens";
 import { NumberInput, TextRow } from "./daSourcesScreen";
-import { FV_SIGNIFICANT, RAW_SIGNIFICANT, handoffView, importanceFindings, withImportanceFromEsq } from "./daHandoffs";
+import { FV_SIGNIFICANT, RAW_SIGNIFICANT, handoffView, importanceFindings } from "./daHandoffs";
 import { TypedValueRows, useText } from "./daUnavailabilityScreen";
 
 type UncertaintyTab = "distributions" | "correlation" | "register" | "sensitivity" | "assumptions" | "checks";
@@ -406,19 +406,12 @@ function ImportanceTable({ openDrawer }: { openDrawer: (ctx: DaDrawerContext) =>
 }
 
 function ImportanceCard({ openDrawer }: { openDrawer: (ctx: DaDrawerContext) => void }): JSX.Element {
-  const { upstream, editable, mutateDa } = useDaWorkbook();
-  function importSignificance(): void {
-    if (!editable) return;
-    const now = new Date().toISOString();
-    mutateDa((draft) => withImportanceFromEsq(draft, upstream, now));
-  }
   return (
     <div className="poscard">
       <div className="poscard__head">
         <WorkbookSectionHeading title="Importance" level={3} />
         <div className="da-card-actions">
           <DaProvenanceChip>DA-D1 · DA-D3</DaProvenanceChip>
-          {editable && upstream.esq !== undefined && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={importSignificance}>Import risk significance from ESQ</button>}
         </div>
       </div>
       <ImportanceTable openDrawer={openDrawer} />
